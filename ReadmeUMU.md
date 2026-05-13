@@ -1,159 +1,164 @@
+© GviCarvalho – This documentation is part of Elderlexicon and is licensed under CC BY-NC-ND 4.0. See LICENSE-DOCS.txt for details.
+
 📜 UMU — Universal Magical Unit
-Sistema de Consumo Energético do Elder Lexicon
+Elder Lexicon Energy Consumption System
 
-UMU (Universal Magical Unit) é a unidade padrão usada para medir, calcular e executar o custo de qualquer feitiço dentro do sistema Elder Lexicon.
+UMU (Universal Magical Unit) is the standard unit used to measure, calculate, and execute the cost of any spell within the Elder Lexicon system.
 
-Cada runa, ação, transformação ou efeito utiliza UMU como energia fundamental.
+Every rune, action, transformation, or effect uses UMU as fundamental energy.
 
-⚡ 1. Ordem de Consumo
+⚡ 1. Consumption Order
 
-Sempre que um feitiço exige UMU, o jogador paga nesta ordem fixa:
+Whenever a spell requires UMU, the player pays in this fixed order:
 
-XP (Experiência)
+XP (Experience)
 
-Saturação
+Saturation
 
-HP (Vida)
+HP (Health)
 
-Se todos acabarem, o feitiço falha.
+If all are depleted, the spell fails.
 
-🧪 2. Conversões de Recursos → UMU
+🧪 2. Resource → UMU Conversions
 
-Essas conversões seguem tua lógica oficial:
+These conversions follow your official logic:
 
 🎓 XP → UMU
 
-XP é o recurso primário de conjuração.
+XP is the primary conjuration resource.
 
-10 pontos de XP = 1 UMU
+10 XP points = 1 UMU
 
-Isso mantém coerência com o fluxo do jogo vanilla e facilita balanceamento.
+This maintains coherence with vanilla game flow and facilitates balancing.
 
-🍗 Saturação → UMU
+🍗 Saturation → UMU
 
-Saturação é energia corporal convertida em magia.
+Saturation is bodily energy converted into magic.
 
-1 ponto de saturação = 1 UMU
+1 saturation point = 1 UMU
 
-Saturação é menos valiosa que XP, mas funciona como reserva secundária.
-Permite usar magias simples mesmo sem XP.
+Saturation is less valuable than XP, but functions as a secondary reserve.
+Allows casting simple spells even without XP.
 
 ❤️ HP → UMU
 
-Vida é energia bruta.
-É o último recurso e o mais caro.
+Health is raw energy.
+It is the last resource and the most expensive.
 
-Tu pediu explicitamente:
+Vita is worth 5 UMU per HP point.
 
-Vita vale 4 UMU por ponto de HP.
+Thus:
 
-Então:
+1 HP point = 5 UMU
 
-1 ponto de HP = 4 UMU
+1 heart = 2 HP = 10 UMU
 
-1 coração = 2 HP = 8 UMU
+Default player: 20 HP = 100 UMU total (if willing to die casting)
 
-Jogador padrão: 20 HP = 80 UMU totais (se quiser se matar conjurando)
+HP is only used when XP and Saturation are depleted.
 
-HP só é usado quando XP e Saturação zeram.
+🔥 3. Base Rune Costs (non-fused)
 
-🔥 3. Custo das Runas Base (não-fundidas)
+Pulled directly from your technical documentation, with nothing invented.
 
-Agora puxando direto da tua documentação técnica, sem inventar nada.
+🜄 Sources
 
-🜄 Fontes (Sources)
+Sources have no fixed cost of their own — they cost the amount of UMU equivalent to what they are moving/converting.
 
-Fontes não têm custo fixo próprio — elas custam a quantidade de UMU equivalente ao que estão movendo/convertendo.
+Rune       | Meaning | Cost     | Notes
+-----------|---------|----------|-------
+aqua       | water   | variable | According to water quantity in Liters, where 0.5L = 1 UMU. A water bottle contains 0.5L, a cauldron contains 1.5L (3 UMU), same as a bucket and a water source block.
+aura       | air     | variable | Same principle, default is 1/psi
+igni       | fire    | variable | According to the light level of blocks/entities/particles/items that emit light through fire, where 1 UMU = 12 light emission levels
+firmo      | earth   | variable | According to block hardness, i.e., blast resistance 10 = 1 UMU. For reference, a dirt block has 0.5 BR (Blast resistance), while a stone block has 30 BR
+vis        | mana    | 1 UMU per mana point | Mana is the starting point itself. Important to remember that mana is composed of energy from all 4 primordial elements in perfect balance (25% igni, 25% aura, 25% aqua, 25% firmo).
+vita       | life    | 5 UMU per HP point | Important to remember that Vita is also the energy coming from the junction of the 4 primordial elements, but in specific quantities (56% aqua, 38% aura, 2% igni, and 4% firmo).
 
-Runa	Significado	Custo	Observação
-aqua	água	varia	de acordo com a quantidade de água em Litros, sendo 0,5L = 1 UMU. 1 garrafa d'agua contem 0,5L, um caldeirao contem 1,5L (3 UMU), assim como o balde e o bloco fonte de água.
-aura	ar	varia	idem, mas o padrao é 1/psi
-igni	fogo	varia	de acordo com o nível de luz de blocos/entidades/partículas/itens que emitem luz atravez do fogo, sendo 1 UMU = 12 níveis de emissao de luz
-firmo	terra	varia de acordo com a dureza do bloco, ou seja, resistencia a explosoes 10 = 1 UMU. Para ter nocao, um bloco de terra tem 0,5 BR (Blast resistance), já um bloco de pedra tem 30 BR
-vis	mana é o próprio ponto de partida, sendo 1 mana = 1 UMU. Importante lembrar que a mana é constituída da energia de todos os 4 elementos primordiais em perfeito equilibrio(25% de igni, 25% de aura, 25% de aqua, 25% de firmo).
-vita	vida	5 UMU por ponto de HP. Importante lembrar que Vita é também a energia proviniente da juncao dos 4 elementos primordiais, mas em quantidades específicas (56% aqua, 38% aura, 2% igni e 4% firmo).
+Sources are "raw material". The real cost comes from how much the function demands to manipulate.
 
-Fontes são “matéria-prima”. O custo real vem do quanto a função exige manipular.
+🜂 Functions
 
-🜂 Funções (Actions)
+These do have defined costs from the document, now organized here as base UMU:
 
-Essas sim têm custo definido pelo documento, e agora estão aqui organizadas como UMU base:
+Function   | Meaning            | Base Cost         | How to interpret
+-----------|--------------------|-------------------|-------------------
+exsugat    | absorb             | 0 UMU             | Cost occurs in transfer, not activation
+ligabis    | connect            | 0.1 UMU × time    | Continuous maintenance
+vertere    | convert            | UMU converted     | Transfers 1:1
+iactare    | evoke/project      | 1 UMU/s           | Cost flows during cast
+vocant     | invoke             | 1 UMU (lump sum)  | Instantaneous cost
+reframe    | resignify          | 5 UMU             | Fixed cost
+surgit     | conjure            | 1 UMU             | Fixed cost
+impediunt  | repel/contain      | UMU of the impulse| Thrust value defines cost
 
-Função	Significado	Custo Base	Como interpretar
-exsugat	absorver	0 UMU	custo ocorre na transferência, não na ativação
-ligabis	conectar	0.1 UMU × tempo	manutenção contínua
-vertere	converter	UMU convertido	transfere 1:1
-iactare	evocar/projetar	1 UMU/s	custo flui ao longo do cast
-vocant	invocar	1 UMU (lote)	custo instantâneo
-reframe	ressignificar	5 UMU	custo fixo
-surgit	conjurar	1 UMU	custo fixo
-impediunt	repelir/conter	UMU do impulso	o valor do empurrão define custo
-🜁 Filtros (Modifiers)
+🜁 Filters
 
-Filtros não têm custo próprio — eles custam exatamente o valor que modificam.
+Filters have no cost of their own — they cost exactly the value they modify.
 
-Filtro	Significado	Custo
-quantum	quantidade	valor modificado (em UMU)
-chronos	tempo	valor modificado (em segundos = UMU)
-ubis	alcance	valor modificado (em metros = UMU)
-📘 4. Exemplo de Cálculo de Custo
+Filter     | Meaning       | Cost
+-----------|---------------|--------------------------
+quantum    | quantity      | modified value (in UMU)
+chronos    | time          | modified value (in seconds = UMU)
+ubis       | range         | modified value (in meters = UMU)
 
-Feitiço linear:
+📘 4. Cost Calculation Example
+
+Linear spell:
 
 igni vertere aura iactare
 
 
-Cálculo:
+Calculation:
 
-igni → custo depende do fluxo (não é fixo)
+igni → cost depends on flow (not fixed)
 
-vertere → 1:1 (converte o fluxo da igni)
+vertere → 1:1 (converts the igni flow)
 
-aura → idem
+aura → same
 
-iactare → 1 UMU por segundo da projeção
+iactare → 1 UMU per second of projection
 
-Supondo fluxo de 3 UMU e duração do iactare de 2s:
+Assuming a flow of 3 UMU and iactare duration of 2s:
 
 igni: 3 UMU
 
 vertere: 3 UMU
 
-aura: 0 (fonte não tem custo fixo)
+aura: 0 (source has no fixed cost)
 
 iactare: 2 UMU
 
 Total: 8 UMU
 
-Se o jogador tem:
+If the player has:
 
-2 XP → gasta 2 UMU
+2 XP → spends 2 UMU
 
-4 saturação → gasta 4 UMU
+4 saturation → spends 4 UMU
 
-faltam 2 UMU → paga com HP → perde 0.5 coração
+remaining 2 UMU → pays with HP → loses 0.4 hearts
 
-📌 Resumo Final
-Conversão
+📌 Final Summary
+Conversion
 
 1 XP = 1 UMU
 
-1 saturação = 1 UMU
+1 saturation = 1 UMU
 
-1 HP = 4 UMU
+1 HP = 5 UMU
 
-Ordem
+Order
 
-XP → Saturação → HP
+XP → Saturation → HP
 
-Fontes
+Sources
 
-Custam a quantidade que estão manipulando.
+Cost the amount they are manipulating.
 
-Funções
+Functions
 
-Custo definido pela documentação.
+Cost defined by documentation.
 
-Filtros
+Filters
 
-Custo = o valor modificado.
+Cost = the modified value.
