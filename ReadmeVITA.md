@@ -1,37 +1,39 @@
-📘 README – Sistema de Pontos de Vida (HP) como Energia Elemental (UMU)
+© GviCarvalho – This documentation is part of Elderlexicon and is licensed under CC BY-NC-ND 4.0. See LICENSE-DOCS.txt for details.
+
+📘 README – Health Points (HP) System as Elemental Energy (UMU)
 Elder Lexicon – Core Magical Physiology
 
-Este documento explica como Pontos de Vida (HP) funcionam dentro do sistema Elder Lexicon, como eles se convertem em UMU, e como a Vida é composta internamente pelos quatro elementos primários.
+This document explains how Health Points (HP) work within the Elder Lexicon system, how they convert into UMU, and how Life is internally composed of the four primary elements.
 
-Este arquivo serve para orientar a implementação de mecânicas internas do mod, como:
+This file serves to guide the implementation of the mod's internal mechanics, such as:
 
-drenagem elemental,
+elemental draining,
 
-desequilíbrios fisiológicos,
+physiological imbalances,
 
-efeitos colaterais,
+side effects,
 
-armazenamento interno de energia,
+internal energy storage,
 
-manipulação avançada de Vita.
+advanced manipulation of Vita.
 
-🧬 1. Vida como Energia Elemental
+🧬 1. Life as Elemental Energy
 
-No sistema Elder Lexicon, “Vida” (Vita) não é um elemento próprio, mas sim uma mistura desequilibrada dos quatro elementos primários:
+In the Elder Lexicon system, "Life" (Vita) is not an element in itself, but an unbalanced mixture of the four primary elements:
 
-Aqua (Água)
+Aqua (Water)
 
-Aura (Ar)
+Aura (Air)
 
-Igni (Fogo)
+Igni (Fire)
 
-Firmo (Terra)
+Firmo (Earth)
 
-A composição da Vida determina tanto a energia total que o corpo possui quanto as consequências naturais de desequilíbrios.
+The composition of Life determines both the total energy the body possesses and the natural consequences of imbalances.
 
-📊 2. Composição Elemental da Vida
+📊 2. Elemental Composition of Life
 
-A Vida é composta por:
+Life is composed of:
 
 56% Aqua
 
@@ -41,86 +43,87 @@ A Vida é composta por:
 
 4% Firmo
 
-Esses valores foram arredondados a partir do sistema original, mantendo o mesmo comportamento fisiológico.
+These values were rounded from the original system, maintaining the same physiological behavior.
 
-Soma total = 100%
+Total sum = 100%
 
-❤️ 3. Quantidade Total de UMU em Vida (20 HP)
+❤️ 3. Total Amount of UMU in Life (20 HP)
 
-O jogador padrão do Minecraft possui:
+The default Minecraft player has:
 
-20 HP (10 corações)
+20 HP (10 hearts)
 
-No Elder Lexicon:
+In Elder Lexicon:
 
-20 HP equivalem exatamente a 100 UMU de “Vida Elemental”.
+20 HP equals exactly 100 UMU of "Elemental Life".
 
-Assim, cada ponto de HP representa:
+Thus, each HP point represents:
 
 1 HP = 5 UMU
 
-1 coração (2 HP) = 10 UMU
+1 heart (2 HP) = 10 UMU
 
 20 HP = 100 UMU
 
-🔥 4. Distribuição dos 100 UMU de Vida
+🔥 4. Distribution of the 100 UMU of Life
 
-Dado o total de 100 UMU:
+Given the total of 100 UMU:
 
-Elemento	Percentual	UMU resultante
-Aqua	56%	56 UMU
-Aura	38%	38 UMU
-Igni	2%	2 UMU
-Firmo	4%	4 UMU
+Element | Percentage | Resulting UMU
+--------|------------|---------------
+Aqua    | 56%        | 56 UMU
+Aura    | 38%        | 38 UMU
+Igni    | 2%         | 2 UMU
+Firmo   | 4%         | 4 UMU
 
-Esses valores representam a energia elemental interna do corpo vivo.
-Eles podem ser drenados, aumentados, desequilibrados ou manipulados por feitiços.
+These values represent the internal elemental energy of the living body.
+They can be drained, increased, unbalanced, or manipulated by spells.
 
-⚠️ 5. Consequências de Excesso ou Escassez
+⚠️ 5. Consequences of Excess or Scarcity
 
-Cada elemento possui efeitos naturais quando excede ou abaixa do nível normal.
+Each element has natural effects when exceeding or dropping below the normal level.
 
-Esses efeitos não são implementados automaticamente pelo sistema básico, mas a tabela a seguir orienta a implementação futura:
+These effects are not automatically implemented by the basic system, but the following table guides future implementation:
 
 Aqua
 
-Excesso: Náusea
+Excess: Nausea
 
-Escassez: Lentidão
+Scarcity: Slowness
 
 Aura
 
-Excesso: Cegueira
+Excess: Blindness
 
-Escassez: Dano de Afogamento (sensação de sufocamento)
+Scarcity: Drowning damage (suffocation sensation)
 
 Igni
 
-Excesso: Combustão (jogador pega fogo)
+Excess: Combustion (player catches fire)
 
-Escassez: Dano por frio
+Scarcity: Cold damage
 
 Firmo
 
-Excesso: Lentidão + Náusea
+Excess: Slowness + Nausea
 
-Escassez: Fome rápida
+Scarcity: Rapid hunger
 
-Essa fisiologia elemental permite construir feitiços que:
+This elemental physiology allows building spells that:
 
-drenam elementos específicos,
+drain specific elements,
 
-reforçam elementos,
+reinforce elements,
 
-reequilibram o corpo,
+rebalance the body,
 
-causam colapsos ou mutações,
+cause collapses or mutations,
 
-ou permitem “transmutação de Vida”.
+or allow "transmutation of Life".
 
-🧠 6. Relação com Mana (Vis)
+🧠 6. Relation to Mana (Vis)
 
-Mana é definida como equilíbrio perfeito dos quatro elementos primários:
+Mana is defined as the perfect balance of the four primary elements:
 
 25% Aqua
 
@@ -130,32 +133,32 @@ Mana é definida como equilíbrio perfeito dos quatro elementos primários:
 
 25% Firmo
 
-Assim:
+Thus:
 
-Vida ≠ Mana
+Life ≠ Mana
 
-Vida é um estado desequilibrado (rica em Aqua e Aura, pobre em Igni e Firmo)
+Life is an unbalanced state (rich in Aqua and Aura, poor in Igni and Firmo)
 
-Isso explica por que:
+This explains why:
 
-drenar Vida não gera Mana pura,
+draining Life does not generate pure Mana,
 
-converter Vida em Mana exige processamento mágico,
+converting Life into Mana requires magical processing,
 
-feitiços que manipulam Vita carregam risco.
+spells that manipulate Vita carry risk.
 
-🎯 7. Objetivo Técnico
+🎯 7. Technical Goal
 
-Este documento permite que o Codex implemente:
+This document allows the Codex to implement:
 
-armazenamento de UMU interno no jogador,
+internal UMU storage in the player,
 
-acesso aos valores elementais da Vida,
+access to the elemental values of Life,
 
-feitiços que drenam ou reforçam elementos específicos,
+spells that drain or reinforce specific elements,
 
-estados negativos ligados a desequilíbrios,
+negative states linked to imbalances,
 
-mecânicas de conversão entre Vida e magia,
+conversion mechanics between Life and magic,
 
-sistema futuro de “fisiologia arcana”.
+future "arcane physiology" system.
