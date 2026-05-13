@@ -1,4 +1,11 @@
 {
+  "_comment": "© GviCarvalho – Rune structure is part of Elderlexicon documentation and is licensed under CC BY-NC-ND 4.0. See LICENSE-DOCS.txt.",
+  "runes": [
+    ...
+  ]
+}
+
+{
   "firmo": { "type": "source", "translation": "earth" },
   "aqua": { "type": "source", "translation": "water" },
   "aura": { "type": "source", "translation": "air" },
