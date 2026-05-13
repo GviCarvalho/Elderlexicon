@@ -1,3 +1,5 @@
+© GviCarvalho – This documentation is part of Elderlexicon and is licensed under CC BY-NC-ND 4.0. See LICENSE-DOCS.txt for details.
+
 # Elder Lexicon
 
 Elder Lexicon is a magic system / mod toolkit that implements an elemental-energy economy (UMU — Universal Magical Unit) and an internal "Vita" (life-as-energy) model for use in gameplay and mod mechanics.
