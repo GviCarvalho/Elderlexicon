@@ -10,6 +10,8 @@ import com.elderlexicon.mod.spell.action.SpellActionExecutor;
 import com.elderlexicon.mod.spell.action.SpellActionResult;
 import com.elderlexicon.mod.spell.action.SpellCostProcessor;
 import com.elderlexicon.mod.spell.registry.SpellModuleRegistry;
+import com.elderlexicon.mod.spell.scene.SceneRunner;
+import com.elderlexicon.mod.spell.scene.SpellScene;
 import com.elderlexicon.mod.vita.VitaElement;
 import com.elderlexicon.mod.vita.VitaScoreboardManager;
 import com.elderlexicon.mod.vita.VitaSystem;
@@ -37,6 +39,8 @@ public final class SpellCastingService {
     private static final double EPSILON = 1.0E-4D;
     /** Server ticks per block position (matches the Iactare channel step). */
     public static final int STEP_TICKS = 5;
+    /** How long after the last release the scene keeps watching for interactions (Iactare 40 + Vocant 20 + 20 + margin). */
+    private static final int SCENE_TAIL_TICKS = 100;
 
     private final SpellActionEngine actionEngine;
     private final SpellActionExecutor actionExecutor;
@@ -57,6 +61,11 @@ public final class SpellCastingService {
     }
 
     public Result cast(ServerPlayer player, List<String> rawLexemes) {
+        return cast(player, rawLexemes, null);
+    }
+
+    /** @param scene shared stage of the block this spell belongs to; {@code null} gives it a private one */
+    public Result cast(ServerPlayer player, List<String> rawLexemes, SpellScene scene) {
         Objects.requireNonNull(player, "player");
         List<String> lexemes = sanitizeLexemes(rawLexemes);
         if (lexemes.isEmpty()) {
@@ -120,6 +129,7 @@ public final class SpellCastingService {
                 totalCost,
                 actions,
                 actionResult.vertereRequests());
+        context.attachScene(scene);
 
         actionExecutor.execute(context, actions);
         UmuLeakHandler.handleLeaks(context, actions);
@@ -186,12 +196,13 @@ public final class SpellCastingService {
             }
         }
 
+        SpellScene scene = new SpellScene();
         int baseDelay = spells.stream().mapToInt(TimedSpell::delaySteps).min().orElse(0);
         List<Result> immediate = new ArrayList<>();
         for (TimedSpell spell : spells) {
             int delayTicks = (spell.delaySteps() - baseDelay) * STEP_TICKS;
             if (delayTicks <= 0) {
-                immediate.add(cast(player, spell.lexemes()));
+                immediate.add(cast(player, spell.lexemes(), scene));
                 continue;
             }
             scheduleLater(player, delayTicks, () -> {
@@ -199,7 +210,7 @@ public final class SpellCastingService {
                     return;
                 }
                 try {
-                    Result result = cast(player, spell.lexemes());
+                    Result result = cast(player, spell.lexemes(), scene);
                     if (delayedSink != null) {
                         delayedSink.accept(result);
                     }
@@ -208,6 +219,8 @@ public final class SpellCastingService {
                 }
             });
         }
+        int lastDelayTicks = (spells.stream().mapToInt(TimedSpell::delaySteps).max().orElse(0) - baseDelay) * STEP_TICKS;
+        SceneRunner.start(player, scene, lastDelayTicks + SCENE_TAIL_TICKS);
         return mergeSimultaneous(immediate, spells.size());
     }
 

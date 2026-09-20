@@ -9,6 +9,7 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
 
     private static final double RANGE = 12.0D;
     private static final int SUMMON_DELAY_TICKS = 20; // 1 second delay
+    private static final int LINGER_TICKS = 20;
 
     @Override
     public void execute(SpellContext context, VitaElement element) {
@@ -24,6 +25,7 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
             }
             SpellEffects.SpellImpact impact = SpellEffects.findImpact(player, RANGE);
             SpellEffects.spawnSummonEffect(player, element, context.elementRuneId(), impact);
+            EmissionRecorder.pointAt(context, element, impact.location(), EmissionRecorder.DEFAULT_QUANTITY_UMU, LINGER_TICKS);
             SpellEffects.applyElementEffect(player, element, context.elementRuneId(), impact);
         });
     }

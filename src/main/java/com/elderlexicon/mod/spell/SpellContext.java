@@ -2,6 +2,7 @@ package com.elderlexicon.mod.spell;
 
 import com.elderlexicon.mod.parser.Parser;
 import com.elderlexicon.mod.spell.action.SpellAction;
+import com.elderlexicon.mod.spell.scene.SpellScene;
 import com.elderlexicon.mod.spell.vertere.VertereRequest;
 import com.elderlexicon.mod.vita.VitaElement;
 import com.elderlexicon.mod.vita.VitaSystem;
@@ -30,6 +31,8 @@ public final class SpellContext {
     private double totalCost;
     private double environmentalContribution;
     private double payableCost;
+    private SpellScene scene = new SpellScene();
+    private int sceneSpellId = scene.registerSpell();
 
     public SpellContext(ServerPlayer player,
                         List<String> lexemes,
@@ -55,6 +58,25 @@ public final class SpellContext {
 
     public ServerPlayer player() {
         return player;
+    }
+
+    /** Stage shared with the other spells released by the same cast. */
+    public SpellScene scene() {
+        return scene;
+    }
+
+    /** Identifies this spell inside {@link #scene()}. */
+    public int sceneSpellId() {
+        return sceneSpellId;
+    }
+
+    /** Joins this spell to the scene of its block, replacing the private one it starts with. */
+    public void attachScene(SpellScene sharedScene) {
+        if (sharedScene == null) {
+            return;
+        }
+        this.scene = sharedScene;
+        this.sceneSpellId = sharedScene.registerSpell();
     }
 
     public List<String> lexemes() {

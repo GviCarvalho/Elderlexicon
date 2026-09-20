@@ -10,6 +10,8 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
     private static final double RANGE = 20.0D;
     private static final int CAST_DURATION_TICKS = 40; // 2 seconds default channel
     private static final int CAST_STEP_TICKS = 5;
+    private static final int PULSES = CAST_DURATION_TICKS / CAST_STEP_TICKS + 1;
+    private static final double BEAM_LENGTH = 8.0D; // matches the drawn projectile (16 segments x 0.5)
 
     @Override
     public void execute(SpellContext context, VitaElement element) {
@@ -26,6 +28,8 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
                         return;
                     }
                     SpellEffects.spawnProjectile(player, element, context.elementRuneId());
+                    EmissionRecorder.beamFromCaster(context, element, BEAM_LENGTH,
+                            EmissionRecorder.DEFAULT_QUANTITY_UMU / PULSES, CAST_STEP_TICKS);
                 });
             }
 
