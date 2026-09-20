@@ -1,0 +1,7 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "elderlexicon:item/life_compass_base",
+    "layer1": "elderlexicon:item/life_compass_border"
+  }
+}

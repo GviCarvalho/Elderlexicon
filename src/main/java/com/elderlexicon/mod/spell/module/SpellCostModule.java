@@ -6,12 +6,20 @@ import com.elderlexicon.mod.spell.SpellModule;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.food.FoodData;
 
-import java.util.Objects;
-
 public final class SpellCostModule implements SpellModule {
 
     private static final double EPSILON = 1.0E-4D;
     private static final String SATURATION_FRACTION_TAG = ExampleMod.MODID + "_umusatfraction";
+    private static final double OVERFLOW_PAYMENT_RATIO = 0.10D;
+    private final VitaGateway vita;
+
+    public SpellCostModule() {
+        this(new DefaultVitaGateway());
+    }
+
+    SpellCostModule(VitaGateway vita) {
+        this.vita = vita;
+    }
 
     @Override
     public void apply(SpellContext context) {
@@ -27,7 +35,7 @@ public final class SpellCostModule implements SpellModule {
             return;
         }
 
-        double remaining = consumeElementReserve(player, element, umuCost);
+        double remaining = settleElementalCost(vita, player, element, umuCost);
         if (remaining <= EPSILON) {
             return;
         }
@@ -43,24 +51,34 @@ public final class SpellCostModule implements SpellModule {
         if (hpDamage <= EPSILON) {
             return;
         }
-        com.elderlexicon.mod.vita.VitaSystem.consumeLifeEnergy(player, hpDamage, element);
+        vita.consumeLifeEnergy(player, hpDamage, element);
     }
 
-    private double consumeElementReserve(ServerPlayer player, com.elderlexicon.mod.vita.VitaElement element, double umuCost) {
-        if (player == null || umuCost <= EPSILON) {
+    static double settleElementalCost(VitaGateway vita,
+                                      ServerPlayer player,
+                                      com.elderlexicon.mod.vita.VitaElement element,
+                                      double umuCost) {
+        return consumeElementOverflow(vita, player, element, umuCost);
+    }
+
+    private static double consumeElementOverflow(VitaGateway vita,
+                                                 ServerPlayer player,
+                                                 com.elderlexicon.mod.vita.VitaElement element,
+                                                 double umuCost) {
+        if (umuCost <= EPSILON) {
             return umuCost;
         }
         com.elderlexicon.mod.vita.VitaElement target = element == null ? com.elderlexicon.mod.vita.VitaElement.BALANCED : element;
         if (target.isBalanced()) {
             return umuCost;
         }
-        double available = com.elderlexicon.mod.vita.VitaSystem.getLifeEnergy(player, target);
-        if (available <= EPSILON) {
+        double requested = Math.min(umuCost, umuCost * OVERFLOW_PAYMENT_RATIO);
+        if (requested <= EPSILON) {
             return umuCost;
         }
-        double spent = Math.min(available, umuCost);
-        com.elderlexicon.mod.vita.VitaSystem.consumeElementReserve(player, target, spent);
-        return Math.max(0.0D, umuCost - spent);
+        double leftover = vita.consumeElementExcess(player, target, requested);
+        double paid = requested - leftover;
+        return Math.max(0.0D, umuCost - paid);
     }
 
     private double drainExperience(ServerPlayer player, double umuCost) {
@@ -119,5 +137,24 @@ public final class SpellCostModule implements SpellModule {
         }
 
         return Math.max(0.0D, umuCost - paid);
+    }
+
+    interface VitaGateway {
+        double consumeElementExcess(ServerPlayer player, com.elderlexicon.mod.vita.VitaElement element, double umuAmount);
+
+        void consumeLifeEnergy(ServerPlayer player, float hpDamage, com.elderlexicon.mod.vita.VitaElement element);
+    }
+
+    private static final class DefaultVitaGateway implements VitaGateway {
+
+        @Override
+        public double consumeElementExcess(ServerPlayer player, com.elderlexicon.mod.vita.VitaElement element, double umuAmount) {
+            return com.elderlexicon.mod.vita.VitaSystem.consumeElementExcess(player, element, umuAmount);
+        }
+
+        @Override
+        public void consumeLifeEnergy(ServerPlayer player, float hpDamage, com.elderlexicon.mod.vita.VitaElement element) {
+            com.elderlexicon.mod.vita.VitaSystem.consumeLifeEnergy(player, hpDamage, element);
+        }
     }
 }

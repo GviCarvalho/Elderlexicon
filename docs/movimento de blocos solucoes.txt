@@ -1,0 +1,137 @@
+Boa pergunta, porque à primeira vista parece magia mesmo, né? Mas no fundo é tudo gambiarra chique. 😄
+Vamos por partes:
+
+🛠️ Create: os “blocos que andam” não são blocos
+
+No Create, quase tudo que “anda” (trens, plataformas, máquinas móveis, etc.) funciona assim, em termos gerais:
+
+Você monta uma estrutura de blocos parada no mundo (tipo um trem, um elevador, uma ponte).
+
+Quando algo ativa (glue, bearing, contraption, etc.), o mod:
+
+escaneia a estrutura de blocos conectados;
+
+salva esses blocos numa estrutura de dados (lista de BlockState + posições relativas);
+
+remove os blocos do mundo;
+
+cria uma entidade gigante (um ContraptionEntity da vida) que:
+
+sabe desenhar essa estrutura como se ainda fosse feita de blocos;
+
+tem posição, rotação, movimento, colisão, tudo como uma entidade.
+
+Enquanto a máquina está se movendo:
+
+no mundo, aqueles blocos não existem mais como blocos de verdade;
+
+o que você vê é uma entidade renderizando um “modelo de bloco gigante”, andando por aí;
+
+a física de player/entidade interagindo com aquilo é calculada com bounding boxes customizados dessa entidade.
+
+Quando a plataforma “para” ou “ancora” de novo:
+
+o mod pega a posição atual da entidade;
+
+recria os blocos no mundo com base na lista salva;
+
+remove a entidade.
+
+👉 Em resumo:
+Create não move blocos. Ele converte blocos em uma entidade móvel, depois reconverte.
+
+Isso resolve vários problemas:
+
+o motor do Minecraft não foi feito pra bloco ficar mudando de posição todo tick;
+
+entidade já tem lógica pronta de movimento, interpolação, rede, etc.;
+
+dá pra fazer rotação, translação suave, trem, engrenagem gigante, tudo sem quebrar o jogo.
+
+🔮 Ars Nouveau: “bloco móvel” também costuma ser ilusão
+
+No Ars Nouveau, depende do que tu tá chamando de “bloco que se move”:
+
+Muita coisa “mágica” visual é:
+
+animação de modelo ou
+
+renderização customizada numa BlockEntity
+(tipo cristal girando, livro rodando, partículas, etc.)
+
+Quando rola “transporte de bloco” ou “construção automática”:
+
+em geral eles fazem o que eu descrevi antes: copiar BlockState/BlockEntity de um lugar e recriar em outro;
+
+a “animação no meio do caminho” costuma ser entidade ou partículas, não o bloco real viajando.
+
+O padrão de design é o mesmo:
+
+Sempre que você vê algo liso se movendo com aparência de bloco, a chance é enorme de ser entidade com cara de bloco, não blockState real deslocando.
+
+🧩 O que isso significa pra o que tu tá tentando fazer
+
+O que tu comentou antes:
+
+“vincular movimento de um bloco ao outro”
+“fazer o bloco se mover como eu”
+
+Se tu quiser algo no nível de Create/Ars Nouveau, a abordagem “correta” estilo esses mods seria:
+
+1. Pra movimento suave e complexo
+
+Criar uma entidade própria (tipo MovingBlockEntity, Contraption, sei lá):
+
+ela guarda uma lista de blocos + posições relativas (mesmo se for só 1 bloco);
+
+renderiza esses blocos onde a entidade estiver;
+
+tem lógica de tick() pra seguir player, seguir outro bloco, girar etc.
+
+Enquanto estiver em modo “móvel”:
+
+não existe bloco de verdade no mundo naquela posição — só a entidade.
+
+Quando “fixar”:
+
+destrói a entidade,
+
+recria os blocos no mundo na posição final.
+
+Isso é literalmente o que Create faz, só que em escala hard.
+
+2. Se tu quer só “teleportar” em grid (sem animação bonitinha)
+
+Aí dá pra ficar no esquema:
+
+moveBlock(level, from, to) (setar novo BlockState + copiar BlockEntity + apagar o antigo);
+
+fazer isso baseado no delta de player / bloco controlador.
+
+Mas se tu tentar:
+
+mover bloco todo tick com setBlock e companhia,
+
+ainda por cima com rotações ou offsets complicados,
+
+vai ficar pesado, bugado ou visualmente esquisito.
+Aí entra justamente o porquê mods grandes migram pra entidades contraption.
+
+🧠 Resumindo o segredo da galera grande
+
+Create:
+Blocos “em movimento” = entidade contraption que carrega blocos na memória, anda, interage e depois vira bloco de novo quando para.
+
+Ars Nouveau e afins:
+
+Movimento “bonito” = animação/modelo/partículas em BlockEntity ou entidade;
+
+Teleporte/colocação de bloco = copiar/apagar/criar blockStates + BlockEntities.
+
+Se tu quiser, no próximo passo a gente pode desenhar juntos um mini-sistema de “contraptionzinha” pro teu mod:
+
+versão simples: 1 bloco só seguindo o player como entidade flutuante;
+
+versão intermediária: estrutura 3×3 que se junta e vira plataforma móvel;
+
+tudo já pensando em 1.20.1 e no que tu já tá mexendo pro Ars Nouveau modificado.

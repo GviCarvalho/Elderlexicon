@@ -1,0 +1,16 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:water",
+    "minecraft:bubble_column",
+    "minecraft:ice",
+    "minecraft:packed_ice",
+    "minecraft:blue_ice",
+    "minecraft:kelp",
+    "minecraft:kelp_plant",
+    "minecraft:seagrass",
+    "minecraft:tall_seagrass",
+    "minecraft:sea_pickle",
+    "minecraft:conduit"
+  ]
+}

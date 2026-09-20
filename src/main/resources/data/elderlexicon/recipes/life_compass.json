@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "GCG",
+    "ASA",
+    "GSG"
+  ],
+  "key": {
+    "G": { "item": "minecraft:gold_ingot" },
+    "C": { "item": "minecraft:compass" },
+    "A": { "item": "minecraft:amethyst_shard" },
+    "S": { "item": "minecraft:spyglass" }
+  },
+  "result": {
+    "item": "elderlexicon:life_compass"
+  }
+}

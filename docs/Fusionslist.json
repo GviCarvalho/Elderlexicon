@@ -1,0 +1,162 @@
+{
+  "elemental_fusions": {
+    "fusus": {
+      "type": "source",
+      "translation": "magma",
+      "origin": "fusion",
+      "fusionOf": ["igni", "firmo"]
+    },
+    "caligo": {
+      "type": "source",
+      "translation": "steam",
+      "origin": "fusion",
+      "fusionOf": ["aqua", "igni"]
+    },
+    "lutum": {
+      "type": "source",
+      "translation": "mud",
+      "origin": "fusion",
+      "fusionOf": ["aqua", "firmo"]
+    },
+    "pulvis": {
+      "type": "source",
+      "translation": "dust",
+      "origin": "fusion",
+      "fusionOf": ["aura", "firmo"]
+    },
+    "nebula": {
+      "type": "source",
+      "translation": "mist",
+      "origin": "fusion",
+      "fusionOf": ["aura", "aqua"]
+    },
+    "fulmen": {
+      "type": "source",
+      "translation": "lightning",
+      "origin": "fusion",
+      "fusionOf": ["aura", "igni"]
+    }
+  },
+
+  "function_fusions": {
+    "transiectio": {
+      "type": "function",
+      "translation": "transition",
+      "origin": "fusion",
+      "fusionOf": ["vertere", "iactare"]
+    },
+    "aversio": {
+      "type": "function",
+      "translation": "repultion",
+      "origin": "fusion",
+      "fusionOf": ["vertere", "impediunt"]
+    },
+    "cohaesio": {
+      "type": "function",
+      "translation": "fuse",
+      "origin": "fusion",
+      "fusionOf": ["vertere", "ligabis"]
+    },
+    "exhaustio": {
+      "type": "function",
+      "translation": "exhaust",
+      "origin": "fusion",
+      "fusionOf": ["vertere", "exsugat"]
+    },
+    "transvocatio": {
+      "type": "function",
+      "translation": "transfer",
+      "origin": "fusion",
+      "fusionOf": ["vertere", "vocant"]
+    },
+
+    "deflectio": {
+      "type": "function",
+      "translation": "deflect",
+      "origin": "fusion",
+      "fusionOf": ["iactare", "impediunt"]
+    },
+    "vinculatio": {
+      "type": "function",
+      "translation": "spellbind",
+      "origin": "fusion",
+      "fusionOf": ["iactare", "ligabis"]
+    },
+    "exsuctio": {
+      "type": "function",
+      "translation": "channel",
+      "origin": "fusion",
+      "fusionOf": ["iactare", "exsugat"]
+    },
+    "evocatio": {
+      "type": "function",
+      "translation": "conjure",
+      "origin": "fusion",
+      "fusionOf": ["iactare", "vocant"]
+    },
+
+    "compeditio": {
+      "type": "function",
+      "translation": "tether",
+      "origin": "fusion",
+      "fusionOf": ["impediunt", "ligabis"]
+    },
+    "exinanitio": {
+      "type": "function",
+      "translation": "leech",
+      "origin": "fusion",
+      "fusionOf": ["impediunt", "exsugat"]
+    },
+    "coniuratio": {
+      "type": "function",
+      "translation": "conspire",
+      "origin": "fusion",
+      "fusionOf": ["ligabis", "vocant"]
+    },
+    "extractio": {
+      "type": "function",
+      "translation": "converge",
+      "origin": "fusion",
+      "fusionOf": ["exsugat", "vocant"]
+    }
+  },
+
+  "shape_runes": {
+    "vortex": {
+      "type": "shape",
+      "translation": "vortex",
+      "origin": "fusion",
+      "fusionOf": ["vertere", "source"]
+    },
+    "hasta": {
+      "type": "shape",
+      "translation": "spear",
+      "origin": "fusion",
+      "fusionOf": ["iactare", "source"]
+    },
+    "murus": {
+      "type": "shape",
+      "translation": "wall",
+      "origin": "fusion",
+      "fusionOf": ["impediunt", "source"]
+    },
+    "catena": {
+      "type": "shape",
+      "translation": "chain",
+      "origin": "fusion",
+      "fusionOf": ["ligabis", "source"]
+    },
+    "orbis": {
+      "type": "shape",
+      "translation": "orb",
+      "origin": "fusion",
+      "fusionOf": ["exsugat", "source"]
+    },
+    "sigillum": {
+      "type": "shape",
+      "translation": "sigil",
+      "origin": "fusion",
+      "fusionOf": ["vocant", "source"]
+    }
+  }
+}

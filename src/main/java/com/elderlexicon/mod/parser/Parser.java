@@ -2,13 +2,15 @@ package com.elderlexicon.mod.parser;
 
 import com.elderlexicon.mod.parser.ParserDictionary.RuneDefinition;
 import com.elderlexicon.mod.parser.ParserDictionary.RuneType;
+import com.elderlexicon.mod.spell.action.SpellAction;
+import com.elderlexicon.mod.spell.action.SpellActionType;
+import com.elderlexicon.mod.vita.VitaElement;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Simple baseline parser that understands slash-prefixed commands.
@@ -49,27 +51,93 @@ public class Parser {
         List<String> arguments = tokens.length > 1 ? Arrays.asList(tokens).subList(1, tokens.length) : List.of();
 
         if ("spell".equals(command)) {
-            return parseSpell(arguments);
+            return ParseResult.failure("Parser nao interpreta mais o comando 'spell'. Utilize o SpellActionEngine + Parser.transcribeActions.");
         }
 
         return ParseResult.success(command, arguments);
     }
 
+    @Deprecated(forRemoval = true)
     public ParseResult parseSpell(List<String> lexemes) {
-        if (lexemes == null) {
-            return ParseResult.failure("Spell requer ao menos um termo.");
+        return ParseResult.failure("Parser.parseSpell foi descontinuado. Use SpellActionEngine + Parser.transcribeActions().");
+    }
+
+    public SpellTranscript transcribeActions(List<SpellAction> actions) {
+        return transcribeActions(actions, List.of(), Optional.empty());
+    }
+
+    public SpellTranscript transcribeActions(List<SpellAction> actions,
+                                             List<String> lexemes,
+                                             Optional<PrimarySource> preferredPrimarySource) {
+        if (actions == null || actions.isEmpty()) {
+            return SpellTranscript.failure("Spell requer ao menos uma ação.");
         }
 
-        List<String> sanitized = lexemes.stream()
-                .map(token -> token == null ? "" : token.trim())
-                .filter(token -> !token.isEmpty())
-                .toList();
+        List<String> copiedLexemes = lexemes == null ? List.of() : List.copyOf(lexemes);
+        SpellState state = new SpellState("", List.of());
+        List<String> plainSources = new ArrayList<>();
+        List<String> phrases = new ArrayList<>();
+        boolean hasFunction = false;
+        boolean suppressPlainSource = false;
 
-        if (sanitized.isEmpty()) {
-            return ParseResult.failure("Spell requer ao menos um termo.");
+        for (SpellAction action : actions) {
+            if (action == null) {
+                continue;
+            }
+            if (action.type() == SpellActionType.SOURCE) {
+                String elementRuneId = resolveElementRuneId(action).orElse(action.runeId());
+                String element = translateElement(action.element(), elementRuneId);
+                state.reset(element, action.shapes());
+                if (!hasFunction && !suppressPlainSource) {
+                    plainSources.add(state.currentForm());
+                }
+                suppressPlainSource = false;
+                continue;
+            }
+            if (action.type() == SpellActionType.FUNCTION) {
+                String elementRuneId = resolveElementRuneId(action)
+                        .orElseGet(() -> action.element() == null ? action.runeId() : null);
+                String element = translateElement(action.element(), elementRuneId);
+                state.reset(element, action.shapes());
+
+                RuneDefinition definition = dictionary.lookup(action.runeId()).orElse(null);
+                if (definition == null) {
+                    phrases.add(capitalize(element));
+                    hasFunction = true;
+                    continue;
+                }
+
+                String targetElement = translateRune(action.targetRuneId());
+                String phrase = renderFunction(definition, state, targetElement);
+                if (!phrase.isBlank()) {
+                    phrases.add(phrase);
+                    hasFunction = true;
+                }
+
+                if (action.targetRuneId() != null) {
+                    suppressPlainSource = true;
+                    if (targetElement != null) {
+                        state.applyTransformation(targetElement);
+                    } else {
+                        state.markReferenced();
+                    }
+                } else {
+                    state.markReferenced();
+                }
+            }
         }
 
-        return handleSpell(sanitized);
+        String response;
+        if (!phrases.isEmpty()) {
+            response = String.join(" and ", phrases);
+        } else if (!plainSources.isEmpty()) {
+            response = String.join(" ", plainSources);
+        } else {
+            response = "Feitico interpretado com sucesso.";
+        }
+
+        String resolvedPrimarySourceId = resolvePrimarySourceId(copiedLexemes, preferredPrimarySource);
+        return SpellTranscript.success(response, copiedLexemes, resolvedPrimarySourceId);
     }
 
     public Optional<RuneDefinition> lookup(String token) {
@@ -119,115 +187,45 @@ public class Parser {
 
     public record PrimarySource(RuneDefinition definition) { }
 
-    private ParseResult handleSpell(List<String> lexemes) {
-        List<RuneToken> runes = new ArrayList<>(lexemes.size());
-        for (String lexeme : lexemes) {
-            RuneDefinition definition = dictionary.lookup(lexeme)
-                    .orElse(null);
-            if (definition == null) {
-                return ParseResult.failure("Lexema desconhecido: " + lexeme);
-            }
-            runes.add(new RuneToken(lexeme, definition, false));
-        }
-
-        if (runes.isEmpty()) {
-            return ParseResult.failure("Spell requer ao menos um termo.");
-        }
-
-        int cursor = 0;
-        List<String> shapes = new ArrayList<>();
-        while (cursor < runes.size() && runes.get(cursor).definition().type() == RuneType.SHAPE) {
-            shapes.add(runes.get(cursor).definition().translation());
-            cursor++;
-        }
-
-        if (cursor >= runes.size()) {
-            return ParseResult.failure("Spell requer uma fonte após a forma.");
-        }
-
-        RuneToken head = runes.get(cursor);
-        if (head.definition().type() != RuneType.SOURCE) {
-            RuneDefinition fallbackSource = dictionary.lookup("vis").orElse(null);
-            if (fallbackSource == null) {
-                return ParseResult.failure("Não foi possível inferir a fonte padrão 'vis'.");
-            }
-            runes.add(cursor, new RuneToken("vis", fallbackSource, true));
-            head = runes.get(cursor);
-        }
-
-        if (head.definition().type() != RuneType.SOURCE) {
-            return ParseResult.failure("Um feitiço deve iniciar com uma fonte.");
-        }
-
-        SpellState state = new SpellState(head.definition().translation(), shapes);
-        List<String> plainSources = new ArrayList<>();
-        plainSources.add(state.currentForm());
-        List<String> phrases = new ArrayList<>();
-        boolean hasFunction = false;
-
-        PendingFunction pendingFunction = null;
-        for (int index = cursor + 1; index < runes.size(); index++) {
-            RuneToken rune = runes.get(index);
-            RuneType type = rune.definition().type();
-
-            if (type == RuneType.SHAPE) {
-                if (pendingFunction != null) {
-                    return ParseResult.failure("A função '" + pendingFunction.function().translation() + "' precisa de uma fonte seguinte.");
-                }
-                state.addShape(rune.definition().translation());
-                if (!hasFunction && !plainSources.isEmpty()) {
-                    plainSources.set(plainSources.size() - 1, state.currentForm());
-                }
-                continue;
-            }
-
-            if (type == RuneType.FUNCTION) {
-                if (pendingFunction != null) {
-                    return ParseResult.failure("A função '" + pendingFunction.function().translation() + "' precisa de uma fonte seguinte.");
-                }
-
-                if (rune.definition().requiresTarget()) {
-                    pendingFunction = new PendingFunction(rune.definition());
-                } else {
-                    phrases.add(renderFunction(rune.definition(), state, null));
-                    hasFunction = true;
-                    state.markReferenced();
-                }
-            } else { // SOURCE
-                if (pendingFunction != null) {
-                    String targetElement = rune.definition().translation();
-                    String phrase = renderFunction(pendingFunction.function(), state, targetElement);
-                    phrases.add(phrase);
-                    hasFunction = true;
-                    state.applyTransformation(targetElement);
-                    pendingFunction = null;
-                } else {
-                    String element = rune.definition().translation();
-                    state.setElement(element);
-                    if (!hasFunction) {
-                        plainSources.add(state.currentForm());
-                    }
-                }
-            }
-        }
-
-        if (pendingFunction != null) {
-            return ParseResult.failure("A função '" + pendingFunction.function().translation() + "' precisa de uma fonte seguinte.");
-        }
-
-        String response;
-        if (!phrases.isEmpty()) {
-            response = String.join(" and ", phrases);
-        } else {
-            response = plainSources.stream().collect(Collectors.joining(" "));
-        }
-
-        List<String> originalLexemes = List.copyOf(lexemes);
-        String primarySourceId = findPrimarySource(originalLexemes)
+    private String resolvePrimarySourceId(List<String> lexemes, Optional<PrimarySource> preferredPrimarySource) {
+        Optional<PrimarySource> safePreferred = preferredPrimarySource == null ? Optional.empty() : preferredPrimarySource;
+        return safePreferred
                 .map(primary -> primary.definition().id())
+                .or(() -> findPrimarySource(lexemes).map(primary -> primary.definition().id()))
                 .orElse(null);
-        return ParseResult.success("spell", originalLexemes, response, primarySourceId);
     }
+
+    private Optional<String> resolveElementRuneId(SpellAction action) {
+        if (action == null) {
+            return Optional.empty();
+        }
+        Object candidate = action.metadata().get("elementRuneId");
+        if (candidate instanceof String runeId && !runeId.isBlank()) {
+            return Optional.of(runeId);
+        }
+        return Optional.empty();
+    }
+
+    private String translateElement(VitaElement element, String preferredRuneId) {
+        String runeId = preferredRuneId;
+        if ((runeId == null || runeId.isBlank()) && element != null) {
+            runeId = element.runeId();
+        }
+        if (runeId == null || runeId.isBlank()) {
+            return "";
+        }
+        return translateRune(runeId);
+    }
+
+    private String translateRune(String runeId) {
+        if (runeId == null || runeId.isBlank()) {
+            return null;
+        }
+        return dictionary.lookup(runeId)
+                .map(RuneDefinition::translation)
+                .orElse(capitalize(runeId));
+    }
+
 
     private String renderFunction(RuneDefinition function, SpellState state, String targetElement) {
         return switch (function.id()) {
@@ -291,10 +289,6 @@ public class Parser {
         return Character.toUpperCase(text.charAt(0)) + text.substring(1);
     }
 
-    private record RuneToken(String lexeme, RuneDefinition definition, boolean implicit) { }
-
-    private record PendingFunction(RuneDefinition function) { }
-
     private static final class SpellState {
         private String element;
         private final List<String> shapes;
@@ -303,6 +297,18 @@ public class Parser {
         private SpellState(String element, List<String> shapes) {
             this.element = element;
             this.shapes = new ArrayList<>(shapes);
+            this.prefersPronoun = false;
+        }
+
+        void reset(String element, List<String> updatedShapes) {
+            this.element = element == null ? "" : element;
+            this.shapes.clear();
+            if (updatedShapes != null) {
+                updatedShapes.stream()
+                        .map(shape -> shape == null ? "" : shape.trim())
+                        .filter(shape -> !shape.isEmpty())
+                        .forEach(this.shapes::add);
+            }
             this.prefersPronoun = false;
         }
 
@@ -319,18 +325,6 @@ public class Parser {
 
         String describe() {
             return prefersPronoun ? "it" : currentForm();
-        }
-
-        void addShape(String shape) {
-            if (shape != null && !shape.isBlank()) {
-                shapes.add(shape);
-                prefersPronoun = false;
-            }
-        }
-
-        void setElement(String element) {
-            this.element = element;
-            this.prefersPronoun = false;
         }
 
         void applyTransformation(String element) {

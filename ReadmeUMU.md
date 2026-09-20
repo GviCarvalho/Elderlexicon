@@ -5,6 +5,12 @@ UMU (Universal Magical Unit) é a unidade padrão usada para medir, calcular e e
 
 Cada runa, ação, transformação ou efeito utiliza UMU como energia fundamental.
 
+🔄 Atualização Sprint 4 – Pipeline de Ações
+-------------------------------------------
+- O cálculo e o consumo de UMU agora são totalmente derivados do pipeline de ações (`SpellActionEngine` → `SpellActionExecutor` → `SpellCostProcessor`).
+- Extensões/mods devem registrar novos comportamentos via `SpellFunctionHandlerRegistry` e `SpellModuleRegistry` em vez de editar comandos diretamente.
+- Consulte `docs/action-pipeline-migration-guide.md` para ver o passo a passo de migração e exemplos de como plugar novos handlers ou módulos de custo.
+
 ⚡ 1. Ordem de Consumo
 
 Sempre que um feitiço exige UMU, o jogador paga nesta ordem fixa:
@@ -88,6 +94,19 @@ vocant	invocar	1 UMU (lote)	custo instantâneo
 reframe	ressignificar	5 UMU	custo fixo
 surgit	conjurar	1 UMU	custo fixo
 impediunt	repelir/conter	UMU do impulso	o valor do empurrão define custo
+
+🌀 Feedback visual do Impediunt
+- Quando o impulso atinge pelo menos um alvo, o caster dispara um anel de partículas centrado nele. A cor do anel usa o elemento ativo (`igni impediunt` → partículas flamejantes, `aqua impediunt` → bolhas, etc.).
+- O som padrão agora é um golpe corporal (“knockback”) para comunicar rapidamente que a onda de choque saiu, mesmo sem ver os alvos.
+- Esses efeitos não alteram custo; servem apenas para o jogador perceber se o filtro elemental escolhido realmente encontrou inimigos alinhados.
+- Se o feitiço tiver uma fonte anterior (ex.: `igni impediunt`), blocos e drops marcados como "fontes primárias" daquele elemento também são afetados: lava vira uma entidade temporária tipo falling-block, água/areia solta partículas coloridas e itens/tagged drops são arremessados para longe.
+- As listas de fontes vivem em `data/elderlexicon/tags/blocks/*_source_blocks.json` e `.../items/*_source_items.json`, então designer/balance pode expandir sem recompilar.
+
+Fontes padrão por elemento (já configuradas nas tags):
+- **Aqua**: água/bubble column, gelo (todas as variantes), kelp/seagrass/sea pickle, conduit; itens como water/axolotl bucket, peixes, prismarine shard, heart of the sea, kelp/seagrass drops.
+- **Igni**: lava, fogo comum/soul, magma block, tochas e campfires; itens como tochas (todas), blaze powder, magma cream, fire charge, carvão.
+- **Aura**: beacon, chorus plant/flower/fruit block, estruturas de amethyst, scaffolding; itens como feather, phantom membrane, elytra, ghast tear, chorus fruit, shulker shell, foguetes.
+- **Firmo**: pedra + variações (granite/andesite/diorite, deepslate), clay/mud/brick blocs, blocos de metal precioso; itens como emerald, iron/copper ingot, clay ball, brick, stone/cobble/deepslate.
 🜁 Filtros (Modifiers)
 
 Filtros não têm custo próprio — eles custam exatamente o valor que modificam.

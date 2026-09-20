@@ -36,21 +36,70 @@ public class Config
             .comment("A list of items to log on common setup.")
             .defineListAllowEmpty("items", List.of("minecraft:iron_ingot"), Config::validateItemName);
 
+    public static final ForgeConfigSpec.BooleanValue LIFE_COMPASS_OVERFLOW_RING = BUILDER
+            .comment("Render the overflow UMU ring on the Life Compass item")
+            .define("lifeCompassOverflowRing", true);
+
+    private static final ForgeConfigSpec.BooleanValue AQUA_VISUAL_WARNINGS = BUILDER
+            .comment("If true, render screen tint warnings when Aqua is imbalanced")
+            .define("aqua.visualWarnings", true);
+
+    private static final ForgeConfigSpec.BooleanValue AQUA_AUDIO_WARNINGS = BUILDER
+            .comment("If true, play ambience cues when Aqua enters severe tiers")
+            .define("aqua.audioWarnings", true);
+
+    private static final ForgeConfigSpec.BooleanValue AURA_VISUAL_WARNINGS = BUILDER
+            .comment("If true, render screen tint warnings when Aura is imbalanced")
+            .define("aura.visualWarnings", true);
+
+    private static final ForgeConfigSpec.BooleanValue AURA_AUDIO_WARNINGS = BUILDER
+            .comment("If true, play ambience cues when Aura enters severe tiers")
+            .define("aura.audioWarnings", true);
+
+    private static final ForgeConfigSpec.BooleanValue FIRMO_VISUAL_WARNINGS = BUILDER
+            .comment("If true, render screen tint warnings when Firmo is imbalanced")
+            .define("firmo.visualWarnings", true);
+
+    private static final ForgeConfigSpec.BooleanValue FIRMO_AUDIO_WARNINGS = BUILDER
+            .comment("If true, play ambience cues when Firmo enters severe tiers")
+            .define("firmo.audioWarnings", true);
+
+    private static final ForgeConfigSpec.BooleanValue IGNI_VISUAL_WARNINGS = BUILDER
+            .comment("If true, render screen tint warnings when Igni is imbalanced")
+            .define("igni.visualWarnings", true);
+
+    private static final ForgeConfigSpec.BooleanValue IGNI_AUDIO_WARNINGS = BUILDER
+            .comment("If true, play ambience cues when Igni enters severe tiers")
+            .define("igni.audioWarnings", true);
+
     static final ForgeConfigSpec SPEC = BUILDER.build();
 
     public static boolean logDirtBlock;
     public static int magicNumber;
     public static String magicNumberIntroduction;
     public static Set<Item> items;
+    public static boolean lifeCompassOverflowRing;
+    public static boolean aquaVisualWarnings;
+    public static boolean aquaAudioWarnings;
+    public static boolean auraVisualWarnings;
+    public static boolean auraAudioWarnings;
+    public static boolean firmoVisualWarnings;
+    public static boolean firmoAudioWarnings;
+    public static boolean igniVisualWarnings;
+    public static boolean igniAudioWarnings;
 
     private static boolean validateItemName(final Object obj)
     {
         return obj instanceof final String itemName && ForgeRegistries.ITEMS.containsKey(ResourceLocation.parse(itemName));
     }
 
-    @SubscribeEvent
-    static void onLoad(final ModConfigEvent event)
-    {
+        @SubscribeEvent
+        @SuppressWarnings("null")
+        static void onLoad(final ModConfigEvent event)
+        {
+                if (event.getConfig().getSpec() != SPEC) {
+                        return;
+                }
         logDirtBlock = LOG_DIRT_BLOCK.get();
         magicNumber = MAGIC_NUMBER.get();
         magicNumberIntroduction = MAGIC_NUMBER_INTRODUCTION.get();
@@ -59,5 +108,15 @@ public class Config
         items = ITEM_STRINGS.get().stream()
                 .map(itemName -> ForgeRegistries.ITEMS.getValue(ResourceLocation.parse(itemName)))
                 .collect(Collectors.toSet());
+
+        lifeCompassOverflowRing = LIFE_COMPASS_OVERFLOW_RING.get();
+        aquaVisualWarnings = AQUA_VISUAL_WARNINGS.get();
+        aquaAudioWarnings = AQUA_AUDIO_WARNINGS.get();
+        auraVisualWarnings = AURA_VISUAL_WARNINGS.get();
+        auraAudioWarnings = AURA_AUDIO_WARNINGS.get();
+        firmoVisualWarnings = FIRMO_VISUAL_WARNINGS.get();
+        firmoAudioWarnings = FIRMO_AUDIO_WARNINGS.get();
+        igniVisualWarnings = IGNI_VISUAL_WARNINGS.get();
+        igniAudioWarnings = IGNI_AUDIO_WARNINGS.get();
     }
 }

@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:feather",
+    "minecraft:phantom_membrane",
+    "minecraft:elytra",
+    "minecraft:ghast_tear",
+    "minecraft:chorus_fruit",
+    "minecraft:shulker_shell",
+    "minecraft:firework_rocket"
+  ]
+}

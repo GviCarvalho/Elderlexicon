@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:chorus_plant",
+    "minecraft:chorus_flower",
+    "minecraft:beacon",
+    "minecraft:amethyst_block",
+    "minecraft:amethyst_cluster",
+    "minecraft:budding_amethyst",
+    "minecraft:scaffolding",
+    "minecraft:chorus_fruit_block"
+  ]
+}

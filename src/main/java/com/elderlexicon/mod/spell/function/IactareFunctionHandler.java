@@ -21,20 +21,20 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
 
         for (int elapsed = 0; elapsed <= CAST_DURATION_TICKS; elapsed += CAST_STEP_TICKS) {
             final int delay = elapsed;
-            SpellEffects.schedule(level, delay, () -> {
-                if (!SpellEffects.isPlayerValid(player)) {
-                    return;
-                }
-                SpellEffects.spawnProjectile(player, element);
-            });
-        }
+                SpellEffects.schedule(level, delay, () -> {
+                    if (!SpellEffects.isPlayerValid(player)) {
+                        return;
+                    }
+                    SpellEffects.spawnProjectile(player, element, context.elementRuneId());
+                });
+            }
 
         SpellEffects.schedule(level, CAST_DURATION_TICKS, () -> {
             if (!SpellEffects.isPlayerValid(player)) {
                 return;
             }
             SpellEffects.SpellImpact impact = SpellEffects.findImpact(player, RANGE);
-            SpellEffects.applyElementEffect(player, element, impact);
+            SpellEffects.applyElementEffect(player, element, context.elementRuneId(), impact);
         });
     }
 }

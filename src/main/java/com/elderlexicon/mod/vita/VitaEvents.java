@@ -1,6 +1,7 @@
 package com.elderlexicon.mod.vita;
 
 import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.vita.recovery.VitaRecoverySystem;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -25,6 +26,7 @@ public final class VitaEvents {
             return;
         }
         VitaSystem.tickPlayer(player);
+        VitaRecoverySystem.tick(player);
     }
 
     @SubscribeEvent

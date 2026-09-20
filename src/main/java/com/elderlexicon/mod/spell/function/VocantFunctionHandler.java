@@ -23,8 +23,8 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                 return;
             }
             SpellEffects.SpellImpact impact = SpellEffects.findImpact(player, RANGE);
-            SpellEffects.spawnSummonEffect(player, element, impact);
-            SpellEffects.applyElementEffect(player, element, impact);
+            SpellEffects.spawnSummonEffect(player, element, context.elementRuneId(), impact);
+            SpellEffects.applyElementEffect(player, element, context.elementRuneId(), impact);
         });
     }
 }

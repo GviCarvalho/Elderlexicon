@@ -31,6 +31,15 @@ public enum VitaElement {
             return BALANCED;
         }
         String normalized = runeId.toLowerCase(Locale.ROOT);
+        // Map fusion sources to their closest base element so they aren't treated as balanced/mana.
+        switch (normalized) {
+            case "fusus" -> { return IGNI; }
+            case "caligo" -> { return AQUA; }
+            case "lutum" -> { return FIRMO; }
+            case "pulvis" -> { return FIRMO; }
+            case "nebula" -> { return AURA; }
+            case "fulmen" -> { return IGNI; }
+        }
         for (VitaElement element : values()) {
             if (element.runeId.equals(normalized)) {
                 return element;
