@@ -67,7 +67,8 @@ public final class ParserDictionary {
     public enum RuneType {
         SOURCE,
         FUNCTION,
-        SHAPE;
+        SHAPE,
+        FILTER;
 
         static RuneType from(String value) {
             try {

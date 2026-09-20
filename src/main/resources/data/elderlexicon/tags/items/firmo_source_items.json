@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:emerald",
+    "minecraft:iron_ingot",
+    "minecraft:copper_ingot",
+    "minecraft:clay_ball",
+    "minecraft:brick",
+    "minecraft:stone",
+    "minecraft:cobblestone",
+    "minecraft:deepslate"
+  ]
+}

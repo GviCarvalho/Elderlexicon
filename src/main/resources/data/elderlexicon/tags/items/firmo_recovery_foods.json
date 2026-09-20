@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:bread",
+    "minecraft:cooked_beef",
+    "minecraft:carrot",
+    "minecraft:apple",
+    "minecraft:cooked_mutton",
+    "minecraft:potato",
+    "minecraft:cooked_salmon",
+    "minecraft:cooked_porkchop",
+    "minecraft:cooked_chicken",
+    "minecraft:beetroot_soup"
+  ]
+}

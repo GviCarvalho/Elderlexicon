@@ -39,26 +39,26 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
     private double drainIgnis(SpellContext context, double limit) {
         ServerPlayer player = context.player();
         ServerLevel level = player.serverLevel();
-        return drainSphere(level, player, player.position(), limit, VitaElement.IGNI,
+        return drainSphere(level, player, player.position(), limit, VitaElement.IGNI, context.elementRuneId(),
                 (pos, remaining) -> drainIgnisAt(level, pos, remaining));
     }
 
     private double drainAqua(SpellContext context, double limit) {
         ServerPlayer player = context.player();
         ServerLevel level = player.serverLevel();
-        return drainSphere(level, player, player.position(), limit, VitaElement.AQUA,
+        return drainSphere(level, player, player.position(), limit, VitaElement.AQUA, context.elementRuneId(),
                 (pos, remaining) -> drainAquaAt(level, pos, remaining));
     }
 
     private double drainFirmo(SpellContext context, double limit) {
         ServerPlayer player = context.player();
         ServerLevel level = player.serverLevel();
-        return drainSphere(level, player, player.position(), limit, VitaElement.FIRMO,
+        return drainSphere(level, player, player.position(), limit, VitaElement.FIRMO, context.elementRuneId(),
                 (pos, remaining) -> drainFirmoAt(level, pos, remaining));
     }
 
     private double drainSphere(ServerLevel level, ServerPlayer player, Vec3 origin,
-                               double limit, VitaElement element, BlockDrain consumer) {
+                               double limit, VitaElement element, String elementRuneId, BlockDrain consumer) {
         if (limit <= EPSILON) {
             return 0.0D;
         }
@@ -82,7 +82,7 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
                     if (value <= EPSILON) {
                         continue;
                     }
-                    emitDrainParticles(player, element, cursor.immutable(), value);
+                    emitDrainParticles(player, element, elementRuneId, cursor.immutable(), value);
                     total += value;
                 }
             }
@@ -199,10 +199,10 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
         return 1.0D;
     }
 
-    private void emitDrainParticles(ServerPlayer player, VitaElement element, BlockPos source, double amount) {
+    private void emitDrainParticles(ServerPlayer player, VitaElement element, String elementRuneId, BlockPos source, double amount) {
         if (player == null || amount <= EPSILON) {
             return;
         }
-        SpellEffects.spawnDrainParticles(player, element, source, amount);
+        SpellEffects.spawnDrainParticles(player, element, elementRuneId, source, amount);
     }
 }

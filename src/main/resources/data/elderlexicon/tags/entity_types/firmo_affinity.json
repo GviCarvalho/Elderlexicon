@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:warden",
+    "minecraft:ravager",
+    "minecraft:iron_golem",
+    "minecraft:husk"
+  ]
+}
