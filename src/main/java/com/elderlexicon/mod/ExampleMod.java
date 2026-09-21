@@ -6,6 +6,7 @@ import com.elderlexicon.mod.item.ElderBrushItem;
 import com.elderlexicon.mod.item.LifeCompassItem;
 import com.elderlexicon.mod.mark.network.MarkNetwork;
 import com.elderlexicon.mod.spelling.config.SpellingClientConfig;
+import com.elderlexicon.mod.spell.scene.ArcBoltEntity;
 import com.elderlexicon.mod.spelling.entity.PlacedScrollEntity;
 import com.elderlexicon.mod.spelling.item.SpellScrollItem;
 import com.elderlexicon.mod.spelling.item.GrimoireItem;
@@ -123,6 +124,15 @@ public class ExampleMod {
                     .clientTrackingRange(10)
                     .updateInterval(Integer.MAX_VALUE)
                     .build("placed_scroll"));
+
+    public static final RegistryObject<EntityType<ArcBoltEntity>> ARC_BOLT = ENTITY_TYPES.register("arc_bolt",
+            () -> EntityType.Builder.<ArcBoltEntity>of(ArcBoltEntity::new, MobCategory.MISC)
+                    .sized(0.1F, 0.1F)
+                    .noSave()
+                    .fireImmune()
+                    .clientTrackingRange(16)
+                    .updateInterval(Integer.MAX_VALUE)
+                    .build("arc_bolt"));
 
     public static final RegistryObject<RecipeSerializer<WandUpgradeRecipe>> WAND_UPGRADE_SERIALIZER =
             RECIPE_SERIALIZERS.register("wand_upgrade", () -> new SimpleCraftingRecipeSerializer<>(WandUpgradeRecipe::new));

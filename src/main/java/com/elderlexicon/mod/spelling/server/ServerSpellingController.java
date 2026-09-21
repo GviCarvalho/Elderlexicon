@@ -143,7 +143,7 @@ public final class ServerSpellingController {
 
         double bodyLoad = Math.max(0.0D, result.bodyLoad());
         applyNauseaEffect(player, bodyLoad);
-        if (bodyLoad > 1.0E-4D) {
+        if (bodyLoad > 1.0E-4D && !result.focusActive()) {
             double stored = bodyLoad * 0.20D;
             VitaSystem.restoreElementEnergy(player, conduitElement, stored);
             responseWarnings.add(Component.translatable(
@@ -545,7 +545,7 @@ public final class ServerSpellingController {
         VitaElement conduitElement = resolveElement(result.primaryElement(), runes);
         double bodyLoad = Math.max(0.0D, result.bodyLoad());
         applyNauseaEffect(player, bodyLoad);
-        if (bodyLoad > 1.0E-4D) {
+        if (bodyLoad > 1.0E-4D && !result.focusActive()) {
             double stored = bodyLoad * 0.20D;
             VitaSystem.restoreElementEnergy(player, conduitElement, stored);
             warnings.add(Component.translatable(

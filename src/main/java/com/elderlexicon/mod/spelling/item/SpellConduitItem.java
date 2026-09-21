@@ -77,6 +77,23 @@ public class SpellConduitItem extends Item {
         return requested;
     }
 
+    /**
+     * True when the player holds a conduit that still has capacity. A spell cast this way runs
+     * through the conduit and must not touch the caster's Vita reserves.
+     */
+    public static boolean holdsReadyConduit(@Nullable Player player) {
+        if (player == null) {
+            return false;
+        }
+        return isReady(player.getMainHandItem()) || isReady(player.getOffhandItem());
+    }
+
+    private static boolean isReady(ItemStack stack) {
+        return !stack.isEmpty()
+                && stack.getItem() instanceof SpellConduitItem conduit
+                && conduit.remainingCapacity(stack) > EPSILON;
+    }
+
     public double remainingCapacity(ItemStack stack) {
         return readRemaining(stack);
     }

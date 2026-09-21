@@ -31,6 +31,7 @@ public final class SpellContext {
     private double totalCost;
     private double environmentalContribution;
     private double payableCost;
+    private boolean focusActive;
     private SpellScene scene = new SpellScene();
     private int sceneSpellId = scene.registerSpell();
 
@@ -147,6 +148,18 @@ public final class SpellContext {
         return Collections.unmodifiableMap(ambientEnergy);
     }
 
+    /**
+     * True when the caster held a ready arcane focus when the spell started. A focus keeps the
+     * spell away from the caster's Vita reserves.
+     */
+    public boolean focusActive() {
+        return focusActive;
+    }
+
+    public void setFocusActive(boolean focusActive) {
+        this.focusActive = focusActive;
+    }
+
     public double conduitOverflow() {
         return conduitOverflow;
     }
@@ -173,6 +186,9 @@ public final class SpellContext {
     }
 
     public void commitAmbientEnergy() {
+        if (focusActive) {
+            return;
+        }
         ambientEnergy.forEach((element, amount) ->
                 VitaSystem.restoreElementEnergy(player, element, amount));
     }
