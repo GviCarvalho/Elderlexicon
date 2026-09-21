@@ -22,6 +22,24 @@ class SpellCostModuleTest {
         assertTrue(gateway.overflowCalled, "Overflow stage must run before any other drain logic");
     }
 
+    @Test
+    void focusSkipsTheVitaElementalStage() {
+        TrackingVitaGateway gateway = new TrackingVitaGateway(3.0D);
+        double remaining = SpellCostModule.settleElementalStage(gateway, null, VitaElement.IGNI, 5.0D, true);
+
+        assertEquals(5.0D, remaining, EPSILON, "the whole cost is left for the other resources");
+        assertTrue(!gateway.overflowCalled, "a focus must not draw elemental excess from the caster's Vita");
+    }
+
+    @Test
+    void withoutAFocusTheElementalStageStillRuns() {
+        TrackingVitaGateway gateway = new TrackingVitaGateway(3.0D);
+        double remaining = SpellCostModule.settleElementalStage(gateway, null, VitaElement.IGNI, 5.0D, false);
+
+        assertEquals(4.5D, remaining, EPSILON);
+        assertTrue(gateway.overflowCalled);
+    }
+
     private static final class TrackingVitaGateway implements SpellCostModule.VitaGateway {
 
         private final double initialOverflow;

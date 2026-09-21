@@ -1,6 +1,7 @@
 package com.elderlexicon.mod.spelling.client;
 
 import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.spell.scene.client.ArcBoltRenderer;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
@@ -24,5 +25,6 @@ public final class SpellingClientModBusEvents {
     @SubscribeEvent
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ExampleMod.PLACED_SCROLL.get(), PlacedScrollRenderer::new);
+        event.registerEntityRenderer(ExampleMod.ARC_BOLT.get(), ArcBoltRenderer::new);
     }
 }

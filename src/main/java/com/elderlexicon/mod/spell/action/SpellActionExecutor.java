@@ -112,7 +112,8 @@ public final class SpellActionExecutor {
     }
 
     private VitaElement handleVertere(SpellContext context, VertereRequest request) {
-        double transferred = vertereGateway.transfer(context, request);
+        // With a focus the conversion happens in the focus, so the caster's Vita is left alone.
+        double transferred = context.focusActive() ? request.amount() : vertereGateway.transfer(context, request);
         if (transferred <= EPSILON) {
             return null;
         }

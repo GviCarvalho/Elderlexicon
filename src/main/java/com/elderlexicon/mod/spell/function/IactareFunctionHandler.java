@@ -27,7 +27,7 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
                     if (!SpellEffects.isPlayerValid(player)) {
                         return;
                     }
-                    SpellEffects.spawnProjectile(player, element, context.elementRuneId());
+                    // The world scene draws the beam, so it fades as the laws use its energy up.
                     EmissionRecorder.beamFromCaster(context, element, BEAM_LENGTH,
                             EmissionRecorder.DEFAULT_QUANTITY_UMU / PULSES, CAST_STEP_TICKS);
                 });

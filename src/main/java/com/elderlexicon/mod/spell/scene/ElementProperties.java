@@ -20,7 +20,7 @@ public record ElementProperties(double heat, double moisture, double charge, dou
         return switch (element) {
             case IGNI -> new ElementProperties(1.0D, 0.0D, 0.1D, 0.05D, 0.2D);
             case AQUA -> new ElementProperties(0.0D, 1.0D, 0.0D, 0.5D, 0.3D);
-            case AURA -> new ElementProperties(0.1D, 0.0D, 0.3D, 0.05D, 1.0D);
+            case AURA -> new ElementProperties(0.0D, 0.0D, 0.3D, 0.05D, 1.0D);
             case FIRMO -> new ElementProperties(0.0D, 0.0D, 0.0D, 1.0D, 0.2D);
             case BALANCED -> new ElementProperties(0.25D, 0.25D, 0.25D, 0.25D, 0.25D);
         };

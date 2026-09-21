@@ -373,7 +373,7 @@ final class SpellEffects {
       }
    }
 
-   private static Optional<ParticleOptions> resolveParticle(VitaElement element, String elementRuneId) {
+   static Optional<ParticleOptions> resolveParticle(VitaElement element, String elementRuneId) {
       if (elementRuneId != null && !elementRuneId.isBlank()) {
          ParticleOptions specific = (ParticleOptions)RUNE_PARTICLES.get(elementRuneId.toLowerCase(Locale.ROOT));
          if (specific != null) {

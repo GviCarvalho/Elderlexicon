@@ -10,8 +10,8 @@ import com.elderlexicon.mod.spell.action.SpellActionExecutor;
 import com.elderlexicon.mod.spell.action.SpellActionResult;
 import com.elderlexicon.mod.spell.action.SpellCostProcessor;
 import com.elderlexicon.mod.spell.registry.SpellModuleRegistry;
-import com.elderlexicon.mod.spell.scene.SceneRunner;
-import com.elderlexicon.mod.spell.scene.SpellScene;
+import com.elderlexicon.mod.spell.scene.WorldScenes;
+import com.elderlexicon.mod.spelling.item.SpellConduitItem;
 import com.elderlexicon.mod.vita.VitaElement;
 import com.elderlexicon.mod.vita.VitaScoreboardManager;
 import com.elderlexicon.mod.vita.VitaSystem;
@@ -39,8 +39,6 @@ public final class SpellCastingService {
     private static final double EPSILON = 1.0E-4D;
     /** Server ticks per block position (matches the Iactare channel step). */
     public static final int STEP_TICKS = 5;
-    /** How long after the last release the scene keeps watching for interactions (Iactare 40 + Vocant 20 + 20 + margin). */
-    private static final int SCENE_TAIL_TICKS = 100;
 
     private final SpellActionEngine actionEngine;
     private final SpellActionExecutor actionExecutor;
@@ -61,11 +59,6 @@ public final class SpellCastingService {
     }
 
     public Result cast(ServerPlayer player, List<String> rawLexemes) {
-        return cast(player, rawLexemes, null);
-    }
-
-    /** @param scene shared stage of the block this spell belongs to; {@code null} gives it a private one */
-    public Result cast(ServerPlayer player, List<String> rawLexemes, SpellScene scene) {
         Objects.requireNonNull(player, "player");
         List<String> lexemes = sanitizeLexemes(rawLexemes);
         if (lexemes.isEmpty()) {
@@ -129,7 +122,9 @@ public final class SpellCastingService {
                 totalCost,
                 actions,
                 actionResult.vertereRequests());
-        context.attachScene(scene);
+        // Every spell of the world shares one scene, so spells interact whoever cast them and whenever.
+        context.attachScene(WorldScenes.sceneOf(player.serverLevel()));
+        context.setFocusActive(SpellConduitItem.holdsReadyConduit(player));
 
         actionExecutor.execute(context, actions);
         UmuLeakHandler.handleLeaks(context, actions);
@@ -161,7 +156,8 @@ public final class SpellCastingService {
         Component outputComponent = Component.literal(response == null ? "" : response);
         VitaScoreboardManager.update(player, VitaSystem.fromPlayer(player));
         // Pass actual UMU spent and UMU extra to Result
-        return Result.success(outputComponent, warnings, payableCost, environmentalContribution, bodyLoad, primaryElement);
+        return Result.success(outputComponent, warnings, payableCost, environmentalContribution, bodyLoad, primaryElement,
+                context.focusActive());
     }
 
     /** One independent spell of a block, released {@code delaySteps} after the earliest one. */
@@ -196,13 +192,12 @@ public final class SpellCastingService {
             }
         }
 
-        SpellScene scene = new SpellScene();
         int baseDelay = spells.stream().mapToInt(TimedSpell::delaySteps).min().orElse(0);
         List<Result> immediate = new ArrayList<>();
         for (TimedSpell spell : spells) {
             int delayTicks = (spell.delaySteps() - baseDelay) * STEP_TICKS;
             if (delayTicks <= 0) {
-                immediate.add(cast(player, spell.lexemes(), scene));
+                immediate.add(cast(player, spell.lexemes()));
                 continue;
             }
             scheduleLater(player, delayTicks, () -> {
@@ -210,7 +205,7 @@ public final class SpellCastingService {
                     return;
                 }
                 try {
-                    Result result = cast(player, spell.lexemes(), scene);
+                    Result result = cast(player, spell.lexemes());
                     if (delayedSink != null) {
                         delayedSink.accept(result);
                     }
@@ -219,8 +214,6 @@ public final class SpellCastingService {
                 }
             });
         }
-        int lastDelayTicks = (spells.stream().mapToInt(TimedSpell::delaySteps).max().orElse(0) - baseDelay) * STEP_TICKS;
-        SceneRunner.start(player, scene, lastDelayTicks + SCENE_TAIL_TICKS);
         return mergeSimultaneous(immediate, spells.size());
     }
 
@@ -239,6 +232,7 @@ public final class SpellCastingService {
         double spent = 0.0D;
         double extra = 0.0D;
         double bodyLoad = 0.0D;
+        boolean focusActive = false;
         for (Result result : results) {
             warnings.addAll(result.warnings());
             if (result.failed()) {
@@ -255,6 +249,7 @@ public final class SpellCastingService {
             spent += result.umuSpent();
             extra += result.umuExtra();
             bodyLoad += result.bodyLoad();
+            focusActive |= result.focusActive();
         }
         if (firstSuccess == null) {
             return new Result(false, firstFailure.message(), warnings, 0.0D, 0.0D, 0.0D, VitaElement.BALANCED);
@@ -263,7 +258,7 @@ public final class SpellCastingService {
             warnings.add(Component.literal("Linha ignorada: ").append(firstFailure.message()));
         }
         warnings.add(Component.literal("Feiticos simultaneos: " + totalSpells + "."));
-        return Result.success(firstSuccess.message(), warnings, spent, extra, bodyLoad, firstSuccess.primaryElement());
+        return Result.success(firstSuccess.message(), warnings, spent, extra, bodyLoad, firstSuccess.primaryElement(), focusActive);
     }
 
     private Parser ensureParser() {
@@ -322,7 +317,8 @@ public final class SpellCastingService {
                          double umuSpent,
                          double umuExtra,
                          double bodyLoad,
-                         VitaElement primaryElement) {
+                         VitaElement primaryElement,
+                         boolean focusActive) {
 
         public Result(boolean success,
                       Component message,
@@ -331,6 +327,18 @@ public final class SpellCastingService {
                       double umuExtra,
                       double bodyLoad,
                       VitaElement primaryElement) {
+            this(success, message, warnings, umuSpent, umuExtra, bodyLoad, primaryElement, false);
+        }
+
+        public Result(boolean success,
+                      Component message,
+                      List<Component> warnings,
+                      double umuSpent,
+                      double umuExtra,
+                      double bodyLoad,
+                      VitaElement primaryElement,
+                      boolean focusActive) {
+            this.focusActive = focusActive;
             this.success = success;
             this.message = Objects.requireNonNull(message, "message");
             this.warnings = warnings == null ? List.of() : List.copyOf(warnings);
@@ -346,7 +354,17 @@ public final class SpellCastingService {
                                      double umuExtra,
                                      double bodyLoad,
                                      VitaElement primaryElement) {
-            return new Result(true, message, warnings == null ? List.of() : warnings, umuSpent, umuExtra, bodyLoad, primaryElement);
+            return success(message, warnings, umuSpent, umuExtra, bodyLoad, primaryElement, false);
+        }
+
+        public static Result success(Component message,
+                                     List<Component> warnings,
+                                     double umuSpent,
+                                     double umuExtra,
+                                     double bodyLoad,
+                                     VitaElement primaryElement,
+                                     boolean focusActive) {
+            return new Result(true, message, warnings == null ? List.of() : warnings, umuSpent, umuExtra, bodyLoad, primaryElement, focusActive);
         }
 
         public static Result failure(Component message) {

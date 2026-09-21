@@ -27,15 +27,16 @@ public final class SpellCostModule implements SpellModule {
         if (payable <= EPSILON) {
             return;
         }
-        consumeSpellCost(context.player(), payable, context.primaryElement());
+        consumeSpellCost(context.player(), payable, context.primaryElement(), context.focusActive());
     }
 
-    private void consumeSpellCost(ServerPlayer player, double umuCost, com.elderlexicon.mod.vita.VitaElement element) {
+    private void consumeSpellCost(ServerPlayer player, double umuCost, com.elderlexicon.mod.vita.VitaElement element,
+                                  boolean focusActive) {
         if (player == null || umuCost <= EPSILON) {
             return;
         }
 
-        double remaining = settleElementalCost(vita, player, element, umuCost);
+        double remaining = settleElementalStage(vita, player, element, umuCost, focusActive);
         if (remaining <= EPSILON) {
             return;
         }
@@ -52,6 +53,15 @@ public final class SpellCostModule implements SpellModule {
             return;
         }
         vita.consumeLifeEnergy(player, hpDamage, element);
+    }
+
+    /** Elemental excess is drawn from the caster's Vita, so a focus skips this stage entirely. */
+    static double settleElementalStage(VitaGateway vita,
+                                       ServerPlayer player,
+                                       com.elderlexicon.mod.vita.VitaElement element,
+                                       double umuCost,
+                                       boolean focusActive) {
+        return focusActive ? umuCost : settleElementalCost(vita, player, element, umuCost);
     }
 
     static double settleElementalCost(VitaGateway vita,

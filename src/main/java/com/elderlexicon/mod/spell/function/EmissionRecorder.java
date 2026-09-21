@@ -30,6 +30,7 @@ final class EmissionRecorder {
         Vec3 look = player.getLookAngle();
         context.scene().add(Emission.beam(
                 context.sceneSpellId(),
+                player.getUUID(),
                 context.elementRuneId(),
                 ElementProperties.forElement(element),
                 energy,
@@ -46,6 +47,7 @@ final class EmissionRecorder {
         }
         context.scene().add(Emission.point(
                 context.sceneSpellId(),
+                player.getUUID(),
                 context.elementRuneId(),
                 ElementProperties.forElement(element),
                 energy,
