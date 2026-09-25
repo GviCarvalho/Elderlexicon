@@ -46,6 +46,7 @@
   "item.elderlexicon.wand_bone": "Varinha de osso",
   "item.elderlexicon.wand_bamboo": "Varinha de bambu",
   "item.elderlexicon.wand_blaze": "Varinha de blaze",
+  "item.elderlexicon.creative_wand": "Varinha Criativa",
   "item.elderlexicon.grimoire": "Grimório Rúnico",
   "item.elderlexicon.improvised_wand_bone": "Varinha improvisada de osso",
   "item.elderlexicon.improvised_wand_bamboo": "Varinha improvisada de bambu",
@@ -60,6 +61,7 @@
   "tooltip.elderlexicon.wand_bone": "Varinha de osso que canaliza ate %s UMU (20%% de desconto em Firmo).",
   "tooltip.elderlexicon.wand_bamboo": "Varinha de bambu que canaliza ate %s UMU (10%% de desconto em Aura e Aqua).",
   "tooltip.elderlexicon.wand_blaze": "Varinha de blaze que canaliza ate %s UMU (20%% de desconto em Igni).",
+  "tooltip.elderlexicon.creative_wand": "Varinha criativa de teste: canaliza qualquer feitico e nunca quebra.",
   "tooltip.elderlexicon.wand.material": "Nucleo: %s",
   "tooltip.elderlexicon.grimoire.summary": "Registra feitiços usando símbolos SGA em vez de letras.",
   "tooltip.elderlexicon.grimoire.empty": "Nenhum feitiço registrado.",
@@ -102,5 +104,11 @@
   "screen.elderlexicon.mark.title": "Definir Mark",
   "screen.elderlexicon.mark.placeholder": "Digite a mark...",
   "item.elderlexicon.detached_page": "Pagina destacada %s",
-  "gui.elderlexicon.grimoire.detach": "Destacar pagina"
+  "gui.elderlexicon.grimoire.detach": "Destacar pagina",
+  "death.attack.ligabis_reflection": "%1$s levou um golpe que nao era seu",
+  "death.attack.ligabis_reflection.player": "%1$s levou um golpe que %2$s prendeu a ele",
+  "death.attack.ligabis_death": "%1$s foi levado por um vinculo",
+  "death.attack.ligabis_death.player": "%1$s foi levado por um vinculo de %2$s",
+  "death.attack.vertere_vita": "%1$s teve a vida convertida em outra coisa",
+  "death.attack.vertere_vita.player": "%1$s teve a vida convertida em outra coisa por %2$s"
 }

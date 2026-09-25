@@ -108,7 +108,12 @@ public class Parser {
                 }
 
                 String targetElement = translateRune(action.targetRuneId());
-                String phrase = renderFunction(definition, state, targetElement);
+                String phrase = action.subjectMark().isPresent() || action.targetMark().isPresent()
+                        ? renderMarkedFunction(definition, action, targetElement)
+                        : renderFunction(definition, state, targetElement);
+                if (action.place().isPresent()) {
+                    phrase = phrase + " at " + action.place().get().describe();
+                }
                 if (!phrase.isBlank()) {
                     phrases.add(phrase);
                     hasFunction = true;
@@ -280,6 +285,17 @@ public class Parser {
                 yield action + " " + state.describe();
             }
         };
+    }
+
+    /** A function acting on marked things: {@code Summon 'm1'}, {@code Transfer 'm1' with 'm2'}. */
+    private String renderMarkedFunction(RuneDefinition function, SpellAction action, String targetElement) {
+        String subject = action.subjectMark().map(mark -> "'" + mark + "'").orElse("the caster");
+        String target = action.targetMark().map(mark -> "'" + mark + "'").orElse(targetElement);
+        String verb = capitalize(function.translation());
+        if ("transvocatio".equals(function.id())) {
+            return "Swap " + subject + " with " + (target == null ? "the caster" : target);
+        }
+        return target == null ? verb + " " + subject : verb + " " + subject + " to " + target;
     }
 
     private static String capitalize(String text) {

@@ -38,6 +38,10 @@ public class PlacedScrollRenderer extends EntityRenderer<PlacedScrollEntity> {
         rotateToFace(entity.getFace(), poseStack);
         MapItemSavedData data = SpellMapHelper.getSavedData(stack, entity.level());
         if (data != null) {
+            // A map is drawn on one side only, seen from its local -Z. Turned like an item frame turns it (180 degrees
+            // about Y), that side faces out of the surface and the small -Z offset below lifts it off the block;
+            // without this the drawing sat inside the block with its back to the viewer, and the scroll vanished.
+            poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
             poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F));
             poseStack.scale(0.006640625F, 0.006640625F, 0.006640625F);
             poseStack.translate(-64.0F, -64.0F, -1.0F);

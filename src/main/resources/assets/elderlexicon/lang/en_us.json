@@ -46,6 +46,7 @@
   "item.elderlexicon.wand_bone": "Bone Wand",
   "item.elderlexicon.wand_bamboo": "Bamboo Wand",
   "item.elderlexicon.wand_blaze": "Blaze Wand",
+  "item.elderlexicon.creative_wand": "Creative Wand",
   "item.elderlexicon.grimoire": "Runic Grimoire",
   "item.elderlexicon.detached_page": "Detached Page %s",
   "gui.elderlexicon.grimoire.detach": "Detach Page",
@@ -59,6 +60,7 @@
   "tooltip.elderlexicon.wand_bone": "Bone-focused wand holding %s UMU (20%% discount on Firmo).",
   "tooltip.elderlexicon.wand_bamboo": "Bamboo-focused wand holding %s UMU (10%% discount on Aura & Aqua).",
   "tooltip.elderlexicon.wand_blaze": "Blaze-focused wand holding %s UMU (20%% discount on Igni).",
+  "tooltip.elderlexicon.creative_wand": "Creative testing wand: conducts any spell and never breaks.",
   "tooltip.elderlexicon.wand.material": "Core: %s",
   "tooltip.elderlexicon.grimoire.summary": "Records spells using SGA glyphs instead of letters.",
   "tooltip.elderlexicon.grimoire.empty": "No spells have been inscribed.",
@@ -114,5 +116,11 @@
   "message.elderlexicon.mark.cleared": "Mark cleared.",
   "message.elderlexicon.mark.too_far": "Target out of range.",
   "screen.elderlexicon.mark.title": "Set Mark",
-  "screen.elderlexicon.mark.placeholder": "Type a mark..."
+  "screen.elderlexicon.mark.placeholder": "Type a mark...",
+  "death.attack.ligabis_reflection": "%1$s took a blow that was not theirs",
+  "death.attack.ligabis_reflection.player": "%1$s took a blow that %2$s bound to them",
+  "death.attack.ligabis_death": "%1$s was taken by a bond",
+  "death.attack.ligabis_death.player": "%1$s was taken by a bond of %2$s",
+  "death.attack.vertere_vita": "%1$s had their life turned into something else",
+  "death.attack.vertere_vita.player": "%1$s had their life turned into something else by %2$s"
 }

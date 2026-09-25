@@ -84,14 +84,15 @@ public final class VitaCommand {
 
     private static int executeReset(CommandContext<CommandSourceStack> context, ServerPlayer target) {
         VitaSystem.resetStatus(target);
+        VitaProfile balanced = VitaSystem.fromPlayer(target);
         Component feedback = Component.literal(String.format(
                 Locale.ROOT,
-                "Vita de %s redefinida para Aqua %.0f / Igni %.0f / Aura %.0f / Firmo %.0f",
+                "Vita de %s equilibrada para a vida atual: Aqua %.1f / Igni %.1f / Aura %.1f / Firmo %.1f",
                 target.getName().getString(),
-                VitaSystem.DEFAULT_AQUA,
-                VitaSystem.DEFAULT_IGNI,
-                VitaSystem.DEFAULT_AURA,
-                VitaSystem.DEFAULT_FIRMO));
+                balanced.aqua(),
+                balanced.igni(),
+                balanced.aura(),
+                balanced.firmo()));
         context.getSource().sendSuccess(() -> Objects.requireNonNull(feedback), true);
         return 1;
     }

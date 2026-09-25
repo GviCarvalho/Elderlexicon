@@ -1,6 +1,8 @@
 package com.elderlexicon.mod.spell.function;
 
 import com.elderlexicon.mod.spell.SpellContext;
+import com.elderlexicon.mod.spell.action.SpellAction;
+import com.elderlexicon.mod.spell.mark.MarkCost;
 import com.elderlexicon.mod.vita.ElementAffinityService;
 import com.elderlexicon.mod.vita.VitaElement;
 import net.minecraft.core.BlockPos;
@@ -21,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Repels nearby entities away from the caster, optionally filtered by the preceding element.
@@ -46,6 +49,13 @@ public final class ImpediuntFunctionHandler implements SpellFunctionHandler {
     public void execute(SpellContext context, VitaElement element) {
         ServerPlayer player = context.player();
         if (!gateway.isPlayerValid(player)) {
+            return;
+        }
+        Optional<SpellAction> action = context.currentAction();
+        if (action.flatMap(SpellAction::subjectMark).isPresent()) {
+            // m1 impediunt: the marked thing is pushed away from the mage (or from the ubis place).
+            MarkSpells.push(context, action.get().subjectMark().get(), action.get().place(), MarkSpells.Push.AWAY_FROM_CASTER,
+                    action.get().quantity().orElse(MarkCost.DEFAULT_THROW_ENERGY), Chronos.window(action.get()));
             return;
         }
 

@@ -1,10 +1,14 @@
 package com.elderlexicon.mod.spell.function;
 
 import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ligabis.world.LigabisManager;
+import com.elderlexicon.mod.spelling.entity.PlacedScrollEntity;
+import com.elderlexicon.mod.spelling.item.SpellScrollItem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -65,21 +69,44 @@ public final class MarkHelper {
         String mark = sanitize(rawMark);
         CompoundTag data = entity.getPersistentData();
         writeMark(data, mark);
+        markHeldScroll(entity, mark);
+        LigabisManager manager = LigabisManager.get();
+        if (manager != null) {
+            manager.entityMarkChanged(entity);
+        }
         return true;
+    }
+
+    /**
+     * A scroll in a frame or on the ground carries the mark itself too, so taking it down keeps the mark: it goes
+     * wherever the item goes, and placing it again needs no new marking.
+     */
+    private static void markHeldScroll(Entity entity, String mark) {
+        if (entity instanceof ItemFrame frame && frame.getItem().getItem() instanceof SpellScrollItem) {
+            ItemStack scroll = frame.getItem().copy();
+            writeMark(scroll.getOrCreateTag(), mark);
+            frame.setItem(scroll, false);
+        } else if (entity instanceof PlacedScrollEntity placed && !placed.getScroll().isEmpty()) {
+            ItemStack scroll = placed.getScroll().copy();
+            writeMark(scroll.getOrCreateTag(), mark);
+            placed.setScroll(scroll);
+        }
     }
 
     public static boolean applyMark(ServerLevel level, BlockPos pos, String rawMark) {
         if (level == null || pos == null || !level.isLoaded(pos)) {
             return false;
         }
-        BlockEntity blockEntity = level.getBlockEntity(pos);
-        if (blockEntity == null) {
-            return false;
-        }
         String mark = sanitize(rawMark);
-        writeMark(blockEntity.getPersistentData(), mark);
-        blockEntity.setChanged();
-        return true;
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity != null) {
+            writeMark(blockEntity.getPersistentData(), mark);
+            blockEntity.setChanged();
+        }
+        // A plain block cannot carry a mark of its own, so the Ligabis manager keeps it.
+        LigabisManager manager = LigabisManager.get();
+        boolean kept = manager != null && manager.blockMarkChanged(level, pos, mark);
+        return blockEntity != null || kept;
     }
 
     public static String sanitizeMark(String raw) {

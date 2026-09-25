@@ -162,3 +162,11 @@ negative states linked to imbalances,
 conversion mechanics between Life and magic,
 
 future "arcane physiology" system.
+
+⚖️ 8. Balance over time (implemented 2026-09-25)
+
+- Losing or regaining health takes or gives each element in its share of life, so damage and healing alone never unbalance the body.
+- A change to one element (a spell, absorbed energy, a conversion) stays in that element. The old cyclic cascade (a change pushing the next elements of the cycle the opposite way) was removed: it kept the body unbalanced and made it very hard to recover.
+- The body drifts back to balance by itself, as the grimoire says (3.2: it "absorbs the energy around it slowly ... until the scale returns to balance"): every second each element moves 10% of the way to its share of the current life (`VitaSystem.RELAX_PER_SECOND`), about 13 seconds from a severe imbalance to balanced.
+- `/vita reset` balances the body for the health the player has now (it used to assume a full 100 UMU, so a hurt player was unbalanced again on the next tick).
+- Note: the code uses 55/38/2/5 while section 2 above says 56/38/2/4.

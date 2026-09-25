@@ -58,6 +58,10 @@ public class ElderBrushItem extends Item {
         if (!level.isClientSide) {
             return InteractionResultHolder.pass(stack);
         }
+        if (player.isShiftKeyDown()) {
+            MarkEditScreen.open(MarkTarget.entity(player.getId()));
+            return InteractionResultHolder.success(stack);
+        }
         HitResult hit = pick(player, RAY_RANGE);
         if (hit instanceof EntityHitResult entityHit) {
             MarkEditScreen.open(MarkTarget.entity(entityHit.getEntity().getId()));

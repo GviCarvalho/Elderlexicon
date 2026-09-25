@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.spelling.client;
 
+import com.elderlexicon.mod.spell.mark.NumberGlyphs;
 import com.elderlexicon.mod.spelling.item.GrimoireItem;
 import com.elderlexicon.mod.spelling.network.SpellingNetwork;
 import com.google.common.collect.Lists;
@@ -379,9 +380,10 @@ public class GrimoireEditScreen extends Screen {
         StringBuffer buffer = new StringBuffer();
         while (matcher.find()) {
             String token = matcher.group(1);
+            // A number is written one glyph per digit, so "20" becomes "SQ" even when typed a digit at a time.
             String replacement = RuneSgaMapper.glyphForRune(token)
                     .map(Object::toString)
-                    .orElse(token);
+                    .orElseGet(() -> NumberGlyphs.toGlyphs(token));
             matcher.appendReplacement(buffer, Matcher.quoteReplacement(replacement));
         }
         matcher.appendTail(buffer);
@@ -499,6 +501,9 @@ public class GrimoireEditScreen extends Screen {
 
     private GrimoireEditScreen.DisplayCache getDisplayCache() {
         if (this.displayCache == null) {
+            // Typing a rune word turns it into one glyph, so the text shrinks right after the text helper moved the
+            // cursor past what was typed; the cursor has to be pulled back inside the page before it is used.
+            this.clampCursorToPage();
             this.displayCache = this.rebuildDisplayCache();
             this.pageMsg = Component.translatable("book.pageIndicator", this.currentPage + 1, this.getNumPages());
         }

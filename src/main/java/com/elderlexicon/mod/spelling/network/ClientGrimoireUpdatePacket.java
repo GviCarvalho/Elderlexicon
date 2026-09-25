@@ -5,6 +5,7 @@ import com.elderlexicon.mod.spelling.custom.CustomRuneHelper;
 import com.elderlexicon.mod.spelling.item.GrimoireItem;
 import com.elderlexicon.mod.spelling.item.SpellScrollItem;
 import com.elderlexicon.mod.spelling.render.SpellMapHelper;
+import com.elderlexicon.mod.spelling.render.SpellMapSync;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -110,6 +111,7 @@ public record ClientGrimoireUpdatePacket(InteractionHand hand,
         }
         ItemStack map = SpellScrollItem.create(sender.level(), sender.getBlockX(), sender.getBlockZ(), (byte) 3);
         SpellMapHelper.paintSpell(sender.serverLevel(), map, text);
+        SpellMapSync.send(sender, map);
         map.setHoverName(Component.translatable("item.elderlexicon.detached_page", index + 1));
         CompoundTag custom = map.getOrCreateTag();
         custom.putString("DetachedPageText", text);

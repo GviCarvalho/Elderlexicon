@@ -69,6 +69,7 @@ public final class SpellCostProcessor {
         map.put("vocant", 1.0D);
         map.put("vertere", 1.0D);
         map.put("ligabis", 0.1D);
+        map.put("transvocatio", 1.0D);
         return map;
     }
 }

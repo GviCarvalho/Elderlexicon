@@ -79,13 +79,24 @@ class SpellActionEngineTest {
     }
 
     @Test
-    void vertereRequiresExplicitSourceBefore() {
-        SpellActionResult result = engine.generateActions(List.of("vertere", "igni"));
+    void vertereWithoutASourceConvertsMana() {
+        // Book 4.2: a function with no source is filled with mana, so "vertere aqua vocant" is "vis vertere aqua vocant".
+        SpellActionResult result = engine.generateActions(List.of("vertere", "aqua", "vocant"));
 
-        assertTrue(result.hasIssues());
-        assertTrue(result.issues().stream().anyMatch(issue -> issue.contains("fonte imediatamente antes")));
-        assertTrue(result.vertereRequests().isEmpty());
-        assertEquals(1, result.actions().size(), "Only the valid source should remain");
+        assertFalse(result.hasIssues(), "Unexpected issues: " + result.issues());
+        assertEquals(1, result.vertereRequests().size());
+        assertEquals(VitaElement.BALANCED, result.vertereRequests().get(0).source());
+        assertEquals(VitaElement.AQUA, result.vertereRequests().get(0).target());
+    }
+
+    @Test
+    void vertereAfterExsugatConvertsTheCapturedSource() {
+        // Book 8.2.1: capture first, then convert.
+        SpellActionResult result = engine.generateActions(List.of("igni", "exsugat", "vertere", "aqua"));
+
+        assertFalse(result.hasIssues(), "Unexpected issues: " + result.issues());
+        assertEquals(VitaElement.IGNI, result.vertereRequests().get(0).source());
+        assertEquals(VitaElement.AQUA, result.vertereRequests().get(0).target());
     }
 
     @Test

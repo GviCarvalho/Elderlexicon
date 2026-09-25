@@ -1,3 +1,5 @@
+> **Substituído.** Este plano foi trocado por `docs/ligabis-design.md`: o firmo deixou de ser proteção e passou a ser destino compartilhado, então a imortalidade descrita aqui não será implementada.
+
 # Plano de implementação – Ligabis “imortal” (via única e dupla)
 
 Objetivo: tornar vínculos Ligabis (quando vinculado firmo dos alvos) capazes de interceptar a morte/remoção de alvos vinculados enquanto o elo estiver ativo e o mestre estiver íntegro, simulando o efeito de um Totem da Imortalidade (sem tela de respawn, sem perda de itens/XP, sem loops de morte/respawn). Para via única: apenas seguidores ganham esse efeito; para via dupla: todos os membros do elo protegidos enquanto o elo durar.
