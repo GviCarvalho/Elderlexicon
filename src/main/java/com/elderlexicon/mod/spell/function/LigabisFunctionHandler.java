@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.ligabis.world.LigabisManager;
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spelling.entity.PlacedScrollEntity;
 import com.elderlexicon.mod.vita.VitaElement;
@@ -28,7 +29,9 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.lang.reflect.Field;
@@ -57,8 +60,33 @@ public final class LigabisFunctionHandler implements SpellFunctionHandler {
             return;
         }
         LigabisAspect aspect = LigabisAspect.fromElement(element == null ? context.primaryElement() : element);
-        if (aspect == null) {
+        // vis m1 ligabis r1 is a reading bond (no bodily effect): it goes to the Ligabis engine like the four aspects.
+        boolean readingBond = aspect == null && context.lexemes().stream().anyMatch("vis"::equalsIgnoreCase);
+        if (aspect == null && !readingBond) {
             player.sendSystemMessage(Component.literal("Ligabis requer um elemento valido antes da runa."));
+            return;
+        }
+        if (readingBond || aspect == LigabisAspect.FIRMO || aspect == LigabisAspect.IGNI || aspect == LigabisAspect.AQUA
+                || aspect == LigabisAspect.AURA) {
+            // Firmo, igni, aqua and aura run on the new Ligabis engine.
+            LigabisManager manager = LigabisManager.get();
+            if (manager == null) {
+                player.sendSystemMessage(Component.literal("Ligabis ainda nao esta pronto neste mundo."));
+                return;
+            }
+            SpellEffects.SpellImpact aimed = SpellEffects.findImpact(player, RANGE);
+            Entity target = aimed.entity();
+            BlockPos blockPos = aimed.blockPos();
+            boolean hasBlock = blockPos != null && !player.serverLevel().getBlockState(blockPos).isAir();
+            if (target == null && aspect == LigabisAspect.AURA) {
+                // findImpact only picks entities that are "pickable"; a dropped item is not, so it needs its own ray.
+                target = findLooseItem(player, RANGE);
+            }
+            if (target == null && !hasBlock) {
+                // Mirando pro nada: o mago se marca.
+                target = player;
+            }
+            manager.castLink(player, context.lexemes(), target, hasBlock ? blockPos : null);
             return;
         }
         MarkDescriptor descriptor = resolveMarkDescriptor(context.lexemes());
@@ -99,6 +127,22 @@ public final class LigabisFunctionHandler implements SpellFunctionHandler {
                 + link.targetCount() + " alvos."));
         link.ensureActive(player.serverLevel());
         link.syncManager(player.serverLevel());
+    }
+
+    /** {@code SpellEffects.findImpact} only picks "pickable" entities, which a dropped item never is. */
+    private Entity findLooseItem(ServerPlayer player, double range) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 look = player.getLookAngle();
+        Vec3 end = eye.add(look.scale(range));
+        AABB searchBox = player.getBoundingBox().expandTowards(look.scale(range)).inflate(1.0D);
+        EntityHitResult hit = ProjectileUtil.getEntityHitResult(
+                player.level(),
+                player,
+                eye,
+                end,
+                searchBox,
+                candidate -> candidate instanceof ItemEntity && candidate != player);
+        return hit == null ? null : hit.getEntity();
     }
 
     private void cleanupExpired(long now) {

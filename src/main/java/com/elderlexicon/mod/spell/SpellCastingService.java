@@ -17,8 +17,6 @@ import com.elderlexicon.mod.vita.VitaScoreboardManager;
 import com.elderlexicon.mod.vita.VitaSystem;
 import com.mojang.logging.LogUtils;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 
@@ -218,11 +216,7 @@ public final class SpellCastingService {
     }
 
     private static void scheduleLater(ServerPlayer player, int delayTicks, Runnable action) {
-        MinecraftServer server = player.server;
-        if (server == null || server.isStopped()) {
-            return;
-        }
-        server.tell(new TickTask(server.getTickCount() + delayTicks, action));
+        SpellTicks.schedule(player.server, delayTicks, action);
     }
 
     private static Result mergeSimultaneous(List<Result> results, int totalSpells) {

@@ -18,6 +18,10 @@ public final class EmissionRenderer {
     private static final double DRAW_CHANCE = 0.3D;
     private static final double MIN_FRACTION = 0.05D;
     private static final double SPREAD = 0.08D;
+    /** UMU of one pulse of a default Iactare (10 UMU over 9 pulses): drawn with {@link #BASE_PARTICLES}. */
+    private static final double REFERENCE_ENERGY = 10.0D / 9.0D;
+    private static final int BASE_PARTICLES = 2;
+    private static final int MAX_PARTICLES = 24;
 
     private EmissionRenderer() {
     }
@@ -36,9 +40,13 @@ public final class EmissionRenderer {
             if (particle.isEmpty()) {
                 continue;
             }
+            // Twice the UMU looks like twice the matter (book 4.3.2), until the particle budget runs out.
+            int count = (int) Math.max(BASE_PARTICLES,
+                    Math.min(MAX_PARTICLES, Math.round(BASE_PARTICLES * emission.energy() / REFERENCE_ENERGY)));
+            double spread = SPREAD * Math.sqrt((double) count / BASE_PARTICLES);
             for (Emission.Point point : emission.samples()) {
                 if (level.random.nextDouble() < fraction * DRAW_CHANCE) {
-                    level.sendParticles(particle.get(), point.x(), point.y(), point.z(), 2, SPREAD, SPREAD, SPREAD, 0.01D);
+                    level.sendParticles(particle.get(), point.x(), point.y(), point.z(), count, spread, spread, spread, 0.01D);
                 }
             }
         }

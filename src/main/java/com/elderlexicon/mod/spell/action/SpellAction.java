@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.spell.action;
 
+import com.elderlexicon.mod.spell.mark.SpellPlace;
 import com.elderlexicon.mod.vita.VitaElement;
 
 import java.util.ArrayList;
@@ -7,11 +8,24 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalDouble;
 
 /**
  * Immutable description of a spell step produced by the action engine.
  */
 public final class SpellAction {
+
+    /** Metadata key: the mark whose carriers the function acts on ({@code m1 vocant}). */
+    public static final String SUBJECT_MARK = "subjectMark";
+    /** Metadata key: the mark a targeted function points at ({@code m1 transvocatio m2}). */
+    public static final String TARGET_MARK = "targetMark";
+    /** Metadata key: the {@link SpellPlace} written with {@code ubis}. */
+    public static final String PLACE = "place";
+    /** Metadata key: the UMU written with {@code quantum} ({@code igni quantum 20 iactare}). */
+    public static final String QUANTITY = "quantity";
+    /** Metadata key: the seconds written with {@code chronos} ({@code igni chronos 5 iactare}). */
+    public static final String SECONDS = "seconds";
 
     private final String runeId;
     private final SpellActionType type;
@@ -57,6 +71,26 @@ public final class SpellAction {
 
     public Map<String, Object> metadata() {
         return metadata;
+    }
+
+    public Optional<String> subjectMark() {
+        return metadata.get(SUBJECT_MARK) instanceof String mark ? Optional.of(mark) : Optional.empty();
+    }
+
+    public Optional<String> targetMark() {
+        return metadata.get(TARGET_MARK) instanceof String mark ? Optional.of(mark) : Optional.empty();
+    }
+
+    public OptionalDouble quantity() {
+        return metadata.get(QUANTITY) instanceof Double quantity ? OptionalDouble.of(quantity) : OptionalDouble.empty();
+    }
+
+    public OptionalDouble seconds() {
+        return metadata.get(SECONDS) instanceof Double seconds ? OptionalDouble.of(seconds) : OptionalDouble.empty();
+    }
+
+    public Optional<SpellPlace> place() {
+        return metadata.get(PLACE) instanceof SpellPlace place ? Optional.of(place) : Optional.empty();
     }
 
     public Builder toBuilder() {

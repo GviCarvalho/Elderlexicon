@@ -1,12 +1,17 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.spell.SpellTicks;
 import com.elderlexicon.mod.vita.VitaElement;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -15,8 +20,6 @@ import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.particles.SculkChargeParticleOptions;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -51,21 +54,17 @@ final class SpellEffects {
    private static final int FULMEN_FURNACE_BURN_TICKS = 100;
    private static final Field FURNACE_LIT_TIME = findFurnaceField("litTime");
    private static final Field FURNACE_LIT_DURATION = findFurnaceField("litDuration");
+   /** Most blocks one element effect lays or touches, whatever the power (reached at 400 UMU). */
+   private static final int MAX_AREA_BLOCKS = 40;
+   private static final double MAX_PUSH = 3.9D;
 
    private SpellEffects() {
    }
 
+   /** Runs {@code action} {@code delayTicks} server ticks later (see {@link SpellTicks}). */
    static void schedule(ServerLevel level, int delayTicks, Runnable action) {
-      if (level != null && action != null) {
-         MinecraftServer server = level.getServer();
-         if (server != null && !server.isStopped()) {
-            if (delayTicks <= 0) {
-               server.execute(action);
-            } else {
-               server.tell(new TickTask(server.getTickCount() + delayTicks, action));
-            }
-
-         }
+      if (level != null) {
+         SpellTicks.schedule(level.getServer(), delayTicks, action);
       }
    }
 
@@ -131,84 +130,226 @@ final class SpellEffects {
    }
 
    static void applyElementEffect(ServerPlayer player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact) {
+      applyElementEffect(player, element, elementRuneId, impact, 1.0D);
+   }
+
+   /**
+    * Applies what an element does where it lands, scaled by {@code power}: the UMU conjured divided by the
+    * default 10. The book is linear here (cap. 4.3.2, "o dobro do fogo, o dobro do perigo"): twice the UMU does
+    * twice the damage and burns twice as long, and matter laid in the world (fire, earth) or touched (water)
+    * covers about {@code power} blocks around the impact.
+    */
+   static void applyElementEffect(ServerPlayer player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact,
+                                  double power) {
+      if (power > 0.0D) {
+         apply(player, element, elementRuneId, impact, new Dose(power, blocksFor(power), false));
+      }
+   }
+
+   /**
+    * One pulse of an effect spread over several pulses (an Iactare that follows the mage's aim): each pulse does
+    * its share where the mage is aiming at that moment, so sweeping the aim spreads the effect, and all the pulses
+    * on one spot add up to the whole effect. Returns whether the pulse reached anything.
+    */
+   static boolean applyElementPulse(ServerPlayer player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact,
+                                    Stream stream) {
+      if (impact == null || (impact.entity() == null && impact.blockPos() == null)) {
+         return false;
+      }
+      apply(player, element, elementRuneId, impact, new Dose(stream.share, stream.takeBlocks(), true));
+      return true;
+   }
+
+   /**
+    * What an element does to one creature, with no matter laid in the world: {@code strength} 1 is the default
+    * 10 UMU, and a {@code pulse} adds to what earlier pulses did (see {@link #applyElementPulse}).
+    */
+   static void applyToEntity(ServerPlayer player, VitaElement element, String elementRuneId, Entity entity, double strength,
+                             boolean pulse) {
+      if (entity != null && strength > 0.0D) {
+         apply(player, element, elementRuneId, new SpellEffects.SpellImpact(entity.position(), entity, null, null),
+               new Dose(strength, 0, pulse));
+      }
+   }
+
+   /** The whole power of a spread effect and what is left of the matter it lays, carried from pulse to pulse. */
+   static final class Stream {
+      private final double share;
+      private double blockBudget;
+
+      Stream(double power, int pulses) {
+         this.share = power / Math.max(1, pulses);
+      }
+
+      /** Whole blocks this pulse may lay: a share of one block per pulse, paid out as the shares add up. */
+      private int takeBlocks() {
+         blockBudget += share;
+         int blocks = (int) Math.floor(blockBudget + 1.0E-9D);
+         blockBudget -= blocks;
+         return Math.min(MAX_AREA_BLOCKS, blocks);
+      }
+   }
+
+   /**
+    * How much of an element lands at once: {@code strength} scales damage, fire and pushes (1 = the default 10
+    * UMU), {@code blocks} is the matter laid or touched, and a {@code pulse} adds to what earlier pulses did
+    * (fire time adds up, and the hurt cooldown does not swallow the next pulse).
+    */
+   private record Dose(double strength, int blocks, boolean pulse) { }
+
+   private static void apply(ServerPlayer player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact,
+                             Dose dose) {
       if (impact != null) {
          switch (element) {
             case IGNI:
-               applyIgniEffect(player, elementRuneId, impact);
+               applyIgniEffect(player, elementRuneId, impact, dose);
                break;
             case FIRMO:
-               applyFirmoEffect(player, impact);
+               applyFirmoEffect(player, impact, dose);
                break;
             case AURA:
-               applyAuraEffect(player, impact);
+               applyAuraEffect(player, impact, dose);
                break;
             case AQUA:
-               applyAquaEffect(player, impact);
+               applyAquaEffect(player, impact, dose);
             case BALANCED:
          }
 
       }
    }
 
-   private static void applyIgniEffect(ServerPlayer player, String elementRuneId, SpellEffects.SpellImpact impact) {
+   private static void hurt(Entity entity, net.minecraft.world.damagesource.DamageSource source, double amount, Dose dose) {
+      if (amount <= 0.0D) {
+         return;
+      }
+      if (dose.pulse()) {
+         entity.invulnerableTime = 0;
+      }
+      entity.hurt(source, (float) amount);
+   }
+
+   private static void applyIgniEffect(ServerPlayer player, String elementRuneId, SpellEffects.SpellImpact impact, Dose dose) {
       Entity entity = impact.entity();
       if (entity instanceof LivingEntity living) {
-         living.setSecondsOnFire(4);
-         living.hurt(player.damageSources().playerAttack(player), 4.0F);
+         int fireTicks = (int) Math.round(4.0D * dose.strength() * 20.0D);
+         if (dose.pulse()) {
+            living.setRemainingFireTicks(Math.max(0, living.getRemainingFireTicks()) + fireTicks);
+         } else {
+            living.setSecondsOnFire(Math.max(1, fireTicks / 20));
+         }
+         hurt(living, player.damageSources().playerAttack(player), 4.0D * dose.strength(), dose);
       } else {
          if (impact.blockPos() != null) {
             ServerLevel level = player.serverLevel();
-            if (applyIgniBlockEffect(level, impact.blockPos(), furnaceBurnTicks(elementRuneId))) {
+            if (applyIgniBlockEffect(level, impact.blockPos(), (int) Math.round(furnaceBurnTicks(elementRuneId) * dose.strength()))) {
                return;
             }
 
             BlockPos firePos = firePlacementPos(impact);
-            if (firePos != null && level.isLoaded(firePos) && level.isEmptyBlock(firePos)) {
-               level.setBlock(firePos, Blocks.FIRE.defaultBlockState(), 3);
+            if (firePos != null && dose.blocks() > 0) {
+               for (BlockPos pos : groundSpots(level, firePos, dose.blocks())) {
+                  level.setBlock(pos, Blocks.FIRE.defaultBlockState(), 3);
+               }
             }
          }
 
       }
    }
 
-   private static void applyFirmoEffect(ServerPlayer player, SpellEffects.SpellImpact impact) {
+   private static void applyFirmoEffect(ServerPlayer player, SpellEffects.SpellImpact impact, Dose dose) {
       ServerLevel level = player.serverLevel();
       Entity entity = impact.entity();
       Vec3 look = player.getLookAngle().normalize();
+      double strength = dose.strength();
       if (entity != null) {
-         entity.push(look.x * 0.6D, 0.3D, look.z * 0.6D);
-         entity.hurt(player.damageSources().playerAttack(player), 4.0F);
-         placeDirtBlock(level, entity.blockPosition());
+         push(entity, look.x * 0.6D * strength, 0.3D * strength, look.z * 0.6D * strength);
+         hurt(entity, player.damageSources().playerAttack(player), 4.0D * strength, dose);
+         placeDirtBlocks(level, entity.blockPosition(), dose.blocks());
       } else {
          BlockPos targetPos = impact.blockPos();
          if (targetPos != null) {
             BlockPos placePos = impact.face() != null ? targetPos.relative(impact.face()) : targetPos;
-            placeDirtBlock(level, placePos);
+            placeDirtBlocks(level, placePos, dose.blocks());
          }
 
       }
    }
 
-   private static void applyAuraEffect(ServerPlayer player, SpellEffects.SpellImpact impact) {
+   private static void applyAuraEffect(ServerPlayer player, SpellEffects.SpellImpact impact, Dose dose) {
       Entity entity = impact.entity();
       if (entity != null) {
          Vec3 look = player.getLookAngle().normalize();
-         entity.hurt(player.damageSources().playerAttack(player), 3.0F);
-         entity.push(look.x * 0.5D, 0.2D, look.z * 0.5D);
+         double strength = dose.strength();
+         hurt(entity, player.damageSources().playerAttack(player), 3.0D * strength, dose);
+         push(entity, look.x * 0.5D * strength, 0.2D * strength, look.z * 0.5D * strength);
       }
    }
 
-   private static void applyAquaEffect(ServerPlayer player, SpellEffects.SpellImpact impact) {
+   private static void applyAquaEffect(ServerPlayer player, SpellEffects.SpellImpact impact, Dose dose) {
       Entity entity = impact.entity();
       if (entity instanceof LivingEntity living) {
-         living.hurt(player.damageSources().drown(), 4.0F);
+         hurt(living, player.damageSources().drown(), 4.0D * dose.strength(), dose);
          living.setAirSupply(Math.min(living.getAirSupply(), 20));
       } else {
-         if (impact.blockPos() != null) {
-            applyAquaBlockEffect(player.serverLevel(), impact.blockPos());
+         if (impact.blockPos() != null && dose.blocks() > 0) {
+            ServerLevel level = player.serverLevel();
+            for (BlockPos pos : spotsAround(impact.blockPos(), dose.blocks())) {
+               applyAquaBlockEffect(level, pos);
+            }
          }
 
       }
+   }
+
+   /** Blocks of matter for a power: one at the default 10 UMU, one more per 10 UMU, up to {@link #MAX_AREA_BLOCKS}. */
+   static int blocksFor(double power) {
+      return (int) Math.max(1L, Math.min(MAX_AREA_BLOCKS, Math.round(power)));
+   }
+
+   /** A push that never goes past what the network can send (3.9 blocks per tick on each axis). */
+   private static void push(Entity entity, double x, double y, double z) {
+      entity.push(clampSpeed(x), clampSpeed(y), clampSpeed(z));
+      entity.hurtMarked = true;
+   }
+
+   private static double clampSpeed(double value) {
+      return Math.max(-MAX_PUSH, Math.min(MAX_PUSH, value));
+   }
+
+   /** Up to {@code count} positions around {@code center}, closest ring first, in its layer and the ones below and above. */
+   static List<BlockPos> spotsAround(BlockPos center, int count) {
+      List<BlockPos> spots = new ArrayList<>();
+      int radius = (int) Math.ceil(Math.sqrt(count));
+      for (int ring = 0; ring <= radius && spots.size() < count; ring++) {
+         for (int dy : new int[] {0, -1, 1}) {
+            for (int dx = -ring; dx <= ring && spots.size() < count; dx++) {
+               for (int dz = -ring; dz <= ring && spots.size() < count; dz++) {
+                  if (Math.max(Math.abs(dx), Math.abs(dz)) == ring) {
+                     spots.add(center.offset(dx, dy, dz));
+                  }
+               }
+            }
+         }
+      }
+      return spots;
+   }
+
+   /** Empty spots resting on something around {@code center}, one per column: where fire or earth can lie on the ground. */
+   static List<BlockPos> groundSpots(ServerLevel level, BlockPos center, int count) {
+      List<BlockPos> spots = new ArrayList<>();
+      Set<Long> columns = new HashSet<>();
+      for (BlockPos pos : spotsAround(center, count * 3)) {
+         if (spots.size() >= count) {
+            break;
+         }
+         long column = BlockPos.asLong(pos.getX(), 0, pos.getZ());
+         if (columns.contains(column) || !level.isLoaded(pos) || !level.isEmptyBlock(pos) || level.isEmptyBlock(pos.below())) {
+            continue;
+         }
+         columns.add(column);
+         spots.add(pos);
+      }
+      return spots;
    }
 
    private static boolean applyIgniBlockEffect(ServerLevel level, BlockPos pos, int furnaceBurnTicks) {
@@ -316,7 +457,7 @@ final class SpellEffects {
       }
    }
 
-   private static boolean applyAquaBlockEffect(ServerLevel level, BlockPos pos) {
+   static boolean applyAquaBlockEffect(ServerLevel level, BlockPos pos) {
       if (level != null && pos != null && level.isLoaded(pos)) {
          BlockState state = level.getBlockState(pos);
          Block block = state.getBlock();
@@ -355,7 +496,7 @@ final class SpellEffects {
       }
    }
 
-   private static BlockPos firePlacementPos(SpellEffects.SpellImpact impact) {
+   static BlockPos firePlacementPos(SpellEffects.SpellImpact impact) {
       BlockPos target = impact.blockPos();
       if (target == null) {
          return null;
@@ -365,11 +506,18 @@ final class SpellEffects {
       }
    }
 
-   private static void placeDirtBlock(ServerLevel level, BlockPos pos) {
-      if (pos != null) {
+   private static void placeDirtBlocks(ServerLevel level, BlockPos pos, int count) {
+      if (pos == null || count <= 0) {
+         return;
+      }
+      if (count <= 1) {
          if (level.isLoaded(pos) && level.isEmptyBlock(pos)) {
             level.setBlock(pos, Blocks.DIRT.defaultBlockState(), 3);
          }
+         return;
+      }
+      for (BlockPos spot : groundSpots(level, pos, count)) {
+         level.setBlock(spot, Blocks.DIRT.defaultBlockState(), 3);
       }
    }
 

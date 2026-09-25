@@ -4,8 +4,11 @@ import com.elderlexicon.mod.spell.function.ExsugatFunctionHandler;
 import com.elderlexicon.mod.spell.function.IactareFunctionHandler;
 import com.elderlexicon.mod.spell.function.ImpediuntFunctionHandler;
 import com.elderlexicon.mod.spell.function.LigabisFunctionHandler;
+import com.elderlexicon.mod.spell.function.MarkVertereFunctionHandler;
 import com.elderlexicon.mod.spell.function.ReframeFunctionHandler;
 import com.elderlexicon.mod.spell.function.SpellFunctionHandler;
+import com.elderlexicon.mod.spell.function.SurgitFunctionHandler;
+import com.elderlexicon.mod.spell.function.TransvocatioFunctionHandler;
 import com.elderlexicon.mod.spell.function.VocantFunctionHandler;
 
 import java.util.Collections;
@@ -29,6 +32,10 @@ public final class SpellFunctionHandlerRegistry {
         register("impediunt", new ImpediuntFunctionHandler());
         register("reframe", new ReframeFunctionHandler());
         register("ligabis", new LigabisFunctionHandler());
+        register("transvocatio", new TransvocatioFunctionHandler());
+        register("surgit", new SurgitFunctionHandler());
+        // Only vertere on a marked thing reaches a handler; between sources the executor converts the Vita.
+        register("vertere", new MarkVertereFunctionHandler());
     }
 
     private SpellFunctionHandlerRegistry() {

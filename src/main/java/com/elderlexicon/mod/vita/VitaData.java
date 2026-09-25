@@ -2,12 +2,7 @@ package com.elderlexicon.mod.vita;
 
 import com.elderlexicon.mod.ExampleMod;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerPlayer;
-
-import java.util.ArrayDeque;
-import java.util.Deque;
 
 /**
  * Persistent Vita storage per player, allowing imbalances across elemental components.
@@ -21,31 +16,20 @@ final class VitaData {
     private static final String TAG_FIRMO = "firmo";
     private static final String TAG_LAST_HEALTH = "lastHealth";
     private static final String TAG_HOMEOSTASIS = "homeostasis_queue";
-    private static final String TAG_STEP_ELEMENT = "element";
-    private static final String TAG_STEP_DELTA = "delta";
     private static final String TAG_AQUA_TIER = "aquaTier";
     private static final String TAG_AURA_TIER = "auraTier";
     private static final String TAG_FIRMO_TIER = "firmoTier";
     private static final String TAG_IGNI_TIER = "igniTier";
 
     private static final double EPSILON = 1.0E-4D;
-    private static final VitaElement[] CYCLE_ORDER = {
-            VitaElement.AQUA,
-            VitaElement.IGNI,
-            VitaElement.AURA,
-            VitaElement.FIRMO
-    };
-    private static final double DIRECT_FACTOR = 0.45D;
-    private static final double SECOND_FACTOR = 0.20D;
-    private static final double TERTIARY_FACTOR = 0.10D;
-    private static final double DAMPING_THRESHOLD = 0.05D;
+    /** Smallest step of the return to balance, so the last bit of an imbalance does not linger forever. */
+    private static final double MIN_RELAX_STEP = 0.01D;
 
     private double aqua;
     private double aura;
     private double igni;
     private double firmo;
     private float lastHealth;
-    private final Deque<HomeostasisStep> homeostasisQueue = new ArrayDeque<>();
     private VitaImbalanceTier aquaTier = VitaImbalanceTier.BALANCED;
     private VitaImbalanceTier auraTier = VitaImbalanceTier.BALANCED;
     private VitaImbalanceTier firmoTier = VitaImbalanceTier.BALANCED;
@@ -129,15 +113,18 @@ final class VitaData {
         };
     }
 
+    /**
+     * Life lost takes each element in its share of life (55/38/2/5), the same way healing gives it back, so being
+     * hurt and healed never unbalances the body by itself.
+     */
     void consume(double umuAmount) {
         if (umuAmount <= EPSILON) {
             return;
         }
-        double perElement = umuAmount / 4.0D;
-        aqua -= perElement;
-        aura -= perElement;
-        igni -= perElement;
-        firmo -= perElement;
+        aqua = Math.max(0.0D, aqua - umuAmount * VitaSystem.AQUA_RATIO);
+        aura = Math.max(0.0D, aura - umuAmount * VitaSystem.AURA_RATIO);
+        igni = Math.max(0.0D, igni - umuAmount * VitaSystem.IGNI_RATIO);
+        firmo = Math.max(0.0D, firmo - umuAmount * VitaSystem.FIRMO_RATIO);
     }
 
     void consumeElement(VitaElement element, double umuAmount) {
@@ -180,7 +167,7 @@ final class VitaData {
             restoreAndStabilize(delta);
             return;
         }
-        modifyElement(target, delta, true);
+        modifyElement(target, delta);
     }
 
     void addElementEnergy(VitaElement element, double amount) {
@@ -280,65 +267,44 @@ final class VitaData {
         }
     }
 
-    private void modifyElement(VitaElement element, double delta, boolean cascade) {
+    private void modifyElement(VitaElement element, double delta) {
         if (element == null || element.isBalanced() || Math.abs(delta) <= EPSILON) {
             return;
         }
-        double updated = Math.max(0.0D, get(element) + delta);
-        setElement(element, updated);
-        if (cascade) {
-            queueHomeostasis(element, delta);
-        }
+        setElement(element, Math.max(0.0D, get(element) + delta));
     }
 
-    private void queueHomeostasis(VitaElement element, double delta) {
-        if (element == null || element.isBalanced() || Math.abs(delta) <= EPSILON) {
-            return;
-        }
-        VitaElement direct = cycleStep(element, 1);
-        VitaElement second = cycleStep(element, 2);
-        VitaElement third = cycleStep(element, 3);
-
-        enqueueStep(direct, -delta * DIRECT_FACTOR);
-        enqueueStep(second, delta * SECOND_FACTOR);
-        enqueueStep(third, -delta * TERTIARY_FACTOR);
-    }
-
-    private void enqueueStep(VitaElement element, double amount) {
-        if (element == null || Math.abs(amount) < DAMPING_THRESHOLD) {
-            return;
-        }
-        homeostasisQueue.addLast(new HomeostasisStep(element, amount));
-    }
-
-    private static VitaElement cycleStep(VitaElement element, int steps) {
-        int index = cycleIndex(element);
-        int nextIndex = Math.floorMod(index + steps, CYCLE_ORDER.length);
-        return CYCLE_ORDER[nextIndex];
-    }
-
-    private static int cycleIndex(VitaElement element) {
-        for (int i = 0; i < CYCLE_ORDER.length; i++) {
-            if (CYCLE_ORDER[i] == element) {
-                return i;
-            }
-        }
-        return 0;
-    }
-
-    boolean runHomeostasisTick() {
-        while (!homeostasisQueue.isEmpty()) {
-            HomeostasisStep step = homeostasisQueue.pollFirst();
-            if (step == null || Math.abs(step.delta()) <= EPSILON) {
+    /**
+     * The body drifts back to its balance (book 3.2: it "absorbs the energy around it slowly ... until the scale
+     * returns to balance"): each element moves {@code fraction} of the way to its share of the current life.
+     *
+     * @return whether anything moved
+     */
+    boolean relaxTowardBalance(double fraction) {
+        boolean moved = false;
+        for (VitaElement element : new VitaElement[] {VitaElement.AQUA, VitaElement.AURA, VitaElement.IGNI, VitaElement.FIRMO}) {
+            double deviation = get(element) - baselineFor(element);
+            if (Math.abs(deviation) <= EPSILON) {
                 continue;
             }
-            modifyElement(step.element(), step.delta(), false);
-            return true;
+            double step = deviation * fraction;
+            if (Math.abs(step) < MIN_RELAX_STEP) {
+                step = Math.copySign(Math.min(Math.abs(deviation), MIN_RELAX_STEP), deviation);
+            }
+            setElement(element, Math.max(0.0D, get(element) - step));
+            moved = true;
         }
-        return false;
+        return moved;
     }
 
-    private record HomeostasisStep(VitaElement element, double delta) {
+    /** Back to a balanced body for the health it has now, forgetting the imbalance tiers. */
+    void reset(float health) {
+        lastHealth = Math.max(0.0F, health);
+        setBalancedValues(lastHealth * VitaSystem.UMU_PER_HP);
+        aquaTier = VitaImbalanceTier.BALANCED;
+        auraTier = VitaImbalanceTier.BALANCED;
+        firmoTier = VitaImbalanceTier.BALANCED;
+        igniTier = VitaImbalanceTier.BALANCED;
     }
 
     float lastHealth() {
@@ -361,14 +327,7 @@ final class VitaData {
         root.putString(TAG_AURA_TIER, auraTier.name());
         root.putString(TAG_FIRMO_TIER, firmoTier.name());
         root.putString(TAG_IGNI_TIER, igniTier.name());
-        ListTag queueTag = new ListTag();
-        for (HomeostasisStep step : homeostasisQueue) {
-            CompoundTag stepTag = new CompoundTag();
-            stepTag.putString(TAG_STEP_ELEMENT, step.element().name());
-            stepTag.putDouble(TAG_STEP_DELTA, step.delta());
-            queueTag.add(stepTag);
-        }
-        root.put(TAG_HOMEOSTASIS, queueTag);
+        root.remove(TAG_HOMEOSTASIS); // the old cascade queue: dropped from older saves
         persistent.put(STORAGE_KEY, root);
     }
 
@@ -408,21 +367,6 @@ final class VitaData {
                 data.igniTier = VitaImbalanceTier.valueOf(tag.getString(TAG_IGNI_TIER));
             } catch (IllegalArgumentException ignored) {
                 data.igniTier = VitaImbalanceTier.BALANCED;
-            }
-        }
-        if (tag.contains(TAG_HOMEOSTASIS, Tag.TAG_LIST)) {
-            ListTag queueTag = tag.getList(TAG_HOMEOSTASIS, Tag.TAG_COMPOUND);
-            for (int i = 0; i < queueTag.size(); i++) {
-                CompoundTag stepTag = queueTag.getCompound(i);
-                String elementName = stepTag.getString(TAG_STEP_ELEMENT);
-                double delta = stepTag.getDouble(TAG_STEP_DELTA);
-                try {
-                    VitaElement element = VitaElement.valueOf(elementName);
-                    if (element != null && !element.isBalanced() && Math.abs(delta) > EPSILON) {
-                        data.homeostasisQueue.addLast(new HomeostasisStep(element, delta));
-                    }
-                } catch (IllegalArgumentException ignored) {
-                }
             }
         }
         return data;

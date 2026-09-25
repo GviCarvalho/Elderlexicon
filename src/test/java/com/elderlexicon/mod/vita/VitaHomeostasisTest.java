@@ -5,75 +5,75 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Constructor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/** The body keeps its balance through damage and healing, and drifts back to it after a spell unbalances it. */
 class VitaHomeostasisTest {
 
     private static final double EPSILON = 1.0E-4D;
 
     @Test
-    void appliesCyclicDampingWhenAddingEnergy() {
-        VitaData data = newData(55.0D, 38.0D, 2.0D, 5.0D);
+    void damageTakesEachElementInItsShare() {
+        VitaData data = newData(55.0D, 38.0D, 2.0D, 5.0D, 20.0F);
 
-        data.addElementEnergy(VitaElement.AQUA, 2.0D);
+        data.consume(20.0D); // 4 HP
+        data.setLastHealth(16.0F);
 
-        assertEquals(57.0D, data.get(VitaElement.AQUA), EPSILON);
-        assertEquals(2.0D, data.get(VitaElement.IGNI), EPSILON);
-        assertEquals(38.0D, data.get(VitaElement.AURA), EPSILON);
-        assertEquals(5.0D, data.get(VitaElement.FIRMO), EPSILON);
-
-        assertTrue(data.runHomeostasisTick());
-        assertEquals(2.0D - (2.0D * 0.45D), data.get(VitaElement.IGNI), EPSILON);
-
-        assertTrue(data.runHomeostasisTick());
-        assertEquals(38.0D + (2.0D * 0.20D), data.get(VitaElement.AURA), EPSILON);
-
-        assertTrue(data.runHomeostasisTick());
-        assertEquals(5.0D - (2.0D * 0.10D), data.get(VitaElement.FIRMO), EPSILON);
-
-        assertTrue(!data.runHomeostasisTick(), "Queue should empty after three ticks");
+        assertEquals(44.0D, data.get(VitaElement.AQUA), EPSILON);
+        assertEquals(30.4D, data.get(VitaElement.AURA), EPSILON);
+        assertEquals(1.6D, data.get(VitaElement.IGNI), EPSILON);
+        assertEquals(4.0D, data.get(VitaElement.FIRMO), EPSILON);
+        assertFalse(data.relaxTowardBalance(0.1D), "hurt, but not unbalanced");
     }
 
     @Test
-    void energyRemovalPushesForwardInCycle() {
-        VitaData data = newData(55.0D, 38.0D, 2.0D, 5.0D);
+    void anElementChangeStaysWhereItWasMade() {
+        VitaData data = newData(55.0D, 38.0D, 2.0D, 5.0D, 20.0F);
 
-        data.consumeElement(VitaElement.IGNI, 1.0D);
+        data.addElementEnergy(VitaElement.IGNI, 3.0D);
 
-        assertEquals(1.0D, data.get(VitaElement.IGNI), EPSILON);
+        assertEquals(5.0D, data.get(VitaElement.IGNI), EPSILON);
+        assertEquals(55.0D, data.get(VitaElement.AQUA), EPSILON);
         assertEquals(38.0D, data.get(VitaElement.AURA), EPSILON);
         assertEquals(5.0D, data.get(VitaElement.FIRMO), EPSILON);
-        assertEquals(55.0D, data.get(VitaElement.AQUA), EPSILON);
-
-        assertTrue(data.runHomeostasisTick());
-        assertEquals(38.0D + (1.0D * 0.45D), data.get(VitaElement.AURA), EPSILON);
-
-        assertTrue(data.runHomeostasisTick());
-        assertEquals(5.0D - (1.0D * 0.20D), data.get(VitaElement.FIRMO), EPSILON);
-
-        assertTrue(data.runHomeostasisTick());
-        assertEquals(55.0D + (1.0D * 0.10D), data.get(VitaElement.AQUA), EPSILON);
     }
 
     @Test
-    void ignoresTinyDeltasToAvoidOscillation() {
-        VitaData data = newData(55.0D, 38.0D, 2.0D, 5.0D);
+    void theBodyDriftsBackToBalance() {
+        VitaData data = newData(55.0D, 38.0D, 5.0D, 1.0D, 20.0F);
 
-        data.addElementEnergy(VitaElement.FIRMO, 0.01D);
+        assertTrue(data.relaxTowardBalance(0.1D));
+        assertEquals(5.0D - 0.3D, data.get(VitaElement.IGNI), EPSILON);
+        assertEquals(1.0D + 0.4D, data.get(VitaElement.FIRMO), EPSILON);
 
-        assertEquals(5.01D, data.get(VitaElement.FIRMO), EPSILON);
-        assertEquals(55.0D, data.get(VitaElement.AQUA), EPSILON);
+        for (int second = 0; second < 120; second++) {
+            data.relaxTowardBalance(0.1D);
+        }
         assertEquals(2.0D, data.get(VitaElement.IGNI), EPSILON);
-        assertEquals(38.0D, data.get(VitaElement.AURA), EPSILON);
-
-        assertTrue(!data.runHomeostasisTick(), "Tiny adjustments should skip scheduling");
+        assertEquals(5.0D, data.get(VitaElement.FIRMO), EPSILON);
+        assertFalse(data.relaxTowardBalance(0.1D), "balanced: nothing left to move");
     }
 
-    private static VitaData newData(double aqua, double aura, double igni, double firmo) {
+    @Test
+    void resetBalancesForTheHealthNow() {
+        VitaData data = newData(10.0D, 70.0D, 9.0D, 0.0D, 20.0F);
+        data.setIgniTier(VitaImbalanceTier.SEVERELY_HIGH);
+
+        data.reset(14.0F);
+
+        assertEquals(70.0D * VitaSystem.AQUA_RATIO, data.get(VitaElement.AQUA), EPSILON);
+        assertEquals(70.0D * VitaSystem.IGNI_RATIO, data.get(VitaElement.IGNI), EPSILON);
+        assertEquals(14.0F, data.lastHealth(), EPSILON);
+        assertEquals(VitaImbalanceTier.BALANCED, data.igniTier());
+        assertFalse(data.relaxTowardBalance(0.1D));
+    }
+
+    private static VitaData newData(double aqua, double aura, double igni, double firmo, float health) {
         try {
             Constructor<VitaData> ctor = VitaData.class.getDeclaredConstructor(double.class, double.class, double.class, double.class, float.class);
             ctor.setAccessible(true);
-            return ctor.newInstance(aqua, aura, igni, firmo, 20.0F);
+            return ctor.newInstance(aqua, aura, igni, firmo, health);
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Unable to create VitaData for test", exception);
         }

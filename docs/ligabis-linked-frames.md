@@ -1,3 +1,5 @@
+> **Nota.** O fan-out de molduras continua válido, mas a associação ao elo passa a usar o índice de marcas do novo desenho (`docs/ligabis-design.md`, seção 8). O diagnóstico abaixo está desatualizado: `FrameTarget` já existe.
+
 # Objetivo
 Permitir que `ligabis` conecte molduras com pergaminhos de magia, de modo que ativar o `surgit` em uma moldura dispare automaticamente os pergaminhos das demais molduras vinculadas (fan-out da mesma Mark), respeitando alcance, duracao do elo e os custos/avisos de cada cast.
 

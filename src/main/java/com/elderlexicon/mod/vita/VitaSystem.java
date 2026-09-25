@@ -49,6 +49,9 @@ public final class VitaSystem {
             0.05D
     );
 
+    /** Share of an imbalance the body takes back each second: about 13 s from severe to balanced. */
+    public static final double RELAX_PER_SECOND = 0.10D;
+    private static final int TICKS_PER_SECOND = 20;
     private static final double HEALTH_EPSILON = 1.0E-4D;
     private static final double EPSILON = 1.0E-4D;
 
@@ -98,7 +101,7 @@ public final class VitaSystem {
             dirty = true;
         }
 
-        if (data.runHomeostasisTick()) {
+        if (player.tickCount % TICKS_PER_SECOND == 0 && data.relaxTowardBalance(RELAX_PER_SECOND)) {
             dirty = true;
         }
 
@@ -309,9 +312,10 @@ public static void forceSetElement(ServerPlayer player, VitaElement element, dou
         if (player == null) {
             return;
         }
+        // Balanced for the health the player has now: resetting to a full 100 UMU while hurt made the next tick read
+        // the missing health as fresh damage and unbalance everything again.
         VitaData data = VitaData.get(player);
-        data.setBalancedValues(DEFAULT_TOTAL);
-        data.setLastHealth((float) (DEFAULT_TOTAL / UMU_PER_HP));
+        data.reset(player.getHealth());
         data.save(player);
         VitaScoreboardManager.update(player, data.toProfile());
     }

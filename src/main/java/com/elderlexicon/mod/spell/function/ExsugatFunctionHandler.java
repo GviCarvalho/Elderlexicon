@@ -1,6 +1,8 @@
 package com.elderlexicon.mod.spell.function;
 
 import com.elderlexicon.mod.spell.SpellContext;
+import com.elderlexicon.mod.spell.action.SpellAction;
+import com.elderlexicon.mod.spell.mark.MarkCost;
 import com.elderlexicon.mod.vita.VitaElement;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -14,6 +16,8 @@ import net.minecraft.world.level.block.FarmBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.Optional;
+
 public final class ExsugatFunctionHandler implements SpellFunctionHandler {
 
     private static final int RANGE = 5;
@@ -21,6 +25,13 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
 
     @Override
     public void execute(SpellContext context, VitaElement element) {
+        Optional<SpellAction> action = context.currentAction();
+        if (action.flatMap(SpellAction::subjectMark).isPresent() && SpellEffects.isPlayerValid(context.player())) {
+            // m1 exsugat: the marked thing is pulled toward the mage, like a magnet.
+            MarkSpells.push(context, action.get().subjectMark().get(), action.get().place(), MarkSpells.Push.TOWARD_CASTER,
+                    action.get().quantity().orElse(MarkCost.DEFAULT_THROW_ENERGY), Chronos.window(action.get()));
+            return;
+        }
         double needed = context.payableCost();
         if (needed <= EPSILON) {
             needed = defaultDrainAmount(element);

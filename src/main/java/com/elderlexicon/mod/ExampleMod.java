@@ -4,11 +4,14 @@ import com.elderlexicon.mod.command.SpellCommand;
 import com.elderlexicon.mod.command.VitaCommand;
 import com.elderlexicon.mod.item.ElderBrushItem;
 import com.elderlexicon.mod.item.LifeCompassItem;
+import com.elderlexicon.mod.ligabis.network.LigabisNetwork;
+import com.elderlexicon.mod.ligabis.world.golem.GolemEntity;
 import com.elderlexicon.mod.mark.network.MarkNetwork;
 import com.elderlexicon.mod.spelling.config.SpellingClientConfig;
 import com.elderlexicon.mod.spell.scene.ArcBoltEntity;
 import com.elderlexicon.mod.spelling.entity.PlacedScrollEntity;
 import com.elderlexicon.mod.spelling.item.SpellScrollItem;
+import com.elderlexicon.mod.spelling.item.CreativeWandItem;
 import com.elderlexicon.mod.spelling.item.GrimoireItem;
 import com.elderlexicon.mod.spelling.item.ImprovisedWandItem;
 import com.elderlexicon.mod.spelling.item.ModularWandItem;
@@ -22,11 +25,13 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.animal.IronGolem;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer;
 import net.minecraft.world.level.block.Block;
@@ -36,6 +41,7 @@ import net.minecraft.world.level.material.MapColor;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -112,6 +118,9 @@ public class ExampleMod {
     public static final RegistryObject<Item> WAND_BLAZE = ITEMS.register("wand_blaze",
             () -> new ModularWandItem(new Item.Properties(), 12D, "tooltip.elderlexicon.wand_blaze",
                     Map.of("igni", 0.20D)));
+    /** For testing: unbreakable, conducts any spell; only in the creative tab, with no recipe. */
+    public static final RegistryObject<Item> CREATIVE_WAND = ITEMS.register("creative_wand",
+            () -> new CreativeWandItem(new Item.Properties().rarity(Rarity.EPIC)));
 
     public static final RegistryObject<Item> GRIMOIRE = ITEMS.register("grimoire",
             () -> new GrimoireItem(new Item.Properties()));
@@ -133,6 +142,12 @@ public class ExampleMod {
                     .clientTrackingRange(16)
                     .updateInterval(Integer.MAX_VALUE)
                     .build("arc_bolt"));
+
+    public static final RegistryObject<EntityType<GolemEntity>> LIGABIS_GOLEM = ENTITY_TYPES.register("ligabis_golem",
+            () -> EntityType.Builder.<GolemEntity>of(GolemEntity::new, MobCategory.MISC)
+                    .sized(1.4F, 2.7F)
+                    .clientTrackingRange(10)
+                    .build("ligabis_golem"));
 
     public static final RegistryObject<RecipeSerializer<WandUpgradeRecipe>> WAND_UPGRADE_SERIALIZER =
             RECIPE_SERIALIZERS.register("wand_upgrade", () -> new SimpleCraftingRecipeSerializer<>(WandUpgradeRecipe::new));
@@ -157,6 +172,7 @@ public class ExampleMod {
                         output.accept(WAND_BONE.get());
                         output.accept(WAND_BAMBOO.get());
                         output.accept(WAND_BLAZE.get());
+                        output.accept(CREATIVE_WAND.get());
                     })
                     .build());
 
@@ -187,6 +203,7 @@ public class ExampleMod {
         event.enqueueWork(() -> {
             SpellingNetwork.register();
             MarkNetwork.register();
+            LigabisNetwork.register();
             DamageMappingConfig.initialize();
             VitaRecoveryConfig.initialize();
         });
@@ -209,6 +226,14 @@ public class ExampleMod {
         public static void onClientSetup(FMLClientSetupEvent event) {
             LOGGER.info("HELLO FROM CLIENT SETUP");
             LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
+        }
+    }
+
+    @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
+    public static class ModBusEvents {
+        @SubscribeEvent
+        public static void onAttributeCreation(EntityAttributeCreationEvent event) {
+            event.put(LIGABIS_GOLEM.get(), IronGolem.createAttributes().build());
         }
     }
 }

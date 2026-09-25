@@ -77,7 +77,9 @@ public final class SpellActionExecutor {
                 continue;
             }
             context.setElementRuneId(resolveElementRuneId(action, currentRuneId, currentRuneId));
-            if (isVertere(action.runeId())) {
+            context.setCurrentAction(action);
+            // Vertere on a marked thing converts its matter; its handler does that, not the caster's Vita.
+            if (isVertere(action.runeId()) && action.subjectMark().isEmpty()) {
                 if (vertereIndex < vertereQueue.size()) {
                     VertereRequest request = vertereQueue.get(vertereIndex++);
                     VitaElement updated = handleVertere(context, request);

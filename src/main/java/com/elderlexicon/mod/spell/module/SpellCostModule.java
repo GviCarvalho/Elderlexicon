@@ -149,6 +149,29 @@ public final class SpellCostModule implements SpellModule {
         return Math.max(0.0D, umuCost - paid);
     }
 
+    /**
+     * Charges a player outside of a cast (a Ligabis link paying for what it does): XP first, then food,
+     * then their own life. If they do not have enough even counting their life, everything they have is
+     * taken (which can kill them) and false is returned. Creative players pay nothing.
+     */
+    public boolean payOutsideCast(ServerPlayer player, double umuCost, boolean focusActive) {
+        if (player == null || !player.isAlive()) {
+            return false;
+        }
+        if (umuCost <= EPSILON || player.isCreative()) {
+            return true;
+        }
+        double available = Math.max(0, player.totalExperience) / com.elderlexicon.mod.vita.VitaSystem.XP_PER_UMU
+                + player.getFoodData().getFoodLevel()
+                + Math.max(0.0F, player.getHealth()) * com.elderlexicon.mod.vita.VitaSystem.UMU_PER_HP;
+        if (umuCost > available + EPSILON) {
+            consumeSpellCost(player, available, com.elderlexicon.mod.vita.VitaElement.BALANCED, focusActive);
+            return false;
+        }
+        consumeSpellCost(player, umuCost, com.elderlexicon.mod.vita.VitaElement.BALANCED, focusActive);
+        return true;
+    }
+
     interface VitaGateway {
         double consumeElementExcess(ServerPlayer player, com.elderlexicon.mod.vita.VitaElement element, double umuAmount);
 

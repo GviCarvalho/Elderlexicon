@@ -34,6 +34,7 @@ public final class SpellContext {
     private boolean focusActive;
     private SpellScene scene = new SpellScene();
     private int sceneSpellId = scene.registerSpell();
+    private SpellAction currentAction;
 
     public SpellContext(ServerPlayer player,
                         List<String> lexemes,
@@ -86,6 +87,18 @@ public final class SpellContext {
 
     public List<SpellAction> actions() {
         return actions;
+    }
+
+    /**
+     * The function being executed right now, so a handler can read its marks and place. Handlers that
+     * act later must read it while {@code execute} runs, since the next function replaces it.
+     */
+    public Optional<SpellAction> currentAction() {
+        return Optional.ofNullable(currentAction);
+    }
+
+    public void setCurrentAction(SpellAction action) {
+        this.currentAction = action;
     }
 
     public Optional<Parser.PrimarySource> primarySource() {
