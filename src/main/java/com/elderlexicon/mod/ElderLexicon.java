@@ -19,67 +19,45 @@ import com.elderlexicon.mod.spelling.network.SpellingNetwork;
 import com.elderlexicon.mod.spelling.recipe.WandUpgradeRecipe;
 import com.elderlexicon.mod.vita.damage.DamageMappingConfig;
 import com.elderlexicon.mod.vita.recovery.VitaRecoveryConfig;
-import com.mojang.logging.LogUtils;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.animal.IronGolem;
-import net.minecraft.world.food.FoodProperties;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraft.world.level.material.MapColor;
-import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
-import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
-import org.slf4j.Logger;
 
 import java.util.Map;
 
 @SuppressWarnings("null")
-@Mod(ExampleMod.MODID)
-public class ExampleMod {
+/** Elder Lexicon: runic magic spelled from an ancient grimoire. Registers the mod's content and wiring. */
+@Mod(ElderLexicon.MODID)
+public class ElderLexicon {
 
     public static final String MODID = "elderlexicon";
-    private static final Logger LOGGER = LogUtils.getLogger();
 
-    public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MODID);
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
     public static final DeferredRegister<EntityType<?>> ENTITY_TYPES = DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, MODID);
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS =
             DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
     public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS =
             DeferredRegister.create(ForgeRegistries.RECIPE_SERIALIZERS, MODID);
-
-    public static final RegistryObject<Block> EXAMPLE_BLOCK = BLOCKS.register("example_block",
-            () -> new Block(BlockBehaviour.Properties.of().mapColor(MapColor.STONE)));
-    public static final RegistryObject<Item> EXAMPLE_BLOCK_ITEM = ITEMS.register("example_block",
-            () -> new BlockItem(EXAMPLE_BLOCK.get(), new Item.Properties()));
-
-    public static final RegistryObject<Item> EXAMPLE_ITEM = ITEMS.register("example_item",
-            () -> new Item(new Item.Properties().food(new FoodProperties.Builder()
-                    .alwaysEat().nutrition(1).saturationMod(2f).build())));
 
     public static final RegistryObject<Item> LIFE_COMPASS = ITEMS.register("life_compass",
             () -> new LifeCompassItem(new Item.Properties().stacksTo(1)));
@@ -176,11 +154,10 @@ public class ExampleMod {
                     })
                     .build());
 
-    public ExampleMod(FMLJavaModLoadingContext context) {
+    public ElderLexicon(FMLJavaModLoadingContext context) {
         IEventBus modEventBus = context.getModEventBus();
         modEventBus.addListener(this::commonSetup);
 
-        BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
         ENTITY_TYPES.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
@@ -193,13 +170,6 @@ public class ExampleMod {
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
-        LOGGER.info("HELLO FROM COMMON SETUP");
-        if (Config.logDirtBlock) {
-            LOGGER.info("DIRT BLOCK >> {}", ForgeRegistries.BLOCKS.getKey(Blocks.DIRT));
-        }
-        LOGGER.info(Config.magicNumberIntroduction + Config.magicNumber);
-        Config.items.forEach(item -> LOGGER.info("ITEM >> {}", item));
-
         event.enqueueWork(() -> {
             SpellingNetwork.register();
             MarkNetwork.register();
@@ -210,23 +180,9 @@ public class ExampleMod {
     }
 
     @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event) {
-        LOGGER.info("HELLO from server starting");
-    }
-
-    @SubscribeEvent
     public void registerCommands(RegisterCommandsEvent event) {
         SpellCommand.register(event.getDispatcher());
         VitaCommand.register(event.getDispatcher());
-    }
-
-    @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
-    public static class ClientModEvents {
-        @SubscribeEvent
-        public static void onClientSetup(FMLClientSetupEvent event) {
-            LOGGER.info("HELLO FROM CLIENT SETUP");
-            LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
-        }
     }
 
     @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD)

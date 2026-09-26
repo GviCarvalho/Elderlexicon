@@ -1,6 +1,5 @@
 package com.elderlexicon.mod.ligabis.world.golem;
 
-import com.mojang.logging.LogUtils;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -9,7 +8,6 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.animal.IronGolem;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import org.slf4j.Logger;
 
 /**
  * A living statue born from the golem ritual (see {@link GolemStructure}): borrows the iron golem's model,
@@ -27,7 +25,6 @@ import org.slf4j.Logger;
  */
 public final class GolemEntity extends IronGolem {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
     private static final EntityDataAccessor<String> BLOCK_ID =
             SynchedEntityData.defineId(GolemEntity.class, EntityDataSerializers.STRING);
     private static final double GRAVITY_PER_TICK = 0.08D;
@@ -58,13 +55,8 @@ public final class GolemEntity extends IronGolem {
     public void travel(Vec3 travelVector) {
         double yMotion = this.onGround() ? GROUNDED_Y_MOTION : Math.max(this.getDeltaMovement().y - GRAVITY_PER_TICK, TERMINAL_FALL_SPEED);
         Vec3 desired = new Vec3(this.moveX, yMotion, this.moveZ);
-        Vec3 before = this.position();
         this.setDeltaMovement(desired);
         this.move(MoverType.SELF, desired);
-        if (!this.level().isClientSide) {
-            LOGGER.info("Ligabis debug: golem travel moveX={} moveZ={} onGround={} before={} after={} horizontalCollision={}",
-                    this.moveX, this.moveZ, this.onGround(), before, this.position(), this.horizontalCollision);
-        }
         this.calculateEntityAnimation(desired.horizontalDistanceSqr() > 1.0E-7D);
     }
 

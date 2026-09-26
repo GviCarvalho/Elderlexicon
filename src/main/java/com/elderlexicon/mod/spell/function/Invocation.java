@@ -2,6 +2,7 @@ package com.elderlexicon.mod.spell.function;
 
 import com.elderlexicon.mod.ligabis.world.LigabisManager;
 import com.elderlexicon.mod.spell.ElementPersistence;
+import com.elderlexicon.mod.spell.SpellFlow;
 import com.elderlexicon.mod.spell.mark.MarkCost;
 import com.elderlexicon.mod.spell.mark.WindLift;
 import com.elderlexicon.mod.vita.VitaElement;
@@ -86,6 +87,68 @@ final class Invocation {
         }
     }
 
+    // ------------------------------------------------------------------ image
+
+    /**
+     * The image of what vocant would make ({@code igni surgit vocant}): the same matter on the same spots, only seen and
+     * never touched, for {@code ticks}. What has no matter to show (air, Vis, lightning) shows its light alone: its
+     * particles for the whole time, and a lightning that strikes nothing (docs/surgit-visao-design.md, section 4).
+     */
+    static void imagine(ServerPlayer player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact,
+                        double power, int ticks) {
+        ServerLevel level = player.serverLevel();
+        String rune = elementRuneId == null ? element.runeId() : elementRuneId.toLowerCase(Locale.ROOT);
+        BlockState image = imageMatterOf(rune);
+        if (image != null) {
+            BlockPos center = image.is(Blocks.FIRE)
+                    ? (impact.entity() != null ? impact.entity().blockPosition() : SpellEffects.firePlacementPos(impact))
+                    : groundOf(impact, image, false);
+            if (center == null) {
+                return;
+            }
+            int count = SpellEffects.blocksFor(power);
+            for (BlockPos pos : count <= 1 ? List.of(center) : SpellEffects.groundSpots(level, center, count)) {
+                if (level.isLoaded(pos) && level.isEmptyBlock(pos) && !SpellIllusions.imageAt(level, pos)) {
+                    SpellIllusions.showBlock(level, pos, image, ticks);
+                }
+            }
+            return;
+        }
+        Vec3 center = impact.location();
+        double radius = FIELD_BASE_RADIUS + 0.5D * Math.sqrt(SpellEffects.blocksFor(power));
+        Vec3 direction = windDirection(player, impact);
+        for (int elapsed = 0; elapsed <= ticks; elapsed += PULSE_TICKS) {
+            final int tick = elapsed;
+            SpellEffects.schedule(level, elapsed, () -> {
+                if (isWind(rune)) {
+                    showWind(level, center, radius, direction, 4);
+                } else {
+                    show(level, rune, element, center, power);
+                }
+                if ("fulmen".equals(rune) && tick % LIGHTNING_TICKS == 0) {
+                    LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
+                    if (bolt != null) {
+                        bolt.moveTo(center);
+                        bolt.setVisualOnly(true);
+                        level.addFreshEntity(bolt);
+                    }
+                }
+            });
+        }
+    }
+
+    /** The matter an element's image shows as a block, or null when it has none to show (air, Vis, lightning). */
+    static BlockState imageMatterOf(String rune) {
+        if (rune == null) {
+            return null;
+        }
+        String normalized = rune.toLowerCase(Locale.ROOT);
+        if ("igni".equals(normalized)) {
+            return Blocks.FIRE.defaultBlockState();
+        }
+        return ElementPersistence.of(normalized) == ElementPersistence.PERMANENT ? matterOf(normalized) : null;
+    }
+
     // ------------------------------------------------------------------ permanent
 
     private static void permanent(ServerPlayer player, VitaElement element, String rune, Where where,
@@ -100,7 +163,7 @@ final class Invocation {
             return; // it filled a cauldron or put out a fire: the water went there
         }
         BlockState matter = matterOf(rune);
-        List<BlockPos> laid = new ArrayList<>(lay(level, groundOf(impact, matter, where.atFeet()), matter,
+        List<BlockPos> laid = new ArrayList<>(lay(level, element, groundOf(impact, matter, where.atFeet()), matter,
                 SpellEffects.blocksFor(power)));
         if (windowTicks <= 0) {
             return;
@@ -112,7 +175,7 @@ final class Invocation {
             SpellEffects.schedule(level, elapsed, () -> {
                 if (where.atFeet()) {
                     where.now().ifPresent(now -> {
-                        for (BlockPos pos : lay(level, groundOf(now, matter, true), matter, 1)) {
+                        for (BlockPos pos : lay(level, element, groundOf(now, matter, true), matter, 1)) {
                             if (!laid.contains(pos)) {
                                 laid.add(pos);
                             }
@@ -162,13 +225,19 @@ final class Invocation {
         return BlockPos.containing(impact.location());
     }
 
-    private static List<BlockPos> lay(ServerLevel level, BlockPos center, BlockState matter, int count) {
+    private static List<BlockPos> lay(ServerLevel level, VitaElement element, BlockPos center, BlockState matter,
+                                      int count) {
         List<BlockPos> spots = count <= 1 ? List.of(center) : SpellEffects.groundSpots(level, center, count);
         List<BlockPos> laid = new ArrayList<>();
-        for (BlockPos pos : spots) {
-            if (level.isLoaded(pos) && level.isEmptyBlock(pos)) {
-                level.setBlock(pos, matter, 3);
-                laid.add(pos.immutable());
+        for (BlockPos written : spots) {
+            // Inside an impediunt of this element the matter is pushed out to the edge (docs/impediunt-design.md).
+            List<BlockPos> targets = ImpediuntZones.forbids(level, written, element)
+                    ? ImpediuntZones.pushedOut(level, written, element, matter) : List.of(written);
+            for (BlockPos pos : targets) {
+                if (level.isLoaded(pos) && level.isEmptyBlock(pos)) {
+                    level.setBlock(pos, matter, 3);
+                    laid.add(pos.immutable());
+                }
             }
         }
         return laid;
@@ -207,17 +276,25 @@ final class Invocation {
         if (laysFire) {
             lightFires(level, impact, SpellEffects.blocksFor(power), fires);
         }
+        // Held open, it flows as strongly as in the default two seconds for the whole window (SpellFlow).
+        double flowing = SpellFlow.total(power, windowTicks);
+        double flowingEnergy = flowing * EmissionRecorder.DEFAULT_QUANTITY_UMU;
         int pulses = windowTicks / PULSE_TICKS + 1;
-        double share = power / pulses;
+        double share = flowing / pulses;
         for (int elapsed = 0; elapsed <= windowTicks; elapsed += PULSE_TICKS) {
             final int tick = elapsed;
             SpellEffects.schedule(level, elapsed, () -> where.now().ifPresent(now -> {
                 Vec3 center = now.location();
                 show(level, rune, element, center, Math.max(0.5D, power / Math.sqrt(pulses)));
                 if (!wind && !"vis".equals(rune)) {
-                    // What burns or scalds spares its caster; the wind does not (see blow).
-                    for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, new AABB(center, center).inflate(radius),
-                            candidate -> candidate != player && candidate.isAlive() && !candidate.isSpectator())) {
+                    // What burns or scalds spares its caster; the wind does not (see blow). Inside an impediunt of its
+                    // element it is pushed out: it burns the band just past the edge and spares the middle.
+                    Optional<ImpediuntZones.Edge> edge = ImpediuntZones.zoneAt(level, center, element);
+                    Vec3 around = edge.map(ImpediuntZones.Edge::center).orElse(center);
+                    double reach = edge.map(zone -> zone.radius() + radius).orElse(radius);
+                    for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, new AABB(around, around).inflate(reach),
+                            candidate -> candidate != player && candidate.isAlive() && !candidate.isSpectator()
+                                    && edge.map(zone -> zone.inBand(candidate.position(), radius)).orElse(true))) {
                         SpellEffects.applyToEntity(player, element, rune, living, share, true);
                     }
                 }
@@ -225,7 +302,8 @@ final class Invocation {
                     lightFires(level, now, 1, fires); // it keeps burning at the feet of what it follows
                 }
                 for (BlockPos pos : fires) {
-                    if (level.isLoaded(pos) && level.isEmptyBlock(pos) && !level.isEmptyBlock(pos.below())) {
+                    if (level.isLoaded(pos) && level.isEmptyBlock(pos) && !level.isEmptyBlock(pos.below())
+                            && !ImpediuntZones.forbids(level, pos, VitaElement.IGNI)) { // pushed out, it burns on the edge
                         level.setBlock(pos, Blocks.FIRE.defaultBlockState(), 3); // it keeps burning while the window lasts
                     }
                 }
@@ -238,7 +316,7 @@ final class Invocation {
             // Wind acts every tick, or gravity would win between gusts and an upward wind could never lift anything.
             for (int elapsed = 0; elapsed <= windowTicks; elapsed++) {
                 SpellEffects.schedule(level, elapsed, () -> where.now().ifPresent(now ->
-                        blow(level, now.location(), radius, energy, windowTicks, windDirection(player, now))));
+                        blow(level, now.location(), radius, flowingEnergy, windowTicks, windDirection(player, now))));
             }
         }
         SpellEffects.schedule(level, windowTicks + 1, () -> {
@@ -256,10 +334,20 @@ final class Invocation {
         if (firePos == null) {
             return;
         }
-        for (BlockPos pos : SpellEffects.groundSpots(level, firePos, count)) {
-            level.setBlock(pos, Blocks.FIRE.defaultBlockState(), 3);
-            if (!fires.contains(pos)) {
-                fires.add(pos.immutable());
+        List<BlockPos> spots = new ArrayList<>(SpellEffects.groundSpots(level, firePos, count));
+        if (spots.isEmpty() && ImpediuntZones.forbids(level, firePos, VitaElement.IGNI)) {
+            spots.add(firePos); // at the feet of what it follows: still fed into the zone, to be pushed out
+        }
+        for (BlockPos written : spots) {
+            // An impediunt pushes the fire out: it spreads around the whole edge and burns there as a ring.
+            List<BlockPos> targets = ImpediuntZones.forbids(level, written, VitaElement.IGNI)
+                    ? ImpediuntZones.pushedOut(level, written, VitaElement.IGNI, Blocks.FIRE.defaultBlockState())
+                    : List.of(written);
+            for (BlockPos pos : targets) {
+                level.setBlock(pos, Blocks.FIRE.defaultBlockState(), 3);
+                if (!fires.contains(pos)) {
+                    fires.add(pos.immutable());
+                }
             }
         }
     }
@@ -286,11 +374,26 @@ final class Invocation {
      * things moved less.
      */
     private static void blow(ServerLevel level, Vec3 center, double radius, double energy, int durationTicks, Vec3 direction) {
-        showWind(level, center, radius, direction, durationTicks <= 1 ? 24 : 4);
+        // Inside an impediunt of air the wind is pushed out: it blows in the band just past the edge, the middle calm.
+        Optional<ImpediuntZones.Edge> edge = ImpediuntZones.zoneAt(level, center, VitaElement.AURA);
+        Vec3 around = edge.map(ImpediuntZones.Edge::center).orElse(center);
+        double reach = edge.map(zone -> zone.radius() + radius).orElse(radius);
+        if (edge.isPresent()) {
+            double ring = edge.get().radius() + radius / 2.0D;
+            int gusts = Math.max(8, (int) (ring * 2.0D));
+            for (int gust = 0; gust < gusts; gust++) {
+                double angle = 2.0D * Math.PI * gust / gusts;
+                showWind(level, around.add(Math.cos(angle) * ring, 0.0D, Math.sin(angle) * ring), radius / 2.0D,
+                        direction, durationTicks <= 1 ? 6 : 1);
+            }
+        } else {
+            showWind(level, center, radius, direction, durationTicks <= 1 ? 24 : 4);
+        }
         boolean updraft = direction.y > 0.7D;
-        for (Entity entity : level.getEntitiesOfClass(Entity.class, new AABB(center, center).inflate(radius),
+        for (Entity entity : level.getEntitiesOfClass(Entity.class, new AABB(around, around).inflate(reach),
                 candidate -> (candidate instanceof LivingEntity || candidate instanceof ItemEntity)
-                        && candidate.isAlive() && !candidate.isSpectator())) {
+                        && candidate.isAlive() && !candidate.isSpectator()
+                        && edge.map(zone -> zone.inBand(candidate.position(), radius)).orElse(true))) {
             Vec3 motion = entity.getDeltaMovement();
             if (updraft && entity instanceof ServerPlayer rider && !rider.onGround()) {
                 motion = walkInTheAir(rider, motion);

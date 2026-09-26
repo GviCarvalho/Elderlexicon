@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita.damage;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.vita.VitaElement;
 import com.elderlexicon.mod.vita.VitaSystem;
 import net.minecraft.resources.ResourceKey;
@@ -19,18 +19,18 @@ import net.minecraftforge.fml.common.Mod;
 /**
  * Hooks damage/status events and applies Vita element adjustments per the mapping plan.
  */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID)
 public final class VitaDamageHandler {
 
-    private static final ResourceLocation SRC_DROWN_AURA = new ResourceLocation(ExampleMod.MODID, "damage/drown_aura");
-    private static final ResourceLocation SRC_POISON_FIRMO = new ResourceLocation(ExampleMod.MODID, "damage/poison_firmo");
-    private static final ResourceLocation SRC_WITHER_FIRMO = new ResourceLocation(ExampleMod.MODID, "damage/wither_firmo");
-    private static final ResourceLocation SRC_WITHER_AURA = new ResourceLocation(ExampleMod.MODID, "damage/wither_aura");
-    private static final ResourceLocation SRC_FIRE_AQUA = new ResourceLocation(ExampleMod.MODID, "damage/fire_aqua");
-    private static final ResourceLocation SRC_FIRE_IGNI = new ResourceLocation(ExampleMod.MODID, "damage/fire_igni");
-    private static final ResourceLocation SRC_FREEZE_IGNI = new ResourceLocation(ExampleMod.MODID, "damage/freeze_igni");
-    private static final ResourceLocation SRC_LIGHTNING_AURA = new ResourceLocation(ExampleMod.MODID, "damage/lightning_aura");
-    private static final ResourceLocation SRC_SOUL_HEAT_IGNI = new ResourceLocation(ExampleMod.MODID, "damage/soul_heat_igni");
+    private static final ResourceLocation SRC_DROWN_AURA = new ResourceLocation(ElderLexicon.MODID, "damage/drown_aura");
+    private static final ResourceLocation SRC_POISON_FIRMO = new ResourceLocation(ElderLexicon.MODID, "damage/poison_firmo");
+    private static final ResourceLocation SRC_WITHER_FIRMO = new ResourceLocation(ElderLexicon.MODID, "damage/wither_firmo");
+    private static final ResourceLocation SRC_WITHER_AURA = new ResourceLocation(ElderLexicon.MODID, "damage/wither_aura");
+    private static final ResourceLocation SRC_FIRE_AQUA = new ResourceLocation(ElderLexicon.MODID, "damage/fire_aqua");
+    private static final ResourceLocation SRC_FIRE_IGNI = new ResourceLocation(ElderLexicon.MODID, "damage/fire_igni");
+    private static final ResourceLocation SRC_FREEZE_IGNI = new ResourceLocation(ElderLexicon.MODID, "damage/freeze_igni");
+    private static final ResourceLocation SRC_LIGHTNING_AURA = new ResourceLocation(ElderLexicon.MODID, "damage/lightning_aura");
+    private static final ResourceLocation SRC_SOUL_HEAT_IGNI = new ResourceLocation(ElderLexicon.MODID, "damage/soul_heat_igni");
     private static final double EPSILON = 1.0E-4D;
 
     private VitaDamageHandler() {

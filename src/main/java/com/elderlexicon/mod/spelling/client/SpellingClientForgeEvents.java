@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spelling.client;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spelling.item.SpellScrollItem;
 import com.elderlexicon.mod.spelling.render.SpellMapHelper;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -13,6 +13,8 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.client.event.RenderItemInFrameEvent;
 import net.minecraftforge.client.event.RenderGuiEvent;
+import net.minecraftforge.client.event.RenderGuiOverlayEvent;
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -22,7 +24,7 @@ import org.lwjgl.glfw.GLFW;
  * Listens to Forge client events so the controller can update every frame.
  */
 @SuppressWarnings("null")
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID, value = Dist.CLIENT)
 public final class SpellingClientForgeEvents {
 
     private SpellingClientForgeEvents() {
@@ -103,6 +105,19 @@ public final class SpellingClientForgeEvents {
             return;
         }
         cancel(event);
+    }
+
+    /**
+     * Hides the vanilla hotbar while in trance: item icons are drawn in front of anything painted later, so the rune
+     * bar drawn over it was only readable with an empty hotbar. {@link SpellingOverlay} draws its own bar instead.
+     */
+    @SubscribeEvent
+    public static void hideHotbarInTrance(RenderGuiOverlayEvent.Pre event) {
+        if (event.getOverlay().id().equals(VanillaGuiOverlay.HOTBAR.id())
+                && ClientSpellingController.getInstance().isRecording()
+                && Minecraft.getInstance().screen == null) {
+            event.setCanceled(true);
+        }
     }
 
     @SubscribeEvent

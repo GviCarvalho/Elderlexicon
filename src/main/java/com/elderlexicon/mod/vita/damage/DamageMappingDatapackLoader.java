@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita.damage;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -22,7 +22,7 @@ public final class DamageMappingDatapackLoader extends SimpleJsonResourceReloadL
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    private static final ResourceLocation SOURCE_ID = new ResourceLocation(ExampleMod.MODID, "datapack");
+    private static final ResourceLocation SOURCE_ID = new ResourceLocation(ElderLexicon.MODID, "datapack");
 
     public DamageMappingDatapackLoader() {
         super(GSON, "vita/damage_mapping");

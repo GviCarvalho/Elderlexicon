@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spell;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.mojang.logging.LogUtils;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.event.TickEvent;
@@ -14,7 +14,7 @@ import org.slf4j.Logger;
  * runs one as soon as it has spare time in a tick ({@code MinecraftServer.shouldRun}), which on an idle server is
  * at once. This counts real ticks instead.
  */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID)
 public final class SpellTicks {
 
     private static final Logger LOGGER = LogUtils.getLogger();

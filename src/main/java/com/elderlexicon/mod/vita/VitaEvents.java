@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.vita.recovery.VitaRecoverySystem;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.TickEvent;
@@ -11,7 +11,7 @@ import net.minecraftforge.fml.common.Mod;
 /**
  * Hooks Vita logic into the Forge event bus.
  */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID)
 public final class VitaEvents {
 
     private VitaEvents() {

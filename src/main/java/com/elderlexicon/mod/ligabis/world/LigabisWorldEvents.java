@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.ligabis.world;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
@@ -14,7 +14,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 /** Forge events the Ligabis manager listens to. */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID)
 public final class LigabisWorldEvents {
 
     /** How often, in ticks, marked blocks are checked to see whether they still exist. */

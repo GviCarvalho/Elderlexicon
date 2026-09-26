@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.ligabis.world;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.ligabis.Aspect;
 import com.elderlexicon.mod.ligabis.BlockIntegrity;
 import com.elderlexicon.mod.ligabis.CostPolicy;
@@ -77,9 +77,9 @@ public final class LigabisManager {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final ParserDictionary DICTIONARY = ParserDictionary.load();
     private static final ResourceKey<DamageType> REFLECTION =
-            ResourceKey.create(Registries.DAMAGE_TYPE, new ResourceLocation(ExampleMod.MODID, "ligabis_reflection"));
+            ResourceKey.create(Registries.DAMAGE_TYPE, new ResourceLocation(ElderLexicon.MODID, "ligabis_reflection"));
     private static final ResourceKey<DamageType> DEATH =
-            ResourceKey.create(Registries.DAMAGE_TYPE, new ResourceLocation(ExampleMod.MODID, "ligabis_death"));
+            ResourceKey.create(Registries.DAMAGE_TYPE, new ResourceLocation(ElderLexicon.MODID, "ligabis_death"));
 
     private static LigabisManager instance;
 
@@ -198,6 +198,17 @@ public final class LigabisManager {
     /** Everything loaded or kept by this manager that carries {@code mark}: living things, items and blocks. */
     public List<MemberId> membersOf(String mark) {
         return graph.members(mark);
+    }
+
+    /** Plain marked blocks this manager keeps in {@code dimension}, by position, with their mark. */
+    public Map<BlockPos, String> markedBlocks(ResourceKey<Level> dimension) {
+        Map<BlockPos, String> found = new LinkedHashMap<>();
+        data.blocks().forEach((member, stored) -> {
+            if (MemberKeys.isBlock(member) && dimension.equals(MemberKeys.blockDimension(member))) {
+                found.put(MemberKeys.blockPos(member), stored.mark());
+            }
+        });
+        return found;
     }
 
     /** Marked entities whose chunk is unloaded, by id, with where they were last seen. */
@@ -379,7 +390,7 @@ public final class LigabisManager {
             level.setBlock(head.offset(offset), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
         }
         BlockPos feet = head.offset(GolemStructure.feetOffset());
-        GolemEntity golem = new GolemEntity(ExampleMod.LIGABIS_GOLEM.get(), level);
+        GolemEntity golem = new GolemEntity(ElderLexicon.LIGABIS_GOLEM.get(), level);
         golem.moveTo(feet.getX() + 0.5D, feet.getY(), feet.getZ() + 0.5D, 0.0F, 0.0F);
         golem.setBlockId(blockName(structure.block()));
         level.addFreshEntity(golem);
@@ -653,8 +664,6 @@ public final class LigabisManager {
             double worldX = (localX * cos - localZ * sin) * speed;
             double worldZ = (localZ * cos + localX * sin) * speed;
             golem.setMoveIntent(worldX, worldZ);
-            LOGGER.info("Ligabis debug: puppet compute localX={} localZ={} speed={} yRot={} -> worldX={} worldZ={}",
-                    localX, localZ, speed, parent.getYRot(), worldX, worldZ);
 
             boolean wasSwinging = golemSwingState.getOrDefault(entry.getKey(), Boolean.FALSE);
             if (parent.swinging && !wasSwinging) {

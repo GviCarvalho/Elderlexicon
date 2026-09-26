@@ -30,6 +30,7 @@ import java.util.Optional;
 public final class SpellActionEngine {
 
     private static final String VERTERE_RUNE_ID = "vertere";
+    private static final String EXSUGAT_RUNE_ID = "exsugat";
     private static final String TRANSVOCATIO_RUNE_ID = "transvocatio";
     private static final String SURGIT_RUNE_ID = "surgit";
     private static final String UBIS_RUNE_ID = "ubis";
@@ -51,6 +52,10 @@ public final class SpellActionEngine {
 
         List<String> sanitized = sanitize(rawLexemes);
         List<String> issues = new ArrayList<>();
+        Optional<SpellActionResult> bond = sightBond(sanitized, issues);
+        if (bond.isPresent()) {
+            return bond.get();
+        }
         List<Token> tokens = new ArrayList<>();
         // Ligabis reads its marks from the lexemes itself, and the word after reframe is the name it records.
         boolean ligabisSpell = sanitized.contains(LIGABIS_RUNE_ID);
@@ -85,6 +90,48 @@ public final class SpellActionEngine {
         List<VertereRequest> vertereRequests = new ArrayList<>();
         List<SpellAction> actions = buildActions(tokens, issues, vertereRequests);
         return new SpellActionResult(sanitized, actions, primarySource, issues, vertereRequests);
+    }
+
+    /**
+     * {@code surgit m1 ligabis}: surgit written before a mark and bound with ligabis is a bond of sight, the mage seeing
+     * through what bears the mark (docs/surgit-visao-design.md, section 2). Ligabis spells lose their marks and numbers
+     * before the rest is read, so this one is read here, whole: the first mark after surgit, and chronos for how long.
+     */
+    private Optional<SpellActionResult> sightBond(List<String> sanitized, List<String> issues) {
+        int surgit = sanitized.indexOf(SURGIT_RUNE_ID);
+        int ligabis = sanitized.indexOf(LIGABIS_RUNE_ID);
+        if (surgit < 0 || ligabis < 0 || surgit > ligabis) {
+            return Optional.empty();
+        }
+        String mark = null;
+        for (int index = surgit + 1; index < ligabis && mark == null; index++) {
+            String word = sanitized.get(index);
+            if (dictionary.lookup(word).isEmpty()
+                    && SpellWords.classify(word, known -> false) == SpellWords.Kind.MARK) {
+                mark = word;
+            }
+        }
+        if (mark == null) {
+            issues.add("O vinculo de visao precisa de uma marca depois do surgit: 'surgit m1 ligabis'.");
+            return Optional.of(new SpellActionResult(sanitized, List.of(), Optional.empty(), issues, List.of()));
+        }
+        Double seconds = null;
+        int chronos = sanitized.indexOf(CHRONOS_RUNE_ID);
+        if (chronos >= 0 && chronos + 1 < sanitized.size()) {
+            java.util.OptionalDouble written = SpellWords.number(sanitized.get(chronos + 1));
+            if (written.isPresent()) {
+                seconds = chronosSeconds(written.getAsDouble(), issues);
+            }
+        }
+        SpellAction bond = SpellAction.builder(SURGIT_RUNE_ID, SpellActionType.FUNCTION)
+                .element(VitaElement.BALANCED)
+                .putMetadata("elementRuneId", VitaElement.BALANCED.runeId())
+                .putMetadata(SpellAction.SUBJECT_MARK, mark)
+                .putMetadata(SpellAction.SIGHT_BOND, Boolean.TRUE)
+                .putMetadata(SpellAction.SECONDS, seconds)
+                .build();
+        return Optional.of(new SpellActionResult(sanitized, List.of(bond), determinePrimarySource(List.of()), issues,
+                List.of()));
     }
 
     private List<String> sanitize(List<String> rawLexemes) {
@@ -140,7 +187,13 @@ public final class SpellActionEngine {
         // quantum and chronos take the number right after them (igni quantum 20 iactare).
         String awaitingNumber = null;
         Double quantity = null;
+        // A quantum written before a source measures the source, not the function (quantum 2 firmo surgit).
+        Double sourceValue = null;
         Double seconds = null;
+        // surgit written right before another function: that function works only with the image of its source.
+        boolean imageOnly = false;
+        // An exsugat was written: the functions after it work with the source it captures.
+        boolean captured = false;
 
         for (int index = 0; index < tokens.size(); index++) {
             Token token = tokens.get(index);
@@ -257,6 +310,10 @@ public final class SpellActionEngine {
                         }
                     }
                     run.clear();
+                    if (!token.implicit() && quantity != null) {
+                        sourceValue = quantity;
+                        quantity = null;
+                    }
                     if (!token.implicit()) {
                         SpellAction sourceAction = SpellAction.builder(definition.id(), SpellActionType.SOURCE)
                                 .element(element)
@@ -268,13 +325,46 @@ public final class SpellActionEngine {
                     form.setElement(element, definition.id());
                 }
                 case FUNCTION -> {
+                    if (SURGIT_RUNE_ID.equals(definition.id()) && index + 1 < tokens.size()
+                            && tokens.get(index + 1).is(RuneType.FUNCTION)) {
+                        // igni surgit vocant: surgit filters the source down to its light; the mark, place and filters
+                        // written so far are left for the function that follows (docs/surgit-visao-design.md, 4).
+                        imageOnly = true;
+                        break;
+                    }
+                    // igni exsugat quantum iactare: a quantum with no number measures all that was captured (book 4.3.2).
+                    boolean all = QUANTUM_RUNE_ID.equals(awaitingNumber);
+                    if (all) {
+                        awaitingNumber = null;
+                        if (!captured) {
+                            issues.add("'quantum' requer um número logo depois (sem número, só mede o que um exsugat capturou).");
+                            all = false;
+                        }
+                    }
                     String mark = subjectOf(run, issues);
                     run.clear();
                     // surgit also reads the mark written right after it ("surgit r2", read r2), like transvocatio's target.
-                    if (mark == null && SURGIT_RUNE_ID.equals(definition.id()) && index + 1 < tokens.size()
-                            && tokens.get(index + 1).kind() == SpellWords.Kind.MARK) {
-                        index++;
-                        mark = tokens.get(index).lexeme();
+                    Double visibility = null;
+                    if (mark == null && SURGIT_RUNE_ID.equals(definition.id())) {
+                        if (index + 1 < tokens.size() && tokens.get(index + 1).kind() == SpellWords.Kind.MARK) {
+                            index++;
+                            mark = tokens.get(index).lexeme();
+                        }
+                        // Written before its subject, surgit is "the sight of" it, and a quantum after sets how much of
+                        // it is seen: surgit m1 quantum 0 hides m1; with no mark (surgit quantum 0) the subject is what
+                        // the mage aims at (docs/surgit-visao-design.md, section 5).
+                        while (index + 2 < tokens.size() && tokens.get(index + 1).kind() == SpellWords.Kind.RUNE
+                                && tokens.get(index + 2).kind() == SpellWords.Kind.NUMBER
+                                && (QUANTUM_RUNE_ID.equals(tokens.get(index + 1).definition().id())
+                                || CHRONOS_RUNE_ID.equals(tokens.get(index + 1).definition().id()))) {
+                            double value = SpellWords.number(tokens.get(index + 2).lexeme()).orElse(0.0D);
+                            if (QUANTUM_RUNE_ID.equals(tokens.get(index + 1).definition().id())) {
+                                visibility = value;
+                            } else {
+                                seconds = chronosSeconds(value, issues);
+                            }
+                            index += 2;
+                        }
                     }
                     SpellAction.Builder builder = SpellAction.builder(definition.id(), SpellActionType.FUNCTION)
                             .element(form.element())
@@ -283,10 +373,19 @@ public final class SpellActionEngine {
                             .putMetadata(SpellAction.SUBJECT_MARK, mark)
                             .putMetadata(SpellAction.PLACE, place)
                             .putMetadata(SpellAction.QUANTITY, quantity)
-                            .putMetadata(SpellAction.SECONDS, seconds);
+                            .putMetadata(SpellAction.SOURCE_QUANTITY, sourceValue)
+                            .putMetadata(SpellAction.SECONDS, seconds)
+                            .putMetadata(SpellAction.VISIBILITY, visibility)
+                            .putMetadata(SpellAction.IMAGE, imageOnly ? Boolean.TRUE : null)
+                            .putMetadata(SpellAction.QUANTITY_ALL, all ? Boolean.TRUE : null);
+                    if (EXSUGAT_RUNE_ID.equals(definition.id()) && mark == null && !imageOnly) {
+                        captured = true;
+                    }
+                    imageOnly = false;
                     String subject = mark;
                     place = null;
                     quantity = null;
+                    sourceValue = null;
                     seconds = null;
                     if (awaitingNumber != null) {
                         issues.add("'" + awaitingNumber + "' requer um número logo depois.");
@@ -326,7 +425,7 @@ public final class SpellActionEngine {
         }
         if (awaitingNumber != null) {
             issues.add("'" + awaitingNumber + "' requer um número logo depois.");
-        } else if (quantity != null || seconds != null) {
+        } else if (quantity != null || sourceValue != null || seconds != null) {
             issues.add("Filtro sem função depois dele.");
         }
         return actions;

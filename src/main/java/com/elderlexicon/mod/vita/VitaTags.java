@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
@@ -19,7 +19,7 @@ public final class VitaTags {
         }
 
         private static TagKey<Block> block(String name) {
-            return TagKey.create(Registries.BLOCK, new ResourceLocation(ExampleMod.MODID, name));
+            return TagKey.create(Registries.BLOCK, new ResourceLocation(ElderLexicon.MODID, name));
         }
     }
 
@@ -30,7 +30,7 @@ public final class VitaTags {
         }
 
         private static TagKey<Item> item(String name) {
-            return TagKey.create(Registries.ITEM, new ResourceLocation(ExampleMod.MODID, name));
+            return TagKey.create(Registries.ITEM, new ResourceLocation(ElderLexicon.MODID, name));
         }
     }
 }

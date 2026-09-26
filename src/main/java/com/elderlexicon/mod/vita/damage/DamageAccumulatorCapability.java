@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita.damage;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.capabilities.Capability;
@@ -14,7 +14,7 @@ import net.minecraftforge.common.util.LazyOptional;
 public final class DamageAccumulatorCapability {
 
     public static final Capability<DamageAccumulator> CAPABILITY = CapabilityManager.get(new CapabilityToken<>() { });
-    public static final ResourceLocation ID = new ResourceLocation(ExampleMod.MODID, "damage_accumulator");
+    public static final ResourceLocation ID = new ResourceLocation(ElderLexicon.MODID, "damage_accumulator");
 
     private DamageAccumulatorCapability() {
     }

@@ -22,10 +22,29 @@ public final class SpellAction {
     public static final String TARGET_MARK = "targetMark";
     /** Metadata key: the {@link SpellPlace} written with {@code ubis}. */
     public static final String PLACE = "place";
-    /** Metadata key: the UMU written with {@code quantum} ({@code igni quantum 20 iactare}). */
+    /**
+     * Metadata key: the UMU written with {@code quantum} right before the function, its potency
+     * ({@code igni quantum 20 iactare}: the iactare throws 20 UMU).
+     */
     public static final String QUANTITY = "quantity";
+    /**
+     * Metadata key: the UMU written with {@code quantum} right before the source, the value of the source itself
+     * ({@code quantum 2 firmo surgit}: earth worth 2 UMU). A filter acts on what is written after it.
+     */
+    public static final String SOURCE_QUANTITY = "sourceQuantity";
+    /**
+     * Metadata key: the function works only with the image of its source, its light and not its matter, written with
+     * surgit right before it ({@code igni surgit vocant}: fire that is seen and does not burn).
+     */
+    public static final String IMAGE = "image";
+    /** Metadata key: the mage's sight is bound to its subject, written {@code surgit m1 ligabis}. */
+    public static final String SIGHT_BOND = "sightBond";
+    /** Metadata key: how much of its subject is seen, 0 to 10, written {@code surgit m1 quantum 0}. */
+    public static final String VISIBILITY = "visibility";
     /** Metadata key: the seconds written with {@code chronos} ({@code igni chronos 5 iactare}). */
     public static final String SECONDS = "seconds";
+    /** A bare quantum after exsugat ({@code igni exsugat quantum iactare}): all that was captured (book 4.3.2). */
+    public static final String QUANTITY_ALL = "quantityAll";
 
     private final String runeId;
     private final SpellActionType type;
@@ -81,8 +100,43 @@ public final class SpellAction {
         return metadata.get(TARGET_MARK) instanceof String mark ? Optional.of(mark) : Optional.empty();
     }
 
+    /**
+     * The UMU written with quantum, wherever it stands: the function's potency or, without one, the source's value.
+     * Functions that do not yet tell the two apart read this one, so both writings keep working for them.
+     */
     public OptionalDouble quantity() {
+        OptionalDouble potency = potency();
+        return potency.isPresent() ? potency : sourceValue();
+    }
+
+    /** Whether a bare quantum asks for everything the exsugat before it captures ({@code igni exsugat quantum iactare}). */
+    public boolean quantityAll() {
+        return Boolean.TRUE.equals(metadata.get(QUANTITY_ALL));
+    }
+
+    /** Whether this is a bond of sight to its subject ({@code surgit m1 ligabis}). */
+    public boolean sightBond() {
+        return Boolean.TRUE.equals(metadata.get(SIGHT_BOND));
+    }
+
+    /** Whether the function works only with the image of its source ({@code igni surgit vocant}). */
+    public boolean image() {
+        return Boolean.TRUE.equals(metadata.get(IMAGE));
+    }
+
+    /** For {@code surgit m1 quantum N}: how much of m1 is to be seen, 0 (unseen) to 10. */
+    public OptionalDouble visibility() {
+        return metadata.get(VISIBILITY) instanceof Double level ? OptionalDouble.of(level) : OptionalDouble.empty();
+    }
+
+    /** The quantum written right before the function: how much UMU the function spends. */
+    public OptionalDouble potency() {
         return metadata.get(QUANTITY) instanceof Double quantity ? OptionalDouble.of(quantity) : OptionalDouble.empty();
+    }
+
+    /** The quantum written right before the source: how much UMU the source itself holds. */
+    public OptionalDouble sourceValue() {
+        return metadata.get(SOURCE_QUANTITY) instanceof Double value ? OptionalDouble.of(value) : OptionalDouble.empty();
     }
 
     public OptionalDouble seconds() {

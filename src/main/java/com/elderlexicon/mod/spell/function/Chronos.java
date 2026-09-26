@@ -5,7 +5,8 @@ import com.elderlexicon.mod.spell.action.SpellAction;
 /**
  * Chronos (book 4.3.2) "governs time, working in seconds to change the default duration of the effects or
  * the instant they manifest". Functions that last take it as their duration: the Iactare channel, a throw, pull or
- * push of a marked thing (it is pushed for that long), what Vocant brings. Those with nothing to stretch (a
+ * push of a marked thing (it is pushed for that long), what Vocant brings. Held longer, a spell is an open tap and
+ * spends more ({@link com.elderlexicon.mod.spell.SpellFlow}). Those with nothing to stretch (a
  * teleport, a swap, a conversion, a renaming) take it as the moment they happen.
  */
 final class Chronos {

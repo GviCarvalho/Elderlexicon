@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.item;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.client.MarkEditScreen;
 import com.elderlexicon.mod.ligabis.world.LigabisManager;
 import com.elderlexicon.mod.mark.MarkTarget;
@@ -14,7 +14,7 @@ import net.minecraftforge.fml.common.Mod;
  * never reaches {@link ElderBrushItem#interactLivingEntity}: the frame would take the brush as its item instead.
  * This catches that click first, opens the mark prompt for the scroll's carrier and stops the frame from reacting.
  */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID)
 public final class ElderBrushEvents {
 
     private ElderBrushEvents() {

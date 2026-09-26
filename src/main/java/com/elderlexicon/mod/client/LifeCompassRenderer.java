@@ -1,7 +1,7 @@
 package com.elderlexicon.mod.client;
 
 import com.elderlexicon.mod.Config;
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.item.LifeCompassSlices;
 import com.elderlexicon.mod.vita.VitaImbalanceTier;
 import com.elderlexicon.mod.vita.VitaSystem;
@@ -26,8 +26,8 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 @SuppressWarnings("null")
 public class LifeCompassRenderer extends BlockEntityWithoutLevelRenderer {
 
-    private static final ResourceLocation BASE_TEXTURE = ResourceLocation.fromNamespaceAndPath(ExampleMod.MODID, "textures/item/life_compass_base.png");
-    private static final ResourceLocation BORDER_TEXTURE = ResourceLocation.fromNamespaceAndPath(ExampleMod.MODID, "textures/item/life_compass_border.png");
+    private static final ResourceLocation BASE_TEXTURE = ResourceLocation.fromNamespaceAndPath(ElderLexicon.MODID, "textures/item/life_compass_base.png");
+    private static final ResourceLocation BORDER_TEXTURE = ResourceLocation.fromNamespaceAndPath(ElderLexicon.MODID, "textures/item/life_compass_border.png");
 
     private static final int SLICE_SEGMENTS = 24;
     private static final float OVERFLOW_INNER_RADIUS = 0.52F;

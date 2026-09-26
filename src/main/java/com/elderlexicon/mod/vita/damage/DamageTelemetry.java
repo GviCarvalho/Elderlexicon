@@ -28,7 +28,7 @@ public final class DamageTelemetry {
         }
         int count = SAMPLE_COUNTS.merge(sourceId, 1, Integer::sum);
         if (count <= MAX_SAMPLES_PER_SOURCE) {
-            LOGGER.info("[VitaDamage] [{}] sample #{} rawDamage={} vitaDelta={}",
+            LOGGER.debug("[VitaDamage] [{}] sample #{} rawDamage={} vitaDelta={}",
                     sourceId,
                     count,
                     rawDamage,

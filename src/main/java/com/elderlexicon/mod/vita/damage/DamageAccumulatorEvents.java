@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita.damage;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.util.LazyOptional;
@@ -12,7 +12,7 @@ import net.minecraftforge.fml.common.Mod;
 /**
  * Hooks the damage accumulator capability into player lifecycle events.
  */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID)
 public final class DamageAccumulatorEvents {
 
     private DamageAccumulatorEvents() {

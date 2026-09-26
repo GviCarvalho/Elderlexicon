@@ -118,4 +118,24 @@ class SpellActionEngineTest {
         assertTrue(result.issues().get(0).contains("Lexema desconhecido"));
         assertEquals(1, result.actions().size(), "Only valid lexemes should produce actions");
     }
+
+    @Test
+    void aBareQuantumAfterExsugatTakesAllThatWasCaptured() {
+        SpellActionResult result = engine.generateActions(List.of("igni", "exsugat", "quantum", "iactare"));
+
+        assertTrue(result.issues().isEmpty(), result.issues().toString());
+        SpellAction iactare = result.actions().get(result.actions().size() - 1);
+        assertEquals("iactare", iactare.runeId());
+        assertTrue(iactare.quantityAll());
+        assertTrue(iactare.potency().isEmpty(), "the amount is only known once the source is pulled");
+    }
+
+    @Test
+    void aBareQuantumWithoutExsugatIsRefused() {
+        SpellActionResult result = engine.generateActions(List.of("igni", "quantum", "iactare"));
+
+        assertFalse(result.issues().isEmpty());
+        SpellAction iactare = result.actions().get(result.actions().size() - 1);
+        assertFalse(iactare.quantityAll());
+    }
 }

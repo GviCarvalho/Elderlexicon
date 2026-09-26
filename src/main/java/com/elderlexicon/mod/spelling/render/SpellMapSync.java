@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spelling.render;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spelling.entity.PlacedScrollEntity;
 import com.elderlexicon.mod.spelling.item.SpellScrollItem;
 import net.minecraft.network.protocol.Packet;
@@ -18,7 +18,7 @@ import net.minecraftforge.fml.common.Mod;
  * data, but it is not a map item, so Minecraft never sends that data on its own (it only does for maps carried or
  * framed); without this a placed or framed scroll showed as blank paper after a restart.
  */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID)
 public final class SpellMapSync {
 
     private SpellMapSync() {

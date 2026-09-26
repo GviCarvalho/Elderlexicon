@@ -51,9 +51,10 @@ public final class MarkCost {
     }
 
     /**
-     * A throw that lasts {@code durationTicks} (chronos, book 4.3.2: "slower, but more controlled"): the same
-     * energy spread over the whole window, so the thing is pushed at a steady speed for that long, sqrt(energy /
-     * (mass x ticks)) instead of sqrt(energy / mass). Zero or less is the ordinary throw.
+     * A throw that lasts {@code durationTicks} (chronos): {@code energy} spread over the whole window, so the thing is
+     * pushed at a steady speed for that long, sqrt(energy / (mass x ticks)) instead of sqrt(energy / mass). Callers
+     * hand it the energy of the whole window (SpellFlow), so a longer push keeps its speed and costs more.
+     * Zero or less is the ordinary throw.
      */
     public static Throw throwWith(double energy, double mass, double maxSpeed, int durationTicks) {
         if (durationTicks <= 1) {

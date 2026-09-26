@@ -87,7 +87,7 @@ public final class ServerSpellingController {
         }
         long now = Util.getMillis();
         SpellCastResponse response = process(player, sanitize(runes), activationTimestampMs, now);
-        SpellingNetwork.sendSpellCastResult(player, response);
+        SpellingNetwork.sendSpellCastResult(player, SpellFeedback.forPlayer(player, response));
     }
 
     private SpellCastResponse process(ServerPlayer player,
@@ -546,7 +546,7 @@ public final class ServerSpellingController {
         CompoundTag tag = displayed.getTag();
         GrimoireExtractionResult extraction = extractRunesFromText(tag == null ? "" : tag.getString("DetachedPageText"));
         if (extraction.hasForbiddenRune()) {
-            caster.sendSystemMessage(FUSION_RUNE_DENIED);
+            caster.displayClientMessage(FUSION_RUNE_DENIED, true);
             return;
         }
         if (extraction.block().isEmpty()) {
@@ -560,12 +560,9 @@ public final class ServerSpellingController {
             expanded.addAll(lineRunes);
         }
         List<String> shown = List.copyOf(expanded);
-        SpellCastingService.Result result = castingService.castBlock(caster, spells, delayed -> {
-            caster.sendSystemMessage(delayed.message());
-            finishCast(caster, delayed, shown).forEach(caster::sendSystemMessage);
-        });
-        caster.sendSystemMessage(Component.literal("Ritual: ").append(result.message()));
-        (result.failed() ? result.warnings() : finishCast(caster, result, shown)).forEach(caster::sendSystemMessage);
+        SpellCastingService.Result result = castingService.castBlock(caster, spells,
+                delayed -> SpellFeedback.later(caster, delayed, finishCast(caster, delayed, shown), "Ritual: "));
+        SpellFeedback.later(caster, result, result.failed() ? result.warnings() : finishCast(caster, result, shown), "Ritual: ");
     }
 
     private SpellCastResponse castPage(ServerPlayer player, SpellBlock block, long now) {
@@ -578,11 +575,8 @@ public final class ServerSpellingController {
         }
         List<String> shown = List.copyOf(expanded);
 
-        SpellCastingService.Result result = castingService.castBlock(player, spells, delayed -> {
-            List<Component> delayedWarnings = finishCast(player, delayed, shown);
-            player.sendSystemMessage(delayed.message());
-            delayedWarnings.forEach(player::sendSystemMessage);
-        });
+        SpellCastingService.Result result = castingService.castBlock(player, spells,
+                delayed -> SpellFeedback.later(player, delayed, finishCast(player, delayed, shown), ""));
         long appliedCooldown = applyCooldown(player, now, result.success() ? SUCCESS_COOLDOWN_MS : FAILURE_COOLDOWN_MS);
         if (result.failed()) {
             return new SpellCastResponse(false, result.message(), result.warnings(), appliedCooldown, shown);

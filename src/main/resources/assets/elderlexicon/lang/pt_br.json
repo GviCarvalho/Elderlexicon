@@ -48,9 +48,6 @@
   "item.elderlexicon.wand_blaze": "Varinha de blaze",
   "item.elderlexicon.creative_wand": "Varinha Criativa",
   "item.elderlexicon.grimoire": "Grimório Rúnico",
-  "item.elderlexicon.improvised_wand_bone": "Varinha improvisada de osso",
-  "item.elderlexicon.improvised_wand_bamboo": "Varinha improvisada de bambu",
-  "item.elderlexicon.improvised_wand_blaze": "Varinha improvisada de blaze",
   "tooltip.elderlexicon.spell_conduit.capacity": "Conduz ate %s UMU antes de quebrar.",
   "tooltip.elderlexicon.spell_conduit.remaining": "Capacidade restante: %s UMU",
   "tooltip.elderlexicon.improvised_wand": "Um graveto improvisado que canaliza ate %s UMU antes de partir.",
@@ -110,5 +107,12 @@
   "death.attack.ligabis_death": "%1$s foi levado por um vinculo",
   "death.attack.ligabis_death.player": "%1$s foi levado por um vinculo de %2$s",
   "death.attack.vertere_vita": "%1$s teve a vida convertida em outra coisa",
-  "death.attack.vertere_vita.player": "%1$s teve a vida convertida em outra coisa por %2$s"
+  "death.attack.vertere_vita.player": "%1$s teve a vida convertida em outra coisa por %2$s",
+  "command.elderlexicon.spell.debug.on": "Detalhes dos feitiços ligados: cada feitiço mostra a transcrição, o custo e as notas no chat.",
+  "command.elderlexicon.spell.debug.off": "Detalhes dos feitiços desligados.",
+  "overlay.elderlexicon.spelling.cooldown_toast": "O espírito ainda descansa: %ss",
+  "overlay.elderlexicon.spelling.result.unknown": "O espírito não respondeu.",
+  "overlay.elderlexicon.spelling.title": "Transe",
+  "screen.elderlexicon.spelling_repertoire.title": "Repertório de runas",
+  "screen.elderlexicon.spelling_repertoire.requires_target": "Requer um alvo"
 }

@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spell.scene;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.level.LevelEvent;
@@ -10,7 +10,7 @@ import net.minecraftforge.fml.common.Mod;
 /**
  * Drives {@link WorldScenes}: one step per world per server tick, and cleanup when a world unloads.
  */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID)
 public final class WorldSceneEvents {
 
     private WorldSceneEvents() {

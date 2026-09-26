@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spelling.item;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spelling.entity.PlacedScrollEntity;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -21,7 +21,7 @@ public class SpellScrollItem extends Item {
     }
 
     public static ItemStack create(Level level, int levelX, int levelZ, byte scale) {
-        ItemStack stack = new ItemStack(ExampleMod.DETACHED_PAGE.get());
+        ItemStack stack = new ItemStack(ElderLexicon.DETACHED_PAGE.get());
         MapItemSavedData data = MapItemSavedData.createFresh(levelX, levelZ, scale, false, false, level.dimension());
         int mapId = level.getFreeMapId();
         level.setMapData(MapItem.makeKey(mapId), data);

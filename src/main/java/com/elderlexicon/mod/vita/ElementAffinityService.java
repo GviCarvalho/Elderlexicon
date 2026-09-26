@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
@@ -123,17 +123,17 @@ public final class ElementAffinityService {
     }
 
     private static TagKey<EntityType<?>> entityTag(String path) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(ExampleMod.MODID, Objects.requireNonNull(path));
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(ElderLexicon.MODID, Objects.requireNonNull(path));
         return TagKey.create(Registries.ENTITY_TYPE, id);
     }
 
     private static TagKey<Block> blockTag(String path) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(ExampleMod.MODID, Objects.requireNonNull(path));
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(ElderLexicon.MODID, Objects.requireNonNull(path));
         return TagKey.create(Registries.BLOCK, id);
     }
 
     private static TagKey<Item> itemTag(String path) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(ExampleMod.MODID, Objects.requireNonNull(path));
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(ElderLexicon.MODID, Objects.requireNonNull(path));
         return TagKey.create(Registries.ITEM, id);
     }
 }

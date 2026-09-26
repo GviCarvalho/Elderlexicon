@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spelling.data;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.capabilities.Capability;
@@ -14,7 +14,7 @@ import net.minecraftforge.common.util.LazyOptional;
 public final class SpellingRepertoireCapability {
 
     public static final Capability<SpellingRepertoire> CAPABILITY = CapabilityManager.get(new CapabilityToken<>() { });
-    public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(ExampleMod.MODID, "spelling_repertoire");
+    public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(ElderLexicon.MODID, "spelling_repertoire");
 
     private SpellingRepertoireCapability() {
     }

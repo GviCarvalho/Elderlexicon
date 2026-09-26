@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spelling.network;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spelling.custom.CustomRuneHelper;
 import com.elderlexicon.mod.spelling.item.GrimoireItem;
 import com.elderlexicon.mod.spelling.item.SpellScrollItem;

@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.ligabis.client;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.ligabis.network.LigabisNetwork;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -19,7 +19,7 @@ import net.minecraftforge.fml.common.Mod;
  * stays held (which it may not, depending on how the client itself decays those fields between ticks) —
  * the server just always gets whatever the client currently has.
  */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID, value = Dist.CLIENT)
 public final class LigabisClientInput {
 
     private LigabisClientInput() {
