@@ -127,6 +127,7 @@ public final class ClientSpellingController {
             return;
         }
         if (state == State.RECORDING) {
+            recite(List.of(), true);
             reset();
         }
         spellingKeyHeld = false;
@@ -152,6 +153,7 @@ public final class ClientSpellingController {
         state = State.RECORDING;
         activationTimestampMs = Util.getMillis();
         activeWindowMs = baseWindowMs();
+        recite(List.of(), false);
     }
     private void lockActiveHotbarSlot() {
         Player player = Minecraft.getInstance().player;
@@ -203,6 +205,7 @@ public final class ClientSpellingController {
             .map(rune -> {
                 boolean appended = buffer.append(rune);
                 if (appended) {
+                    recite(buffer.entries(), false);
                     flashSlot(slotIndex);
                     playTapSound();
                 } else {
@@ -236,7 +239,21 @@ public final class ClientSpellingController {
     private void finalizeSequence() {
         List<String> snapshot = buffer.entries();
         SpellingNetwork.sendSpellCast(snapshot, activationTimestampMs);
+        recite(snapshot, true);
         reset();
+    }
+
+    /**
+     * Speaks the trance aloud: the runes so far show above the player's head, for others through the server and for
+     * the player in third person. {@code finished} lets the last words linger and fade.
+     */
+    private void recite(List<String> runes, boolean finished) {
+        Player player = Minecraft.getInstance().player;
+        if (player == null) {
+            return;
+        }
+        Recitations.update(player.getId(), runes, finished);
+        SpellingNetwork.sendRecitation(runes, finished);
     }
 
     public double remainingSeconds() {
@@ -344,8 +361,11 @@ public final class ClientSpellingController {
                 ? Component.translatable("overlay.elderlexicon.spelling.result.unknown")
                 : packet.message();
         Player localPlayer = minecraft.player;
-        if (localPlayer != null) {
+        // A spell that works comes with no message unless the player asked for details (/spell debug).
+        if (localPlayer != null && !message.getString().isBlank()) {
             localPlayer.displayClientMessage(Objects.requireNonNull(message), !packet.success());
+        }
+        if (localPlayer != null) {
             for (Component warning : packet.warnings()) {
                 if (warning != null) {
                     localPlayer.displayClientMessage(warning, true);

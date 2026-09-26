@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita.recovery;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.capabilities.Capability;
@@ -11,7 +11,7 @@ import net.minecraftforge.common.util.LazyOptional;
 public final class VitaRecoveryCapability {
 
     public static final Capability<VitaRecoveryTracker> CAPABILITY = CapabilityManager.get(new CapabilityToken<>() {});
-    public static final ResourceLocation ID = new ResourceLocation(ExampleMod.MODID, "recovery_tracker");
+    public static final ResourceLocation ID = new ResourceLocation(ElderLexicon.MODID, "recovery_tracker");
 
     private VitaRecoveryCapability() {}
 

@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spelling.network;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -15,11 +15,11 @@ import java.util.function.Supplier;
 public record RequestImprovisedWandPacket(InteractionHand hand) {
 
     private static final Map<Item, Supplier<Item>> CONVERSIONS = Map.of(
-            Items.STICK, () -> ExampleMod.IMPROVISED_WAND.get(),
-            Items.BONE, () -> ExampleMod.IMPROVISED_WAND_BONE.get(),
-            Items.BAMBOO, () -> ExampleMod.IMPROVISED_WAND_BAMBOO.get(),
-            Items.BLAZE_ROD, () -> ExampleMod.IMPROVISED_WAND_BLAZE.get(),
-            Items.WRITABLE_BOOK, () -> ExampleMod.GRIMOIRE.get()
+            Items.STICK, () -> ElderLexicon.IMPROVISED_WAND.get(),
+            Items.BONE, () -> ElderLexicon.IMPROVISED_WAND_BONE.get(),
+            Items.BAMBOO, () -> ElderLexicon.IMPROVISED_WAND_BAMBOO.get(),
+            Items.BLAZE_ROD, () -> ElderLexicon.IMPROVISED_WAND_BLAZE.get(),
+            Items.WRITABLE_BOOK, () -> ElderLexicon.GRIMOIRE.get()
     );
 
     public static void encode(RequestImprovisedWandPacket packet, FriendlyByteBuf buf) {

@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita.recovery;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -108,7 +108,7 @@ public final class VitaRecoveryConfig {
 
     private static Path getConfigPath() {
         return FMLPaths.CONFIGDIR.get()
-                .resolve(ExampleMod.MODID)
+                .resolve(ElderLexicon.MODID)
                 .resolve("vita")
                 .resolve("recovery.json");
     }

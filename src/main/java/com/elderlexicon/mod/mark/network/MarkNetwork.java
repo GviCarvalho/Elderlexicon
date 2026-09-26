@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.mark.network;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.mark.MarkTarget;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkRegistry;
@@ -13,7 +13,7 @@ public final class MarkNetwork {
 
     private static final String PROTOCOL = "1";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            ResourceLocation.fromNamespaceAndPath(ExampleMod.MODID, "mark"),
+            ResourceLocation.fromNamespaceAndPath(ElderLexicon.MODID, "mark"),
             () -> PROTOCOL,
             PROTOCOL::equals,
             PROTOCOL::equals

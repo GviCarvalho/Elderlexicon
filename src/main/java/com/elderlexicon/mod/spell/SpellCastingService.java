@@ -137,7 +137,8 @@ public final class SpellCastingService {
                 ? "Feitico interpretado com sucesso."
                 : transcript.message();
 
-        if (totalCost > EPSILON || environmentalContribution > EPSILON) {
+        double absorbed = context.absorbed().values().stream().mapToDouble(Double::doubleValue).sum();
+        if (totalCost > EPSILON || environmentalContribution > EPSILON || absorbed > EPSILON) {
             StringBuilder descriptor = new StringBuilder("Fonte: ")
                     .append(primaryLabel)
                     .append(" | Custo: ")
@@ -146,6 +147,11 @@ public final class SpellCastingService {
             if (environmentalContribution > EPSILON) {
                 descriptor.append(" | Ambiente: ")
                         .append(SpellCostCalculator.formatCost(environmentalContribution))
+                        .append(" UMU");
+            }
+            if (absorbed > EPSILON) {
+                descriptor.append(" | Absorvido: ")
+                        .append(SpellCostCalculator.formatCost(absorbed))
                         .append(" UMU");
             }
             response = response + " (" + descriptor + ")";

@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spell.module;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.SpellModule;
 import net.minecraft.server.level.ServerPlayer;
@@ -9,7 +9,9 @@ import net.minecraft.world.food.FoodData;
 public final class SpellCostModule implements SpellModule {
 
     private static final double EPSILON = 1.0E-4D;
-    private static final String SATURATION_FRACTION_TAG = ExampleMod.MODID + "_umusatfraction";
+    private static final String SATURATION_FRACTION_TAG = ElderLexicon.MODID + "_umusatfraction";
+    /** The part of an experience point already owed but not yet taken: experience only goes in whole points. */
+    private static final String EXPERIENCE_FRACTION_TAG = ElderLexicon.MODID + "_umuxpfraction";
     private static final double OVERFLOW_PAYMENT_RATIO = 0.10D;
     private final VitaGateway vita;
 
@@ -95,18 +97,40 @@ public final class SpellCostModule implements SpellModule {
         if (umuCost <= EPSILON) {
             return umuCost;
         }
-        int totalExperience = Math.max(0, player.totalExperience);
-        if (totalExperience <= 0) {
-            return umuCost;
+        double carried = player.getPersistentData().getDouble(EXPERIENCE_FRACTION_TAG);
+        ExperienceCharge charge = chargeExperience(Math.max(0, player.totalExperience), umuCost, carried);
+        if (charge.points() > 0) {
+            player.giveExperiencePoints(-charge.points());
         }
-        double xpRequired = umuCost * com.elderlexicon.mod.vita.VitaSystem.XP_PER_UMU;
-        int xpToSpend = (int) Math.min(totalExperience, Math.floor(xpRequired + 1.0E-4D));
-        if (xpToSpend <= 0) {
-            return umuCost;
+        if (charge.carried() > EPSILON) {
+            player.getPersistentData().putDouble(EXPERIENCE_FRACTION_TAG, charge.carried());
+        } else {
+            player.getPersistentData().remove(EXPERIENCE_FRACTION_TAG);
         }
-        player.giveExperiencePoints(-xpToSpend);
-        double paid = xpToSpend / com.elderlexicon.mod.vita.VitaSystem.XP_PER_UMU;
-        return Math.max(0.0D, umuCost - paid);
+        return charge.unpaidUmu();
+    }
+
+    /**
+     * What paying {@code umuCost} from {@code experience} points takes: whole points now, the fraction of a point left
+     * owed for next time, and the UMU the experience could not cover. Small, frequent costs (a bond or a hidden block,
+     * each second) are worth less than a point; without carrying the fraction they skipped experience and fell on food.
+     */
+    static ExperienceCharge chargeExperience(int experience, double umuCost, double carried) {
+        if (experience <= 0) {
+            return new ExperienceCharge(0, carried, umuCost);
+        }
+        double owed = umuCost * com.elderlexicon.mod.vita.VitaSystem.XP_PER_UMU + Math.max(0.0D, carried);
+        int whole = (int) Math.floor(owed + 1.0E-6D);
+        if (whole <= experience) {
+            return new ExperienceCharge(whole, Math.max(0.0D, owed - whole), 0.0D);
+        }
+        // Not enough experience: all of it goes, and what it could not cover is left for food and life.
+        double unpaid = (owed - experience) / com.elderlexicon.mod.vita.VitaSystem.XP_PER_UMU;
+        return new ExperienceCharge(experience, 0.0D, Math.min(umuCost, unpaid));
+    }
+
+    /** Whole experience points to take, the fraction left owed, and the UMU still unpaid. */
+    record ExperienceCharge(int points, double carried, double unpaidUmu) {
     }
 
     private double drainSaturation(ServerPlayer player, double umuCost) {

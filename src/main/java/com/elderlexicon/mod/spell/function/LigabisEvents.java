@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spell.function;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -16,7 +16,7 @@ import net.minecraftforge.fml.common.Mod;
 /**
  * Applies special Ligabis immortality behavior using Forge events.
  */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID)
 public final class LigabisEvents {
 
     private LigabisEvents() {

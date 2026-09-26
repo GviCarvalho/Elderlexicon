@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spelling.client;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spell.scene.client.ArcBoltRenderer;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.api.distmarker.Dist;
@@ -11,7 +11,7 @@ import net.minecraftforge.fml.common.Mod;
 /**
  * Handles client-only MOD bus registrations for the Spelling feature.
  */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class SpellingClientModBusEvents {
 
     private SpellingClientModBusEvents() {
@@ -24,7 +24,7 @@ public final class SpellingClientModBusEvents {
 
     @SubscribeEvent
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
-        event.registerEntityRenderer(ExampleMod.PLACED_SCROLL.get(), PlacedScrollRenderer::new);
-        event.registerEntityRenderer(ExampleMod.ARC_BOLT.get(), ArcBoltRenderer::new);
+        event.registerEntityRenderer(ElderLexicon.PLACED_SCROLL.get(), PlacedScrollRenderer::new);
+        event.registerEntityRenderer(ElderLexicon.ARC_BOLT.get(), ArcBoltRenderer::new);
     }
 }

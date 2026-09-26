@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spell.function;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.ligabis.world.LigabisManager;
 import com.elderlexicon.mod.spelling.entity.PlacedScrollEntity;
 import com.elderlexicon.mod.spelling.item.SpellScrollItem;
@@ -22,7 +22,7 @@ import java.util.Optional;
  */
 public final class MarkHelper {
 
-    private static final String MARK_KEY = ExampleMod.MODID + ":mark";
+    private static final String MARK_KEY = ElderLexicon.MODID + ":mark";
     private static final String LEGACY_KEY = "Mark";
 
     private MarkHelper() {

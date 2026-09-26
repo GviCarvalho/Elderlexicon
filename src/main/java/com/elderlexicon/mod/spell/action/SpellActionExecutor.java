@@ -2,6 +2,7 @@ package com.elderlexicon.mod.spell.action;
 
 import com.elderlexicon.mod.command.SpellCostCalculator;
 import com.elderlexicon.mod.spell.SpellContext;
+import com.elderlexicon.mod.spell.function.ExsugatFunctionHandler;
 import com.elderlexicon.mod.spell.function.SpellFunctionHandler;
 import com.elderlexicon.mod.spell.registry.SpellFunctionHandlerRegistry;
 import com.elderlexicon.mod.spell.vertere.VertereRequest;
@@ -21,6 +22,7 @@ import java.util.function.Function;
 public final class SpellActionExecutor {
 
     private static final String VERTERE_RUNE_ID = "vertere";
+    private static final String EXSUGAT_RUNE_ID = "exsugat";
     private static final double EPSILON = 1.0E-4D;
 
     private final Function<String, SpellFunctionHandler> handlerResolver;
@@ -63,7 +65,14 @@ public final class SpellActionExecutor {
         List<VertereRequest> vertereQueue = context.vertereRequests();
         int vertereIndex = 0;
 
-        for (SpellAction action : actions) {
+        // A source captured by exsugat (book 8.2.1), with what it has been converted into since.
+        VitaElement captured = null;
+        VitaElement capturedAs = null;
+        SpellAction capture = null;
+        boolean capturedForSpell = false;
+
+        for (int index = 0; index < actions.size(); index++) {
+            SpellAction action = actions.get(index);
             if (action == null) {
                 continue;
             }
@@ -78,10 +87,43 @@ public final class SpellActionExecutor {
             }
             context.setElementRuneId(resolveElementRuneId(action, currentRuneId, currentRuneId));
             context.setCurrentAction(action);
+            // igni surgit vertere aqua converts only the look of the fire nearby: nothing is taken from the Vita.
+            if (isVertere(action.runeId()) && action.image()) {
+                if (vertereIndex < vertereQueue.size()) {
+                    vertereIndex++;
+                }
+                if (context.player() != null) {
+                    com.elderlexicon.mod.spell.function.ImageSpells.disguise(context, action);
+                }
+                continue;
+            }
+            // igni exsugat iactare: exsugat does not pull at once; it captures what the functions after it spend, which is
+            // only known once they have run. Written last, it pulls into the body, as its handler does.
+            if (is(EXSUGAT_RUNE_ID, action.runeId()) && !action.image() && action.subjectMark().isEmpty()
+                    && hasFunctionAfter(actions, index)) {
+                captured = currentElement;
+                capturedAs = currentElement;
+                capture = action;
+                capturedForSpell = hasConsumerAfter(actions, index);
+                continue;
+            }
+            // igni exsugat vertere aqua converts the fire being pulled, not the mage's own: the Vita is left alone.
+            if (isVertere(action.runeId()) && action.subjectMark().isEmpty() && captured != null) {
+                if (vertereIndex < vertereQueue.size()) {
+                    VitaElement target = vertereQueue.get(vertereIndex++).target();
+                    capturedAs = target;
+                    currentElement = target;
+                    context.setPrimaryElement(target);
+                }
+                continue;
+            }
             // Vertere on a marked thing converts its matter; its handler does that, not the caster's Vita.
             if (isVertere(action.runeId()) && action.subjectMark().isEmpty()) {
                 if (vertereIndex < vertereQueue.size()) {
-                    VertereRequest request = vertereQueue.get(vertereIndex++);
+                    VertereRequest written = vertereQueue.get(vertereIndex++);
+                    // igni quantum 5 vertere aqua converts five UMU of the body's fire.
+                    VertereRequest request = new VertereRequest(written.source(), written.target(),
+                            action.quantity().orElse(written.amount()));
                     VitaElement updated = handleVertere(context, request);
                     if (updated != null) {
                         currentElement = updated;
@@ -89,11 +131,53 @@ public final class SpellActionExecutor {
                 }
                 continue;
             }
+            if (captured != null && capturedForSpell && action.quantityAll() && context.player() != null) {
+                // igni exsugat quantum iactare: everything in reach is pulled now and spent by this function at once.
+                double total = ExsugatFunctionHandler.captureAll(context, captured, capturedAs);
+                action = action.toBuilder().putMetadata(SpellAction.QUANTITY, total > EPSILON ? total : null).build();
+                context.setCurrentAction(action);
+            }
             SpellFunctionHandler handler = resolveHandler(action.runeId());
             if (handler != null) {
                 handler.execute(context, currentElement);
             }
         }
+
+        if (captured != null && context.player() != null) {
+            context.setCurrentAction(capture);
+            if (capturedForSpell) {
+                ExsugatFunctionHandler.capture(context, captured, capturedAs);
+            } else {
+                // Converted and never spent (firmo exsugat vertere igni): the portion captured becomes the other element
+                // where it is, in the world.
+                ExsugatFunctionHandler.convertInPlace(context, captured, capturedAs,
+                        capture.quantity().orElse(ExsugatFunctionHandler.DEFAULT_ABSORBED_UMU));
+            }
+        }
+    }
+
+    private static boolean hasFunctionAfter(List<SpellAction> actions, int index) {
+        for (int next = index + 1; next < actions.size(); next++) {
+            if (actions.get(next) != null && actions.get(next).type() == SpellActionType.FUNCTION) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether a function after {@code index} spends the source; a vertere only converts it. */
+    private boolean hasConsumerAfter(List<SpellAction> actions, int index) {
+        for (int next = index + 1; next < actions.size(); next++) {
+            SpellAction later = actions.get(next);
+            if (later != null && later.type() == SpellActionType.FUNCTION && !isVertere(later.runeId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean is(String runeId, String candidate) {
+        return candidate != null && runeId.equalsIgnoreCase(candidate.trim());
     }
 
     private String resolveElementRuneId(SpellAction action, String preferred, String fallback) {

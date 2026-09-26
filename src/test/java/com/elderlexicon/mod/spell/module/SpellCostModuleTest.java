@@ -12,6 +12,35 @@ class SpellCostModuleTest {
     private static final double EPSILON = 1.0E-4D;
 
     @Test
+    void aCostWorthLessThanAPointStillComesFromExperience() {
+        SpellCostModule.ExperienceCharge first = SpellCostModule.chargeExperience(100, 0.12D, 0.0D);
+
+        assertEquals(1, first.points());
+        assertEquals(0.2D, first.carried(), EPSILON, "the fifth of a point is owed, not taken from food");
+        assertEquals(0.0D, first.unpaidUmu(), EPSILON);
+
+        double carried = first.carried();
+        int taken = first.points();
+        for (int second = 1; second < 5; second++) {
+            SpellCostModule.ExperienceCharge next = SpellCostModule.chargeExperience(100, 0.12D, carried);
+            assertEquals(0.0D, next.unpaidUmu(), EPSILON);
+            taken += next.points();
+            carried = next.carried();
+        }
+        assertEquals(6, taken, "five seconds at 0.12 UMU are 6 points");
+        assertEquals(0.0D, carried, EPSILON);
+    }
+
+    @Test
+    void withoutEnoughExperienceTheRestIsLeftForFood() {
+        SpellCostModule.ExperienceCharge charge = SpellCostModule.chargeExperience(3, 1.0D, 0.0D);
+
+        assertEquals(3, charge.points());
+        assertEquals(0.7D, charge.unpaidUmu(), EPSILON);
+        assertEquals(1.0D, SpellCostModule.chargeExperience(0, 1.0D, 0.0D).unpaidUmu(), EPSILON);
+    }
+
+    @Test
     void limitsOverflowContributionToTenPercent() {
         TrackingVitaGateway gateway = new TrackingVitaGateway(3.0D);
         double remaining = SpellCostModule.settleElementalCost(gateway, null, VitaElement.IGNI, 5.0D);

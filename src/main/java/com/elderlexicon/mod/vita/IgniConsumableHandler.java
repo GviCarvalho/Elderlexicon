@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -13,7 +13,7 @@ import net.minecraftforge.fml.common.Mod;
 /**
  * Adjusts Igni reserves when hot/cold consumables are used.
  */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID)
 public final class IgniConsumableHandler {
 
     private IgniConsumableHandler() {

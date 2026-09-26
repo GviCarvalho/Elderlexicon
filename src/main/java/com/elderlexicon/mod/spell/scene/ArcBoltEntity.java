@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spell.scene;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -37,7 +37,7 @@ public class ArcBoltEntity extends Entity {
 
     /** Creates a bolt from {@code start} to {@code end}; the caller still has to add it to the level. */
     public static ArcBoltEntity create(ServerLevel level, Vec3 start, Vec3 end) {
-        ArcBoltEntity bolt = new ArcBoltEntity(ExampleMod.ARC_BOLT.get(), level);
+        ArcBoltEntity bolt = new ArcBoltEntity(ElderLexicon.ARC_BOLT.get(), level);
         bolt.setPos(start);
         Vec3 offset = end.subtract(start);
         bolt.entityData.set(END_X, (float) offset.x);

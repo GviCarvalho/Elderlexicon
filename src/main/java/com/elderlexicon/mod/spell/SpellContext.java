@@ -27,6 +27,8 @@ public final class SpellContext {
     private String elementRuneId;
     private double conduitOverflow;
     private final EnumMap<VitaElement, Double> ambientEnergy = new EnumMap<>(VitaElement.class);
+    /** What an exsugat pulled into the mage's body rather than into the spell. */
+    private final EnumMap<VitaElement, Double> absorbed = new EnumMap<>(VitaElement.class);
     private final List<VertereRequest> vertereRequests;
     private double totalCost;
     private double environmentalContribution;
@@ -185,6 +187,10 @@ public final class SpellContext {
         return vertereRequests;
     }
 
+    /**
+     * Energy pulled from the world that pays for the spell (exsugat before other functions): the functions spend it, so
+     * it lowers what the mage pays and is not kept.
+     */
     public void addAmbientEnergy(VitaElement element, double amount) {
         if (element == null || amount <= EPSILON) {
             return;
@@ -198,11 +204,26 @@ public final class SpellContext {
         this.payableCost = Math.max(0.0D, totalCost - environmentalContribution);
     }
 
-    public void commitAmbientEnergy() {
-        if (focusActive) {
+    /** Energy pulled from the world into the mage's body (a bare exsugat, or what a capture brought beyond the cost). */
+    public void absorbIntoBody(VitaElement element, double amount) {
+        if (element == null || amount <= EPSILON) {
             return;
         }
-        ambientEnergy.forEach((element, amount) ->
-                VitaSystem.restoreElementEnergy(player, element, amount));
+        absorbed.merge(element, amount, Double::sum);
+    }
+
+    public Map<VitaElement, Double> absorbed() {
+        return Collections.unmodifiableMap(absorbed);
+    }
+
+    /**
+     * Gives the body what was absorbed into it. What paid for the spell was spent by it and is not given as well; with
+     * a focus the body is left alone.
+     */
+    public void commitAmbientEnergy() {
+        if (focusActive || player == null) {
+            return;
+        }
+        absorbed.forEach((element, amount) -> VitaSystem.restoreElementEnergy(player, element, amount));
     }
 }

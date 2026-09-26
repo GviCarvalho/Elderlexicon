@@ -1,6 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
 import com.elderlexicon.mod.spell.SpellContext;
+import com.elderlexicon.mod.spell.SpellFlow;
 import com.elderlexicon.mod.spell.action.SpellAction;
 import com.elderlexicon.mod.spell.mark.SpellPlace;
 import com.elderlexicon.mod.vita.VitaElement;
@@ -25,6 +26,10 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
         }
         ServerLevel level = player.serverLevel();
         Optional<SpellAction> action = context.currentAction();
+        if (action.isPresent() && action.get().image()) {
+            ImageSpells.vocant(context, element, action.get());
+            return;
+        }
         Optional<SpellPlace> place = action.flatMap(SpellAction::place);
         Optional<String> subject = action.flatMap(SpellAction::subjectMark);
         if (subject.isPresent()) {
@@ -47,10 +52,11 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
         // aqua quantum 20 vocant brings twice the water (book 4.3.2, linear); what goes beyond 10 UMU is paid.
         double energy = action.map(SpellAction::quantity).orElse(OptionalDouble.empty())
                 .orElse(EmissionRecorder.DEFAULT_QUANTITY_UMU);
-        context.addTotalCost(energy - EmissionRecorder.DEFAULT_QUANTITY_UMU);
         double power = energy / EmissionRecorder.DEFAULT_QUANTITY_UMU;
-        // chronos is how long what was summoned stays or keeps acting (book 4.3.2: "igni exsugat chronos firmo vocant").
+        // chronos is how long what was summoned stays or keeps acting (book 4.3.2: "igni exsugat chronos firmo vocant"),
+        // and a tap held open: it spends that much for every two seconds (SpellFlow).
         int window = action.map(Chronos::window).orElse(0);
+        context.addTotalCost(SpellFlow.total(energy, window) - EmissionRecorder.DEFAULT_QUANTITY_UMU);
         int linger = window > 0 ? window : LINGER_TICKS;
         Optional<Supplier<Optional<MarkSpells.Destination>>> follow = place
                 .filter(SpellPlace::followsMarks)
@@ -64,7 +70,7 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                     .map(MarkSpells.Destination::impact)
                     .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE));
             SpellEffects.spawnSummonEffect(player, element, context.elementRuneId(), impact);
-            EmissionRecorder.pointAt(context, element, impact.location(), energy, linger);
+            EmissionRecorder.pointAt(context, element, impact.location(), SpellFlow.total(energy, window), linger);
             // A place written with marks moves with them: while chronos lasts, the invocation follows.
             Invocation.Where where = follow.map(following -> (Invocation.Where) new Invocation.Where() {
                 @Override

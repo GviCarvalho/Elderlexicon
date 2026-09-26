@@ -122,5 +122,9 @@
   "death.attack.ligabis_death": "%1$s was taken by a bond",
   "death.attack.ligabis_death.player": "%1$s was taken by a bond of %2$s",
   "death.attack.vertere_vita": "%1$s had their life turned into something else",
-  "death.attack.vertere_vita.player": "%1$s had their life turned into something else by %2$s"
+  "death.attack.vertere_vita.player": "%1$s had their life turned into something else by %2$s",
+  "command.elderlexicon.spell.debug.on": "Spell details on: each spell shows its transcription, cost and notes in chat.",
+  "command.elderlexicon.spell.debug.off": "Spell details off.",
+  "overlay.elderlexicon.spelling.cooldown_toast": "Spirit still resting: %ss",
+  "overlay.elderlexicon.spelling.result.unknown": "The spirit gave no answer."
 }

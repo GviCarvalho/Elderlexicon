@@ -1,6 +1,7 @@
 package com.elderlexicon.mod.command;
 
 import com.elderlexicon.mod.spell.SpellCastingService;
+import com.elderlexicon.mod.spelling.server.SpellFeedback;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -31,10 +32,20 @@ public final class SpellCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         LiteralArgumentBuilder<CommandSourceStack> builder = Commands.literal("spell")
                 .executes(context -> execute(context.getSource(), ""))
+                .then(Commands.literal("debug").executes(context -> toggleDetails(context.getSource())))
                 .then(Commands.argument("runes", Objects.requireNonNull(StringArgumentType.greedyString()))
                         .executes(context -> execute(context.getSource(), StringArgumentType.getString(context, "runes"))));
 
         dispatcher.register(builder);
+    }
+
+    /** Shows or hides each spell's transcription, cost and notes in chat for the player who runs it. */
+    private static int toggleDetails(CommandSourceStack source) throws CommandSyntaxException {
+        boolean on = SpellFeedback.toggle(source.getPlayerOrException());
+        source.sendSuccess(() -> Component.translatable(on
+                ? "command.elderlexicon.spell.debug.on"
+                : "command.elderlexicon.spell.debug.off"), false);
+        return 1;
     }
 
     private static int execute(CommandSourceStack source, String rawRunes) {

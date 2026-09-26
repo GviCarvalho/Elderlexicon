@@ -1,6 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
 import com.elderlexicon.mod.spell.SpellContext;
+import com.elderlexicon.mod.spell.SpellFlow;
 import com.elderlexicon.mod.spell.action.SpellAction;
 import com.elderlexicon.mod.spell.mark.MarkCost;
 import com.elderlexicon.mod.spell.mark.SpellPlace;
@@ -26,6 +27,10 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
         }
         ServerLevel level = player.serverLevel();
         Optional<SpellAction> action = context.currentAction();
+        if (action.isPresent() && action.get().image()) {
+            ImageSpells.iactare(context, element, action.get());
+            return;
+        }
         Optional<String> subject = action.flatMap(SpellAction::subjectMark);
         if (subject.isPresent()) {
             // m1 iactare: the marked thing is thrown from where it is toward the aim (or the ubis place).
@@ -35,12 +40,14 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
             return;
         }
         // igni quantum 20 iactare throws 20 UMU instead of 10 (book 4.3.2); what goes beyond the default is paid.
-        double energy = action.map(SpellAction::quantity).orElse(OptionalDouble.empty())
+        double perWindow = action.map(SpellAction::quantity).orElse(OptionalDouble.empty())
                 .orElse(EmissionRecorder.DEFAULT_QUANTITY_UMU);
+        // igni chronos 5 iactare keeps the tap open for 5 seconds instead of 2: the same flow, for longer, spending
+        // more (SpellFlow); chronos 0 releases it at once.
+        int duration = action.map(spell -> Chronos.ticks(spell, CAST_DURATION_TICKS)).orElse(CAST_DURATION_TICKS);
+        double energy = SpellFlow.total(perWindow, duration);
         context.addTotalCost(energy - EmissionRecorder.DEFAULT_QUANTITY_UMU);
         double power = energy / EmissionRecorder.DEFAULT_QUANTITY_UMU;
-        // igni chronos 5 iactare stretches the 2 second evocation to 5; chronos 0 releases it at once.
-        int duration = action.map(spell -> Chronos.ticks(spell, CAST_DURATION_TICKS)).orElse(CAST_DURATION_TICKS);
         int pulses = duration / CAST_STEP_TICKS + 1;
         // igni 200 ubis iactare reaches 200 blocks instead of 20; coordinates or a mark fix where it lands.
         Optional<SpellPlace> place = action.flatMap(SpellAction::place);

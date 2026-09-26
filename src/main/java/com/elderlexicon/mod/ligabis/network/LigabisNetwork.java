@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.ligabis.network;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
@@ -10,7 +10,7 @@ public final class LigabisNetwork {
 
     private static final String PROTOCOL = "1";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            ResourceLocation.fromNamespaceAndPath(ExampleMod.MODID, "ligabis"),
+            ResourceLocation.fromNamespaceAndPath(ElderLexicon.MODID, "ligabis"),
             () -> PROTOCOL,
             PROTOCOL::equals,
             PROTOCOL::equals

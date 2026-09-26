@@ -1,7 +1,8 @@
 package com.elderlexicon.mod.spell.function;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spell.SpellContext;
+import com.elderlexicon.mod.spell.SpellFlow;
 import com.elderlexicon.mod.spell.function.MarkTargets.Marked;
 import com.elderlexicon.mod.spell.mark.MarkCost;
 import com.elderlexicon.mod.spell.mark.SpellPlace;
@@ -39,14 +40,14 @@ final class MarkSpells {
 
     /** Vocant reaches where the mage aims up to this far; ubis goes beyond. */
     static final double SUMMON_RANGE = 12.0D;
-    private static final double THROW_AIM_RANGE = 64.0D;
+    static final double THROW_AIM_RANGE = 64.0D;
     /** Upward nudge of every throw, so things leave the ground in an arc. */
     private static final double THROW_LIFT = 0.2D;
     /** Transvocatio happens at once unless chronos sets when. */
     static final int SWAP_DELAY_TICKS = 0;
     private static final int RELEASE_LINGER_TICKS = 20;
     private static final ResourceKey<DamageType> VERTERE_VITA =
-            ResourceKey.create(Registries.DAMAGE_TYPE, ResourceLocation.fromNamespaceAndPath(ExampleMod.MODID, "vertere_vita"));
+            ResourceKey.create(Registries.DAMAGE_TYPE, ResourceLocation.fromNamespaceAndPath(ElderLexicon.MODID, "vertere_vita"));
 
     private MarkSpells() {
     }
@@ -197,7 +198,8 @@ final class MarkSpells {
         for (Marked thing : things) {
             cost += MarkCost.movement(thing.mass, thing.position.distanceTo(destination.point()));
         }
-        context.addTotalCost(cost);
+        // Kept there for a chronos window, it is held for every two seconds of it (SpellFlow).
+        context.addTotalCost(cost * SpellFlow.windows(stayTicks));
 
         SpellEffects.schedule(destination.level(), delayTicks, () -> MarkTargets.load(things, () -> {
             for (Marked thing : things) {
@@ -253,9 +255,11 @@ final class MarkSpells {
      * or {@link MarkCost#DEFAULT_THROW_ENERGY}). More energy than the top speed takes keeps pushing for longer.
      * A chronos window ({@code durationTicks} above zero) spreads the push over that long at a steady speed.
      */
-    static void push(SpellContext context, String mark, Optional<SpellPlace> place, Push mode, double energy,
+    static void push(SpellContext context, String mark, Optional<SpellPlace> place, Push mode, double energyPerWindow,
                      int durationTicks) {
         ServerPlayer player = context.player();
+        // A push held for a chronos window keeps the speed of the default one, for longer, spending more (SpellFlow).
+        double energy = SpellFlow.total(energyPerWindow, durationTicks);
         List<Marked> things = sameDimension(player, MarkTargets.find(player.server, mark), player.serverLevel(), mark);
         if (things.isEmpty()) {
             return;
@@ -313,6 +317,10 @@ final class MarkSpells {
                         : thing.entity;
                 if (!thing.isBlock()) {
                     MarkMotion.launch(flying, first);
+                    if (flying instanceof net.minecraft.world.entity.player.Player) {
+                        // A thrown player is drawn flying, laid along its course, until it lands.
+                        com.elderlexicon.mod.spelling.network.SpellingNetwork.sendLaunch(flying);
+                    }
                 }
                 Steering steering = new Steering(player, mode, homing, velocity.normalize());
                 thrust(flying, speeds.get(index), steering, pushes.get(index) - 1);

@@ -1,7 +1,7 @@
 package com.elderlexicon.mod.client;
 
 import com.elderlexicon.mod.Config;
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.vita.VitaElement;
 import com.elderlexicon.mod.vita.VitaImbalanceTier;
 import com.elderlexicon.mod.vita.VitaSystem;
@@ -23,7 +23,7 @@ import java.util.function.BooleanSupplier;
 /**
  * Client-only hooks for Vita UI feedback.
  */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID, value = Dist.CLIENT)
 public final class VitaClientEvents {
 
     private static final ElementStatus AQUA_STATUS = new ElementStatus(

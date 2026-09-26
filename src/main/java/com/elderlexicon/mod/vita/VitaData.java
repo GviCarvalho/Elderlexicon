@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -9,7 +9,7 @@ import net.minecraft.server.level.ServerPlayer;
  */
 final class VitaData {
 
-    private static final String STORAGE_KEY = ExampleMod.MODID + "_vita";
+    private static final String STORAGE_KEY = ElderLexicon.MODID + "_vita";
     private static final String TAG_AQUA = "aqua";
     private static final String TAG_AURA = "aura";
     private static final String TAG_IGNI = "igni";

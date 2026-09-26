@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spelling.config;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spelling.client.ClientSpellingController;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -10,7 +10,7 @@ import net.minecraftforge.fml.event.config.ModConfigEvent;
 /**
  * Houses all client-side tuning options for the Spelling overlay.
  */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class SpellingClientConfig {
 
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();

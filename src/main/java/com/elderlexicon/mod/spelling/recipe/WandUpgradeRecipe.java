@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spelling.recipe;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spelling.item.ModularWandItem;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.RegistryAccess;
@@ -22,10 +22,10 @@ import java.util.Optional;
 public final class WandUpgradeRecipe extends CustomRecipe {
 
     private static final Map<Item, Item> RESULT_MAP = Map.of(
-            ExampleMod.IMPROVISED_WAND.get(), ExampleMod.WAND.get(),
-            ExampleMod.IMPROVISED_WAND_BONE.get(), ExampleMod.WAND_BONE.get(),
-            ExampleMod.IMPROVISED_WAND_BAMBOO.get(), ExampleMod.WAND_BAMBOO.get(),
-            ExampleMod.IMPROVISED_WAND_BLAZE.get(), ExampleMod.WAND_BLAZE.get()
+            ElderLexicon.IMPROVISED_WAND.get(), ElderLexicon.WAND.get(),
+            ElderLexicon.IMPROVISED_WAND_BONE.get(), ElderLexicon.WAND_BONE.get(),
+            ElderLexicon.IMPROVISED_WAND_BAMBOO.get(), ElderLexicon.WAND_BAMBOO.get(),
+            ElderLexicon.IMPROVISED_WAND_BLAZE.get(), ElderLexicon.WAND_BLAZE.get()
     );
 
     private static final List<WoodMapping> WOOD_MAPPINGS = List.of(
@@ -79,7 +79,7 @@ public final class WandUpgradeRecipe extends CustomRecipe {
 
     @Override
     public RecipeSerializer<?> getSerializer() {
-        return ExampleMod.WAND_UPGRADE_SERIALIZER.get();
+        return ElderLexicon.WAND_UPGRADE_SERIALIZER.get();
     }
 
     private Optional<Result> findUpgrade(CraftingContainer container) {

@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spelling.entity;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -31,7 +31,7 @@ public class PlacedScrollEntity extends Entity {
     }
 
     public PlacedScrollEntity(Level level, BlockPos supportPos, Direction face, ItemStack scroll) {
-        this(ExampleMod.PLACED_SCROLL.get(), level);
+        this(ElderLexicon.PLACED_SCROLL.get(), level);
         this.supportPos = supportPos == null ? BlockPos.ZERO : supportPos.immutable();
         setFace(face);
         setScroll(scroll);

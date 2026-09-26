@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.spelling.data;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spelling.network.SpellingNetwork;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -10,7 +10,7 @@ import net.minecraftforge.fml.common.Mod;
 /**
  * Handles syncing repertoire data from server to client on key lifecycle events.
  */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID)
 public final class SpellingRepertoireSyncEvents {
 
     private SpellingRepertoireSyncEvents() {

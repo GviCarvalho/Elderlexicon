@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita.damage;
 
-import com.elderlexicon.mod.ExampleMod;
+import com.elderlexicon.mod.ElderLexicon;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -8,7 +8,7 @@ import net.minecraftforge.fml.common.Mod;
 /**
  * Registers Vita damage datapack loaders.
  */
-@Mod.EventBusSubscriber(modid = ExampleMod.MODID)
+@Mod.EventBusSubscriber(modid = ElderLexicon.MODID)
 public final class DamageMappingDataEvents {
 
     private DamageMappingDataEvents() {
