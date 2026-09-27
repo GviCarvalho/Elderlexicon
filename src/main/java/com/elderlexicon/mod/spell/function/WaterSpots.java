@@ -2,8 +2,8 @@ package com.elderlexicon.mod.spell.function;
 
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spell.Pressure;
+import com.elderlexicon.mod.spell.nature.NatureWorld;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,11 +23,8 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Condensed water in the world (docs/condensacao-design.md): a jet that pushes and puts fire out, a jet that cuts soft
@@ -40,7 +37,8 @@ public final class WaterSpots {
 
     private static final double JET_REACH = 20.0D;
     private static final double THROW_SPEED = 3.5D;
-    private static final int FLIGHT_TICKS = 200;
+    /** How long the spirit holds thrown ice pressed: if it has hit nothing by then, it bursts where it is. */
+    private static final int FLIGHT_TICKS = 40;
 
     private static final List<HeldIce> ICE = new ArrayList<>();
     private static final List<Flight> FLIGHTS = new ArrayList<>();
@@ -154,7 +152,8 @@ public final class WaterSpots {
 
     /**
      * The pressure goes: the water springs back to its own volume all at once. What is near is thrown away, and all the
-     * water that was pressed there (one source for every 3 UMU) floods out from the point.
+     * water that was pressed there is thrown about as droplets, which fall and pool where they land (docs/
+     * interacoes-design.md): on the ground they fill the hole, in the air they rain down.
      */
     static void burst(ServerLevel level, Vec3 at, double pressure) {
         float shatter = Pressure.shatter(pressure);
@@ -179,46 +178,12 @@ public final class WaterSpots {
             entity.setDeltaMovement(entity.getDeltaMovement().add(direction.scale(strength)).add(0.0D, 0.3D, 0.0D));
             entity.hurtMarked = true;
         }
-        flood(level, BlockPos.containing(at), Pressure.sources(pressure));
+        NatureWorld.releaseWater(level, at, pressure);
         level.sendParticles(ParticleTypes.SPLASH, at.x, at.y, at.z, (int) Math.min(200.0D, 40.0D + pressure * 2.0D),
                 reach * 0.4D, reach * 0.3D, reach * 0.4D, 0.5D);
         level.sendParticles(ParticleTypes.CLOUD, at.x, at.y, at.z, 20, reach * 0.3D, 0.3D, reach * 0.3D, 0.05D);
         level.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE, SoundSource.BLOCKS, 2.0F, 1.3F);
         level.playSound(null, at.x, at.y, at.z, SoundEvents.PLAYER_SPLASH_HIGH_SPEED, SoundSource.BLOCKS, 2.0F, 0.6F);
-    }
-
-    /** Lays {@code sources} water sources outward from {@code center}, in the nearest open spots, lowest first. */
-    private static void flood(ServerLevel level, BlockPos center, int sources) {
-        ArrayDeque<BlockPos> open = new ArrayDeque<>();
-        Set<BlockPos> seen = new HashSet<>();
-        open.add(center);
-        seen.add(center);
-        int laid = 0;
-        int visited = 0;
-        while (!open.isEmpty() && laid < sources && visited < 4096) {
-            BlockPos pos = open.poll();
-            visited++;
-            if (!level.isLoaded(pos) || pos.distManhattan(center) > 16) {
-                continue;
-            }
-            BlockState state = level.getBlockState(pos);
-            boolean free = state.canBeReplaced() && !state.getFluidState().isSource();
-            if (!free && !pos.equals(center)) {
-                continue;
-            }
-            if (free) {
-                level.setBlock(pos, Blocks.WATER.defaultBlockState(), Block.UPDATE_ALL);
-                laid++;
-            }
-            // Water spreads down first, then around, then up.
-            for (Direction side : new Direction[]{Direction.DOWN, Direction.NORTH, Direction.SOUTH, Direction.EAST,
-                    Direction.WEST, Direction.UP}) {
-                BlockPos next = pos.relative(side);
-                if (seen.add(next)) {
-                    open.add(next);
-                }
-            }
-        }
     }
 
     @SubscribeEvent

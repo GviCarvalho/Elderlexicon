@@ -23,16 +23,22 @@ class SpellBlockTest {
     }
 
     @Test
-    void bookExampleReleasesBothLinesTogether() {
-        // vis vertere aura vocant  -> release at 3
-        //     vertere aqua vocant  -> row 1 + col 2 = 3
-        SpellBlock block = SpellBlock.parse("vis vertere aura vocant\nvertere aqua vocant", SpellBlockTest::normalize);
+    void linesAreReadTogetherAndTheColumnIsTheClock() {
+        // Both lines are read at once; their last runes share column 3, so they are released in the same instant.
+        SpellBlock block = SpellBlock.parse("vis vertere aura vocant\nvis vertere aqua vocant", SpellBlockTest::normalize);
 
         assertEquals(2, block.lines().size());
         assertEquals(3, block.lines().get(0).releasePosition());
         assertEquals(3, block.lines().get(1).releasePosition());
         assertEquals(0, block.delaySteps(block.lines().get(0)));
         assertEquals(0, block.delaySteps(block.lines().get(1)));
+    }
+
+    @Test
+    void theRowDoesNotDelayALine() {
+        SpellBlock block = SpellBlock.parse("aqua vocant\n\n\nigni vocant", SpellBlockTest::normalize);
+
+        assertEquals(0, block.delaySteps(block.lines().get(1)), "lines further down are not read later");
     }
 
     @Test
@@ -50,9 +56,9 @@ class SpellBlockTest {
         SpellBlock.Line first = block.lines().get(0);
         SpellBlock.Line second = block.lines().get(1);
         assertEquals(1, first.releasePosition());
-        assertEquals(4, second.releasePosition());
+        assertEquals(3, second.releasePosition());
         assertEquals(0, block.delaySteps(first));
-        assertEquals(3, block.delaySteps(second));
+        assertEquals(2, block.delaySteps(second));
     }
 
     @Test
@@ -69,7 +75,7 @@ class SpellBlockTest {
 
         assertEquals(2, block.lines().size());
         assertEquals(2, block.lines().get(1).row());
-        assertEquals(3, block.lines().get(1).releasePosition());
+        assertEquals(1, block.lines().get(1).releasePosition());
     }
 
     @Test

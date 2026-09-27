@@ -72,8 +72,11 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                 && action.get().metadata().get(SpellAction.INTENSITY) != null;
         boolean condensedVis = element == VitaElement.BALANCED && action.isPresent() && action.get().atOnce()
                 && action.get().metadata().get(SpellAction.INTENSITY) != null;
-        // A condensation is gathered where it will appear before it does.
+        // A condensation is gathered where it will appear before it does: where the mage aimed when the gathering began,
+        // wherever they look by the time it is released.
         int charge = action.map(SpellAction::charge).orElse(0);
+        SpellEffects.SpellImpact aimed = charge > 0 ? written.map(MarkSpells.Destination::impact)
+                .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE)) : null;
         SpellEffects.schedule(level, Math.max(SUMMON_DELAY_TICKS, charge), () -> {
             // The orb the condensation grew into becomes what it held.
             if (action.isPresent() && action.get().orb() >= 0
@@ -84,24 +87,21 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                 return;
             }
             if (condensedVis) {
-                // All that Vis released at the point: for now, only light.
-                SpellEffects.SpellImpact at = written.map(MarkSpells.Destination::impact)
-                        .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE));
-                VisSpots.light(level, at.location(), action.get().intensity());
+                // All that Vis released at the point: its four aspects at once.
+                SpellEffects.SpellImpact at = aimed;
+                VisSpots.release(level, player, at.location(), action.get().intensity());
                 return;
             }
             if (condensedAir) {
                 // All the air captured, released at the point: it bursts out all around, or goes off as a bomb.
-                SpellEffects.SpellImpact at = written.map(MarkSpells.Destination::impact)
-                        .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE));
+                SpellEffects.SpellImpact at = aimed;
                 AirSpots.burst(level, player, at.location(), action.get().intensity());
                 return;
             }
             if (condensedWater) {
                 // All the water captured, pressed into one point: ice VII held while chronos lasts (two seconds
                 // without it), then it bursts; not pressed hard enough to freeze, it bursts at once.
-                SpellEffects.SpellImpact at = written.map(MarkSpells.Destination::impact)
-                        .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE));
+                SpellEffects.SpellImpact at = aimed;
                 net.minecraft.core.BlockPos spot = at.entity() != null ? at.entity().blockPosition()
                         : java.util.Objects.requireNonNullElse(SpellEffects.firePlacementPos(at),
                         net.minecraft.core.BlockPos.containing(at.location()));
@@ -115,15 +115,14 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
             }
             if (condensedEarth) {
                 // All the earth captured, in one block as dense as all of it (docs/condensacao-design.md).
-                SpellEffects.SpellImpact at = written.map(MarkSpells.Destination::impact)
-                        .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE));
+                SpellEffects.SpellImpact at = aimed;
                 net.minecraft.core.BlockPos spot = at.entity() != null ? at.entity().blockPosition()
                         : java.util.Objects.requireNonNullElse(SpellEffects.firePlacementPos(at),
                         net.minecraft.core.BlockPos.containing(at.location()));
                 EarthSpots.place(level, player, spot, action.get().intensity(), action.get().carbon());
                 return;
             }
-            SpellEffects.SpellImpact impact = written
+            SpellEffects.SpellImpact impact = aimed != null ? aimed : written
                     .map(MarkSpells.Destination::impact)
                     .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE));
             SpellEffects.spawnSummonEffect(player, element, context.elementRuneId(), impact);

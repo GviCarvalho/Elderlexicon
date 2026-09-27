@@ -255,10 +255,15 @@ public final class SpellActionExecutor {
                 Integer orb = null;
                 if (atOnce) {
                     net.minecraft.server.level.ServerPlayer player = context.player();
+                    // Gathered where it will be released: before the hand for an iactare, at the point for a vocant;
+                    // the energy is seen streaming out of the mage into it.
+                    java.util.function.Supplier<net.minecraft.world.phys.Vec3> point =
+                            ExsugatFunctionHandler.orbPoint(context, action);
                     ElementOrb gathering = ElementOrb.gathering(player.serverLevel(), player,
-                            java.util.List.copyOf(chain), worked, 0, () -> ExsugatFunctionHandler.handOf(player),
-                            Charge.ticks(fromBody));
+                            java.util.List.copyOf(chain), worked, 0, point, Charge.ticks(fromBody));
                     player.serverLevel().addFreshEntity(gathering);
+                    com.elderlexicon.mod.spell.function.Gatherings.fromBody(player.serverLevel(), player, chain.get(0),
+                            point, Charge.ticks(fromBody));
                     orb = gathering.getId();
                 }
                 action = action.toBuilder()

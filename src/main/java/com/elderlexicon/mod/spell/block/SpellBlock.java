@@ -6,11 +6,13 @@ import java.util.Objects;
 import java.util.function.UnaryOperator;
 
 /**
- * A block of text read as several independent spells (one per non-blank line).
+ * A page read as several independent spells (one per non-blank line), all read at the same time.
  * <p>
- * Every rune has a position (row + column). The position acts as a shared clock: the spirit
- * finishes reading a spell at the position of its last rune, so lines whose last runes share a
- * position are released together and a line released later starts that many steps after.
+ * The column is the clock: the spirit reads every line at once, one column per step, and finishes a
+ * spell at the column of its last rune. Runes in the same column happen in the same instant, so
+ * lines whose last runes share a column are released together, and a longer line is released that
+ * many steps later. There is no fusion rule: when the processes of two lines meet in the same place
+ * and instant, what happens between them is up to the laws of nature (docs/interacoes-design.md).
  */
 public final class SpellBlock {
 
@@ -65,7 +67,7 @@ public final class SpellBlock {
             for (int col = 0; col < tokens.length; col++) {
                 String rune = tokens[col].isBlank() ? "" : normalizer.apply(tokens[col]);
                 if (rune != null && !rune.isEmpty()) {
-                    runes.add(new Rune(rune, row + col));
+                    runes.add(new Rune(rune, col));
                 }
             }
             if (!runes.isEmpty()) {

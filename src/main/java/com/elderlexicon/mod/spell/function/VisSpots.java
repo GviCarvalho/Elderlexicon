@@ -1,10 +1,17 @@
 package com.elderlexicon.mod.spell.function;
 
 import com.elderlexicon.mod.ElderLexicon;
+import com.elderlexicon.mod.spell.Aspect;
+import com.elderlexicon.mod.spell.Heat;
 import com.elderlexicon.mod.spell.Mana;
+import com.elderlexicon.mod.spell.Pressure;
+import com.elderlexicon.mod.spell.nature.NatureWorld;
+import com.elderlexicon.mod.vita.VitaElement;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.Block;
@@ -19,8 +26,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Condensed Vis released (docs/condensacao-design.md): pure energy, which for now is only light. Where it lands there is
- * a flash, and the place stays lit for a while, longer the more Vis there was.
+ * Condensed Vis released (docs/interacoes-design.md): energy with the four aspects in balance, a quarter each, shown all
+ * at once where it lands. A quarter is heat, a quarter mass, a quarter cohesion (water), a quarter expansion (pressed
+ * air), in the same place and instant; what they do to each other there (the heat boiling the water, the pressure
+ * throwing it, the mass pulling) is up to the laws of nature, not written here. The flash is its light, and the place
+ * stays lit for a while, longer the more Vis there was.
  */
 @Mod.EventBusSubscriber(modid = ElderLexicon.MODID)
 public final class VisSpots {
@@ -29,15 +39,32 @@ public final class VisSpots {
     }
 
     private static final List<Glow> GLOWS = new ArrayList<>();
+    /** The green-yellow of experience, Vis's everyday form. */
+    private static final DustParticleOptions VIS_DUST =
+            new DustParticleOptions(new org.joml.Vector3f(0.6F, 1.0F, 0.2F), 1.2F);
 
     private VisSpots() {
     }
 
-    /** {@code umu} of Vis released at {@code at}: a flash, and light that lingers there. */
+    /** {@code umu} of Vis released at {@code at}: its four aspects, each a quarter of it, at once. */
+    static void release(ServerLevel level, ServerPlayer caster, Vec3 at, double umu) {
+        light(level, at, umu);
+        double mass = umu * Aspect.share(VitaElement.BALANCED, Aspect.MASS);
+        double cohesion = umu * Aspect.share(VitaElement.BALANCED, Aspect.COHESION);
+        double heat = umu * Aspect.share(VitaElement.BALANCED, Aspect.HEAT);
+        double expansion = umu * Aspect.share(VitaElement.BALANCED, Aspect.EXPANSION);
+        EarthSpots.place(level, caster, BlockPos.containing(at), mass, 0);
+        NatureWorld.spray(level, at, Pressure.burstReach(cohesion) / 2.0D, cohesion);
+        if (heat > Heat.SPENT) {
+            HeatSpots.strike(level, caster, at, heat);
+        }
+        AirSpots.burst(level, caster, at, expansion);
+    }
+
+    /** A flash, and light that lingers there. */
     static void light(ServerLevel level, Vec3 at, double umu) {
         level.sendParticles(ParticleTypes.FLASH, at.x, at.y, at.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
-        level.sendParticles(ParticleTypes.END_ROD, at.x, at.y, at.z, (int) Math.min(120.0D, 20.0D + umu), 0.6D, 0.6D, 0.6D,
-                0.15D);
+        level.sendParticles(VIS_DUST, at.x, at.y, at.z, (int) Math.min(120.0D, 20.0D + umu), 0.6D, 0.6D, 0.6D, 0.15D);
         level.playSound(null, at.x, at.y, at.z, SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 1.5F, 1.6F);
         BlockPos pos = BlockPos.containing(at);
         for (BlockPos spot : new BlockPos[]{pos, pos.above(), pos.below()}) {
@@ -58,7 +85,7 @@ public final class VisSpots {
             ServerLevel level = glow.level();
             if (level.getGameTime() < glow.untilTick()) {
                 if (level.getGameTime() % 10 == 0) {
-                    level.sendParticles(ParticleTypes.END_ROD, glow.pos().getX() + 0.5D, glow.pos().getY() + 0.5D,
+                    level.sendParticles(VIS_DUST, glow.pos().getX() + 0.5D, glow.pos().getY() + 0.5D,
                             glow.pos().getZ() + 0.5D, 2, 0.3D, 0.3D, 0.3D, 0.01D);
                 }
                 continue;
