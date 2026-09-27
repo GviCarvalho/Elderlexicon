@@ -121,6 +121,28 @@ public class ElderLexicon {
                     .updateInterval(Integer.MAX_VALUE)
                     .build("arc_bolt"));
 
+    public static final RegistryObject<EntityType<com.elderlexicon.mod.spell.function.ElementOrb>> ELEMENT_ORB =
+            ENTITY_TYPES.register("element_orb",
+                    () -> EntityType.Builder.<com.elderlexicon.mod.spell.function.ElementOrb>of(
+                                    com.elderlexicon.mod.spell.function.ElementOrb::new, MobCategory.MISC)
+                            .sized(0.5F, 0.5F)
+                            .noSave()
+                            .fireImmune()
+                            .clientTrackingRange(8)
+                            .updateInterval(1)
+                            .build("element_orb"));
+
+    public static final RegistryObject<EntityType<com.elderlexicon.mod.spell.function.BlackHole>> BLACK_HOLE =
+            ENTITY_TYPES.register("black_hole",
+                    () -> EntityType.Builder.<com.elderlexicon.mod.spell.function.BlackHole>of(
+                                    com.elderlexicon.mod.spell.function.BlackHole::new, MobCategory.MISC)
+                            .sized(1.0F, 1.0F)
+                            .noSave()
+                            .fireImmune()
+                            .clientTrackingRange(10)
+                            .updateInterval(4)
+                            .build("black_hole"));
+
     public static final RegistryObject<EntityType<GolemEntity>> LIGABIS_GOLEM = ENTITY_TYPES.register("ligabis_golem",
             () -> EntityType.Builder.<GolemEntity>of(GolemEntity::new, MobCategory.MISC)
                     .sized(1.4F, 2.7F)

@@ -276,6 +276,18 @@ public final class LigabisManager {
         return found;
     }
 
+    /** Marked scrolls of {@code mark} in every dimension, loaded or not, by id with where they are. */
+    public Map<UUID, LigabisData.StoredEntity> scrollsMarked(String mark) {
+        String normalized = MarkHelper.sanitizeMark(mark);
+        Map<UUID, LigabisData.StoredEntity> found = new LinkedHashMap<>();
+        data.scrolls().forEach((id, stored) -> {
+            if (stored.mark().equals(normalized)) {
+                found.put(id, stored);
+            }
+        });
+        return found;
+    }
+
     /** Things a scroll can be read from: an item frame holding it, or a scroll placed on a surface. */
     public static boolean isScrollCarrier(@Nullable Entity entity) {
         return entity instanceof ItemFrame || entity instanceof PlacedScrollEntity;

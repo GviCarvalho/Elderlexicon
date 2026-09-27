@@ -283,10 +283,11 @@ class MarkSpellGrammarTest {
     }
 
     @Test
-    void quantumWithoutANumberIsReported() {
+    void quantumWithoutANumberIsAllOfTheSource() {
         SpellActionResult result = parse("igni quantum iactare");
-        assertTrue(result.issues().stream().anyMatch(issue -> issue.contains("'quantum' requer um número")));
-        assertTrue(onlyFunction(result).quantity().isEmpty());
+        assertFalse(result.hasIssues(), "Unexpected issues: " + result.issues());
+        assertTrue(onlyFunction(result).quantityAll());
+        assertTrue(onlyFunction(result).quantity().isEmpty(), "how much is only known when it is taken");
     }
 
     @Test
