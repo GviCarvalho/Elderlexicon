@@ -1,9 +1,16 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.spell.AirPressure;
 import com.elderlexicon.mod.spell.Capture;
+import com.elderlexicon.mod.spell.Charge;
+import com.elderlexicon.mod.spell.Conversion;
+import com.elderlexicon.mod.spell.Density;
+import com.elderlexicon.mod.spell.Heat;
+import com.elderlexicon.mod.spell.Pressure;
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.action.SpellAction;
 import com.elderlexicon.mod.spell.mark.MarkCost;
+import com.elderlexicon.mod.spell.mark.SpellPlace;
 import com.elderlexicon.mod.spell.sight.Revelation;
 import com.elderlexicon.mod.vita.VitaElement;
 import com.elderlexicon.mod.command.SpellCostCalculator;
@@ -53,6 +60,10 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
 
     /** How far from the aim, or the mage, a source is pulled from. */
     private static final int RANGE = 5;
+    /** How far the spirit reaches out, at most, to find an amount it was asked for. */
+    private static final int SEARCH_REACH = 16;
+    /** How far up and down it looks: sources are pulled from around the mage, not from deep under it. */
+    private static final int VERTICAL_REACH = 8;
     /** Without a quantum, a bare exsugat pulls what a function spends by default (book 4.3.2: ten UMU). */
     public static final double DEFAULT_ABSORBED_UMU = EmissionRecorder.DEFAULT_QUANTITY_UMU;
     private static final double EPSILON = 1.0E-4D;
@@ -84,7 +95,7 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
         if (!SpellEffects.isPlayerValid(context.player())) {
             return;
         }
-        double pulled = pull(context, element, amount);
+        double pulled = pull(context, element, amount, bodyOf(context.player()));
         if (pulled > EPSILON) {
             context.absorbIntoBody(becomes, pulled);
             context.player().displayClientMessage(Component.literal("Absorveste "
@@ -98,41 +109,92 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
      * Pays the spell with what is pulled from outside: the functions after the exsugat spend the captured source instead
      * of the mage's Vita. What the last source brings beyond the cost goes into the body, as {@code becomes}.
      */
-    public static void capture(SpellContext context, VitaElement element, VitaElement becomes) {
+    public static double capture(SpellContext context, VitaElement element, VitaElement becomes, SpellAction spender,
+                                 double workShare) {
         if (!SpellEffects.isPlayerValid(context.player())) {
-            return;
+            return 0.0D;
         }
         double needed = context.payableCost();
         if (needed <= EPSILON) {
-            return;
+            return 0.0D;
         }
-        double pulled = pull(context, element, needed);
+        // Converting it on the way takes its share of the energy in hand: a little more is pulled to cover it.
+        double pulled = pull(context, element, needed / (1.0D - workShare), gatheringPoint(context, spender));
         if (pulled <= EPSILON) {
             nothingFound(context, element);
-            return;
+            return 0.0D;
         }
-        context.addAmbientEnergy(becomes, Math.min(pulled, needed));
-        if (pulled > needed + EPSILON) {
-            context.absorbIntoBody(becomes, pulled - needed);
+        double worked = pulled * (1.0D - workShare);
+        context.addAmbientEnergy(becomes, Math.min(worked, needed));
+        if (worked > needed + EPSILON) {
+            context.absorbIntoBody(becomes, worked - needed);
         }
+        return pulled;
     }
 
     /**
      * Pulls every source of {@code element} in reach at once, for a function written after a bare quantum
      * ({@code igni exsugat quantum iactare}: "o fogo é completamente extraído e lançado de uma só vez", book 4.3.2).
-     * Returns how much it held, all of it spent by that function.
+     * Returns what was taken (how much and from how many sources), for the executor to spend and account for.
      */
-    public static double captureAll(SpellContext context, VitaElement element, VitaElement becomes) {
+    public static Pulled captureAll(SpellContext context, List<VitaElement> chain, double limit, SpellAction spender,
+                                    SpellAction exsugat) {
+        VitaElement element = chain.get(0);
+        VitaElement becomes = chain.get(chain.size() - 1);
         if (!SpellEffects.isPlayerValid(context.player())) {
-            return 0.0D;
+            return new Pulled(0, 0.0D, 0, -1);
         }
-        double pulled = pull(context, element, Double.MAX_VALUE);
+        List<Source> taken = take(context, element, limit, exsugat == null ? Optional.empty() : exsugat.place());
+        double pulled = taken.stream().mapToDouble(Source::value).sum();
+        ServerPlayer player = context.player();
+        ElementOrb orb = null;
+        if (spender != null && spender.atOnce() && pulled > EPSILON) {
+            // Condensing: it is gathered into one point for as long as the charge takes, then released. An iactare
+            // gathers it before the mage's hand, wherever the hand goes; a vocant, where it will appear.
+            Vec3 fixed = gatheringPoint(context, spender);
+            java.util.function.Supplier<Vec3> point = "iactare".equals(spender.runeId())
+                    ? () -> player.getEyePosition().subtract(0.0D, 0.35D, 0.0D).add(player.getViewVector(1.0F).scale(0.9D))
+                    : () -> fixed;
+            List<Gatherings.Origin> origins = taken.stream()
+                    .map(source -> new Gatherings.Origin(source.pos(), source.state(), source.value())).toList();
+            int ticks = Charge.ticks(pulled);
+            Gatherings.gather(player.serverLevel(), element, origins, point, ticks);
+            // Converted too (firmo exsugat vertere igni quantum chronos 0 iactare): once gathered, the orb is unmade
+            // and remade as the new element, which takes its own time.
+            orb = ElementOrb.gathering(player.serverLevel(), player, chain, pulled, element == becomes ? coalIn(taken) : 0,
+                    point, ticks);
+            player.serverLevel().addFreshEntity(orb);
+        } else {
+            Vec3 toward = gatheringPoint(context, spender);
+            for (Source source : taken) {
+                flow(player.serverLevel(), element, source, toward);
+            }
+        }
         if (pulled <= EPSILON) {
             nothingFound(context, element);
-            return 0.0D;
         }
-        context.addAmbientEnergy(becomes, pulled);
-        return pulled;
+        return new Pulled(taken.size(), pulled, coalIn(taken), orb == null ? -1 : orb.getId());
+    }
+
+    /** Carbon: what was taken counts as coal only when nearly all of it was coal (ore gives one, a block nine). */
+    private static int coalIn(List<Source> taken) {
+        int coalSources = 0;
+        int coal = 0;
+        for (Source source : taken) {
+            if (source.state().is(BlockTags.COAL_ORES)) {
+                coalSources++;
+                coal += 1;
+            } else if (source.state().is(net.minecraftforge.common.Tags.Blocks.STORAGE_BLOCKS_COAL)) {
+                coalSources++;
+                coal += 9;
+            }
+        }
+        return !taken.isEmpty() && coalSources >= 0.9D * taken.size() ? coal : 0;
+    }
+
+    /** What a whole capture took: how many sources, the UMU they held, the coal in them (when nearly all coal), and
+     * the orb it is being gathered into ({@code -1} when it is not condensed). */
+    public record Pulled(int sources, double total, int coal, int orb) {
     }
 
     private static void nothingFound(SpellContext context, VitaElement element) {
@@ -140,43 +202,87 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
     }
 
     /** Takes whole sources of {@code element}, nearest first, until {@code needed} UMU; returns what they held. */
-    private static double pull(SpellContext context, VitaElement element, double needed) {
-        List<Source> taken = take(context, element, needed);
+    private static double pull(SpellContext context, VitaElement element, double needed, Vec3 toward) {
+        List<Source> taken = take(context, element, needed,
+                context.currentAction().flatMap(SpellAction::place));
         for (Source source : taken) {
-            SpellEffects.spawnDrainParticles(context.player(), element, context.elementRuneId(), source.pos(),
-                    source.value());
+            flow(context.player().serverLevel(), element, source, toward);
         }
         return taken.stream().mapToDouble(Source::value).sum();
     }
 
+    /**
+     * Where what is captured is gathered, so its particles are seen flowing there: to where a vocant makes it appear,
+     * to just before the mage's hand for an iactare (where the shot leaves from), and into the mage otherwise.
+     */
+    static Vec3 gatheringPoint(SpellContext context, SpellAction spender) {
+        ServerPlayer player = context.player();
+        String rune = spender == null ? "" : spender.runeId();
+        if ("vocant".equals(rune)) {
+            Optional<MarkSpells.Destination> place = spender.place().isPresent()
+                    ? MarkSpells.destination(context, spender.place(), MarkSpells.SUMMON_RANGE) : Optional.empty();
+            return place.map(MarkSpells.Destination::point)
+                    .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE).location());
+        }
+        if ("iactare".equals(rune)) {
+            return handOf(player);
+        }
+        return bodyOf(player);
+    }
+
+    private static Vec3 bodyOf(ServerPlayer player) {
+        return player.position().add(0.0D, player.getBbHeight() * 0.6D, 0.0D);
+    }
+
+    private static void flow(ServerLevel level, VitaElement element, Source source, Vec3 toward) {
+        Gatherings.stream(level, element, new Gatherings.Origin(source.pos(), source.state(), source.value()), toward,
+                (int) Math.max(3.0D, Math.min(12.0D, source.value() * 4.0D)));
+    }
+
     /** Drains whole sources of {@code element}, nearest to the aim first, until {@code needed} UMU; returns them. */
-    private static List<Source> take(SpellContext context, VitaElement element, double needed) {
+    private static List<Source> take(SpellContext context, VitaElement element, double needed,
+                                     Optional<SpellPlace> from) {
         ServerPlayer player = context.player();
         ServerLevel level = player.serverLevel();
         Optional<Revelation.Kind> kind = kindOf(element);
         if (kind.isEmpty() || needed <= EPSILON) {
             return List.of();
         }
-        Optional<BlockPos> aimed = aimedBlock(player);
-        Vec3 center = aimed.map(Vec3::atCenterOf).orElse(player.position());
+        // The mage's hand pulls the source in (or, with an ubis before the exsugat, it is pulled from around a mark
+        // or a place). Asked for an amount, the spirit reaches out as far as it must to find it, up to a limit; asked
+        // for everything, it takes what is in the usual reach.
+        Vec3 center = handOf(player);
+        if (from.isPresent()) {
+            Optional<MarkSpells.Destination> there = MarkSpells.destination(context, from, MarkSpells.SUMMON_RANGE);
+            if (there.isEmpty()) {
+                return List.of();
+            }
+            center = there.get().point();
+        }
+        double range = needed >= Double.MAX_VALUE / 2.0D ? RANGE : SEARCH_REACH;
         // Standing in an impediunt of the element, what surrounds the mage is its ring: the reach takes it all in.
-        double range = RANGE;
-        Optional<ImpediuntZones.Edge> zone = ImpediuntZones.zoneAt(level, player.position(), element);
+        Optional<ImpediuntZones.Edge> zone = from.isPresent() ? Optional.empty()
+                : ImpediuntZones.zoneAt(level, player.position(), element);
         if (zone.isPresent()) {
             center = zone.get().center();
-            range = Math.max(RANGE, zone.get().radius() + 2.0D);
+            range = Math.max(range, zone.get().radius() + 2.0D);
         }
-        // Aiming at nothing, the ground the mage stands on is not pulled out from under the feet.
-        AABB feet = aimed.isPresent() || kind.get() != Revelation.Kind.FIRMO ? null
+        // The ground the mage stands on is not pulled out from under the feet.
+        AABB feet = kind.get() != Revelation.Kind.FIRMO ? null
                 : player.getBoundingBox().expandTowards(0.0D, -0.6D, 0.0D);
+        // Pulling air, the mage keeps the breath in its own lungs: the space its body fills is not emptied.
+        if (kind.get() == Revelation.Kind.AURA) {
+            feet = player.getBoundingBox();
+        }
 
         List<Source> sources = new ArrayList<>();
         BlockPos origin = BlockPos.containing(center);
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         double rangeSq = range * range + 1.0D;
         int reach = (int) Math.ceil(range);
+        int height = Math.min(reach, VERTICAL_REACH);
         for (int dx = -reach; dx <= reach; dx++) {
-            for (int dy = -RANGE; dy <= RANGE; dy++) {
+            for (int dy = -height; dy <= height; dy++) {
                 for (int dz = -reach; dz <= reach; dz++) {
                     cursor.set(origin.getX() + dx, origin.getY() + dy, origin.getZ() + dz);
                     double distanceSq = center.distanceToSqr(Vec3.atCenterOf(cursor));
@@ -200,6 +306,12 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
         for (Source source : drained) {
             drain(kind.get(), level, source.pos(), source.state());
         }
+        if (kind.get() == Revelation.Kind.AURA && !drained.isEmpty()) {
+            // Where the air was pulled from, a vacuum holds for a moment before the air rushes back.
+            java.util.Set<BlockPos> emptied = new java.util.HashSet<>();
+            drained.forEach(source -> emptied.add(source.pos()));
+            AirSpots.vacuum(level, emptied, AirPressure.VACUUM_TICKS);
+        }
         return drained;
     }
 
@@ -208,59 +320,122 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
      * spend it): the earth nearby becomes fire, the fire water, taking whole sources nearest the aim until
      * {@code amount} UMU of the source have been converted.
      */
-    public static void convertInPlace(SpellContext context, VitaElement element, VitaElement becomes, double amount) {
+    public static double convertInPlace(SpellContext context, VitaElement element, VitaElement becomes, double amount,
+                                        double workShare) {
         if (!SpellEffects.isPlayerValid(context.player())) {
-            return;
+            return 0.0D;
         }
         ServerPlayer player = context.player();
         ServerLevel level = player.serverLevel();
-        List<Source> taken = take(context, element, amount);
+        List<Source> taken = take(context, element, amount, context.currentAction().flatMap(SpellAction::place));
         if (taken.isEmpty()) {
             nothingFound(context, element);
-            return;
+            return 0.0D;
         }
+        // The work of unmaking and remaking it takes its share of the energy: a little less of the new element comes out.
+        double umu = taken.stream().mapToDouble(Source::value).sum() * (1.0D - workShare);
+        if (becomes == VitaElement.AURA) {
+            // Matter turned to air: it is gone into the air, and its UMU bursts out there as a gust of that pressure.
+            Vec3 center = centreOf(taken);
+            AirSpots.burst(level, player, center, umu);
+            player.displayClientMessage(Component.literal(format(umu) + " UMU de " + element.runeId()
+                    + " convertidos em ar."), true);
+            return umu;
+        }
+        // As many units of the new element as the UMU buys (Conversion), where the sources were first, then in the
+        // free spots around them.
+        int wanted = Conversion.units(umu, becomes);
+        int placed = 0;
+        java.util.ArrayDeque<BlockPos> open = new java.util.ArrayDeque<>();
+        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
         for (Source source : taken) {
-            become(level, source.pos(), element, becomes);
+            open.add(source.pos());
+            seen.add(source.pos());
         }
-        boolean one = taken.size() == 1;
-        player.displayClientMessage(Component.literal(taken.size() + (one ? " fonte de " : " fontes de ")
-                + element.runeId() + (one ? " convertida em " : " convertidas em ") + becomes.runeId() + "."), true);
+        int visited = 0;
+        while (placed < wanted && !open.isEmpty() && visited < 4096) {
+            BlockPos pos = open.poll();
+            visited++;
+            if (become(level, pos, element, becomes)) {
+                placed++;
+            }
+            for (net.minecraft.core.Direction side : new net.minecraft.core.Direction[]{net.minecraft.core.Direction.DOWN,
+                    net.minecraft.core.Direction.NORTH, net.minecraft.core.Direction.SOUTH, net.minecraft.core.Direction.EAST,
+                    net.minecraft.core.Direction.WEST, net.minecraft.core.Direction.UP}) {
+                BlockPos next = pos.relative(side);
+                if (seen.add(next) && next.distSqr(pos) <= 1 && level.isLoaded(next)
+                        && level.getBlockState(next).canBeReplaced()) {
+                    open.add(next);
+                }
+            }
+        }
+        // What made no whole unit, or found no room, is not lost: it goes into the mage as the new element.
+        double left = Conversion.leftover(umu, becomes, placed);
+        if (left > EPSILON) {
+            context.absorbIntoBody(becomes, left);
+        }
+        player.displayClientMessage(Component.literal(format(umu) + " UMU de " + element.runeId() + " convertidos em "
+                + placed + " de " + becomes.runeId() + (left > EPSILON ? " (" + format(left) + " UMU ao corpo)" : "")
+                + "."), true);
+        return umu;
     }
 
-    /** Where a source was drained, what it was converted into appears. */
-    private static void become(ServerLevel level, BlockPos pos, VitaElement from, VitaElement to) {
+    private static Vec3 centreOf(List<Source> taken) {
+        double x = 0.0D;
+        double y = 0.0D;
+        double z = 0.0D;
+        for (Source source : taken) {
+            x += source.pos().getX() + 0.5D;
+            y += source.pos().getY() + 0.5D;
+            z += source.pos().getZ() + 0.5D;
+        }
+        return new Vec3(x / taken.size(), y / taken.size(), z / taken.size());
+    }
+
+    private static String format(double umu) {
+        return com.elderlexicon.mod.command.SpellCostCalculator.formatCost(umu);
+    }
+
+    /** Where a source was drained, one unit of what it was converted into appears; false when there is no room. */
+    private static boolean become(ServerLevel level, BlockPos pos, VitaElement from, VitaElement to) {
         BlockState now = level.getBlockState(pos);
         Vec3 at = Vec3.atCenterOf(pos);
         switch (to) {
             case AQUA -> {
-                if (now.hasProperty(BlockStateProperties.WATERLOGGED)) {
+                if (now.hasProperty(BlockStateProperties.WATERLOGGED) && !now.getValue(BlockStateProperties.WATERLOGGED)) {
                     // A quenched campfire, a candle: the water stays in the block.
                     level.setBlock(pos, now.setValue(BlockStateProperties.WATERLOGGED, true), Block.UPDATE_ALL);
-                } else if (now.canBeReplaced()) {
+                } else if (now.canBeReplaced() && !now.getFluidState().isSource()) {
                     level.setBlock(pos, Blocks.WATER.defaultBlockState(), Block.UPDATE_ALL);
+                } else {
+                    return false;
                 }
                 level.sendParticles(ParticleTypes.SPLASH, at.x, at.y, at.z, 12, 0.3D, 0.3D, 0.3D, 0.0D);
+                return true;
             }
             case IGNI -> {
-                if (now.canBeReplaced()) {
-                    // Fire where it can burn; where it would hang in the air, the earth's heat stays as magma.
-                    BlockState fire = BaseFireBlock.getState(level, pos);
-                    level.setBlock(pos, fire.canSurvive(level, pos) ? fire : Blocks.MAGMA_BLOCK.defaultBlockState(),
-                            Block.UPDATE_ALL);
+                BlockState fire = BaseFireBlock.getState(level, pos);
+                if (!now.canBeReplaced() || !now.getFluidState().isEmpty() || !fire.canSurvive(level, pos)) {
+                    return false; // fire only where it can burn
                 }
+                level.setBlock(pos, fire, Block.UPDATE_ALL);
                 level.sendParticles(ParticleTypes.FLAME, at.x, at.y, at.z, 12, 0.3D, 0.3D, 0.3D, 0.01D);
+                return true;
             }
             case FIRMO -> {
-                if (now.canBeReplaced()) {
-                    // Water turned to earth is mud; anything else, plain soil.
-                    BlockState earth = from == VitaElement.AQUA ? Blocks.MUD.defaultBlockState()
-                            : Blocks.DIRT.defaultBlockState();
-                    level.setBlock(pos, earth, Block.UPDATE_ALL);
+                if (!now.canBeReplaced()) {
+                    return false;
                 }
-                level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.DIRT.defaultBlockState()),
-                        at.x, at.y, at.z, 16, 0.3D, 0.3D, 0.3D, 0.0D);
+                // Water turned to earth is mud; anything else, loose soil.
+                BlockState earth = from == VitaElement.AQUA ? Blocks.MUD.defaultBlockState() : Blocks.DIRT.defaultBlockState();
+                level.setBlock(pos, earth, Block.UPDATE_ALL);
+                level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, earth), at.x, at.y, at.z, 16,
+                        0.3D, 0.3D, 0.3D, 0.0D);
+                return true;
             }
-            default -> level.sendParticles(ParticleTypes.CLOUD, at.x, at.y, at.z, 10, 0.3D, 0.3D, 0.3D, 0.02D);
+            default -> {
+                return false;
+            }
         }
     }
 
@@ -272,18 +447,14 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
             case IGNI -> Optional.of(Revelation.Kind.IGNI);
             case AQUA -> Optional.of(Revelation.Kind.AQUA);
             case FIRMO -> Optional.of(Revelation.Kind.FIRMO);
+            case AURA -> Optional.of(Revelation.Kind.AURA);
             default -> Optional.empty();
         };
     }
 
-    /** The block the mage aims at within touch, water and lava included. */
-    private static Optional<BlockPos> aimedBlock(ServerPlayer player) {
-        double reach = Math.max(1.0D, player.getBlockReach());
-        Vec3 eye = player.getEyePosition();
-        Vec3 end = eye.add(player.getViewVector(1.0F).scale(reach));
-        BlockHitResult hit = player.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.SOURCE_ONLY, player));
-        return hit.getType() == HitResult.Type.BLOCK ? Optional.of(hit.getBlockPos()) : Optional.empty();
+    /** Where the mage's hand is: just before the body, at the height of the chest, where the source is pulled in. */
+    public static Vec3 handOf(ServerPlayer player) {
+        return player.getEyePosition().subtract(0.0D, 0.35D, 0.0D).add(player.getViewVector(1.0F).scale(0.9D));
     }
 
     // ------------------------------------------------------------------ what each source holds, and what it leaves
@@ -294,6 +465,8 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
             case IGNI -> igniValue(level, pos, state);
             case AQUA -> aquaValue(state);
             case FIRMO -> firmoValue(level, pos, state);
+            // Air: every block of it in reach, leaving a vacuum where it was pulled from.
+            case AURA -> state.isAir() ? AirPressure.UMU_PER_AIR : 0.0D;
             default -> 0.0D;
         };
     }

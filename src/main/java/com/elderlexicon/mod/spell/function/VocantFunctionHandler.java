@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.spell.Heat;
+import com.elderlexicon.mod.spell.Pressure;
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.SpellFlow;
 import com.elderlexicon.mod.spell.action.SpellAction;
@@ -62,8 +64,63 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                 .filter(SpellPlace::followsMarks)
                 .map(marked -> MarkSpells.follower(context, marked, MarkSpells.SUMMON_RANGE));
 
-        SpellEffects.schedule(level, SUMMON_DELAY_TICKS, () -> {
+        boolean condensedEarth = element == VitaElement.FIRMO && action.isPresent() && action.get().atOnce()
+                && action.get().metadata().get(SpellAction.INTENSITY) != null;
+        boolean condensedWater = element == VitaElement.AQUA && action.isPresent() && action.get().atOnce()
+                && action.get().metadata().get(SpellAction.INTENSITY) != null;
+        boolean condensedAir = element == VitaElement.AURA && action.isPresent() && action.get().atOnce()
+                && action.get().metadata().get(SpellAction.INTENSITY) != null;
+        boolean condensedVis = element == VitaElement.BALANCED && action.isPresent() && action.get().atOnce()
+                && action.get().metadata().get(SpellAction.INTENSITY) != null;
+        // A condensation is gathered where it will appear before it does.
+        int charge = action.map(SpellAction::charge).orElse(0);
+        SpellEffects.schedule(level, Math.max(SUMMON_DELAY_TICKS, charge), () -> {
+            // The orb the condensation grew into becomes what it held.
+            if (action.isPresent() && action.get().orb() >= 0
+                    && level.getEntity(action.get().orb()) instanceof ElementOrb orb) {
+                orb.spend();
+            }
             if (!SpellEffects.isPlayerValid(player)) {
+                return;
+            }
+            if (condensedVis) {
+                // All that Vis released at the point: for now, only light.
+                SpellEffects.SpellImpact at = written.map(MarkSpells.Destination::impact)
+                        .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE));
+                VisSpots.light(level, at.location(), action.get().intensity());
+                return;
+            }
+            if (condensedAir) {
+                // All the air captured, released at the point: it bursts out all around, or goes off as a bomb.
+                SpellEffects.SpellImpact at = written.map(MarkSpells.Destination::impact)
+                        .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE));
+                AirSpots.burst(level, player, at.location(), action.get().intensity());
+                return;
+            }
+            if (condensedWater) {
+                // All the water captured, pressed into one point: ice VII held while chronos lasts (two seconds
+                // without it), then it bursts; not pressed hard enough to freeze, it bursts at once.
+                SpellEffects.SpellImpact at = written.map(MarkSpells.Destination::impact)
+                        .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE));
+                net.minecraft.core.BlockPos spot = at.entity() != null ? at.entity().blockPosition()
+                        : java.util.Objects.requireNonNullElse(SpellEffects.firePlacementPos(at),
+                        net.minecraft.core.BlockPos.containing(at.location()));
+                double pressure = action.get().intensity();
+                if (Pressure.band(pressure) == Pressure.Band.ICE) {
+                    WaterSpots.ice(level, spot, pressure, window > 0 ? window : LINGER_TICKS * 2);
+                } else {
+                    WaterSpots.burst(level, net.minecraft.world.phys.Vec3.atCenterOf(spot), pressure);
+                }
+                return;
+            }
+            if (condensedEarth) {
+                // All the earth captured, in one block as dense as all of it (docs/condensacao-design.md).
+                SpellEffects.SpellImpact at = written.map(MarkSpells.Destination::impact)
+                        .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE));
+                net.minecraft.core.BlockPos spot = at.entity() != null ? at.entity().blockPosition()
+                        : java.util.Objects.requireNonNullElse(SpellEffects.firePlacementPos(at),
+                        net.minecraft.core.BlockPos.containing(at.location()));
+                EarthSpots.place(level, player, spot, action.get().intensity(), action.get().carbon());
                 return;
             }
             SpellEffects.SpellImpact impact = written
@@ -84,6 +141,11 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                 }
             }).orElseGet(() -> Invocation.Where.fixed(impact));
             Invocation.invoke(player, element, context.elementRuneId(), where, power, window);
+            double heat = action.map(SpellAction::intensity).orElse(Heat.COMMON);
+            if (heat > Heat.COMMON && element == VitaElement.IGNI) {
+                // Condensed fire invoked in place: a hot spot that cools little by little.
+                HeatSpots.strike(level, player, impact.location(), heat);
+            }
         });
     }
 }

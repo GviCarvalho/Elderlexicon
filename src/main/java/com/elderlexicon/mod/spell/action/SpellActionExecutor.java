@@ -1,7 +1,13 @@
 package com.elderlexicon.mod.spell.action;
 
 import com.elderlexicon.mod.command.SpellCostCalculator;
+import com.elderlexicon.mod.spell.Charge;
+import com.elderlexicon.mod.spell.Conversion;
+import com.elderlexicon.mod.spell.Density;
+import com.elderlexicon.mod.spell.Heat;
 import com.elderlexicon.mod.spell.SpellContext;
+import com.elderlexicon.mod.spell.function.BodyEnergy;
+import com.elderlexicon.mod.spell.function.ElementOrb;
 import com.elderlexicon.mod.spell.function.ExsugatFunctionHandler;
 import com.elderlexicon.mod.spell.function.SpellFunctionHandler;
 import com.elderlexicon.mod.spell.registry.SpellFunctionHandlerRegistry;
@@ -65,11 +71,24 @@ public final class SpellActionExecutor {
         List<VertereRequest> vertereQueue = context.vertereRequests();
         int vertereIndex = 0;
 
+        // Every spell is one flow of energy: where it comes from (the world, by exsugat, or the mage's body), what it is
+        // turned into on the way (each vertere), and the function that spends it (docs/exsugat-vertere-design.md).
         // A source captured by exsugat (book 8.2.1), with what it has been converted into since.
         VitaElement captured = null;
         VitaElement capturedAs = null;
         SpellAction capture = null;
         boolean capturedForSpell = false;
+        // A bare quantum already took everything in reach for its function.
+        boolean capturedAll = false;
+        // Energy taken out of the body and held for the function after (vis quantum vertere igni chronos 0 iactare):
+        // what it was, what it is now, and how much.
+        VitaElement heldFrom = null;
+        VitaElement held = null;
+        double heldUmu = 0.0D;
+        // The qualities changed by the conversions along the way (each vertere adds its own), for their work and time.
+        int qualities = 0;
+        // Every element the energy has been along the way, in order, so its orb can show each conversion.
+        java.util.List<VitaElement> chain = new java.util.ArrayList<>();
 
         for (int index = 0; index < actions.size(); index++) {
             SpellAction action = actions.get(index);
@@ -104,6 +123,8 @@ public final class SpellActionExecutor {
                 captured = currentElement;
                 capturedAs = currentElement;
                 capture = action;
+                chain.clear();
+                chain.add(currentElement);
                 capturedForSpell = hasConsumerAfter(actions, index);
                 continue;
             }
@@ -111,7 +132,45 @@ public final class SpellActionExecutor {
             if (isVertere(action.runeId()) && action.subjectMark().isEmpty() && captured != null) {
                 if (vertereIndex < vertereQueue.size()) {
                     VitaElement target = vertereQueue.get(vertereIndex++).target();
+                    qualities += Conversion.qualities(capturedAs, target);
+                    chain.add(target);
                     capturedAs = target;
+                    currentElement = target;
+                    context.setPrimaryElement(target);
+                }
+                continue;
+            }
+            // Held energy converted again (vis quantum vertere aqua vertere aura …): only what it is changes.
+            if (isVertere(action.runeId()) && action.subjectMark().isEmpty() && held != null) {
+                if (vertereIndex < vertereQueue.size()) {
+                    VitaElement target = vertereQueue.get(vertereIndex++).target();
+                    qualities += Conversion.qualities(held, target);
+                    chain.add(target);
+                    held = target;
+                    currentElement = target;
+                    context.setPrimaryElement(target);
+                }
+                continue;
+            }
+            // vis quantum vertere igni … iactare: a quantum on the vertere takes that much of the body (all of it, with
+            // no number) and holds it, converted, for the function after, instead of only shifting the Vita.
+            if (isVertere(action.runeId()) && action.subjectMark().isEmpty() && context.player() != null
+                    && (action.quantityAll() || action.potency().isPresent()) && hasConsumerAfter(actions, index)) {
+                if (vertereIndex < vertereQueue.size()) {
+                    VitaElement target = vertereQueue.get(vertereIndex++).target();
+                    heldFrom = currentElement;
+                    heldUmu = action.quantityAll() ? BodyEnergy.drawAll(context.player(), currentElement)
+                            : BodyEnergy.draw(context.player(), currentElement, action.potency().getAsDouble());
+                    if (heldUmu <= EPSILON) {
+                        nothingInBody(context, currentElement);
+                        heldFrom = null;
+                        continue;
+                    }
+                    qualities += Conversion.qualities(currentElement, target);
+                    chain.clear();
+                    chain.add(currentElement);
+                    chain.add(target);
+                    held = target;
                     currentElement = target;
                     context.setPrimaryElement(target);
                 }
@@ -131,29 +190,137 @@ public final class SpellActionExecutor {
                 }
                 continue;
             }
-            if (captured != null && capturedForSpell && action.quantityAll() && context.player() != null) {
-                // igni exsugat quantum iactare: everything in reach is pulled now and spent by this function at once.
-                double total = ExsugatFunctionHandler.captureAll(context, captured, capturedAs);
-                action = action.toBuilder().putMetadata(SpellAction.QUANTITY, total > EPSILON ? total : null).build();
+            ExsugatFunctionHandler.Pulled all = null;
+            boolean condensing = action.atOnce() && action.potency().isPresent();
+            if (captured != null && capturedForSpell && (action.quantityAll() || condensing)
+                    && context.player() != null) {
+                // igni exsugat quantum iactare: everything in reach is pulled now and spent by this function
+                // (quantum 20 chronos 0: twenty of it). With chronos 0 it is released in one instant, as intense as
+                // all of it together (docs/condensacao-design.md).
+                double limit = action.quantityAll() ? Double.MAX_VALUE : action.potency().getAsDouble();
+                all = ExsugatFunctionHandler.captureAll(context, java.util.List.copyOf(chain), limit, action, capture);
+                boolean atOnce = action.atOnce();
+                // The spirit's work (merging all the sources into one, unmaking and remaking them as another element)
+                // is done with the energy in hand: it is lost from it, and what is left is what the function releases.
+                double worked = all.total() - (atOnce && all.sources() > 1 ? Heat.work(all.total(), all.sources()) : 0.0D);
+                worked = Math.max(0.0D, worked * (1.0D - Conversion.workShare(qualities)));
+                // The UMU is kept through a conversion: the intensity is that of what the source became (forty UMU of
+                // earth turned to fire and pressed into one point are fire as hot as forty).
+                Double intensity = null;
+                if (capturedAs == VitaElement.IGNI) {
+                    double heat = Heat.of(worked, all.sources(), atOnce);
+                    intensity = heat > Heat.COMMON + EPSILON ? heat : null;
+                } else if (atOnce && worked > EPSILON && (capturedAs == VitaElement.FIRMO
+                        || capturedAs == VitaElement.AQUA || capturedAs == VitaElement.AURA)) {
+                    // density of earth, pressure of water or air: all of it in one point
+                    intensity = capturedAs == VitaElement.FIRMO ? Density.of(worked, all.sources(), true) : worked;
+                }
+                int charge = atOnce && all.total() > EPSILON
+                        ? Charge.ticks(all.total()) + Conversion.chainTicks(all.total(), chain) : 0;
+                action = action.toBuilder()
+                        .putMetadata(SpellAction.QUANTITY, worked > EPSILON ? worked : null)
+                        .putMetadata(SpellAction.INTENSITY, intensity)
+                        .putMetadata(SpellAction.CARBON, all.coal() > 0 && atOnce ? all.coal() : null)
+                        .putMetadata(SpellAction.CHARGE, charge > 0 ? charge : null)
+                        .putMetadata(SpellAction.ORB, all.orb() >= 0 ? all.orb() : null)
+                        .build();
+                context.setCurrentAction(action);
+                capturedAll = true;
+            }
+            double fromBody = 0.0D;
+            VitaElement bodyFrom = null;
+            if (captured == null && context.player() != null && (held != null || action.quantityAll())) {
+                // From the body: what a vertere already took and converted, or, with a bare quantum here, all of the
+                // source there is in the body (firmo quantum chronos 0 iactare; vis quantum …: all the mana). With
+                // chronos 0 it is condensed into one point, as intense as all of it.
+                if (held != null) {
+                    fromBody = heldUmu;
+                    bodyFrom = heldFrom;
+                } else {
+                    fromBody = BodyEnergy.drawAll(context.player(), currentElement);
+                    bodyFrom = currentElement;
+                    chain.clear();
+                    chain.add(currentElement);
+                    if (fromBody <= EPSILON) {
+                        nothingInBody(context, currentElement);
+                    }
+                }
+                held = null;
+                heldFrom = null;
+                heldUmu = 0.0D;
+                boolean atOnce = action.atOnce() && fromBody > EPSILON;
+                int charge = atOnce ? Charge.ticks(fromBody) + Conversion.chainTicks(fromBody, chain) : 0;
+                // Converting it on the way is the spirit's work, done with the energy in hand: lost from it.
+                double worked = fromBody * (1.0D - Conversion.workShare(qualities));
+                Integer orb = null;
+                if (atOnce) {
+                    net.minecraft.server.level.ServerPlayer player = context.player();
+                    ElementOrb gathering = ElementOrb.gathering(player.serverLevel(), player,
+                            java.util.List.copyOf(chain), worked, 0, () -> ExsugatFunctionHandler.handOf(player),
+                            Charge.ticks(fromBody));
+                    player.serverLevel().addFreshEntity(gathering);
+                    orb = gathering.getId();
+                }
+                action = action.toBuilder()
+                        .putMetadata(SpellAction.QUANTITY, worked > EPSILON ? worked : null)
+                        .putMetadata(SpellAction.INTENSITY, atOnce ? worked : null)
+                        .putMetadata(SpellAction.CHARGE, charge > 0 ? charge : null)
+                        .putMetadata(SpellAction.ORB, orb)
+                        .build();
                 context.setCurrentAction(action);
             }
             SpellFunctionHandler handler = resolveHandler(action.runeId());
             if (handler != null) {
                 handler.execute(context, currentElement);
             }
+            if (fromBody > EPSILON) {
+                // Taken out of the body already: it pays what the function spent (the work was taken out of it).
+                context.addAmbientEnergy(currentElement, Math.min(fromBody, context.payableCost()));
+                qualities = 0;
+            }
+            if (all != null && all.total() > EPSILON) {
+                // The captured source pays what the function spent; the work of condensing it (merging all its
+                // sources into one) is paid by the body.
+                context.addAmbientEnergy(capturedAs, Math.min(all.total(), context.payableCost()));
+            }
         }
 
-        if (captured != null && context.player() != null) {
+        if (captured != null && !capturedAll && context.player() != null) {
             context.setCurrentAction(capture);
+            double taken;
             if (capturedForSpell) {
-                ExsugatFunctionHandler.capture(context, captured, capturedAs);
+                taken = ExsugatFunctionHandler.capture(context, captured, capturedAs, spenderAfter(actions, capture),
+                        Conversion.workShare(qualities));
             } else {
                 // Converted and never spent (firmo exsugat vertere igni): the portion captured becomes the other element
                 // where it is, in the world.
-                ExsugatFunctionHandler.convertInPlace(context, captured, capturedAs,
-                        capture.quantity().orElse(ExsugatFunctionHandler.DEFAULT_ABSORBED_UMU));
+                taken = ExsugatFunctionHandler.convertInPlace(context, captured, capturedAs,
+                        capture.quantity().orElse(ExsugatFunctionHandler.DEFAULT_ABSORBED_UMU),
+                        Conversion.workShare(qualities));
             }
         }
+        if (held != null && heldUmu > EPSILON && context.player() != null) {
+            // Taken from the body and converted, and no function spent it: it goes back into the body as what it became.
+            context.absorbIntoBody(held, heldUmu * (1.0D - Conversion.workShare(qualities)));
+        }
+    }
+
+    private static void nothingInBody(SpellContext context, VitaElement element) {
+        context.player().displayClientMessage(Component.literal(
+                "Nao ha " + element.runeId() + " no teu corpo para tirar."), true);
+    }
+
+    /** The first function after {@code exsugat} that spends what it captures (a vertere only converts it). */
+    private SpellAction spenderAfter(List<SpellAction> actions, SpellAction exsugat) {
+        boolean after = false;
+        for (SpellAction later : actions) {
+            if (later == exsugat) {
+                after = true;
+            } else if (after && later != null && later.type() == SpellActionType.FUNCTION && !isVertere(later.runeId())) {
+                return later;
+            }
+        }
+        return null;
     }
 
     private static boolean hasFunctionAfter(List<SpellAction> actions, int index) {

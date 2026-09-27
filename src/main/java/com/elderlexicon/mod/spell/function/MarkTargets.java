@@ -115,6 +115,29 @@ final class MarkTargets {
                 }
             }
         }
+        // A marked scroll (in a frame or placed on a surface) bears its mark too: pg2 ubis finds where it hangs.
+        java.util.Set<UUID> seen = new java.util.HashSet<>();
+        found.forEach(thing -> {
+            if (thing.entity != null) {
+                seen.add(thing.entity.getUUID());
+            }
+        });
+        manager.scrollsMarked(mark).forEach((id, stored) -> {
+            if (!seen.add(id)) {
+                return;
+            }
+            Entity carrier = findEntity(server, id);
+            if (carrier != null && carrier.isAlive()) {
+                found.add(Marked.of(mark, carrier));
+                return;
+            }
+            ResourceLocation dimension = ResourceLocation.tryParse(stored.dimension());
+            ServerLevel level = dimension == null ? null : server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
+            if (level != null) {
+                found.add(new Marked(mark, level, id, null, MarkCost.ITEM_MASS, null,
+                        new Vec3(stored.x(), stored.y(), stored.z())));
+            }
+        });
         manager.rememberedEntities(mark).forEach((id, stored) -> {
             ResourceLocation dimension = ResourceLocation.tryParse(stored.dimension());
             ServerLevel level = dimension == null ? null : server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));

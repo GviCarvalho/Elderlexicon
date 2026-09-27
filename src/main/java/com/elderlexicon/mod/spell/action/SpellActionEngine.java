@@ -194,6 +194,8 @@ public final class SpellActionEngine {
         boolean imageOnly = false;
         // An exsugat was written: the functions after it work with the source it captures.
         boolean captured = false;
+        // A quantum with no number, followed by another filter (quantum chronos 0): all that was captured.
+        boolean bareQuantum = false;
 
         for (int index = 0; index < tokens.size(); index++) {
             Token token = tokens.get(index);
@@ -238,6 +240,11 @@ public final class SpellActionEngine {
                 case SHAPE -> form.addShape(definition.translation());
                 case FILTER -> {
                     if (QUANTUM_RUNE_ID.equals(definition.id()) || CHRONOS_RUNE_ID.equals(definition.id())) {
+                        if (QUANTUM_RUNE_ID.equals(awaitingNumber) && CHRONOS_RUNE_ID.equals(definition.id())) {
+                            // igni exsugat quantum chronos 0 iactare: all that was captured, released in one instant.
+                            bareQuantum = true;
+                            awaitingNumber = null;
+                        }
                         if (awaitingNumber != null) {
                             issues.add("'" + awaitingNumber + "' requer um número logo depois.");
                             awaitingNumber = null;
@@ -332,14 +339,13 @@ public final class SpellActionEngine {
                         imageOnly = true;
                         break;
                     }
-                    // igni exsugat quantum iactare: a quantum with no number measures all that was captured (book 4.3.2).
-                    boolean all = QUANTUM_RUNE_ID.equals(awaitingNumber);
-                    if (all) {
+                    // A quantum with no number is all of the source there is (book 4.3.2): after an exsugat, all of it
+                    // in reach (igni exsugat quantum iactare); without one, all of it in the mage's own body (firmo
+                    // quantum chronos 0 iactare: all the body's earth; vis quantum …: all its mana).
+                    boolean all = QUANTUM_RUNE_ID.equals(awaitingNumber) || bareQuantum;
+                    bareQuantum = false;
+                    if (all && QUANTUM_RUNE_ID.equals(awaitingNumber)) {
                         awaitingNumber = null;
-                        if (!captured) {
-                            issues.add("'quantum' requer um número logo depois (sem número, só mede o que um exsugat capturou).");
-                            all = false;
-                        }
                     }
                     String mark = subjectOf(run, issues);
                     run.clear();

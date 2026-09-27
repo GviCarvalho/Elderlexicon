@@ -351,6 +351,6 @@ public final class RevelationSight {
                 || state.is(Tags.Blocks.STONE) || state.is(Tags.Blocks.COBBLESTONE) || state.is(Tags.Blocks.SANDSTONE)
                 || state.is(Tags.Blocks.END_STONES) || state.is(BlockTags.TERRACOTTA) || state.is(Blocks.BEDROCK)
                 || state.is(Tags.Blocks.OBSIDIAN)
-                || state.is(Tags.Blocks.ORES);
+                || state.is(Tags.Blocks.ORES) || state.is(Tags.Blocks.STORAGE_BLOCKS_COAL);
     }
 }

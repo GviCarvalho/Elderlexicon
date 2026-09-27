@@ -26,5 +26,9 @@ public final class SpellingClientModBusEvents {
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ElderLexicon.PLACED_SCROLL.get(), PlacedScrollRenderer::new);
         event.registerEntityRenderer(ElderLexicon.ARC_BOLT.get(), ArcBoltRenderer::new);
+        event.registerEntityRenderer(ElderLexicon.ELEMENT_ORB.get(),
+                com.elderlexicon.mod.spell.function.client.ElementOrbRenderer::new);
+        event.registerEntityRenderer(ElderLexicon.BLACK_HOLE.get(),
+                com.elderlexicon.mod.spell.function.client.BlackHoleRenderer::new);
     }
 }

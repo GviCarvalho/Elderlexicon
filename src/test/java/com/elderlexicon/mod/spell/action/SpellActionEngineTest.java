@@ -131,11 +131,22 @@ class SpellActionEngineTest {
     }
 
     @Test
-    void aBareQuantumWithoutExsugatIsRefused() {
-        SpellActionResult result = engine.generateActions(List.of("igni", "quantum", "iactare"));
+    void aBareQuantumWithoutExsugatIsAllOfItInTheBody() {
+        SpellActionResult result = engine.generateActions(List.of("vis", "quantum", "chronos", "0", "iactare"));
 
-        assertFalse(result.issues().isEmpty());
+        assertTrue(result.issues().isEmpty(), result.issues().toString());
         SpellAction iactare = result.actions().get(result.actions().size() - 1);
-        assertFalse(iactare.quantityAll());
+        assertTrue(iactare.quantityAll());
+        assertTrue(iactare.atOnce());
+    }
+
+    @Test
+    void quantumChronosZeroReleasesAllThatWasCapturedAtOnce() {
+        SpellActionResult result = engine.generateActions(List.of("igni", "exsugat", "quantum", "chronos", "0", "iactare"));
+
+        assertTrue(result.issues().isEmpty(), result.issues().toString());
+        SpellAction iactare = result.actions().get(result.actions().size() - 1);
+        assertTrue(iactare.quantityAll());
+        assertEquals(0.0D, iactare.seconds().orElseThrow(), 1.0E-9);
     }
 }

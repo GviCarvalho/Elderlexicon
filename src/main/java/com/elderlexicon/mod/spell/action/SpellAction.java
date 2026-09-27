@@ -45,6 +45,14 @@ public final class SpellAction {
     public static final String SECONDS = "seconds";
     /** A bare quantum after exsugat ({@code igni exsugat quantum iactare}): all that was captured (book 4.3.2). */
     public static final String QUANTITY_ALL = "quantityAll";
+    /** How intense the captured source is when this function releases it (docs/condensacao-design.md). */
+    public static final String INTENSITY = "intensity";
+    /** How much coal the captured earth held, when it was nearly all coal: condensed hard, it turns to diamond. */
+    public static final String CARBON = "carbon";
+    /** How many ticks a condensation gathers before this function releases it. */
+    public static final String CHARGE = "charge";
+    /** The orb a condensation is gathered into, by entity id, for the function to release. */
+    public static final String ORB = "orb";
 
     private final String runeId;
     private final SpellActionType type;
@@ -112,6 +120,31 @@ public final class SpellAction {
     /** Whether a bare quantum asks for everything the exsugat before it captures ({@code igni exsugat quantum iactare}). */
     public boolean quantityAll() {
         return Boolean.TRUE.equals(metadata.get(QUANTITY_ALL));
+    }
+
+    /** How intense the source this function releases is: 1 is common, more only when captured and condensed. */
+    public double intensity() {
+        return metadata.get(INTENSITY) instanceof Double value ? value : 1.0D;
+    }
+
+    /** The coal in the condensed earth this function releases, when it was nearly all coal; 0 otherwise. */
+    public int carbon() {
+        return metadata.get(CARBON) instanceof Integer coal ? coal : 0;
+    }
+
+    /** How many ticks what this function releases is gathered first (a condensation); 0 releases it at once. */
+    public int charge() {
+        return metadata.get(CHARGE) instanceof Integer ticks ? ticks : 0;
+    }
+
+    /** The entity id of the orb this function releases, or -1 when there is none. */
+    public int orb() {
+        return metadata.get(ORB) instanceof Integer id ? id : -1;
+    }
+
+    /** Whether the function releases what it spends in one instant ({@code chronos 0}): condensed, when captured. */
+    public boolean atOnce() {
+        return seconds().isPresent() && seconds().getAsDouble() <= 1.0E-4D;
     }
 
     /** Whether this is a bond of sight to its subject ({@code surgit m1 ligabis}). */
