@@ -10,6 +10,8 @@ import com.elderlexicon.mod.spell.mark.SpellPlace;
 import com.elderlexicon.mod.vita.VitaElement;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
@@ -75,9 +77,13 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
         boolean[] reached = {false};
         for (int elapsed = 0; elapsed <= duration; elapsed += CAST_STEP_TICKS) {
             final boolean last = elapsed + CAST_STEP_TICKS > duration;
+            final boolean first = elapsed == 0;
             SpellEffects.schedule(level, charge + elapsed, () -> {
                 if (!SpellEffects.isPlayerValid(player)) {
                     return;
+                }
+                if (first && element == VitaElement.IGNI) {
+                    whoosh(level, player, heat);
                 }
                 // The world scene draws the beam, so it fades as the laws use its energy up.
                 // Each pulse outlives the gap to the next one by a tick. A pulse is recorded at the end of its tick, after
@@ -109,6 +115,22 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
         });
     }
 
+    /**
+     * Fire thrown: the rush of the flame leaving the hand and the air it tears through, louder and deeper the hotter it
+     * is.
+     */
+    private static void whoosh(ServerLevel level, ServerPlayer player, double heat) {
+        double hot = Math.log10(1.0D + Math.max(0.0D, heat));
+        float volume = (float) Math.min(2.5D, 0.9D + 0.4D * hot);
+        float pitch = (float) Math.max(0.5D, Math.min(1.2D, 1.15D - 0.15D * hot));
+        Vec3 hand = ExsugatFunctionHandler.handOf(player);
+        level.playSound(null, hand.x, hand.y, hand.z, SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, volume, pitch);
+        level.playSound(null, hand.x, hand.y, hand.z, SoundEvents.BLAZE_SHOOT, SoundSource.PLAYERS, volume * 0.6F,
+                pitch * 0.9F);
+        level.playSound(null, hand.x, hand.y, hand.z, SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS,
+                volume * 0.8F, pitch * 0.55F);
+    }
+
     /** How fast a condensed orb flies, in blocks a tick. */
     private static final double ORB_SPEED = 2.0D;
 
@@ -125,6 +147,7 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
             Vec3 velocity = player.getViewVector(1.0F).scale(ORB_SPEED);
             switch (element) {
                 case IGNI -> {
+                    whoosh(level, player, intensity);
                     if (orb != null) {
                         orb.launch(velocity, at -> HeatSpots.strike(level, player, at, intensity));
                     } else {
@@ -157,11 +180,11 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
                     }
                 }
                 case BALANCED -> {
-                    // Vis, pure energy: for now, only light where it lands.
+                    // Vis: the four aspects in balance, all shown at once where it lands.
                     if (orb != null) {
-                        orb.launch(velocity, at -> VisSpots.light(level, at, intensity));
+                        orb.launch(velocity, at -> VisSpots.release(level, player, at, intensity));
                     } else {
-                        VisSpots.light(level, SpellEffects.findImpact(player, RANGE).location(), intensity);
+                        VisSpots.release(level, player, SpellEffects.findImpact(player, RANGE).location(), intensity);
                     }
                 }
                 default -> spend(orb);

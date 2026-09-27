@@ -7,6 +7,7 @@ import com.elderlexicon.mod.spell.Heat;
 import com.elderlexicon.mod.spell.Pressure;
 import com.elderlexicon.mod.vita.VitaElement;
 import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -74,8 +75,17 @@ public class ElementOrb extends Entity {
     /** The smallest the orb starts at, and how much more it grows while it charges. */
     private static final float SEED_SIZE = 0.2F;
     private static final float GROWTH = 0.8F;
-    /** A released orb that has hit nothing by then does what it carries where it is. */
-    private static final int FLIGHT_TICKS = 100;
+    /**
+     * How long the spirit holds what the orb carries once it is released: if it has hit nothing by then, what it holds
+     * is let go where the orb is (in the air, if it was thrown at the sky).
+     */
+    private static final int FLIGHT_TICKS = 40;
+    /** The glints Vis sheds: the green-yellow of experience. */
+    private static final DustParticleOptions VIS_DUST =
+            new DustParticleOptions(new org.joml.Vector3f(0.6F, 1.0F, 0.2F), 1.0F);
+    /** A released orb is a body like any other: it falls (as an arrow does) and the air slows it. */
+    private static final double GRAVITY = 0.04D;
+    private static final double DRAG = 0.99D;
     /** An orb never released (its mage gone) fades after its charge and this long. */
     private static final int FORGOTTEN_TICKS = 60;
 
@@ -253,8 +263,8 @@ public class ElementOrb extends Entity {
         return switch (element()) {
             case IGNI -> fireColor(intensity);
             case AQUA -> blend(0x4FAFFF, 0x1A4FC8, Mth.clamp(intensity / Pressure.ICE, 0.0D, 1.0D));
-            // Vis: a violet glow turning white as more is gathered.
-            case BALANCED -> blend(0xB890FF, 0xFFF8FF, Mth.clamp(Math.log1p(intensity) / Math.log1p(100.0D), 0.0D, 1.0D));
+            // Vis: the green and yellow of experience, its everyday form.
+            case BALANCED -> blend(0x7FFF20, 0xE8FF60, Mth.clamp(Math.log1p(intensity) / Math.log1p(100.0D), 0.0D, 1.0D));
             case FIRMO -> 0x000000; // a black hole: no light leaves it
             default -> 0xF2F8FF;
         };
@@ -365,7 +375,7 @@ public class ElementOrb extends Entity {
             case BLOCK -> new BlockParticleOption(ParticleTypes.BLOCK, block(0.0F));
             case WATER -> ParticleTypes.SPLASH;
             case AIR -> ParticleTypes.CLOUD;
-            case LIGHT -> ParticleTypes.END_ROD;
+            case LIGHT -> VIS_DUST;
             case VOID -> ParticleTypes.REVERSE_PORTAL;
         };
         level.sendParticles(burst, getX(), getY() + 0.3D, getZ(), 16, 0.3D, 0.3D, 0.3D, 0.05D);
@@ -374,6 +384,7 @@ public class ElementOrb extends Entity {
     }
 
     private void fly() {
+        setDeltaMovement(getDeltaMovement().scale(DRAG).add(0.0D, -GRAVITY, 0.0D));
         Vec3 from = position();
         Vec3 to = from.add(getDeltaMovement());
         if (!level().isClientSide) {
@@ -393,7 +404,8 @@ public class ElementOrb extends Entity {
 
     /** What the orb meets on its way from {@code from} to {@code to}: a creature (never its caster) or a block. */
     private HitResult hitBetween(Vec3 from, Vec3 to) {
-        BlockHitResult block = level().clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
+        // Water stops it too: struck fast, its surface is as hard as the ground.
+        BlockHitResult block = level().clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.ANY, this));
         Vec3 end = block.getType() == HitResult.Type.MISS ? to : block.getLocation();
         EntityHitResult creature = ProjectileUtil.getEntityHitResult(level(), this, from, end,
                 new AABB(from, end).inflate(1.0D), candidate -> candidate instanceof LivingEntity && candidate.isAlive()
@@ -421,7 +433,7 @@ public class ElementOrb extends Entity {
             case FIRE -> intensity(0.0F) >= 3.0D ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.FLAME;
             case AIR -> ParticleTypes.CLOUD;
             case WATER -> ParticleTypes.BUBBLE_POP;
-            case LIGHT -> ParticleTypes.END_ROD;
+            case LIGHT -> VIS_DUST;
             case VOID -> ParticleTypes.REVERSE_PORTAL;
             case BLOCK -> null;
         };

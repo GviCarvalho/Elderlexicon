@@ -13,6 +13,7 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.client.model.data.ModelData;
 import org.joml.Matrix3f;
@@ -21,12 +22,16 @@ import org.joml.Matrix4f;
 /**
  * Draws an {@link ElementOrb}: fire and air as nested layers of a swirling texture of our own, each turning about its
  * own axis (fire lit by itself, air translucent), and earth and pressed water as the block they will become, turning
- * slowly. It grows with the orb.
+ * slowly. Vis, whose everyday form is experience, is drawn like the other orbs but after it: nested glowing cubes with
+ * a bead-like face of our own, pulsing between green and yellow as experience does, bobbing gently. It grows with the
+ * orb.
  */
 public class ElementOrbRenderer extends EntityRenderer<ElementOrb> {
 
     private static final ResourceLocation TEXTURE =
             new ResourceLocation(ElderLexicon.MODID, "textures/entity/element_orb.png");
+    private static final ResourceLocation VIS_TEXTURE =
+            new ResourceLocation(ElderLexicon.MODID, "textures/entity/vis_orb.png");
     /** The layers of an orb: how big each is, relative to the orb, and how fast it turns. */
     private static final float[] LAYER_SIZE = {0.45F, 0.75F, 1.0F};
     private static final float[] LAYER_SPIN = {9.0F, -6.0F, 4.0F};
@@ -43,7 +48,9 @@ public class ElementOrbRenderer extends EntityRenderer<ElementOrb> {
         float age = orb.tickCount + partialTick;
         pose.pushPose();
         pose.translate(0.0D, size * 0.5D, 0.0D);
-        if (orb.look(partialTick) == ElementOrb.Look.VOID) {
+        if (orb.look(partialTick) == ElementOrb.Look.LIGHT) {
+            drawVis(size, age * orb.spin(partialTick), pose, buffers);
+        } else if (orb.look(partialTick) == ElementOrb.Look.VOID) {
             // Earth pressed into a black hole: the End's starfield, the black beyond everything.
             BlackHoleRenderer.starfield(pose, buffers, size * 0.45F, age);
         } else if (orb.look(partialTick) == ElementOrb.Look.BLOCK) {
@@ -53,6 +60,28 @@ public class ElementOrbRenderer extends EntityRenderer<ElementOrb> {
         }
         pose.popPose();
         super.render(orb, yaw, partialTick, pose, buffers, light);
+    }
+
+    /** Vis after experience: the nested cubes of an orb, lit by themselves, pulsing green to yellow, bobbing. */
+    private static void drawVis(float size, float age, PoseStack pose, MultiBufferSource buffers) {
+        float phase = age / 2.0F;
+        float red = (Mth.sin(phase) + 1.0F) * 0.5F;
+        float green = 1.0F;
+        float blue = (Mth.sin(phase + 4.1887903F) + 1.0F) * 0.1F;
+        VertexConsumer buffer = buffers.getBuffer(RenderType.entityTranslucentEmissive(VIS_TEXTURE));
+        pose.pushPose();
+        pose.translate(0.0D, Mth.sin(age * 0.2F) * 0.05D * size, 0.0D);
+        for (int layer = 0; layer < LAYER_SIZE.length; layer++) {
+            pose.pushPose();
+            float spin = age * LAYER_SPIN[layer];
+            pose.mulPose(Axis.YP.rotationDegrees(spin));
+            pose.mulPose(Axis.ZP.rotationDegrees(spin * 0.7F + layer * 30.0F));
+            pose.mulPose(Axis.XP.rotationDegrees(spin * 0.4F));
+            cube(pose, buffer, size * LAYER_SIZE[layer] * 0.5F, red, green, blue, LAYER_ALPHA[layer],
+                    LightTexture.FULL_BRIGHT);
+            pose.popPose();
+        }
+        pose.popPose();
     }
 
     private static void drawBlock(BlockState block, float size, float age, PoseStack pose, MultiBufferSource buffers,

@@ -54,10 +54,10 @@ O `quantum` sem número quer dizer **"toda a energia disponível daquela fonte"*
   voltar ao equilíbrio sozinho.
 - Com `chronos 0`, isso também é condensado: `firmo quantum chronos 0 iactare` lança os ossos do mago condensados numa
   pedra; `vis quantum chronos 0 iactare` lança toda a mana dele numa esfera.
-- **A vis condensada é energia pura.** Na física real, a junção equilibrada dos quatro estados da matéria (sólido,
-  líquido, gás, plasma) é a energia antes de ter forma, cujo análogo mais próximo é a **luz**. Por enquanto ela é só
-  luz: onde cai, há um clarão, e o lugar fica iluminado por 2 s + ln(1 + UMU) s, no máximo 30. A esfera é violeta e
-  embranquece conforme a mana se junta. O efeito coerente com a física fica para depois.
+- **A vis condensada é os quatro aspectos da energia de uma vez** (ver "Os quatro aspectos da energia" em
+  `interacoes-design.md`). Onde cai, um quarto vira calor, um quarto massa, um quarto água e um quarto ar comprimido, no
+  mesmo ponto e instante, e as leis da natureza decidem o que eles fazem entre si. Há também um clarão, e o lugar fica
+  iluminado por 2 s + ln(1 + UMU) s, no máximo 30. A esfera parece um ponto de XP, a forma cotidiana da vis: uma conta brilhante sempre de frente, pulsando entre verde e amarelo (textura nossa).
 
 ### Exemplo: o anel condensado
 

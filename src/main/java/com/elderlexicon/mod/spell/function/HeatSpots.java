@@ -2,6 +2,7 @@ package com.elderlexicon.mod.spell.function;
 
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spell.Heat;
+import com.elderlexicon.mod.spell.nature.NatureWorld;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
@@ -35,8 +36,12 @@ import java.util.List;
 
 /**
  * Condensed heat in the world (docs/condensacao-design.md): where a condensed fire strikes or is invoked, a hot spot
- * stays and cools down little by little, doing what its heat can while it lasts: a white fire melts ice and turns sand
- * to glass, a melting one turns stone into lava and boils water away, and plasma bursts where it first strikes.
+ * stays and cools down little by little, doing what its heat can while it lasts: a white fire turns sand to glass, a
+ * melting one turns stone into lava, and plasma bursts where it first strikes.
+ * <p>
+ * Its heat also goes into the world's nature (docs/interacoes-design.md): half of it into what it touches when it
+ * strikes, the other half radiated into the matter around as it cools. What that heat does to water, ice and snow (and
+ * to whatever else meets it) is up to the laws of nature, not to the fire.
  */
 @Mod.EventBusSubscriber(modid = ElderLexicon.MODID)
 public final class HeatSpots {
@@ -49,11 +54,48 @@ public final class HeatSpots {
     private HeatSpots() {
     }
 
-    private record Spot(ServerLevel level, ServerPlayer caster, Vec3 at, double heat, long born) {
+    /** The share of a strike's heat that goes into what it touches at once; the rest is radiated as it cools. */
+    private static final double CONTACT = 0.5D;
+    /** How far from where it strikes the heat is in contact, in blocks. */
+    private static final double CONTACT_REACH = 1.5D;
+
+    private static final class Spot {
+        final ServerLevel level;
+        final ServerPlayer caster;
+        final Vec3 at;
+        final double heat;
+        final long born;
+        /** The heat it had when it last radiated: what it lost since is what it radiates now. */
+        double radiated;
+
+        Spot(ServerLevel level, ServerPlayer caster, Vec3 at, double heat, long born) {
+            this.level = level;
+            this.caster = caster;
+            this.at = at;
+            this.heat = heat;
+            this.born = born;
+            this.radiated = heat;
+        }
+
+        ServerLevel level() {
+            return level;
+        }
+
+        ServerPlayer caster() {
+            return caster;
+        }
+
+        Vec3 at() {
+            return at;
+        }
 
         double now() {
             return Heat.cooled(heat, level.getGameTime() - born);
         }
+    }
+
+    /** A block of matter the heat reaches, and how much of it reaches there (1 at the heart, less farther out). */
+    private record Reached(BlockPos pos, double share) {
     }
 
     /** A condensed fire of {@code heat} strikes at {@code at}: plasma bursts there, and a hot spot is left to cool. */
@@ -73,6 +115,7 @@ public final class HeatSpots {
                     Level.ExplosionInteraction.BLOCK);
         }
         Spot spot = new Spot(level, caster, at, heat, level.getGameTime());
+        touch(level, at, heat);
         sweep(spot, heat);
         SPOTS.add(spot);
     }
@@ -97,6 +140,37 @@ public final class HeatSpots {
         }
     }
 
+    /** Where it strikes, what it touches takes half its heat at once (water there may flash to vapor). */
+    private static void touch(ServerLevel level, Vec3 at, double heat) {
+        List<Reached> touched = new ArrayList<>();
+        BlockPos center = BlockPos.containing(at);
+        int r = (int) Math.ceil(CONTACT_REACH);
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-r, -r, -r), center.offset(r, r, r))) {
+            double distance = at.distanceTo(Vec3.atCenterOf(pos));
+            if (distance <= CONTACT_REACH + 0.5D && level.isLoaded(pos) && NatureWorld.isMatter(level, pos)) {
+                touched.add(new Reached(pos.immutable(), 1.0D - distance / (CONTACT_REACH + 1.0D)));
+            }
+        }
+        radiate(level, touched, heat, heat * CONTACT);
+    }
+
+    /**
+     * Gives {@code budget} UMU of heat to the matter reached, each block its part by how much of the heat reaches it,
+     * warming none past the heat that reaches it there. What none of them takes is lost to the sky.
+     */
+    private static void radiate(ServerLevel level, List<Reached> reached, double heat, double budget) {
+        if (reached.isEmpty() || budget <= 0.0D) {
+            return;
+        }
+        double shares = 0.0D;
+        for (Reached block : reached) {
+            shares += block.share();
+        }
+        for (Reached block : reached) {
+            NatureWorld.warm(level, block.pos(), heat * block.share(), budget * block.share() / shares);
+        }
+    }
+
     /** What the heat does around the spot right now; it reaches less far as it cools. */
     private static void sweep(Spot spot, double heat) {
         ServerLevel level = spot.level();
@@ -113,6 +187,7 @@ public final class HeatSpots {
         double reachSq = reach * reach;
         double meltSq = reach * reach * 0.36D; // stone melts only near the heart of it
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        List<Reached> reached = new ArrayList<>();
         long volume = (2L * r + 1) * (2L * r + 1) * (2L * r + 1);
         if (volume > SWEEP_LIMIT) {
             // Too much to go through every block each time: a spread of spots, different each sweep, does it by degrees.
@@ -123,6 +198,7 @@ public final class HeatSpots {
                 double distanceSq = at.distanceToSqr(Vec3.atCenterOf(cursor));
                 if (distanceSq <= reachSq && level.isLoaded(cursor)) {
                     heatBlock(level, cursor.immutable(), level.getBlockState(cursor), band, distanceSq <= meltSq);
+                    reach(level, cursor, distanceSq, reach, reached);
                 }
             }
         } else {
@@ -135,10 +211,14 @@ public final class HeatSpots {
                             continue;
                         }
                         heatBlock(level, cursor.immutable(), level.getBlockState(cursor), band, distanceSq <= meltSq);
+                        reach(level, cursor, distanceSq, reach, reached);
                     }
                 }
             }
         }
+        // What it lost as it cooled since it last radiated goes into the matter around (the rest went in when it struck).
+        radiate(level, reached, heat, (spot.radiated - heat) * (1.0D - CONTACT));
+        spot.radiated = heat;
         cookItems(level, at, reach);
         // The heart keeps a flame burning while it is hot.
         if (level.getBlockState(center).canBeReplaced() && !level.getBlockState(center).getFluidState().is(FluidTags.LAVA)) {
@@ -149,21 +229,20 @@ public final class HeatSpots {
         }
     }
 
+    private static void reach(ServerLevel level, BlockPos pos, double distanceSq, double reach, List<Reached> reached) {
+        if (NatureWorld.isMatter(level, pos)) {
+            reached.add(new Reached(pos.immutable(), 1.0D - Math.sqrt(distanceSq) / (reach + 0.5D)));
+        }
+    }
+
+    /** What the fire itself does to rock and sand; water, ice and snow are left to the laws of nature. */
     private static void heatBlock(ServerLevel level, BlockPos pos, BlockState state, Heat.Band band, boolean heart) {
-        if (state.is(Blocks.SNOW) || state.is(Blocks.SNOW_BLOCK) || state.is(Blocks.POWDER_SNOW)) {
-            level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-        } else if (state.is(BlockTags.ICE)) {
-            level.setBlock(pos, Blocks.WATER.defaultBlockState(), Block.UPDATE_ALL);
-        } else if (state.is(BlockTags.SAND)) {
+        if (state.is(BlockTags.SAND)) {
             level.setBlock(pos, Blocks.GLASS.defaultBlockState(), Block.UPDATE_ALL);
-        } else if (band.compareTo(Heat.Band.MELTING) >= 0 && state.getFluidState().is(FluidTags.WATER)) {
-            // Water boils away at once.
-            level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-            level.sendParticles(ParticleTypes.CLOUD, pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D, 4,
-                    0.3D, 0.3D, 0.3D, 0.02D);
         } else if (band.compareTo(Heat.Band.MELTING) >= 0 && heart && melts(state)) {
-            // Stone melts: the lava is the ground molten, not the fire.
+            // Stone melts: the lava is the ground molten, not the fire. It cools and sets again once the fire is gone.
             level.setBlock(pos, Blocks.LAVA.defaultBlockState(), Block.UPDATE_ALL);
+            NatureWorld.wake(level, pos);
         }
     }
 

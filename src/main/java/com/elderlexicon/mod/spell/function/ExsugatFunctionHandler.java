@@ -149,12 +149,8 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
         ServerPlayer player = context.player();
         ElementOrb orb = null;
         if (spender != null && spender.atOnce() && pulled > EPSILON) {
-            // Condensing: it is gathered into one point for as long as the charge takes, then released. An iactare
-            // gathers it before the mage's hand, wherever the hand goes; a vocant, where it will appear.
-            Vec3 fixed = gatheringPoint(context, spender);
-            java.util.function.Supplier<Vec3> point = "iactare".equals(spender.runeId())
-                    ? () -> player.getEyePosition().subtract(0.0D, 0.35D, 0.0D).add(player.getViewVector(1.0F).scale(0.9D))
-                    : () -> fixed;
+            // Condensing: it is gathered into one point for as long as the charge takes, then released.
+            java.util.function.Supplier<Vec3> point = orbPoint(context, spender);
             List<Gatherings.Origin> origins = taken.stream()
                     .map(source -> new Gatherings.Origin(source.pos(), source.state(), source.value())).toList();
             int ticks = Charge.ticks(pulled);
@@ -228,6 +224,23 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
             return handOf(player);
         }
         return bodyOf(player);
+    }
+
+    /**
+     * Where a condensation is gathered while it charges: an iactare gathers it before the mage's hand, wherever the hand
+     * goes; a vocant, where it will appear; anything else, at the hand.
+     */
+    public static java.util.function.Supplier<Vec3> orbPoint(SpellContext context, SpellAction spender) {
+        ServerPlayer player = context.player();
+        String rune = spender == null ? "" : spender.runeId();
+        if ("iactare".equals(rune)) {
+            return () -> player.getEyePosition().subtract(0.0D, 0.35D, 0.0D).add(player.getViewVector(1.0F).scale(0.9D));
+        }
+        if ("vocant".equals(rune)) {
+            Vec3 fixed = gatheringPoint(context, spender);
+            return () -> fixed;
+        }
+        return () -> handOf(player);
     }
 
     private static Vec3 bodyOf(ServerPlayer player) {

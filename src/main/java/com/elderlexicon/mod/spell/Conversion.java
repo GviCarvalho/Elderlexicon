@@ -45,9 +45,10 @@ public final class Conversion {
     public static final int MAX_TICKS_PER_QUALITY = 100;
 
     /**
-     * How many of the two qualities change between {@code from} and {@code to}: fire is hot and dry, air hot and wet,
-     * water cold and wet, earth cold and dry. Neighbours (earth and fire, fire and air, air and water, water and earth)
-     * change one; opposites (fire and water, earth and air) change both; an element into itself, none.
+     * How many of the two qualities change between {@code from} and {@code to}: the distance between their aspects
+     * ({@link Aspect}). Neighbours, on different axes (earth and fire, fire and air, air and water, water and earth),
+     * change one, the quality they do not share; opposites, the two ends of one axis (fire and water, earth and air),
+     * change both; an element into itself, none.
      */
     public static int qualities(VitaElement from, VitaElement to) {
         if (from == null || to == null || from == to) {
@@ -61,17 +62,12 @@ public final class Conversion {
         if (to == VitaElement.BALANCED) {
             return 2;
         }
-        if (!isElement(from) || !isElement(to)) {
+        Aspect source = Aspect.of(from);
+        Aspect target = Aspect.of(to);
+        if (source == null || target == null) {
             return 0;
         }
-        int changed = 0;
-        if (hot(from) != hot(to)) {
-            changed++;
-        }
-        if (dry(from) != dry(to)) {
-            changed++;
-        }
-        return changed;
+        return Aspect.distance(source, target);
     }
 
     /** What the spirit's work of unmaking {@code umu} of one element and remaking it as another costs the body. */
@@ -133,16 +129,4 @@ public final class Conversion {
         return total;
     }
 
-    private static boolean isElement(VitaElement element) {
-        return element == VitaElement.IGNI || element == VitaElement.AQUA || element == VitaElement.FIRMO
-                || element == VitaElement.AURA;
-    }
-
-    private static boolean hot(VitaElement element) {
-        return element == VitaElement.IGNI || element == VitaElement.AURA;
-    }
-
-    private static boolean dry(VitaElement element) {
-        return element == VitaElement.IGNI || element == VitaElement.FIRMO;
-    }
 }
