@@ -161,6 +161,48 @@ Cada etapa é um commit no PR, com os testes passando.
 7. **Verificação:** `./gradlew build` e os testes, mais um servidor com um jogador falso lançando os feitiços de
    exemplo, inclusive a criação de pedra por mistura.
 
+## 6.1 Como a etapa 2 ficou
+
+O modelo da matéria fica em `magic/matter`, sem nada de Minecraft, e os dados em
+`src/main/resources/data/elderlexicon/lexicon/materials.json`.
+
+- **A substância sai da composição.** Uma porção de matéria é só composição (a parte de cada primordial), estado e
+  UMU. O que ela é não fica escrito nela: é a receita que a composição bate (`MaterialTable.identify`). Assim, matéria
+  misturada na proporção certa vira aquela substância sem nenhuma regra para aquela substância.
+- **As palavras do livro batem com as receitas.** A essência de cada fonte do léxico é uma composição: `lutum` é lama,
+  `fusus` é magma, `igni` é fogo. A vis e a vita não batem com nenhuma, porque são energia, não matéria.
+- **O UMU por bloco é da substância, não do estado** (`unit`). Assim um bloco de pedra derrete em um bloco de lava, e uma
+  fonte de água congela em um bloco de gelo.
+- **Mudar de estado mantém a matéria e o UMU.** O trabalho do espírito, 5% por degrau (a escada inteira para voltar a
+  vis), é pago por quem muda o estado. Assim a conservação (L1) vale também na mudança de estado.
+- **Numa mistura, o estado é o da maior parte do UMU** (o mais denso, se empatar).
+- **Um amálgama se desfaz nas primordiais, cada uma no estado em que é encontrada.**
+- **Cada receita tem uma zona só dela.** Duas receitas precisam estar a pelo menos 0,10 uma da outra em alguma parte,
+  para que nenhuma mistura seja as duas. Com a tolerância de ±5%, cabem por volta de 280 receitas distintas. Se um
+  dia faltar espaço para todas as coisas naturais, basta apertar a tolerância: com ±2,5% cabem por volta de 1.770.
+- **Estado sem forma na tabela:** usa o estado vizinho mais próximo. Um gás ou plasma mostrado por um bloco ou item
+  aparece como as partículas dele, porque o que flutua não é bloco.
+- **Addons** trazem substâncias com um arquivo no mesmo formato: `Materials.extend(tabela -> tabela.read(leitor))`. Uma
+  extensão que quebre a tabela é recusada: receita perto demais de outra, bloco lido como duas coisas, falta de uma
+  primordial.
+
+## 6.2 Como a etapa 3 ficou
+
+A ponte com o mundo fica em `spell/matter/WorldMatter`, e o plano de como a matéria entra no mundo em
+`magic/matter/Placement` (sem Minecraft, testado à parte).
+
+- **Ler:** um bloco é o que a tabela diz dele. Um fluido só é matéria na fonte, porque o que escorre dela é a mesma água.
+  Um item é o que ele segura (ou o bloco que ele coloca), vezes a quantidade. Um item no chão é o item dele. O que é
+  feito (um baú, uma espada) não é matéria natural e não é lido.
+- **Tirar:** ler um bloco e deixar o lugar vazio.
+- **Colocar:** só blocos e itens inteiros. A partir do ponto, os blocos vão para os lugares livres mais próximos (ar,
+  plantas, fluido escorrendo), nunca por cima de uma fonte de fluido, que também é matéria. Um gás aparece como
+  partículas e vai todo para o mundo; ar solto se junta ao ar. Um amálgama assenta primeiro (L5) e cada parte é
+  colocada como o que é. O que não faz uma unidade inteira, ou não acha lugar, sobra para quem colocou (L1).
+- **Testes no jogo:** `./gradlew runGameTestServer` roda os GameTests (`gametest/MatterGameTests`) num servidor de
+  verdade: pedra, lava e gelo lidos como matéria, pedra derretida colocada como lava, um amálgama assentando em terra
+  e água, um bloco tirado, um gás solto.
+
 ## 7. Segunda fase: próximo plano, depois desta
 
 - **Corpos.**
