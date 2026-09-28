@@ -7,8 +7,6 @@ import com.elderlexicon.mod.spell.SpellCastingService;
 import com.elderlexicon.mod.spell.SpellTicks;
 import com.elderlexicon.mod.spell.block.SpellBlock;
 import com.elderlexicon.mod.spell.function.MarkHelper;
-import com.elderlexicon.mod.spell.mark.NumberGlyphs;
-import com.elderlexicon.mod.spelling.client.RuneSgaMapper;
 import com.elderlexicon.mod.spelling.custom.CustomRuneHelper;
 import com.elderlexicon.mod.spelling.data.SpellingRepertoire;
 import com.elderlexicon.mod.spelling.data.SpellingRepertoireHelper;
@@ -51,8 +49,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Validates and executes Spelling cast requests server-side.
@@ -72,7 +68,6 @@ public final class ServerSpellingController {
     private final SpellCastingService castingService = new SpellCastingService();
     private final Map<UUID, Long> cooldowns = new HashMap<>();
     /** A rune, mark or number; a number may carry a minus sign ({@code -30 ubis}). */
-    private static final Pattern RUNE_TOKEN = Pattern.compile("(-?\\b[A-Za-z0-9_]+)\\b");
 
     private ServerSpellingController() {
     }
@@ -226,7 +221,19 @@ public final class ServerSpellingController {
         if (extraction.block().isEmpty()) {
             return applyFailure(player, Component.literal("Pagina do grimorio sem feitico."), now, true, List.of("surgit"));
         }
-        return castPage(player, extraction.block(), now);
+        // Once the spirit has read the page, the grimoire can describe it: it keeps the text read and what it cost.
+        String text = pageText(grimoire);
+        return castPage(player, extraction.block(), now,
+                (spent, more) -> GrimoireItem.recordReading(grimoire, text, spent, more));
+    }
+
+    private static String pageText(ItemStack grimoire) {
+        CompoundTag tag = grimoire.getTag();
+        if (tag == null || !tag.contains("pages", 9)) {
+            return "";
+        }
+        ListTag pages = tag.getList("pages", 8);
+        return pages.isEmpty() ? "" : pages.getString(Mth.clamp(GrimoireItem.getStoredPage(grimoire), 0, pages.size() - 1));
     }
 
     /**
@@ -236,14 +243,139 @@ public final class ServerSpellingController {
      */
     private SpellCastResponse processFramedPageSpell(ServerPlayer player, long now) {
         Entity aimed = findTargetedScrollEntity(player);
+        if (aimed instanceof PlacedScrollEntity placed) {
+            // A scroll that is a piece of a circle: the whole circle is read, from the heart out.
+            Optional<CirclePieces.Circle> circle = CirclePieces.around(player.serverLevel(), placed.supportPos(),
+                    placed.getFace());
+            if (circle.isPresent()) {
+                return castCircle(player, circle.get(), now, 1.0D, "");
+            }
+        }
         if (aimed != null) {
             return castPlacedScroll(player, aimed, now, true);
+        }
+        SpellCastResponse inscribed = processInscription(player, now);
+        if (inscribed != null) {
+            return inscribed;
+        }
+        // Circles within touch are read whole, without aiming at them (the aim is free for the spells themselves).
+        List<CirclePieces.Circle> circles = circlesInTouch(player);
+        if (!circles.isEmpty()) {
+            SpellCastResponse read = null;
+            for (CirclePieces.Circle circle : circles) {
+                read = castCircle(player, circle, now, 1.0D, "");
+            }
+            return read;
         }
         List<Entity> inTouch = scrollsInTouch(player);
         if (inTouch.isEmpty()) {
             return null;
         }
         return inTouch.size() == 1 ? castPlacedScroll(player, inTouch.get(0), now, true) : castLinkedScrolls(player, inTouch, now);
+    }
+
+    /**
+     * Surgit aimed at runes written on a block face: the circle they are a piece of, or the runes alone. Returns null
+     * when the aim is on no written face.
+     */
+    private SpellCastResponse processInscription(ServerPlayer player, long now) {
+        double reach = Math.max(1.0D, player.getBlockReach());
+        HitResult hit = player.pick(reach, 0.0F, false);
+        if (!(hit instanceof net.minecraft.world.phys.BlockHitResult blockHit)
+                || hit.getType() != HitResult.Type.BLOCK) {
+            return null;
+        }
+        BlockPos pos = blockHit.getBlockPos();
+        net.minecraft.core.Direction face = blockHit.getDirection();
+        Optional<com.elderlexicon.mod.spelling.inscription.Inscription> written =
+                com.elderlexicon.mod.spelling.inscription.Inscriptions.of(player.serverLevel()).at(pos, face);
+        if (written.isEmpty()) {
+            return null;
+        }
+        Optional<CirclePieces.Circle> circle = CirclePieces.around(player.serverLevel(), pos, face);
+        if (circle.isPresent()) {
+            return castCircle(player, circle.get(), now, 1.0D, "");
+        }
+        GrimoireExtractionResult extraction = extractRunesFromText(written.get().text());
+        if (extraction.hasForbiddenRune()) {
+            return applyFailure(player, FUSION_RUNE_DENIED, now, true, List.of("surgit"));
+        }
+        if (extraction.block().isEmpty()) {
+            return applyFailure(player, Component.literal("Inscricao sem feitico."), now, true, List.of("surgit"));
+        }
+        return castPage(player, extraction.block(), now);
+    }
+
+    /**
+     * Reads a magic circle (docs/circulos-design.md): its rings one after the other from the heart out, each ring
+     * beginning when the one inside it is released, and the pieces of a ring adapted to be released together (a
+     * shorter page begins later). Every spell comes out of the caster, and costs {@code costFactor} times its own.
+     */
+    private SpellCastResponse castCircle(ServerPlayer player, CirclePieces.Circle circle, long now, double costFactor,
+                                         String prefix) {
+        List<List<SpellBlock>> blocks = new ArrayList<>();
+        List<List<List<Integer>>> releases = new ArrayList<>();
+        for (List<Integer> ring : circle.rings()) {
+            List<SpellBlock> ringBlocks = new ArrayList<>();
+            List<List<Integer>> ringReleases = new ArrayList<>();
+            for (int index : ring) {
+                GrimoireExtractionResult extraction = extractRunesFromText(circle.pieces().get(index).text());
+                SpellBlock block = extraction.hasForbiddenRune() ? SpellBlock.empty() : extraction.block();
+                ringBlocks.add(block);
+                ringReleases.add(block.lines().stream().map(SpellBlock.Line::releasePosition).toList());
+            }
+            blocks.add(ringBlocks);
+            releases.add(ringReleases);
+        }
+        List<List<List<Integer>>> steps = com.elderlexicon.mod.spell.circle.CircleTiming.schedule(releases);
+        List<SpellCastingService.TimedSpell> spells = new ArrayList<>();
+        List<String> expanded = new ArrayList<>();
+        for (int r = 0; r < blocks.size(); r++) {
+            for (int p = 0; p < blocks.get(r).size(); p++) {
+                List<SpellBlock.Line> lines = blocks.get(r).get(p).lines();
+                for (int l = 0; l < lines.size(); l++) {
+                    List<String> lineRunes = CustomRuneHelper.expandRunes(player, lines.get(l).runeIds());
+                    spells.add(new SpellCastingService.TimedSpell(lineRunes, steps.get(r).get(p).get(l)));
+                    expanded.addAll(lineRunes);
+                }
+            }
+        }
+        if (spells.isEmpty()) {
+            return applyFailure(player, Component.literal("Circulo sem feitico."), now, true, List.of("surgit"));
+        }
+        List<String> shown = List.copyOf(expanded);
+        SpellCastingService.Result result = castingService.castBlock(player, spells,
+                delayed -> SpellFeedback.later(player, delayed, finishCast(player, delayed, shown), prefix), costFactor);
+        long appliedCooldown = applyCooldown(player, now, result.success() ? SUCCESS_COOLDOWN_MS : FAILURE_COOLDOWN_MS);
+        if (result.failed()) {
+            return new SpellCastResponse(false, result.message(), result.warnings(), appliedCooldown, shown);
+        }
+        List<Component> warnings = new ArrayList<>(finishCast(player, result, shown));
+        warnings.add(Component.literal("Circulo lido: " + circle.pieces().size() + " pecas em " + circle.rings().size()
+                + (circle.rings().size() == 1 ? " anel." : " aneis.")));
+        return new SpellCastResponse(true, result.message(), warnings, appliedCooldown, shown);
+    }
+
+    /** The circles with a piece (a scroll or runes written on a block) within the player's touch, each once. */
+    private List<CirclePieces.Circle> circlesInTouch(ServerPlayer player) {
+        double reach = Math.max(1.0D, player.getBlockReach()) + 0.5D;
+        Vec3 eye = player.getEyePosition();
+        Set<Long> seen = new HashSet<>();
+        List<CirclePieces.Circle> found = new ArrayList<>();
+        for (Entity scroll : scrollsInTouch(player)) {
+            if (scroll instanceof PlacedScrollEntity placed) {
+                CirclePieces.around(player.serverLevel(), placed.supportPos(), placed.getFace())
+                        .filter(circle -> seen.add(circle.key())).ifPresent(found::add);
+            }
+        }
+        for (com.elderlexicon.mod.spelling.inscription.Inscription written
+                : com.elderlexicon.mod.spelling.inscription.Inscriptions.of(player.serverLevel()).all()) {
+            if (Vec3.atCenterOf(written.pos()).distanceToSqr(eye) <= reach * reach) {
+                CirclePieces.around(player.serverLevel(), written.pos(), written.face())
+                        .filter(circle -> seen.add(circle.key())).ifPresent(found::add);
+            }
+        }
+        return found;
     }
 
     /** Scrolls on the ground or in frames within the player's touch, closest first. */
@@ -483,6 +615,8 @@ public final class ServerSpellingController {
         }
         String wanted = MarkHelper.sanitizeMark(mark);
         LigabisManager manager = LigabisManager.get();
+        Set<Long> inCircles = new HashSet<>();
+        int circles = readMarkedCircles(caster, wanted, manager, inCircles);
         boolean bound = manager != null && manager.boundForReading(caster, wanted);
         double reach = Math.max(1.0D, caster.getBlockReach());
         List<Entity> scrolls = new ArrayList<>();
@@ -492,6 +626,11 @@ public final class ServerSpellingController {
         for (Entity candidate : candidates) {
             if (!LigabisManager.isScrollCarrier(candidate) || !candidate.isAlive() || !wanted.equals(scrollActivationMark(candidate))) {
                 continue;
+            }
+            if (candidate instanceof PlacedScrollEntity placed
+                    && inCircles.contains(com.elderlexicon.mod.spelling.inscription.Inscription.key(placed.supportPos(),
+                    placed.getFace()))) {
+                continue; // read with its circle
             }
             if (!bound && caster.distanceToSqr(candidate) > reach * reach) {
                 continue;
@@ -518,7 +657,49 @@ public final class ServerSpellingController {
                 waiting++;
             }
         }
-        return scrolls.size() + waiting;
+        return scrolls.size() + waiting + circles;
+    }
+
+    /**
+     * The circles that a piece marked {@code mark} is part of (a scroll carrying the mark, or a marked block with runes
+     * written on it), each read whole from anywhere in the dimension, as long as it is loaded; the farther it is, the
+     * more it costs. The keys of their pieces go into {@code pieces}, so they are not read again one by one.
+     */
+    private int readMarkedCircles(ServerPlayer caster, String mark, LigabisManager manager, Set<Long> pieces) {
+        net.minecraft.server.level.ServerLevel level = caster.serverLevel();
+        List<CirclePieces.Circle> found = new ArrayList<>();
+        Set<Long> seen = new HashSet<>();
+        for (Entity candidate : level.getAllEntities()) {
+            if (candidate instanceof PlacedScrollEntity placed && placed.isAlive()
+                    && mark.equals(scrollActivationMark(placed))) {
+                CirclePieces.around(level, placed.supportPos(), placed.getFace())
+                        .filter(circle -> seen.add(circle.key())).ifPresent(found::add);
+            }
+        }
+        if (manager != null) {
+            com.elderlexicon.mod.spelling.inscription.Inscriptions inscriptions =
+                    com.elderlexicon.mod.spelling.inscription.Inscriptions.of(level);
+            manager.markedBlocks(level.dimension()).forEach((pos, carried) -> {
+                if (!mark.equals(carried) || !level.isLoaded(pos)) {
+                    return;
+                }
+                for (net.minecraft.core.Direction face : net.minecraft.core.Direction.values()) {
+                    if (inscriptions.at(pos, face).isPresent()) {
+                        CirclePieces.around(level, pos, face).filter(circle -> seen.add(circle.key()))
+                                .ifPresent(found::add);
+                    }
+                }
+            });
+        }
+        long now = System.currentTimeMillis();
+        for (CirclePieces.Circle circle : found) {
+            circle.pieces().forEach(piece -> pieces.add(piece.key()));
+            double distance = caster.position().distanceTo(circle.center());
+            SpellCastResponse response = castCircle(caster, circle, now,
+                    com.elderlexicon.mod.spell.circle.CircleTiming.distanceFactor(distance), "Circulo: ");
+            caster.displayClientMessage(response.message(), true);
+        }
+        return found.size();
     }
 
     /** Keeps a bound scroll's chunk loaded for a moment while the spirit reads it from afar. */
@@ -566,6 +747,12 @@ public final class ServerSpellingController {
     }
 
     private SpellCastResponse castPage(ServerPlayer player, SpellBlock block, long now) {
+        return castPage(player, block, now, null);
+    }
+
+    /** @param reading told what the page cost: at once, then more for each spell of it released later */
+    private SpellCastResponse castPage(ServerPlayer player, SpellBlock block, long now,
+                                       java.util.function.BiConsumer<Double, Boolean> reading) {
         List<SpellCastingService.TimedSpell> spells = new ArrayList<>();
         List<String> expanded = new ArrayList<>();
         for (SpellBlock.Line line : block.lines()) {
@@ -575,8 +762,15 @@ public final class ServerSpellingController {
         }
         List<String> shown = List.copyOf(expanded);
 
-        SpellCastingService.Result result = castingService.castBlock(player, spells,
-                delayed -> SpellFeedback.later(player, delayed, finishCast(player, delayed, shown), ""));
+        SpellCastingService.Result result = castingService.castBlock(player, spells, delayed -> {
+            if (reading != null && delayed.success()) {
+                reading.accept(delayed.umuSpent(), true);
+            }
+            SpellFeedback.later(player, delayed, finishCast(player, delayed, shown), "");
+        });
+        if (reading != null && result.success()) {
+            reading.accept(result.umuSpent(), false);
+        }
         long appliedCooldown = applyCooldown(player, now, result.success() ? SUCCESS_COOLDOWN_MS : FAILURE_COOLDOWN_MS);
         if (result.failed()) {
             return new SpellCastResponse(false, result.message(), result.warnings(), appliedCooldown, shown);
@@ -605,23 +799,7 @@ public final class ServerSpellingController {
     }
 
     private String normalizeRune(String token) {
-        Matcher matcher = RUNE_TOKEN.matcher(token);
-        if (!matcher.find()) {
-            return "";
-        }
-        String cleaned = matcher.group(1);
-        if (cleaned == null || cleaned.isBlank()) {
-            return "";
-        }
-        // Numbers are written one glyph per digit ("SQ" is 20); older pages may still mix glyphs and digits ("S0").
-        Optional<String> number = NumberGlyphs.read(cleaned);
-        if (number.isPresent()) {
-            return number.get();
-        }
-        if (cleaned.length() == 1) {
-            return RuneSgaMapper.runeForGlyph(cleaned.charAt(0)).orElse("");
-        }
-        return cleaned.toLowerCase(Locale.ROOT);
+        return com.elderlexicon.mod.spell.block.RuneTokens.normalize(token);
     }
 
     private void applyNauseaEffect(ServerPlayer player, double seconds) {

@@ -20,7 +20,7 @@ import java.util.List;
 public final class SpellingNetwork {
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final String PROTOCOL = "7";
+    private static final String PROTOCOL = "8";
         private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ElderLexicon.MODID, "spelling"),
             () -> PROTOCOL,
@@ -132,6 +132,20 @@ public final class SpellingNetwork {
                 SpiritPositionPacket::decode,
                 SpiritPositionPacket::handle
         );
+        CHANNEL.registerMessage(
+                nextPacketId++,
+                com.elderlexicon.mod.spelling.inscription.InscriptionPacket.class,
+                com.elderlexicon.mod.spelling.inscription.InscriptionPacket::encode,
+                com.elderlexicon.mod.spelling.inscription.InscriptionPacket::decode,
+                com.elderlexicon.mod.spelling.inscription.InscriptionPacket::handle
+        );
+        CHANNEL.registerMessage(
+                nextPacketId++,
+                com.elderlexicon.mod.spelling.inscription.InscribePacket.class,
+                com.elderlexicon.mod.spelling.inscription.InscribePacket::encode,
+                com.elderlexicon.mod.spelling.inscription.InscribePacket::decode,
+                com.elderlexicon.mod.spelling.inscription.InscribePacket::handle
+        );
         LOGGER.info("Spelling network channel ready (protocol {}).", PROTOCOL);
     }
 
@@ -209,6 +223,22 @@ public final class SpellingNetwork {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> viewer), packet);
     }
 
+    /** Runes written on block faces changed: everyone in that world sees it. */
+    public static void sendInscriptions(net.minecraft.server.level.ServerLevel level,
+                                        com.elderlexicon.mod.spelling.inscription.InscriptionPacket packet) {
+        CHANNEL.send(PacketDistributor.DIMENSION.with(level::dimension), packet);
+    }
+
+    public static void sendInscriptionsTo(ServerPlayer player,
+                                          com.elderlexicon.mod.spelling.inscription.InscriptionPacket packet) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
+    }
+
+    /** The local player wrote on a block face with a quill. */
+    public static void sendInscribe(com.elderlexicon.mod.spelling.inscription.InscribePacket packet) {
+        CHANNEL.sendToServer(packet);
+    }
+
     public static void requestImprovisedWand(InteractionHand hand) {
         CHANNEL.sendToServer(new RequestImprovisedWandPacket(hand));
     }
@@ -218,7 +248,9 @@ public final class SpellingNetwork {
                                           int currentPage,
                                           boolean detachPage,
                                           String detachedText,
-                                          int detachedIndex) {
-        CHANNEL.sendToServer(new ClientGrimoireUpdatePacket(hand, pages, currentPage, detachPage, detachedText, detachedIndex));
+                                          int detachedIndex,
+                                          List<String> names) {
+        CHANNEL.sendToServer(new ClientGrimoireUpdatePacket(hand, pages, currentPage, detachPage, detachedText, detachedIndex,
+                names));
     }
 }
