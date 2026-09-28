@@ -9,7 +9,7 @@ import com.elderlexicon.mod.magic.lexicon.Template;
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.function.BodyEnergy;
 import com.elderlexicon.mod.spell.function.ElementOrb;
-import com.elderlexicon.mod.spell.function.ExsugatFunctionHandler;
+import com.elderlexicon.mod.spell.function.WorldSources;
 import com.elderlexicon.mod.spell.function.Gatherings;
 import com.elderlexicon.mod.spell.function.ImageSpells;
 import com.elderlexicon.mod.spell.function.SpellFunctionHandler;
@@ -143,7 +143,7 @@ public final class SpellActionExecutor {
 
         @Override
         public Captured captureAll(List<VitaElement> chain, double limit, SpellAction spender, SpellAction capture) {
-            ExsugatFunctionHandler.Pulled pulled = ExsugatFunctionHandler.captureAll(context, chain, limit, spender,
+            WorldSources.Pulled pulled = WorldSources.captureAll(context, chain, limit, spender,
                     capture);
             return new Captured(pulled.sources(), pulled.total(), pulled.coal(), pulled.orb());
         }
@@ -153,7 +153,7 @@ public final class SpellActionExecutor {
             ServerPlayer player = context.player();
             // Gathered where it will be released: before the hand for what is thrown, at the point for what is made to
             // appear; the energy is seen streaming out of the mage into it.
-            Supplier<Vec3> point = ExsugatFunctionHandler.orbPoint(context, spender);
+            Supplier<Vec3> point = WorldSources.orbPoint(context, spender);
             ElementOrb gathering = ElementOrb.gathering(player.serverLevel(), player, List.copyOf(chain), worked, 0,
                     point, chargeTicks);
             player.serverLevel().addFreshEntity(gathering);
@@ -163,7 +163,7 @@ public final class SpellActionExecutor {
 
         @Override
         public double capture(VitaElement from, VitaElement as, SpellAction spender, double workShare) {
-            return ExsugatFunctionHandler.capture(context, from, as, spender, workShare);
+            return WorldSources.capture(context, from, as, spender, workShare);
         }
 
         @Override

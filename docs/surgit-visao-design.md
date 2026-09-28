@@ -1,5 +1,10 @@
 # Surgit: a visão do espírito
 
+> **Nota (docs/plano-materia-e-forca.md, etapa 6):** `exsugat` e `transvocatio` saíram da língua. Onde este documento
+> os usa, leia: tirar uma fonte do mundo é `tenet` antes do verbo (`igni tenet iactare`); absorver é um `vocant` com
+> quantidade negativa (`igni quantum -10 vocant`); puxar uma coisa marcada é `m1 quantum -10 iactare`; trocar de lugar
+> não existe mais. A tabela completa está na seção 4 do plano.
+
 > "Ao ouvir o comando Surgit pelo canal de áudio, o espírito instantaneamente assume os seus nervos ópticos e olha
 > através dos seus olhos." (Grimório de EVL, 5.1.1)
 

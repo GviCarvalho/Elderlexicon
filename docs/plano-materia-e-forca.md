@@ -275,6 +275,23 @@ A ponte com o mundo fica em `spell/matter/WorldMatter`, e o plano de como a mat�
   receita exata dessa substância, porque o bloco não guarda a diferença dentro dos 5%. Só a matéria informe guarda a
   composição exata.
 
+## 6.5 Como a etapa 6 ficou
+
+- **Código que saiu:**
+  - o handler do `transvocatio`, a troca de lugar (`MarkSpells.swap`) e as operações `draw` e `exchange` do registro;
+  - no `Conversion`, as unidades por elemento, que a tabela de materiais substituiu.
+- **O antigo `ExsugatFunctionHandler`** virou `WorldSources`. Não é mais verbo: é só o que o `tenet` usa para capturar
+  energia do mundo e o que um `vocant` invertido absorve. A conversão de fonte no lugar, que ele fazia, saiu: a mudança
+  de estado (`StateChange`) tomou o lugar dela na etapa 4.
+- **Textos:** os `lore` do `vertere`, `iactare`, `impediunt`, `vocant` e `quantum` dizem o que eles fazem agora, e os
+  comentários do código não citam mais as runas aposentadas, fora onde a própria aposentadoria é o assunto.
+- **Documentos:**
+  - `GRIMOIRE_REFERENCE.md` tem a gramática de força e matéria, a escada de estados, as receitas, a mistura e o
+    amálgama;
+  - `magia-modular-design.md` tem as camadas de matéria, os marcadores `reversible` e `transfers`, o filtro `origin`
+    e as extensões de materiais;
+  - os desenhos antigos que usam `exsugat` e `transvocatio` ganharam uma nota com o que escrever no lugar.
+
 ## 7. Segunda fase: próximo plano, depois desta
 
 - **Corpos.**

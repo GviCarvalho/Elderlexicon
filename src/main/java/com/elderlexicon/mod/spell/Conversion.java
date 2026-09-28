@@ -6,37 +6,12 @@ import com.elderlexicon.mod.vita.VitaElement;
 
 /**
  * Vertere keeps the UMU (book 3: "a energia nunca pode ser criada e nunca pode ser destruída; ela apenas muda de
- * forma"): what is converted appears in as many units of the new element as its UMU buys, each unit worth what that
- * element holds in the world (a flame 1, a water source 3, a block of loose soil 0.5). What does not make a whole unit
- * is not lost.
+ * forma"): converting climbs or descends the ladder of states, and what it costs and how long it takes go by the rungs
+ * it crosses. How much of it a block holds in the world is the material table's (docs/plano-materia-e-forca.md).
  */
 public final class Conversion {
 
     private Conversion() {
-    }
-
-    /** The UMU one unit of {@code element} holds when it appears in the world; 0 for air, which lays no blocks. */
-    public static double unitOf(VitaElement element) {
-        return switch (element) {
-            case IGNI -> 1.0D;
-            case AQUA -> Pressure.SOURCE;
-            case FIRMO -> Density.SOIL;
-            default -> 0.0D;
-        };
-    }
-
-    /** How many whole units of {@code element} {@code umu} makes. */
-    public static int units(double umu, VitaElement element) {
-        double unit = unitOf(element);
-        if (unit <= 0.0D || umu <= 0.0D) {
-            return 0;
-        }
-        return (int) Math.floor(umu / unit + 1.0E-9D);
-    }
-
-    /** What is left of {@code umu} once {@code placed} units of {@code element} are made from it. */
-    public static double leftover(double umu, VitaElement element, int placed) {
-        return Math.max(0.0D, umu - placed * unitOf(element));
     }
 
     /** Converting takes this long, per rung crossed: half a second, and 0.02 s more for every UMU. */

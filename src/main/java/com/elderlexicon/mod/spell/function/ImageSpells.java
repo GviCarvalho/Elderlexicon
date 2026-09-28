@@ -23,7 +23,7 @@ import java.util.Optional;
  * <ul>
  *   <li>{@code igni surgit vocant}: an image of fire where vocant would lay it; {@code m1 surgit vocant} an image of m1.</li>
  *   <li>{@code igni surgit iactare}: a stream one sees, that neither burns nor pushes.</li>
- *   <li>{@code igni surgit exsugat}: draws the light off the fire nearby; it burns on, unseen. Images of fire are gone.</li>
+ *   <li>{@code igni quantum -10 surgit vocant}: draws the light off the fire nearby; it burns on, unseen. Images of fire are gone.</li>
  *   <li>{@code igni surgit impediunt}: pushes the fire's image away; the same, the light flying off instead.</li>
  *   <li>{@code igni surgit vertere aqua}: the fire nearby looks like water; it is still fire.</li>
  * </ul>

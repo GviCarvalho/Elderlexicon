@@ -130,7 +130,7 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
         double hot = Math.log10(1.0D + Math.max(0.0D, heat));
         float volume = (float) Math.min(2.5D, 0.9D + 0.4D * hot);
         float pitch = (float) Math.max(0.5D, Math.min(1.2D, 1.15D - 0.15D * hot));
-        Vec3 hand = ExsugatFunctionHandler.handOf(player);
+        Vec3 hand = WorldSources.handOf(player);
         level.playSound(null, hand.x, hand.y, hand.z, SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, volume, pitch);
         level.playSound(null, hand.x, hand.y, hand.z, SoundEvents.BLAZE_SHOOT, SoundSource.PLAYERS, volume * 0.6F,
                 pitch * 0.9F);

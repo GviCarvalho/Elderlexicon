@@ -5,20 +5,13 @@ import com.elderlexicon.mod.magic.lexicon.VerbSpec;
 import com.elderlexicon.mod.spell.AirPressure;
 import com.elderlexicon.mod.spell.Capture;
 import com.elderlexicon.mod.spell.Charge;
-import com.elderlexicon.mod.spell.Conversion;
-import com.elderlexicon.mod.spell.Density;
-import com.elderlexicon.mod.spell.Heat;
-import com.elderlexicon.mod.spell.Pressure;
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.action.SpellAction;
-import com.elderlexicon.mod.spell.mark.MarkCost;
 import com.elderlexicon.mod.spell.mark.SpellPlace;
 import com.elderlexicon.mod.spell.sight.Revelation;
 import com.elderlexicon.mod.vita.VitaElement;
 import com.elderlexicon.mod.command.SpellCostCalculator;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -28,10 +21,8 @@ import net.minecraft.world.Containers;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.AbstractCandleBlock;
 import net.minecraft.world.level.block.AbstractFurnaceBlock;
-import net.minecraft.world.level.block.BaseFireBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CampfireBlock;
@@ -41,8 +32,6 @@ import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.lang.reflect.Field;
@@ -50,15 +39,15 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.OptionalDouble;
 
 /**
- * Exsugat, absorbing (book 8.2): it pulls a source from outside the body, "o fogo de uma fogueira próxima, a água de
- * um lago próximo". Written before other functions it captures what they spend, so the mage's own Vita is spared
- * ({@code igni exsugat iactare}); written last, what it pulls goes into the body ({@code igni exsugat}, when cold).
- * The sources are taken whole, the nearest to where the mage aims first (or to the mage, aiming at nothing).
+ * A source taken from the world instead of the mage's body (docs/plano-materia-e-forca.md, R5): what {@code tenet} says
+ * of a spending verb ({@code igni tenet iactare}: "o fogo de uma fogueira próxima", book 8.2), and what a verb turned
+ * around brings in ({@code igni quantum -10 vocant}). The sources are taken whole, the nearest to where the origin
+ * says (or to the mage, with none) first, and pay what the verbs spend; a bare quantity takes all of them in reach, to
+ * be released at once. A verb that moves matter as it is ({@code vocant}) does not come here: see {@link Transfer}.
  */
-public final class ExsugatFunctionHandler implements SpellFunctionHandler {
+public final class WorldSources {
 
     /** How far from the aim, or the mage, a source is pulled from. */
     private static final int RANGE = 5;
@@ -66,32 +55,17 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
     private static final int SEARCH_REACH = 16;
     /** How far up and down it looks: sources are pulled from around the mage, not from deep under it. */
     private static final int VERTICAL_REACH = 8;
-    /** Without a quantum, a bare exsugat pulls what a function spends by default (book 4.3.2: ten UMU). */
+    /** Without a quantity, what a verb turned around brings in: what a verb spends by default (book 4.3.2: ten UMU). */
     public static final double DEFAULT_ABSORBED_UMU = EmissionRecorder.DEFAULT_QUANTITY_UMU;
     private static final double EPSILON = 1.0E-4D;
     private static Field furnaceData;
 
-    @Override
-    public void execute(SpellContext context, VitaElement element) {
-        Optional<SpellAction> action = context.currentAction();
-        if (action.isPresent() && action.get().image() && SpellEffects.isPlayerValid(context.player())) {
-            ImageSpells.absorb(context, element, action.get());
-            return;
-        }
-        if (action.flatMap(SpellAction::subjectMark).isPresent() && SpellEffects.isPlayerValid(context.player())) {
-            // m1 exsugat: the marked thing is pulled toward the mage, like a magnet.
-            MarkSpells.push(context, action.get().subjectMark().get(), action.get().place(), MarkSpells.Push.TOWARD_CASTER,
-                    action.get().quantity().orElse(MarkCost.DEFAULT_THROW_ENERGY), Chronos.window(action.get()));
-            return;
-        }
-        // Nothing after it to feed: what is pulled goes into the body.
-        absorb(context, element, element, action.map(SpellAction::quantity).orElse(OptionalDouble.empty())
-                .orElse(DEFAULT_ABSORBED_UMU));
+    private WorldSources() {
     }
 
     /**
-     * Pulls {@code amount} of {@code element} into the mage's body, as {@code becomes} (converted on the way when a
-     * vertere came after: {@code igni exsugat vertere aqua}, with nothing to spend it on, quenches thirst).
+     * Pulls {@code amount} of {@code element} into the mage's body, as {@code becomes}: a source brought in by a verb
+     * turned around ({@code aqua quantum -10 vocant} quenches thirst).
      */
     public static void absorb(SpellContext context, VitaElement element, VitaElement becomes, double amount) {
         if (!SpellEffects.isPlayerValid(context.player())) {
@@ -108,8 +82,8 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
     }
 
     /**
-     * Pays the spell with what is pulled from outside: the functions after the exsugat spend the captured source instead
-     * of the mage's Vita. What the last source brings beyond the cost goes into the body, as {@code becomes}.
+     * Pays the spell with what is pulled from outside: the verbs from the one {@code tenet} was written for on spend the
+     * captured source instead of the mage's Vita. What the last source brings beyond the cost goes into the body, as {@code becomes}.
      */
     public static double capture(SpellContext context, VitaElement element, VitaElement becomes, SpellAction spender,
                                  double workShare) {
@@ -136,17 +110,17 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
 
     /**
      * Pulls every source of {@code element} in reach at once, for a function written after a bare quantum
-     * ({@code igni exsugat quantum iactare}: "o fogo é completamente extraído e lançado de uma só vez", book 4.3.2).
+     * ({@code igni tenet quantum iactare}: "o fogo é completamente extraído e lançado de uma só vez", book 4.3.2).
      * Returns what was taken (how much and from how many sources), for the executor to spend and account for.
      */
     public static Pulled captureAll(SpellContext context, List<VitaElement> chain, double limit, SpellAction spender,
-                                    SpellAction exsugat) {
+                                    SpellAction origin) {
         VitaElement element = chain.get(0);
         VitaElement becomes = chain.get(chain.size() - 1);
         if (!SpellEffects.isPlayerValid(context.player())) {
             return new Pulled(0, 0.0D, 0, -1);
         }
-        List<Source> taken = take(context, element, limit, exsugat == null ? Optional.empty() : exsugat.place());
+        List<Source> taken = take(context, element, limit, origin == null ? Optional.empty() : origin.place());
         double pulled = taken.stream().mapToDouble(Source::value).sum();
         ServerPlayer player = context.player();
         ElementOrb orb = null;
@@ -157,7 +131,7 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
                     .map(source -> new Gatherings.Origin(source.pos(), source.state(), source.value())).toList();
             int ticks = Charge.ticks(pulled);
             Gatherings.gather(player.serverLevel(), element, origins, point, ticks);
-            // Converted too (firmo exsugat vertere igni quantum chronos 0 iactare): once gathered, the orb is unmade
+            // Converted too (firmo tenet vertere igni quantum chronos 0 iactare): once gathered, the orb is unmade
             // and remade as the new element, which takes its own time.
             orb = ElementOrb.gathering(player.serverLevel(), player, chain, pulled, element == becomes ? coalIn(taken) : 0,
                     point, ticks);
@@ -196,7 +170,7 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
     }
 
     private static void nothingFound(SpellContext context, VitaElement element) {
-        MarkSpells.tell(context.player(), "Exsugat: nao ha " + element.runeId() + " por perto para puxar; o corpo pagou.");
+        MarkSpells.tell(context.player(), "Nao ha " + element.runeId() + " por perto para tirar do mundo; o corpo pagou.");
     }
 
     /** Takes whole sources of {@code element}, nearest first, until {@code needed} UMU; returns what they held. */
@@ -272,7 +246,7 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
         if (kind.isEmpty() || needed <= EPSILON) {
             return List.of();
         }
-        // The mage's hand pulls the source in (or, with an ubis before the exsugat, it is pulled from around a mark
+        // The mage's hand pulls the source in (or, with an origin written before tenet, it is pulled from around a mark
         // or a place). Asked for an amount, the spirit reaches out as far as it must to find it, up to a limit; asked
         // for everything, it takes what is in the usual reach.
         Vec3 center = handOf(player);
@@ -339,130 +313,6 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
         return drained;
     }
 
-    /**
-     * The captured source turned into another where it is ({@code firmo exsugat vertere igni}, with nothing after to
-     * spend it): the earth nearby becomes fire, the fire water, taking whole sources nearest the aim until
-     * {@code amount} UMU of the source have been converted.
-     */
-    public static double convertInPlace(SpellContext context, VitaElement element, VitaElement becomes, double amount,
-                                        double workShare) {
-        if (!SpellEffects.isPlayerValid(context.player())) {
-            return 0.0D;
-        }
-        ServerPlayer player = context.player();
-        ServerLevel level = player.serverLevel();
-        List<Source> taken = take(context, element, amount, context.currentAction().flatMap(SpellAction::place));
-        if (taken.isEmpty()) {
-            nothingFound(context, element);
-            return 0.0D;
-        }
-        // The work of unmaking and remaking it takes its share of the energy: a little less of the new element comes out.
-        double umu = taken.stream().mapToDouble(Source::value).sum() * (1.0D - workShare);
-        if (becomes == VitaElement.AURA) {
-            // Matter turned to air: it is gone into the air, and its UMU bursts out there as a gust of that pressure.
-            Vec3 center = centreOf(taken);
-            AirSpots.burst(level, player, center, umu);
-            player.displayClientMessage(Component.literal(format(umu) + " UMU de " + element.runeId()
-                    + " convertidos em ar."), true);
-            return umu;
-        }
-        // As many units of the new element as the UMU buys (Conversion), where the sources were first, then in the
-        // free spots around them.
-        int wanted = Conversion.units(umu, becomes);
-        int placed = 0;
-        java.util.ArrayDeque<BlockPos> open = new java.util.ArrayDeque<>();
-        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
-        for (Source source : taken) {
-            open.add(source.pos());
-            seen.add(source.pos());
-        }
-        int visited = 0;
-        while (placed < wanted && !open.isEmpty() && visited < 4096) {
-            BlockPos pos = open.poll();
-            visited++;
-            if (become(level, pos, element, becomes)) {
-                placed++;
-            }
-            for (net.minecraft.core.Direction side : new net.minecraft.core.Direction[]{net.minecraft.core.Direction.DOWN,
-                    net.minecraft.core.Direction.NORTH, net.minecraft.core.Direction.SOUTH, net.minecraft.core.Direction.EAST,
-                    net.minecraft.core.Direction.WEST, net.minecraft.core.Direction.UP}) {
-                BlockPos next = pos.relative(side);
-                if (seen.add(next) && next.distSqr(pos) <= 1 && level.isLoaded(next)
-                        && level.getBlockState(next).canBeReplaced()) {
-                    open.add(next);
-                }
-            }
-        }
-        // What made no whole unit, or found no room, is not lost: it goes into the mage as the new element.
-        double left = Conversion.leftover(umu, becomes, placed);
-        if (left > EPSILON) {
-            context.absorbIntoBody(becomes, left);
-        }
-        player.displayClientMessage(Component.literal(format(umu) + " UMU de " + element.runeId() + " convertidos em "
-                + placed + " de " + becomes.runeId() + (left > EPSILON ? " (" + format(left) + " UMU ao corpo)" : "")
-                + "."), true);
-        return umu;
-    }
-
-    private static Vec3 centreOf(List<Source> taken) {
-        double x = 0.0D;
-        double y = 0.0D;
-        double z = 0.0D;
-        for (Source source : taken) {
-            x += source.pos().getX() + 0.5D;
-            y += source.pos().getY() + 0.5D;
-            z += source.pos().getZ() + 0.5D;
-        }
-        return new Vec3(x / taken.size(), y / taken.size(), z / taken.size());
-    }
-
-    private static String format(double umu) {
-        return com.elderlexicon.mod.command.SpellCostCalculator.formatCost(umu);
-    }
-
-    /** Where a source was drained, one unit of what it was converted into appears; false when there is no room. */
-    private static boolean become(ServerLevel level, BlockPos pos, VitaElement from, VitaElement to) {
-        BlockState now = level.getBlockState(pos);
-        Vec3 at = Vec3.atCenterOf(pos);
-        switch (to) {
-            case AQUA -> {
-                if (now.hasProperty(BlockStateProperties.WATERLOGGED) && !now.getValue(BlockStateProperties.WATERLOGGED)) {
-                    // A quenched campfire, a candle: the water stays in the block.
-                    level.setBlock(pos, now.setValue(BlockStateProperties.WATERLOGGED, true), Block.UPDATE_ALL);
-                } else if (now.canBeReplaced() && !now.getFluidState().isSource()) {
-                    level.setBlock(pos, Blocks.WATER.defaultBlockState(), Block.UPDATE_ALL);
-                } else {
-                    return false;
-                }
-                level.sendParticles(ParticleTypes.SPLASH, at.x, at.y, at.z, 12, 0.3D, 0.3D, 0.3D, 0.0D);
-                return true;
-            }
-            case IGNI -> {
-                BlockState fire = BaseFireBlock.getState(level, pos);
-                if (!now.canBeReplaced() || !now.getFluidState().isEmpty() || !fire.canSurvive(level, pos)) {
-                    return false; // fire only where it can burn
-                }
-                level.setBlock(pos, fire, Block.UPDATE_ALL);
-                level.sendParticles(ParticleTypes.FLAME, at.x, at.y, at.z, 12, 0.3D, 0.3D, 0.3D, 0.01D);
-                return true;
-            }
-            case FIRMO -> {
-                if (!now.canBeReplaced()) {
-                    return false;
-                }
-                // Water turned to earth is mud; anything else, loose soil.
-                BlockState earth = from == VitaElement.AQUA ? Blocks.MUD.defaultBlockState() : Blocks.DIRT.defaultBlockState();
-                level.setBlock(pos, earth, Block.UPDATE_ALL);
-                level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, earth), at.x, at.y, at.z, 16,
-                        0.3D, 0.3D, 0.3D, 0.0D);
-                return true;
-            }
-            default -> {
-                return false;
-            }
-        }
-    }
-
     private record Source(BlockPos pos, double distanceSq, double value, BlockState state) {
     }
 
@@ -483,7 +333,7 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
 
     // ------------------------------------------------------------------ what each source holds, and what it leaves
 
-    /** The UMU a block gives up to exsugat, 0 when it holds none it can give. */
+    /** The UMU a block gives up when its source is taken, 0 when it holds none it can give. */
     static double valueOf(Revelation.Kind kind, ServerLevel level, BlockPos pos, BlockState state) {
         return switch (kind) {
             case IGNI -> igniValue(level, pos, state);

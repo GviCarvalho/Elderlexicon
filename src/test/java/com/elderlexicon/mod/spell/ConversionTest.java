@@ -8,27 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class ConversionTest {
 
     @Test
-    void theUmuBuysAsManyUnitsAsItHolds() {
-        assertEquals(10, Conversion.units(10.0D, VitaElement.IGNI), "ten UMU of anything make ten flames");
-        assertEquals(3, Conversion.units(10.0D, VitaElement.AQUA), "and three water sources");
-        assertEquals(20, Conversion.units(10.0D, VitaElement.FIRMO), "and twenty blocks of loose soil");
-        assertEquals(0, Conversion.units(10.0D, VitaElement.AURA), "air lays no blocks");
-    }
-
-    @Test
-    void whatMakesNoWholeUnitIsLeftOver() {
-        assertEquals(1.0D, Conversion.leftover(10.0D, VitaElement.AQUA, 3), 1.0E-9);
-        assertEquals(0.0D, Conversion.leftover(10.0D, VitaElement.IGNI, 10), 1.0E-9);
-        assertEquals(4.0D, Conversion.leftover(10.0D, VitaElement.IGNI, 6), 1.0E-9, "no room for four flames");
-    }
-
-    @Test
-    void twentyBlocksOfSoilAreTenFlamesNotTwenty() {
-        double umu = 20 * Density.SOIL;
-        assertEquals(10, Conversion.units(umu, VitaElement.IGNI));
-    }
-
-    @Test
     void theLadderCountsTheRungsBetweenStates() {
         assertEquals(1, Conversion.steps(VitaElement.FIRMO, VitaElement.AQUA), "solid to liquid");
         assertEquals(1, Conversion.steps(VitaElement.AQUA, VitaElement.AURA), "liquid to gas");

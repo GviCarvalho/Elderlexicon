@@ -37,7 +37,7 @@ public final class SpellContext implements SpellLedger {
     private String elementRuneId;
     private double conduitOverflow;
     private final EnumMap<VitaElement, Double> ambientEnergy = new EnumMap<>(VitaElement.class);
-    /** What an exsugat pulled into the mage's body rather than into the spell. */
+    /** What a spell brought into the mage's body from the world rather than spent (a verb turned around). */
     private final EnumMap<VitaElement, Double> absorbed = new EnumMap<>(VitaElement.class);
     private final List<VertereRequest> vertereRequests;
     private double totalCost;
@@ -226,7 +226,7 @@ public final class SpellContext implements SpellLedger {
     }
 
     /**
-     * Energy pulled from the world that pays for the spell (exsugat before other functions): the functions spend it, so
+     * Energy taken from the world that pays for the spell (a source with tenet): the functions spend it, so
      * it lowers what the mage pays and is not kept.
      */
     public void addAmbientEnergy(VitaElement element, double amount) {
@@ -242,7 +242,7 @@ public final class SpellContext implements SpellLedger {
         this.payableCost = Math.max(0.0D, totalCost - environmentalContribution);
     }
 
-    /** Energy pulled from the world into the mage's body (a bare exsugat, or what a capture brought beyond the cost). */
+    /** Energy pulled from the world into the mage's body (a verb turned around, or what a capture brought beyond the cost). */
     public void absorbIntoBody(VitaElement element, double amount) {
         if (element == null || amount <= EPSILON) {
             return;

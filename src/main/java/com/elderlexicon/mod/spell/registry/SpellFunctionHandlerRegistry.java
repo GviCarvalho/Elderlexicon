@@ -1,7 +1,6 @@
 package com.elderlexicon.mod.spell.registry;
 
 import com.elderlexicon.mod.magic.lexicon.Lexicons;
-import com.elderlexicon.mod.spell.function.ExsugatFunctionHandler;
 import com.elderlexicon.mod.spell.function.IactareFunctionHandler;
 import com.elderlexicon.mod.spell.function.ImpediuntFunctionHandler;
 import com.elderlexicon.mod.spell.function.LigabisFunctionHandler;
@@ -9,7 +8,6 @@ import com.elderlexicon.mod.spell.function.MarkVertereFunctionHandler;
 import com.elderlexicon.mod.spell.function.ReframeFunctionHandler;
 import com.elderlexicon.mod.spell.function.SpellFunctionHandler;
 import com.elderlexicon.mod.spell.function.SurgitFunctionHandler;
-import com.elderlexicon.mod.spell.function.TransvocatioFunctionHandler;
 import com.elderlexicon.mod.spell.function.VocantFunctionHandler;
 
 import java.util.Collections;
@@ -35,11 +33,9 @@ public final class SpellFunctionHandlerRegistry {
         // What the spirit can do in the world, by the deed and not by any word for it.
         register("project", new IactareFunctionHandler());
         register("manifest", new VocantFunctionHandler());
-        register("draw", new ExsugatFunctionHandler());
         register("repel", new ImpediuntFunctionHandler());
         register("name", new ReframeFunctionHandler());
         register("bind", new LigabisFunctionHandler());
-        register("exchange", new TransvocatioFunctionHandler());
         register("perceive", new SurgitFunctionHandler());
         // Only a conversion of a marked thing reaches its operation; the flow converts energy itself.
         register("convert", new MarkVertereFunctionHandler());

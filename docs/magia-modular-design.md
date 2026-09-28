@@ -12,10 +12,13 @@ através da lógica.**
   - Tudo o que o mago descreve com precisão e consegue pagar, o espírito executa.
   - O que ele não entende, ele diz o porquê (runa desconhecida, verbo sem alvo, fusão sem composição...).
 
+O vocabulário de força e matéria (o `tenet`, o sinal que inverte um verbo, o sujeito vindo do verbo anterior, a escada de
+estados, as receitas, a mistura e o amálgama) está em `plano-materia-e-forca.md`.
+
 Os casos de cada verbo continuam nos documentos próprios:
-- `exsugat-vertere-design.md`: captura e conversão.
+- `exsugat-vertere-design.md`: captura e conversão (histórico: o `exsugat` saiu, e o `tenet` faz a captura).
 - `condensacao-design.md`: intensidade.
-- `marcas-como-runas-design.md`: marcas, sujeito, `ubis`, `transvocatio`.
+- `marcas-como-runas-design.md`: marcas, sujeito, `ubis` (o `transvocatio` de lá saiu).
 - `surgit-visao-design.md`: visão.
 - `ligabis-design.md`: vínculos.
 
@@ -26,6 +29,8 @@ Os casos de cada verbo continuam nos documentos próprios:
 | **Léxico** (dados) | `magic/lexicon`, `runes.json`, `foci.json` | O que cada palavra é: classe, glifo, essência, traços, operação, custo, textos. |
 | **Gramática** | `magic/grammar/SpellGrammar` | Como palavras viram ações, só por classe e quadro de objeto. |
 | **Fluxo** | `magic/flow/FlowInterpreter` | Por onde a energia passa: gastar, capturar, converter. Não conhece Minecraft. |
+| **Matéria** | `magic/matter`, `materials.json` | Substâncias como receitas dos quatro, estados, UMU e as leis L1 a L5. Não conhece Minecraft. |
+| **Ponte da matéria** | `spell/matter/WorldMatter`, `FormlessMatterBlock` | Lê o mundo como matéria e põe matéria nele, misturando o que é fluido. |
 | **Mundo** | `spell/action/SpellActionExecutor`, `spell/function/*` | Como cada **operação** acontece no jogo. |
 | **Textos** | `SpellReading`, `SpellDescription`, `Parser` | A leitura do grimório e a transcrição, vindas dos `texts` e `notes` do léxico. |
 
@@ -52,11 +57,9 @@ Os casos de cada verbo continuam nos documentos próprios:
   |---|---|
   | `project` | `IactareFunctionHandler` |
   | `manifest` | `VocantFunctionHandler` |
-  | `draw` | `ExsugatFunctionHandler` |
   | `repel` | `ImpediuntFunctionHandler` |
   | `name` | `ReframeFunctionHandler` |
   | `bind` | `LigabisFunctionHandler` |
-  | `exchange` | `TransvocatioFunctionHandler` |
   | `perceive` | `SurgitFunctionHandler` |
   | `convert` | `MarkVertereFunctionHandler` |
 
@@ -91,10 +94,12 @@ Cada verbo declara:
 - **`operation`**: o que o mundo executa.
 - **`flow`**: o que ele faz com a energia no fluxo. É isso que o interpretador lê.
   - `spend` (padrão): gasta a energia da fonte. Lançar, invocar, repelir...
-  - `capture`: tira a fonte do mundo e a entrega ao verbo seguinte, ou ao corpo se não há verbo depois. É o `exsugat`.
-    Um feitiço que só captura não custa nada.
   - `convert`: muda a fonte em outra. É o `vertere`. A fonte escrita depois dele é o alvo, não uma fonte a gastar.
 - **`cost`**: o custo base em UMU.
+- **`reversible`**: uma quantidade negativa o vira ao contrário (`iactare` puxa, `impediunt` atrai, `vocant` traz até
+  quem conjura). Nos outros verbos, o espírito recusa o sinal.
+- **`transfers`**: ele move matéria em vez de gastar energia. Com `tenet`, carrega o que tira do mundo como é, em vez de o
+  fluxo capturar como energia. É o `vocant`.
 - **`gathering`**: onde se junta o que ele gasta.
   - `hand`: diante da mão, para o que é lançado.
   - `destination`: no ponto onde vai surgir.
@@ -104,7 +109,7 @@ Cada verbo declara:
   - `as`: `target` (alvo), `subject` (sujeito) ou `name` (nome).
   - `immediate`: a palavra tem que vir logo em seguida.
   - `markNeedsMarkedSubject`: só toma uma marca se o sujeito também for marca (`m1 vertere m2`).
-  - `optionalWithSubject`: pode faltar quando o sujeito é marca (`m1 transvocatio`).
+  - `optionalWithSubject`: pode faltar quando o sujeito é marca.
   - `measure`: o que um `quantum` escrito depois do sujeito mede (visibilidade, no `surgit`).
   - `refusal`: o que o espírito diz quando se escreve uma fonte onde só cabe marca.
 - **`beforeVerb: view`**: escrito logo antes de outro verbo, só muda com o que aquele verbo trabalha. É o `surgit` antes
@@ -117,15 +122,20 @@ Cada verbo declara:
 - Cada filtro ajusta um **parâmetro** do verbo seguinte:
   - `quantity`, a quantidade;
   - `time`, o tempo;
-  - `place`, o lugar.
+  - `place`, o lugar;
+  - `origin`, de onde vem a fonte: é o `tenet`. Sem ele, a fonte vem do corpo; com ele, do mundo ao alcance, ou de perto
+    das marcas e números escritos antes dele (`firmo m1 tenet`).
 - O **argumento** pode ser:
-  - `value`: um número, que deve ser maior que zero para quantidade e não negativo para tempo;
+  - `value`: um número. Para quantidade, diferente de zero (negativo só num verbo `reversible`); para tempo, não
+    negativo;
   - `operands`: números e marcas antes dele, como `m1 ubis` ou `10 ubis`.
-- `bare: all` quer dizer que, escrito sem número, o filtro pede tudo o que há: `igni exsugat quantum iactare`.
+- `bare: all` quer dizer que, escrito sem número, o filtro pede tudo o que há: `firmo tenet quantum iactare` (toda a terra ao alcance).
 
 ### O sujeito continua
 
 Uma marca escrita antes de um verbo é o **sujeito** dele e dos verbos seguintes, até outra fonte ou marca tomar seu lugar.
+Sem marca, um verbo escrito depois de outro age sobre o que aquele produziu ou moveu (`igni vocant iactare`: o fogo que
+surge é o que se lança).
 
 - `m1 vocant iactare`: traz o que tem a marca m1 e depois o lança.
 - `m1 vertere m2 vocant`: o que tinha m1 passa a ter m2, e é m2 que se invoca.
@@ -143,17 +153,15 @@ Uma marca escrita antes de um verbo é o **sujeito** dele e dos verbos seguintes
   |---|---|
   | `transiectio` | `vertere @ iactare` |
   | `aversio` | `vertere @ impediunt` |
-  | `exhaustio` | `exsugat vertere @` |
-  | `exsuctio` | `exsugat iactare` |
-  | `extractio` | `exsugat vocant` |
 
   - `igni transiectio aqua` é exatamente `igni vertere aqua iactare`, com o mesmo custo.
   - O foco da varinha também favorece a abreviação como as runas que ela representa.
   - Uma abreviação pode conter outra, até 8 níveis. Um ciclo é recusado quando o léxico é montado.
 - **Fusões ainda sem composição** respondem que a fusão ainda não tem composição no léxico e pedem que se escrevam as
-  runas que ela funde: `cohaesio`, `deflectio`, `vinculatio`, `evocatio`, `compeditio`, `exinanitio` e `coniuratio`.
+  runas que ela funde: `cohaesio`, `deflectio`, `vinculatio`, `evocatio`, `compeditio` e `coniuratio`.
   - Dar sentido a uma delas é só escrever o `expands` dela no JSON.
-- **`transvocatio`** continua uma operação própria (`exchange`): trocar de lugar não é converter e depois invocar.
+- **Palavras aposentadas** (`exsugat`, `transvocatio`, `orbis`, `exhaustio`, `exsuctio`, `extractio`, `exinanitio`)
+  ficam no `retired` do léxico: o espírito as reconhece e diz o que escrever no lugar.
 - **Qual fusão duas runas fazem** (`Fusions.fuse`, usado pelo `reframe`) vem dos `components`.
   - A ordem não importa: `igni firmo` e `firmo igni` fazem `fusus`.
   - `source` quer dizer qualquer fonte, como em `hasta` = `iactare` + qualquer fonte.
@@ -164,10 +172,10 @@ Uma marca escrita antes de um verbo é o **sujeito** dele e dos verbos seguintes
 | Parte do feitiço | Custo |
 |---|---|
 | Fonte escrita | 1 UMU. |
-| Verbo | O `cost` dele no léxico: `iactare` 2, `vocant` 1, `vertere` 1, `transvocatio` 1, `ligabis` 0,1. |
-| Energia do efeito (`quantum N`) | Soma-se ao custo e é paga como o resto (XP, saturação, HP), a menos que um `exsugat` a capture do mundo. |
-| Conversão | Além do custo do `vertere`, o trabalho do espírito tira 5% da energia convertida por qualidade mudada (no máximo 90%). |
-| Captura | Nada. Um feitiço que só captura não custa. |
+| Verbo | O `cost` dele no léxico: `iactare` 2, `vocant` 1, `vertere` 1, `ligabis` 0,1. |
+| Energia do efeito (`quantum N`) | Soma-se ao custo e é paga como o resto (XP, saturação, HP), a menos que o `tenet` a tire do mundo. |
+| Conversão | Além do custo do `vertere`, o trabalho do espírito tira 5% da energia convertida por degrau da escada de estados (no máximo 90%). |
+| Matéria movida (`tenet vocant`) | O mundo dá a matéria; o mago paga só o trabalho do verbo. |
 
 - Focos e madeiras de varinha descontam o que favorecem. Isso está em
   `src/main/resources/data/elderlexicon/lexicon/foci.json`.
@@ -243,8 +251,7 @@ Toda chave, fora a `class` de cada runa, é opcional. As chaves do antigo `Parse
    ```
    - Uma extensão que quebre o léxico (glifo repetido, componente inexistente, abreviação circular) é **recusada na
      hora** e não deixa rastro.
-3. **Uma operação nova**, para quando o que se quer não é lançar, invocar, capturar, converter, repelir, ligar, trocar,
-   ver ou nomear:
+3. **Uma operação nova**, para quando o que se quer não é lançar, invocar, converter, repelir, ligar, ver ou nomear:
    ```java
    SpellFunctionHandlerRegistry.register("minha_operacao", handler);
    ```
@@ -255,6 +262,12 @@ Toda chave, fora a `class` de cada runa, é opcional. As chaves do antigo `Parse
    ```
    - Ela diz quão intensa fica a energia de um aspecto quando é solta de uma vez.
 5. **Focos:** as entradas de `foci.json`. Os itens de varinha leem os descontos por id.
+6. **Substâncias novas**, com receita, estado natural, unidade e formas, no formato do `materials.json`:
+   ```java
+   Materials.extend(table -> table.read(reader));
+   ```
+   - Uma extensão que quebre a matéria (receita perto demais de outra, bloco lido como duas coisas, falta de uma
+     primordial) é recusada.
 
 ## 5. O que continua em código
 
@@ -265,8 +278,8 @@ nomeada nelas:
   calor, a rajada de ar, o jato de água ou o gelo, o bloco de terra com peso (ou o buraco negro), a vis mostrando os
   quatro de uma vez;
 - as penalidades de vazamento por elemento (`UmuLeakHandler`);
-- que blocos e coisas do mundo contam como fonte de cada aspecto para o `exsugat`, e quanto cada um rende
-  (`ExsugatFunctionHandler`);
+- que blocos e coisas do mundo contam como fonte de cada aspecto quando o `tenet` captura energia, e quanto cada um
+  rende (`WorldSources`);
 - a partícula padrão de cada elemento (`SpellEffects`);
 - os quatro aspectos e a vis (`VitaElement`);
 - o que cada **operação** faz no jogo (os handlers). Um verbo novo que reuse uma operação não precisa de código. Um
@@ -296,5 +309,8 @@ nomeada nelas:
 - O núcleo não depende do Minecraft. Ele é testado pelos testes de `src/test/java/com/elderlexicon/mod/magic`:
   - `LexiconTest`, `CompositionTest`, `FlowInterpreterTest`, `SpellCatalogueTest`, `FociTest`, `FusionsTest`;
   - os testes que já existiam, da gramática, da leitura do grimório e do custo.
+- A matéria tem os seus (`magic/matter`: `MaterialTableTest`, `MatterLawsTest`, `PlacementTest`).
 - Os testes do lado Minecraft (`SpellActionExecutorTest`, `SpellContextTest`, `SpellFunctionHandlerRegistryTest`...)
   rodam no `./gradlew test`.
+- Os GameTests (`gametest/MatterGameTests`, `gametest/SpellGameTests`) rodam num servidor de verdade com
+  `./gradlew runGameTestServer`, e lançam feitiços com um mago falso.

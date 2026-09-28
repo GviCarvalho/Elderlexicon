@@ -145,7 +145,7 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
             if (product != null && product.taken()) {
                 // Taken by the verb after: it is made where it leaves from (the ubis place, or the mage's hand) and
                 // does what it does where that verb carries it.
-                Vec3 from = written.map(MarkSpells.Destination::point).orElseGet(() -> ExsugatFunctionHandler.handOf(player));
+                Vec3 from = written.map(MarkSpells.Destination::point).orElseGet(() -> WorldSources.handOf(player));
                 product.ready(level, from, landed -> appear(context, player, element, rune, landed,
                         Invocation.Where.fixed(landed), energy, window, linger));
                 return;
@@ -207,7 +207,7 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                     SUMMON_DELAY_TICKS, Chronos.window(action));
             return;
         }
-        ExsugatFunctionHandler.absorb(context, element, element,
-                action.quantity().orElse(ExsugatFunctionHandler.DEFAULT_ABSORBED_UMU));
+        WorldSources.absorb(context, element, element,
+                action.quantity().orElse(WorldSources.DEFAULT_ABSORBED_UMU));
     }
 }

@@ -2,7 +2,7 @@ package com.elderlexicon.mod.spell;
 
 /**
  * The heat of fire, its intensity (docs/condensacao-design.md): how hot each flame is. Common fire is 1. Heat is never
- * written; it is won by capturing a lot of fire and releasing it at once ({@code igni exsugat quantum chronos 0
+ * written; it is won by capturing a lot of fire and releasing it at once ({@code igni tenet quantum chronos 0
  * iactare}), so all of it goes into one strike and the strike is as hot as the fire that went into it.
  */
 public final class Heat {

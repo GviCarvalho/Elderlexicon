@@ -1,5 +1,10 @@
 # Exsugat e vertere de fonte
 
+> **Nota (docs/plano-materia-e-forca.md, etapa 6):** `exsugat` e `transvocatio` saíram da língua. Onde este documento
+> os usa, leia: tirar uma fonte do mundo é `tenet` antes do verbo (`igni tenet iactare`); absorver é um `vocant` com
+> quantidade negativa (`igni quantum -10 vocant`); puxar uma coisa marcada é `m1 quantum -10 iactare`; trocar de lugar
+> não existe mais. A tabela completa está na seção 4 do plano.
+
 Este documento reescreve a captura e a conversão de fontes seguindo o grimório, cap. VIII (8.1, 8.2 e 8.2.1).
 Os casos com marca estão em `marcas-como-runas-design.md` e os de imagem em `surgit-visao-design.md`.
 
