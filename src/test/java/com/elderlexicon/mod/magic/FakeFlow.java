@@ -118,6 +118,8 @@ final class FakeFlow {
     }
 
     static final class World implements FlowWorld {
+        /** What the world was told of where a source taken from it is: one per capture, in order. */
+        final List<SpellAction> origins = new ArrayList<>();
         final List<Call> calls = new ArrayList<>();
         boolean caster = true;
         /** What the body holds of each element (mana for vis). */
@@ -188,6 +190,7 @@ final class FakeFlow {
         public Captured captureAll(List<VitaElement> chain, double limit, SpellAction spender, SpellAction capture) {
             double taken = Math.min(worldUmu, limit);
             calls.add(new Call("captureAll", chain.get(chain.size() - 1), spender, taken));
+            origins.add(capture);
             return new Captured(worldSources, taken, 0, spender.atOnce() ? 7 : -1);
         }
 
@@ -201,6 +204,7 @@ final class FakeFlow {
         public double capture(VitaElement from, VitaElement as, SpellAction spender, double workShare) {
             double needed = ledger.payableCost();
             calls.add(new Call("capture", as, spender, needed));
+            origins.add(ledger.currentAction);
             ledger.addAmbientEnergy(as, needed);
             return needed;
         }
@@ -208,6 +212,7 @@ final class FakeFlow {
         @Override
         public double convertInPlace(VitaElement from, VitaElement as, double amount, double workShare) {
             calls.add(new Call("convertInPlace", as, null, amount));
+            origins.add(ledger.currentAction);
             return amount;
         }
 

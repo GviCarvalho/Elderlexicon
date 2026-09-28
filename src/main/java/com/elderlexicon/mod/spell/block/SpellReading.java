@@ -101,7 +101,9 @@ public final class SpellReading {
         Optional<Rune> before = previousWord(ids, at).flatMap(i -> lexicon().ofClass(ids.get(i), WordClass.FILTER));
         if (before.isPresent() && argument(before.get()) == FilterSpec.Argument.VALUE) {
             Rune filter = before.get();
-            String key = "0".equals(number) && filter.text("number.zero").isPresent() ? "number.zero" : "number";
+            String key = "0".equals(number) && filter.text("number.zero").isPresent() ? "number.zero"
+                    : number.startsWith("-") && filter.text("number.negative").isPresent() ? "number.negative"
+                    : "number";
             return text(filter, key, Map.of("filter", filter.id(), "n", number));
         }
         Optional<Rune> after = nextWord(ids, at).flatMap(i -> lexicon().ofClass(ids.get(i), WordClass.FILTER));
@@ -135,9 +137,10 @@ public final class SpellReading {
         if (previous.isPresent() && flowOf(previous.get()) == Flow.CONVERT) {
             return text(previous.get(), "target", Map.of("verb", previous.get().id(), "element", element));
         }
-        Optional<Rune> next = nextWord(ids, at).flatMap(i -> lexicon().ofClass(ids.get(i), WordClass.VERB));
-        if (next.isPresent() && flowOf(next.get()) == Flow.CAPTURE) {
-            return text(next.get(), "source", Map.of("verb", next.get().id(), "element", element));
+        // igni tenet vocant: an origin written for the verb it feeds says the source comes from the world.
+        Optional<Rune> origin = originFor(ids, at);
+        if (origin.isPresent()) {
+            return text(origin.get(), "source", Map.of("filter", origin.get().id(), "element", element));
         }
         String from = source.text("fromBody").orElse(element + " do corpo");
         return nextFunction(ids, at).map(f -> note("reading.source", Map.of("verb", f, "from", from)))
@@ -155,24 +158,26 @@ public final class SpellReading {
             values.put("n", number);
         }
         if (spec.parameter() == Parameter.QUANTITY) {
+            if (number != null && number.startsWith("-") && filter.text("role.negative").isPresent()) {
+                values.put("abs", number.substring(1));
+                return text(filter, "role.negative", values);
+            }
             if (number != null) {
                 return text(filter, "role", values);
             }
-            boolean captured = false;
-            for (int i = 0; i < at; i++) {
-                captured |= lexicon().verb(ids.get(i)).map(verb -> verb.flow() == Flow.CAPTURE).orElse(false);
-            }
-            return text(filter, captured ? "role.bare.world" : "role.bare.body", values);
+            return text(filter, originFor(ids, at).isPresent() ? "role.bare.world" : "role.bare.body", values);
         }
         if (spec.parameter() == Parameter.TIME) {
             return number == null ? text(filter, "role.bare", values)
                     : text(filter, "0".equals(number) ? "role.zero" : "role", values);
         }
+        // With nothing before it, a filter that needs no operands (an origin: within the mage's reach) says so.
+        String bare = filter.text("role.bare").isPresent() ? "role.bare" : null;
         return previousWord(ids, at).map(i -> switch (kindOf(ids.get(i))) {
             case NUMBER -> text(filter, "role.number", Map.of("n", ids.get(i)));
             case MARK -> text(filter, "role.mark", Map.of("mark", ids.get(i)));
-            default -> text(filter, "role.other", Map.of());
-        }).orElseGet(() -> text(filter, "role.none", Map.of()));
+            default -> text(filter, bare != null ? bare : "role.other", Map.of());
+        }).orElseGet(() -> text(filter, bare != null ? bare : "role.none", Map.of()));
     }
 
     private String functionRole(List<String> ids, int at) {
@@ -186,13 +191,9 @@ public final class SpellReading {
         if (verb.get().flow() == Flow.CONVERT) {
             return convertRole(function, ids, at);
         }
-        if (verb.get().flow() == Flow.CAPTURE) {
-            Optional<String> feeding = nextFunction(ids, at);
-            if (feeding.isPresent() && function.text("role.feeding").isPresent()) {
-                values.put("next", feeding.get());
-                return text(function, "role.feeding", values) + ".";
-            }
-            return text(function, "role", values) + ".";
+        // A negative quantity written for it turns it the other way round.
+        if (reversedBefore(ids, at) && function.text("role.reversed").isPresent()) {
+            return text(function, "role.reversed", values) + ".";
         }
         String condensed = condensedBefore(ids, at) ? function.text("role.condensed").orElse("") : "";
         return text(function, "role", values) + condensed + ".";
@@ -273,7 +274,7 @@ public final class SpellReading {
         return Optional.empty();
     }
 
-    /** The next verb after {@code at} that spends what comes before it (a conversion or a capture does not). */
+    /** The next verb after {@code at} that spends what comes before it (a conversion does not). */
     private Optional<String> nextFunction(List<String> ids, int at) {
         for (int i = at + 1; i < ids.size(); i++) {
             String rune = ids.get(i);
@@ -284,7 +285,10 @@ public final class SpellReading {
         return Optional.empty();
     }
 
-    /** What a verb acts on: the last source before it (after any conversion), or a mark that is not a place. */
+    /**
+     * What a verb acts on: the last source before it (after any conversion), a mark that is not a place, or what the
+     * verb before it produced or moved (igni vocant iactare).
+     */
     private String subjectBefore(List<String> ids, int at) {
         for (int i = at - 1; i >= 0; i--) {
             String rune = ids.get(i);
@@ -292,13 +296,40 @@ public final class SpellReading {
             if (kind == Kind.SOURCE) {
                 return lexicon().rune(rune).orElseThrow().noun();
             }
-            boolean place = nextWord(ids, i).flatMap(n -> lexicon().ofClass(ids.get(n), WordClass.FILTER))
-                    .filter(filter -> argument(filter) == FilterSpec.Argument.OPERANDS).isPresent();
-            if (kind == Kind.MARK && !place) {
+            if (kind == Kind.FUNCTION && !viewsNext(ids, i)) {
+                // A marked thing the verb before acted on is still the subject (m1 vocant iactare); otherwise it is what
+                // that verb produced or moved.
+                return markSubject(ids, i).map(mark -> note("reading.subject.mark", Map.of("mark", mark)))
+                        .orElseGet(() -> note("reading.subject.result", Map.of("verb", rune)));
+            }
+            if (kind == Kind.MARK && !isOperand(ids, i)) {
                 return note("reading.subject.mark", Map.of("mark", rune));
             }
         }
         return note("reading.subject.energy", Map.of());
+    }
+
+    /** The mark a verb acts on when its subject is a marked thing: written before it, or kept from the verb before. */
+    private Optional<String> markSubject(List<String> ids, int at) {
+        for (int i = at - 1; i >= 0; i--) {
+            Kind kind = kindOf(ids.get(i));
+            if (kind == Kind.SOURCE) {
+                return Optional.empty();
+            }
+            if (kind == Kind.MARK && !isOperand(ids, i)) {
+                return Optional.of(ids.get(i));
+            }
+            if (kind == Kind.FUNCTION && !viewsNext(ids, i)) {
+                return markSubject(ids, i);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** Whether the word at {@code at} is an operand of the filter right after it (a place or an origin: m1 ubis). */
+    private boolean isOperand(List<String> ids, int at) {
+        return nextWord(ids, at).flatMap(n -> lexicon().ofClass(ids.get(n), WordClass.FILTER))
+                .filter(filter -> argument(filter) == FilterSpec.Argument.OPERANDS).isPresent();
     }
 
     private Optional<Rune> sourceBefore(List<String> ids, int at) {
@@ -309,6 +340,63 @@ public final class SpellReading {
             }
         }
         return Optional.empty();
+    }
+
+    /** Whether the verb at {@code at} only changes how the verb right after it works ({@code igni surgit vocant}). */
+    private boolean viewsNext(List<String> ids, int at) {
+        boolean view = lexicon().verb(ids.get(at)).map(VerbSpec::view).orElse(false);
+        return view && nextWord(ids, at).filter(i -> kindOf(ids.get(i)) == Kind.FUNCTION).isPresent();
+    }
+
+    /**
+     * The origin filter written for the verb that the word at {@code at} belongs to: between the verb before it and the
+     * verb after it ({@code firmo m1 tenet iactare}).
+     */
+    private Optional<Rune> originFor(List<String> ids, int at) {
+        for (int i = at; i >= 0; i--) {
+            if (i < at && kindOf(ids.get(i)) == Kind.FUNCTION) {
+                break;
+            }
+            Optional<Rune> origin = originAt(ids, i);
+            if (origin.isPresent()) {
+                return origin;
+            }
+        }
+        for (int i = at + 1; i < ids.size(); i++) {
+            if (kindOf(ids.get(i)) == Kind.FUNCTION) {
+                break;
+            }
+            Optional<Rune> origin = originAt(ids, i);
+            if (origin.isPresent()) {
+                return origin;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private Optional<Rune> originAt(List<String> ids, int at) {
+        return lexicon().ofClass(ids.get(at), WordClass.FILTER)
+                .filter(filter -> filter.filter().map(spec -> spec.parameter() == Parameter.ORIGIN).orElse(false));
+    }
+
+    /** Whether a negative quantity is written for the verb at {@code at}, since the verb before it. */
+    private boolean reversedBefore(List<String> ids, int at) {
+        for (int i = at - 1; i >= 0; i--) {
+            String word = ids.get(i);
+            if (kindOf(word) == Kind.FUNCTION) {
+                return false;
+            }
+            if (word != null && word.matches("-\\d+")
+                    && (isQuantity(ids, previousWord(ids, i)) || isQuantity(ids, nextWord(ids, i)))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isQuantity(List<String> ids, Optional<Integer> at) {
+        return at.flatMap(i -> lexicon().filter(ids.get(i))).map(filter -> filter.parameter() == Parameter.QUANTITY)
+                .orElse(false);
     }
 
     /** Whether a time filter written before says zero: all released in one instant, condensed. */

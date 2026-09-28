@@ -80,9 +80,7 @@ class CompositionTest {
     @Test
     void aFusionIsTheRunesItFuses() {
         assertEquals(read("igni vertere aqua iactare").actions(), read("igni transiectio aqua").actions());
-        assertEquals(read("igni exsugat iactare").actions(), read("igni exsuctio").actions());
-        assertEquals(read("igni exsugat vocant").actions(), read("igni extractio").actions());
-        assertEquals(read("igni exsugat vertere aqua").actions(), read("igni exhaustio aqua").actions());
+        assertEquals(read("igni vertere aqua impediunt").actions(), read("igni aversio aqua").actions());
     }
 
     @Test
@@ -134,12 +132,12 @@ class CompositionTest {
         Lexicons.extend(words -> words.read(new StringReader(ADDON)));
         Lexicon lexicon = Lexicons.get();
 
-        SpellActionResult hurled = read("igni exsugat quantum chronos 0 proicere");
+        SpellActionResult hurled = read("igni tenet quantum chronos 0 proicere");
         assertTrue(hurled.issues().isEmpty(), hurled.issues().toString());
         assertEquals(Optional.of("project"), lexicon.operationOf("proicere"), "the world runs it as it runs iactare");
         assertEquals(3.0D, new SpellCostProcessor().computeTotalCost(read("igni proicere").actions()) - 1.0D, 1.0E-9);
 
-        // It spends what the capture before it takes, condensed: the flow knows it only by its role.
+        // It spends the fire taken from the world, condensed: the flow knows it only by its role.
         FakeFlow.Ledger ledger = new FakeFlow.Ledger(VitaElement.IGNI, 3.0D, hurled.vertereRequests());
         ledger.primarySource = hurled.primarySource();
         FakeFlow.World world = new FakeFlow.World(ledger);
@@ -163,9 +161,9 @@ class CompositionTest {
 
     @Test
     void anAddonCanGiveAnOldRuneANewMeaning() {
-        Lexicons.extend(words -> words.rune(Lexicons.builtIn().rune("exsuctio").orElseThrow().toBuilder()
-                .expansion(List.of("exsugat", "vocant")).build()));
-        assertEquals(read("igni exsugat vocant").actions(), read("igni exsuctio").actions());
+        Lexicons.extend(words -> words.rune(Lexicons.builtIn().rune("transiectio").orElseThrow().toBuilder()
+                .expansion(List.of("vertere", "@", "vocant")).build()));
+        assertEquals(read("igni vertere aqua vocant").actions(), read("igni transiectio aqua").actions());
     }
 
     @Test
@@ -185,7 +183,8 @@ class CompositionTest {
         Lexicon before = Lexicons.get();
         assertThrows(IllegalStateException.class, () -> Lexicons.extend(words -> words.rune(
                 Rune.builder("lux", WordClass.VERB).glyph("C")
-                        .verb(new VerbSpec("shine", null, 0.0D, null, null, false, null, false, null, null)).build())),
+                        .verb(new VerbSpec("shine", null, 0.0D, null, null, false, null, false, null, null, false))
+                        .build())),
                 "C is igni's glyph");
         assertThrows(IllegalStateException.class, () -> Lexicons.extend(words -> words.rune(
                 Rune.builder("nihil", WordClass.VERB).expansion(List.of("nusquam")).build())),

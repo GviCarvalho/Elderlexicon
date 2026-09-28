@@ -36,8 +36,8 @@ class FusionsTest {
     @Test
     void twoVerbsMakeTheirFusion() {
         assertEquals(Optional.of("transiectio"), Fusions.fuse(LEXICON, "vertere", "iactare"));
-        assertEquals(Optional.of("transvocatio"), Fusions.fuse(LEXICON, "vocant", "vertere"));
-        assertEquals(Optional.of("extractio"), Fusions.fuse(LEXICON, "exsugat", "vocant"));
+        assertEquals(Optional.of("coniuratio"), Fusions.fuse(LEXICON, "vocant", "ligabis"));
+        assertEquals(Optional.of("aversio"), Fusions.fuse(LEXICON, "impediunt", "vertere"));
     }
 
     @Test

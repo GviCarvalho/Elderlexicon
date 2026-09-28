@@ -43,7 +43,7 @@ class FociTest {
         assertWood(woods.get("acacia"), 26.0D, Map.of("impediunt", 0.10D), Set.of());
         assertWood(woods.get("dark_oak"), 27.0D, Map.of("impediunt", 0.05D), Set.of());
         assertWood(woods.get("cherry"), 25.0D, Map.of("vocant", 0.10D), Set.of());
-        assertWood(woods.get("spruce"), 23.0D, Map.of("exsugat", 0.10D), Set.of());
+        assertWood(woods.get("spruce"), 23.0D, Map.of("vocant", 0.10D), Set.of()); // it favoured exsugat, now retired
         assertWood(woods.get("crimson"), 40.0D, Map.of(), Set.of("igni", "aura"));
         assertWood(woods.get("warped"), 40.0D, Map.of(), Set.of("firmo", "aqua"));
         assertEquals("material.elderlexicon.wand.dark_oak", woods.get("dark_oak").translationKey());

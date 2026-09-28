@@ -36,17 +36,20 @@ import java.util.function.Predicate;
  * the steps of a spell ({@link SpellAction}). Any rune the lexicon holds, the mod's or an addon's, is read by the same
  * rules.
  * <p>
- * The rules, as the book gives them (cap. 4 and 5) and as the mod has settled them:
+ * The rules, as the book gives them (cap. 4 and 5) and as the mod has settled them (docs/plano-materia-e-forca.md):
  * <ul>
- *   <li>A sentence acts on a <b>subject</b>: the last source written (mana when none is, book 4.2) or a mark written
- *       right before a verb. The subject stays through the verbs that follow until another is written, so
- *       {@code m1 vocant iactare} brings m1 and then throws it.</li>
- *   <li><b>Verbs</b> act in the order they are written. A verb that captures ({@code exsugat}) or converts
- *       ({@code vertere}) changes the energy the next ones spend; a verb that views ({@code surgit}) written right
- *       before another makes that one work with the image of the subject alone.</li>
- *   <li>A <b>filter</b> acts on what comes after it: a value filter takes the number right after it (or right before
- *       it); a place filter takes the numbers and marks right before it. A quantity written before a source measures
- *       the source.</li>
+ *   <li>A sentence acts on a <b>subject</b>: the last source written (mana when none is, book 4.2), a mark written
+ *       right before a verb, or <b>what the verb before produced or moved</b>. So {@code m1 vocant iactare} brings m1
+ *       and then throws it, and {@code igni vocant iactare} pushes the fire the vocant made appear (R2).</li>
+ *   <li><b>Verbs</b> act in the order they are written. A verb that converts ({@code vertere}) changes the energy the
+ *       next ones spend; a verb that views ({@code surgit}) written right before another makes that one work with the
+ *       image of the subject alone.</li>
+ *   <li>A <b>filter</b> acts on the verb right after it (R1): a value filter takes the number right after it (or right
+ *       before it); a place filter takes the numbers and marks right before it; an origin filter ({@code tenet}) says
+ *       the source comes from the world, from around the numbers and marks before it or within the mage's reach (R5).
+ *       A quantity written before a source measures the source.</li>
+ *   <li>A <b>negative quantity</b> turns the verb after it the other way round, when the lexicon says the verb has a
+ *       sense to turn ({@code m1 quantum -20 iactare} pulls m1); its size is what it costs (R4).</li>
  *   <li>A verb may <b>take a word after it</b>: a target ({@code vertere aqua}), its subject ({@code surgit r2}) or a
  *       name ({@code reframe fireball}), as its frame says.</li>
  *   <li>A <b>bond</b> verb ({@code ligabis}) reads its own aspect and marks; written with a sense verb as its aspect
@@ -90,6 +93,12 @@ public final class SpellGrammar {
                 continue;
             }
             if (names.contains(index)) {
+                continue;
+            }
+            Optional<String> retired = lexicon.retired(lexeme);
+            if (retired.isPresent()) {
+                // A word the language no longer has: the spirit says what to write in its place.
+                issues.add(retired.get());
                 continue;
             }
             SpellWords.Kind kind = SpellWords.classify(lexeme, word -> false);
@@ -274,6 +283,11 @@ public final class SpellGrammar {
         boolean bareAll = false;
         // The mark the sentence acts on, until another subject is written.
         String subject = null;
+        // An origin filter waiting for its verb: the source comes from the world (around this place, or in reach).
+        String origin = null;
+        SpellPlace originPlace = null;
+        // A verb has acted and no new subject was written since: the next verb acts on what that one produced or moved.
+        boolean afterVerb = false;
 
         for (int index = 0; index < tokens.size(); index++) {
             Token token = tokens.get(index);
@@ -291,7 +305,7 @@ public final class SpellGrammar {
                 if (awaiting != null) {
                     Parameter parameter = awaiting.filter().parameter();
                     if (parameter == Parameter.QUANTITY) {
-                        quantity = positive(awaiting.lexeme(), value, issues, quantity);
+                        quantity = nonZero(awaiting.lexeme(), value, issues, quantity);
                     } else if (parameter == Parameter.TIME) {
                         seconds = seconds(awaiting.lexeme(), value, issues);
                     } else {
@@ -324,7 +338,7 @@ public final class SpellGrammar {
                     if (filter.argument() == FilterSpec.Argument.VALUE) {
                         if (awaiting != null && awaiting.filter().bareAll()
                                 && awaiting.filter().parameter() != filter.parameter()) {
-                            // igni exsugat quantum chronos 0 iactare: all that was captured, released in one instant.
+                            // firmo tenet quantum chronos 0 iactare: all there is, released in one instant.
                             bareAll = true;
                             awaiting = null;
                         }
@@ -337,7 +351,7 @@ public final class SpellGrammar {
                         if (!run.isEmpty() && run.get(run.size() - 1).kind() == SpellWords.Kind.NUMBER) {
                             double before = SpellWords.number(run.remove(run.size() - 1).lexeme()).orElse(0.0D);
                             if (filter.parameter() == Parameter.QUANTITY) {
-                                quantity = positive(rune.id(), before, issues, quantity);
+                                quantity = nonZero(rune.id(), before, issues, quantity);
                             } else if (filter.parameter() == Parameter.TIME) {
                                 seconds = seconds(rune.id(), before, issues);
                             } else {
@@ -361,19 +375,28 @@ public final class SpellGrammar {
                             after.add(tokens.get(index));
                         }
                         if (after.isEmpty()) {
-                            issues.add("'" + rune.id() + "' requer um lugar: um número, três números ou uma marca.");
+                            // An origin written alone is the world within the mage's reach (firmo tenet iactare).
+                            if (filter.parameter() != Parameter.ORIGIN) {
+                                issues.add("'" + rune.id() + "' requer um lugar: um número, três números ou uma marca.");
+                            }
                             written = null;
                         } else {
                             written = placeOf(rune.id(), after, issues);
                         }
                     }
-                    if (written != null) {
+                    if (filter.parameter() == Parameter.ORIGIN) {
+                        if (origin != null) {
+                            issues.add("'" + rune.id() + "' escrito duas vezes para o mesmo verbo: vale o último.");
+                        }
+                        origin = rune.id();
+                        originPlace = written;
+                    } else if (written != null) {
                         if (filter.parameter() == Parameter.PLACE) {
                             place = replacePlace(place, written, issues);
                         } else if (written.kind() == SpellPlace.Kind.DISTANCE) {
                             // A filter of another kind that takes what is before it takes it as its value.
                             if (filter.parameter() == Parameter.QUANTITY) {
-                                quantity = positive(rune.id(), written.distance(), issues, quantity);
+                                quantity = nonZero(rune.id(), written.distance(), issues, quantity);
                             } else {
                                 seconds = seconds(rune.id(), written.distance(), issues);
                             }
@@ -382,6 +405,9 @@ public final class SpellGrammar {
                 }
                 case SOURCE -> {
                     VitaElement element = lexicon.elementOf(rune.id());
+                    // The target of a conversion is what the subject becomes, not a new subject: the verb after it acts
+                    // on what was converted (igni vertere aqua iactare throws the water the fire became).
+                    boolean target = false;
                     if (pending != null) {
                         if (!pending.acceptsSource()) {
                             issues.add("Função '" + pending.id() + "' " + pending.refusal());
@@ -389,8 +415,12 @@ public final class SpellGrammar {
                             issues.add("Função '" + pending.id() + "' requer uma fonte alvo declarada.");
                         } else {
                             actions.add(pending.buildWithSource(token, vertereRequests));
+                            target = true;
                         }
                         pending = null;
+                    }
+                    if (!target) {
+                        afterVerb = false;
                     }
                     for (Token unused : run) {
                         if (unused.kind() == SpellWords.Kind.MARK) {
@@ -402,7 +432,12 @@ public final class SpellGrammar {
                     }
                     run.clear();
                     if (!token.implicit() && quantity != null) {
-                        sourceValue = quantity;
+                        if (quantity < 0.0D) {
+                            issues.add("Uma fonte não tem quantidade negativa: o sinal inverte um verbo, escreva-o logo"
+                                    + " antes dele.");
+                        } else {
+                            sourceValue = quantity;
+                        }
                         quantity = null;
                     }
                     if (!token.implicit()) {
@@ -425,8 +460,8 @@ public final class SpellGrammar {
                         imageOnly = true;
                         break;
                     }
-                    // A bare quantity is all of the source there is (book 4.3.2): after a capture, all of it in reach
-                    // (igni exsugat quantum iactare); without one, all of it in the mage's own body (firmo quantum
+                    // A bare quantity is all of the source there is (book 4.3.2): taken from the world, all of it in
+                    // reach (firmo tenet quantum iactare); otherwise all of it in the mage's own body (firmo quantum
                     // chronos 0 iactare: all the body's earth; vis quantum …: all its mana).
                     boolean all = (awaiting != null && awaiting.filter().bareAll()) || bareAll;
                     bareAll = false;
@@ -465,6 +500,29 @@ public final class SpellGrammar {
                         // The subject named earlier in the sentence is still the subject (m1 vocant iactare).
                         mark = subject;
                     }
+                    // With no mark, a verb written after another acts on what that one produced or moved (R2).
+                    boolean chained = afterVerb && mark == null;
+                    // A negative quantity turns the verb the other way round, if it has a sense to turn (R4).
+                    boolean reversed = false;
+                    if (quantity != null && quantity < 0.0D) {
+                        if (verb.reversible()) {
+                            reversed = true;
+                            quantity = -quantity;
+                        } else {
+                            issues.add("Quantidade negativa não tem sentido para '" + rune.id() + "': só se invertem "
+                                    + reversibleVerbs() + ".");
+                            quantity = null;
+                        }
+                    }
+                    // The origin says where a source comes from: it has nothing to say of a marked thing, or of what the
+                    // verb before produced (R5).
+                    boolean fromWorld = origin != null;
+                    if (fromWorld && (mark != null || chained)) {
+                        issues.add("'" + origin + "' diz de onde vem uma fonte, mas o " + rune.id() + " age sobre "
+                                + (mark != null ? "o que tem a marca '" + mark + "'" : "o que o verbo anterior produziu")
+                                + ": foi ignorado.");
+                        fromWorld = false;
+                    }
                     SpellAction.Builder builder = SpellAction.builder(rune.id(), SpellActionType.FUNCTION)
                             .element(form.element())
                             .shapes(form.snapshotShapes())
@@ -475,7 +533,11 @@ public final class SpellGrammar {
                             .putMetadata(SpellAction.SOURCE_QUANTITY, sourceValue)
                             .putMetadata(SpellAction.SECONDS, seconds)
                             .putMetadata(SpellAction.IMAGE, imageOnly ? Boolean.TRUE : null)
-                            .putMetadata(SpellAction.QUANTITY_ALL, all ? Boolean.TRUE : null);
+                            .putMetadata(SpellAction.QUANTITY_ALL, all ? Boolean.TRUE : null)
+                            .putMetadata(SpellAction.REVERSED, reversed ? Boolean.TRUE : null)
+                            .putMetadata(SpellAction.FROM_WORLD, fromWorld ? Boolean.TRUE : null)
+                            .putMetadata(SpellAction.ORIGIN_PLACE, fromWorld ? originPlace : null)
+                            .putMetadata(SpellAction.CHAINED, chained ? Boolean.TRUE : null);
                     if (frame != null && frame.measure() != null) {
                         builder.putMetadata(frame.measure(), measure);
                     }
@@ -484,11 +546,14 @@ public final class SpellGrammar {
                     quantity = null;
                     sourceValue = null;
                     seconds = null;
+                    origin = null;
+                    originPlace = null;
                     if (awaiting != null) {
                         issues.add("'" + awaiting.lexeme() + "' requer um número logo depois.");
                         awaiting = null;
                     }
                     subject = mark;
+                    afterVerb = true;
                     if (verb.awaitsTarget()) {
                         if (pending != null) {
                             issues.add("Função pendente '" + pending.id() + "' substituída por '" + rune.id() + "'.");
@@ -520,10 +585,25 @@ public final class SpellGrammar {
         }
         if (awaiting != null) {
             issues.add("'" + awaiting.lexeme() + "' requer um número logo depois.");
-        } else if (quantity != null || sourceValue != null || seconds != null) {
+        } else if (quantity != null || sourceValue != null || seconds != null || origin != null) {
             issues.add("Filtro sem função depois dele.");
         }
         return actions;
+    }
+
+    /** The verbs a negative quantity may turn around, for the spirit's advice. */
+    private String reversibleVerbs() {
+        List<String> verbs = new ArrayList<>();
+        for (Rune rune : lexicon.runes()) {
+            if (rune.verb().map(VerbSpec::reversible).orElse(false)) {
+                verbs.add(rune.id());
+            }
+        }
+        if (verbs.isEmpty()) {
+            return "nenhum";
+        }
+        return verbs.size() == 1 ? verbs.get(0)
+                : String.join(", ", verbs.subList(0, verbs.size() - 1)) + " e " + verbs.get(verbs.size() - 1);
     }
 
     /** The word the lexicon writes a place with, for the spirit's advice. */
@@ -543,12 +623,15 @@ public final class SpellGrammar {
         return written;
     }
 
-    /** A quantity is more than nothing; asked for nothing, the verb keeps what it had. */
-    private static Double positive(String filter, double value, List<String> issues, Double keep) {
-        if (value > 0.0D) {
+    /**
+     * A quantity is something: asked for nothing, the verb keeps what it had. Its sign is kept for the verb to read (a
+     * negative one turns it around, R4).
+     */
+    private static Double nonZero(String filter, double value, List<String> issues, Double keep) {
+        if (value != 0.0D) {
             return value;
         }
-        issues.add("'" + filter + "' precisa de uma quantidade maior que zero.");
+        issues.add("'" + filter + "' precisa de uma quantidade diferente de zero.");
         return keep;
     }
 

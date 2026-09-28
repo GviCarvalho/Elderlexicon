@@ -7,6 +7,7 @@ import com.elderlexicon.mod.magic.lexicon.Lexicons;
 import com.elderlexicon.mod.spell.Conversion;
 import com.elderlexicon.mod.spell.action.SpellAction;
 import com.elderlexicon.mod.spell.action.SpellActionResult;
+import com.elderlexicon.mod.spell.mark.SpellPlace;
 import com.elderlexicon.mod.vita.VitaElement;
 import org.junit.jupiter.api.Test;
 
@@ -15,7 +16,10 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** The flow of energy through a spell, from where it comes to what spends it (docs/exsugat-vertere-design.md). */
+/**
+ * The flow of energy through a spell, from where it comes to what spends it (docs/exsugat-vertere-design.md, and
+ * docs/plano-materia-e-forca.md for the origin that took the capture's place).
+ */
 class FlowInterpreterTest {
 
     private static final Lexicon LEXICON = Lexicons.builtIn();
@@ -78,7 +82,7 @@ class FlowInterpreterTest {
 
     @Test
     void whatIsCapturedIsConvertedNotTheVita() {
-        Run run = cast("igni exsugat vertere aqua iactare");
+        Run run = cast("igni tenet vertere aqua iactare");
         assertNull(run.world().last("vita"), "the captured fire is converted, not the body's");
         assertEquals(List.of("iactare"), run.world().performed());
         assertEquals(VitaElement.AQUA, run.world().last("perform").element(), "what is thrown is the converted water");
@@ -90,7 +94,7 @@ class FlowInterpreterTest {
 
     @Test
     void whatIsCapturedAndNeverSpentIsConvertedWhereItIs() {
-        Run run = cast("firmo exsugat vertere igni");
+        Run run = cast("firmo tenet vertere igni");
         FakeFlow.Call converted = run.world().last("convertInPlace");
         assertNotNull(converted);
         assertEquals(VitaElement.IGNI, converted.element());
@@ -99,8 +103,8 @@ class FlowInterpreterTest {
     }
 
     @Test
-    void aBareQuantityAfterACaptureTakesAllInReachAndCondensesIt() {
-        Run run = cast("igni exsugat quantum chronos 0 iactare");
+    void aBareQuantityFromTheWorldTakesAllInReachAndCondensesIt() {
+        Run run = cast("igni tenet quantum chronos 0 iactare");
         FakeFlow.Call all = run.world().last("captureAll");
         assertNotNull(all);
         SpellAction released = run.world().last("perform").action();
@@ -156,10 +160,41 @@ class FlowInterpreterTest {
     }
 
     @Test
-    void aCaptureWrittenLastIsItsOwnVerb() {
-        Run run = cast("igni exsugat");
-        assertEquals(List.of("exsugat"), run.world().performed());
-        assertNull(run.world().last("capture"));
+    void aVerbTurnedAroundBringsFromTheWorldByItself() {
+        Run run = cast("igni quantum -10 vocant");
+        assertEquals(List.of("vocant"), run.world().performed());
+        SpellAction absorbing = run.world().last("perform").action();
+        assertTrue(absorbing.reversed());
+        assertEquals(10.0D, absorbing.quantity().orElseThrow(), 1.0E-9, "the size of the quantity is kept");
+        assertNull(run.world().last("capture"), "nothing is taken to pay for it: it is what brings");
+    }
+
+    @Test
+    void theOriginWrittenIsWhereTheWorldIsSearched() {
+        Run all = cast("firmo m1 tenet quantum iactare");
+        assertNotNull(all.world().last("captureAll"));
+        assertEquals("'m1'", all.world().origins.get(0).place().orElseThrow().describe());
+
+        Run placed = cast("igni 10 tenet 5 ubis vocant");
+        assertNotNull(placed.world().last("capture"));
+        assertEquals(SpellPlace.Kind.DISTANCE, placed.world().origins.get(0).place().orElseThrow().kind());
+        assertEquals(10.0D, placed.world().origins.get(0).place().orElseThrow().distance(), 1.0E-9,
+                "searched ten blocks ahead");
+        assertEquals(5.0D, placed.world().last("perform").action().place().orElseThrow().distance(), 1.0E-9,
+                "and made to appear five blocks ahead");
+
+        Run near = cast("firmo tenet vertere igni");
+        assertTrue(near.world().origins.get(0).place().isEmpty(), "with no place, within the mage's reach");
+    }
+
+    @Test
+    void whatTheWorldGaveIsSpentByTheVerbsChainedToIt() {
+        Run run = cast("igni tenet vocant iactare");
+        assertEquals(List.of("vocant", "iactare"), run.world().performed());
+        assertTrue(run.world().last("perform").action().chained(), "the iactare pushes what the vocant brought");
+        FakeFlow.Call capture = run.world().last("capture");
+        assertNotNull(capture, "the world pays both");
+        assertEquals("vocant", capture.action().runeId());
     }
 
     @Test
@@ -175,7 +210,7 @@ class FlowInterpreterTest {
 
     @Test
     void withNoCasterTheFlowOnlyKeepsAccounts() {
-        SpellActionResult read = GRAMMAR.read(List.of("igni", "exsugat", "iactare"));
+        SpellActionResult read = GRAMMAR.read(List.of("igni", "tenet", "iactare"));
         FakeFlow.Ledger ledger = new FakeFlow.Ledger(VitaElement.IGNI, 3.0D, read.vertereRequests());
         FakeFlow.World world = new FakeFlow.World(ledger);
         world.caster = false;

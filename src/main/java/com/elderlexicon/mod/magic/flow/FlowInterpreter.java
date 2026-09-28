@@ -18,9 +18,10 @@ import java.util.Objects;
 /**
  * Runs the steps of a spell as one flow of energy (docs/exsugat-vertere-design.md, "Um fluxo só para todo feitiço"):
  * <ol>
- *   <li><b>Where it comes from:</b> the world, when a verb captures it ({@link Flow#CAPTURE}); the body, when a quantity
- *       on a conversion draws it out (all of it with a bare quantity), or when a verb asks for all of it; otherwise the
- *       spell simply costs the body what its verbs spend.</li>
+ *   <li><b>Where it comes from:</b> the world, when an origin filter says so ({@code firmo tenet iactare}, R5 of
+ *       docs/plano-materia-e-forca.md); the body, when a quantity on a conversion draws it out (all of it with a bare
+ *       quantity), or when a verb asks for all of it; otherwise the spell simply costs the body what its verbs
+ *       spend.</li>
  *   <li><b>What it becomes on the way:</b> every conversion ({@link Flow#CONVERT}) turns the energy in hand into its
  *       target, and adds the qualities it changed; the spirit's work of unmaking and remaking is taken out of the energy
  *       itself. With nothing in hand, a conversion turns the body's own Vita.</li>
@@ -56,10 +57,12 @@ public final class FlowInterpreter {
         List<VertereRequest> vertereQueue = ledger.vertereRequests();
         int vertereIndex = 0;
 
-        // A source captured from the world (book 8.2.1), with what it has been converted into since.
+        // A source taken from the world (book 8.2.1), with what it has been converted into since: where it is taken
+        // from, and the verb it was written for.
         VitaElement captured = null;
         VitaElement capturedAs = null;
         SpellAction capture = null;
+        int captureIndex = -1;
         boolean capturedForSpell = false;
         // A bare quantity already took everything in reach for its verb.
         boolean capturedAll = false;
@@ -101,18 +104,21 @@ public final class FlowInterpreter {
                 }
                 continue;
             }
-            // igni exsugat iactare: a capture does not pull at once; it captures what the verbs after it spend, which is
-            // only known once they have run. Written last, it pulls into the body, as its operation does.
-            if (flow == Flow.CAPTURE && !action.image() && !marked && hasVerbAfter(actions, index)) {
+            // igni tenet iactare: the source comes from the world. Nothing is taken at once: the world pays what this verb
+            // and the ones after it spend, which is only known once they have run. A verb turned around (vocant with a
+            // negative quantity) brings from the world by itself, and a marked thing or what the verb before produced
+            // is no source to take.
+            if (action.fromWorld() && !action.image() && !marked && !action.chained() && !action.reversed()) {
                 captured = currentElement;
                 capturedAs = currentElement;
-                capture = action;
+                capture = originOf(action);
+                captureIndex = index;
+                capturedAll = false;
                 chain.clear();
                 chain.add(currentElement);
-                capturedForSpell = hasSpenderAfter(actions, index);
-                continue;
+                capturedForSpell = flow != Flow.CONVERT || hasSpenderAfter(actions, index);
             }
-            // igni exsugat vertere aqua converts the fire being pulled, not the mage's own: the Vita is left alone.
+            // igni tenet vertere aqua converts the fire being taken, not the mage's own: the Vita is left alone.
             if (flow == Flow.CONVERT && !marked && captured != null) {
                 if (vertereIndex < vertereQueue.size()) {
                     VitaElement target = vertereQueue.get(vertereIndex++).target();
@@ -176,7 +182,7 @@ public final class FlowInterpreter {
             FlowWorld.Captured all = null;
             boolean condensing = action.atOnce() && action.potency().isPresent();
             if (captured != null && capturedForSpell && (action.quantityAll() || condensing) && world.hasCaster()) {
-                // igni exsugat quantum iactare: everything in reach is pulled now and spent by this verb (quantum 20
+                // firmo tenet quantum iactare: everything in reach is taken now and spent by this verb (quantum 20
                 // chronos 0: twenty of it). With chronos 0 it is released in one instant, as intense as all of it
                 // together (docs/condensacao-design.md).
                 double limit = action.quantityAll() ? Double.MAX_VALUE : action.potency().getAsDouble();
@@ -254,10 +260,10 @@ public final class FlowInterpreter {
         if (captured != null && !capturedAll && world.hasCaster()) {
             ledger.setCurrentAction(capture);
             if (capturedForSpell) {
-                world.capture(captured, capturedAs, spenderAfter(actions, capture), Conversion.workShare(qualities));
+                world.capture(captured, capturedAs, spenderFrom(actions, captureIndex), Conversion.workShare(qualities));
             } else {
-                // Converted and never spent (firmo exsugat vertere igni): the portion captured becomes the other element
-                // where it is, in the world.
+                // Converted and never spent (firmo tenet vertere igni): the portion taken becomes the other element where
+                // it is, in the world.
                 world.convertInPlace(captured, capturedAs, capture.quantity().orElse(DEFAULT_UMU),
                         Conversion.workShare(qualities));
             }
@@ -279,13 +285,14 @@ public final class FlowInterpreter {
         return request.target();
     }
 
-    /** The first verb after the capture that spends what it captures (a conversion only converts it). */
-    private SpellAction spenderAfter(List<SpellAction> actions, SpellAction capture) {
-        boolean after = false;
-        for (SpellAction later : actions) {
-            if (later == capture) {
-                after = true;
-            } else if (after && later != null && later.type() == SpellActionType.FUNCTION
+    /**
+     * The first verb, from the one the origin was written for, that spends what is taken (a conversion only converts
+     * it).
+     */
+    private SpellAction spenderFrom(List<SpellAction> actions, int from) {
+        for (int index = Math.max(0, from); index < actions.size(); index++) {
+            SpellAction later = actions.get(index);
+            if (later != null && later.type() == SpellActionType.FUNCTION
                     && lexicon.flowOf(later.runeId()) != Flow.CONVERT) {
                 return later;
             }
@@ -293,13 +300,14 @@ public final class FlowInterpreter {
         return null;
     }
 
-    private static boolean hasVerbAfter(List<SpellAction> actions, int index) {
-        for (int next = index + 1; next < actions.size(); next++) {
-            if (actions.get(next) != null && actions.get(next).type() == SpellActionType.FUNCTION) {
-                return true;
-            }
-        }
-        return false;
+    /**
+     * What the world reads of a source taken from it: the verb, with its place being where the source is taken from (the
+     * origin written, or none: within the mage's reach) instead of where the verb acts.
+     */
+    private static SpellAction originOf(SpellAction action) {
+        SpellAction.Builder origin = action.toBuilder().removeMetadata(SpellAction.PLACE);
+        action.originPlace().ifPresent(place -> origin.putMetadata(SpellAction.PLACE, place));
+        return origin.build();
     }
 
     /** Whether a verb after {@code index} spends the source; a conversion only converts it. */

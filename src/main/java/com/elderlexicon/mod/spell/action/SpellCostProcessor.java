@@ -1,6 +1,5 @@
 package com.elderlexicon.mod.spell.action;
 
-import com.elderlexicon.mod.magic.lexicon.Flow;
 import com.elderlexicon.mod.magic.lexicon.Lexicons;
 
 import java.util.HashMap;
@@ -36,16 +35,16 @@ public final class SpellCostProcessor {
     }
 
     /**
-     * Whether a spell costs anything at all: it does when a verb spends energy. A spell whose verbs only capture
-     * ({@code igni exsugat}) takes from the world and costs nothing.
+     * Whether a spell costs anything at all: it does when a verb acts. A spell of sources and filters alone does
+     * nothing, and costs nothing. What the world pays (a source taken with an origin filter) is settled as the spell
+     * runs.
      */
     public static boolean requiresEnergy(List<SpellAction> actions) {
         if (actions == null || actions.isEmpty()) {
             return false;
         }
         for (SpellAction action : actions) {
-            if (action != null && action.type() == SpellActionType.FUNCTION
-                    && Lexicons.get().flowOf(action.runeId()) != Flow.CAPTURE) {
+            if (action != null && action.type() == SpellActionType.FUNCTION) {
                 return true;
             }
         }

@@ -25,18 +25,21 @@ import java.util.Set;
  *   "notes": {"condensed": "..."},
  *   "meetings": [{"elements": ["aqua", "aura"], "name": "Tempestade", "note": "..."}],
  *   "remove": ["rune", ...],
+ *   "retired": {"exsugat": "what to write instead", ...},
  *   "runes": {
  *     "igni":    {"class": "source", "glyph": "C", "essence": {"igni": 1}, "traits": {"kindles": true}, ...},
  *     "iactare": {"class": "verb", "glyph": "I", "operation": "project", "cost": 2, "gathering": "hand", ...},
  *     "quantum": {"class": "filter", "glyph": "N", "parameter": "quantity", "argument": "value", "bare": "all"},
+ *     "tenet":   {"class": "filter", "glyph": "F", "parameter": "origin", "argument": "operands"},
  *     "hasta":   {"class": "form", "origin": "fusion", "components": ["iactare", "source"], "form": "spear"},
- *     "exsuctio": {"class": "verb", "origin": "fusion", "components": ["iactare", "exsugat"],
- *                  "expands": ["exsugat", "iactare"]}
+ *     "transiectio": {"class": "verb", "origin": "fusion", "components": ["vertere", "iactare"],
+ *                     "expands": ["vertere", "@", "iactare"]}
  *   }
  * }
  * </pre>
  * Every key but a rune's {@code class} may be left out. The older dictionary's keys ({@code type}, {@code function},
- * {@code shape}, {@code fusionOf}, {@code origin: original}) are still read.
+ * {@code shape}, {@code fusionOf}, {@code origin: original}) are still read. A retired word is one the language had and
+ * no longer has: the spirit says what to write in its place.
  */
 public final class LexiconReader {
 
@@ -70,6 +73,10 @@ public final class LexiconReader {
         }
         if (root.has("remove")) {
             strings(root.get("remove")).forEach(into::remove);
+        }
+        if (root.has("retired")) {
+            root.getAsJsonObject("retired").entrySet()
+                    .forEach(entry -> into.retire(entry.getKey(), entry.getValue().getAsString()));
         }
         JsonObject runes = root.has("runes") ? root.getAsJsonObject("runes") : new JsonObject();
         for (Map.Entry<String, JsonElement> entry : runes.entrySet()) {
@@ -182,7 +189,8 @@ public final class LexiconReader {
                 string(json, "sense").orElse(null),
                 bool(json, "binds", false),
                 string(json, "phrase").orElse(null),
-                string(json, "joiner").orElse(null));
+                string(json, "joiner").orElse(null),
+                bool(json, "reversible", false));
     }
 
     private static FilterSpec filter(String id, JsonObject json) {

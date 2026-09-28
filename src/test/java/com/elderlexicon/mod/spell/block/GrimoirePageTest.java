@@ -70,10 +70,19 @@ class GrimoirePageTest {
     @Test
     void captureAndPlacesAreExplained() {
         SpellReading reading = new SpellReading(ParserDictionary.load());
-        List<SpellReading.Word> capture = reading.read(List.of("igni", "exsugat", "quantum", "iactare"));
-        assertTrue(capture.get(1).role().contains("Captura o fogo") && capture.get(1).role().contains("iactare"),
-                capture.get(1).role());
+        List<SpellReading.Word> capture = reading.read(List.of("igni", "tenet", "quantum", "iactare"));
+        assertTrue(capture.get(0).role().contains("vem do mundo"), capture.get(0).role());
+        assertTrue(capture.get(1).role().contains("ao alcance de quem conjura"), capture.get(1).role());
         assertTrue(capture.get(2).role().contains("do mundo"), capture.get(2).role());
+        List<SpellReading.Word> around = reading.read(List.of("firmo", "m1", "tenet", "iactare"));
+        assertTrue(around.get(1).role().contains("De onde vem a fonte") && around.get(1).role().contains("m1"),
+                around.get(1).role());
+        assertTrue(around.get(2).role().contains("perto do que tem a marca"), around.get(2).role());
+        List<SpellReading.Word> chained = reading.read(List.of("igni", "vocant", "iactare"));
+        assertTrue(chained.get(2).role().contains("o que resultou do vocant"), chained.get(2).role());
+        List<SpellReading.Word> pulled = reading.read(List.of("m1", "quantum", "-20", "iactare"));
+        assertTrue(pulled.get(2).role().contains("negativo"), pulled.get(2).role());
+        assertTrue(pulled.get(3).role().contains("Puxa o que tem a marca"), pulled.get(3).role());
         List<SpellReading.Word> placed = reading.read(List.of("pg2", "ubis", "igni", "vocant"));
         assertTrue(placed.get(0).role().contains("lugar do ubis"), placed.get(0).role());
         assertTrue(placed.get(3).role().contains("Faz o fogo surgir"), placed.get(3).role());

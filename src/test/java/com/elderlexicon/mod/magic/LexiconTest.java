@@ -1,10 +1,12 @@
 package com.elderlexicon.mod.magic;
 
+import com.elderlexicon.mod.magic.lexicon.FilterSpec;
 import com.elderlexicon.mod.magic.lexicon.Flow;
 import com.elderlexicon.mod.magic.lexicon.Glyphs;
 import com.elderlexicon.mod.magic.lexicon.Lexicon;
 import com.elderlexicon.mod.magic.lexicon.Lexicons;
 import com.elderlexicon.mod.magic.lexicon.Origin;
+import com.elderlexicon.mod.magic.lexicon.Parameter;
 import com.elderlexicon.mod.magic.lexicon.Rune;
 import com.elderlexicon.mod.magic.lexicon.WordClass;
 import com.elderlexicon.mod.spell.ElementPersistence;
@@ -38,7 +40,7 @@ class LexiconTest {
         glyphs.put("igni", 'C');
         glyphs.put("firmo", 'D');
         glyphs.put("vis", 'E');
-        glyphs.put("exsugat", 'F');
+        glyphs.put("tenet", 'F'); // exsugat's glyph, given to the origin that took its place
         glyphs.put("ligabis", 'G');
         glyphs.put("vertere", 'H');
         glyphs.put("iactare", 'I');
@@ -70,10 +72,15 @@ class LexiconTest {
 
     @Test
     void verbsHaveTheirRolesInTheFlow() {
-        assertEquals(Flow.CAPTURE, LEXICON.flowOf("exsugat"));
         assertEquals(Flow.CONVERT, LEXICON.flowOf("vertere"));
-        for (String verb : List.of("iactare", "vocant", "impediunt", "surgit", "ligabis", "reframe", "transvocatio")) {
+        for (String verb : List.of("iactare", "vocant", "impediunt", "surgit", "ligabis", "reframe")) {
             assertEquals(Flow.SPEND, LEXICON.flowOf(verb), verb);
+        }
+        for (String verb : List.of("iactare", "impediunt", "vocant")) {
+            assertTrue(LEXICON.verb(verb).orElseThrow().reversible(), verb + " has a sense a negative quantity turns");
+        }
+        for (String verb : List.of("vertere", "surgit", "ligabis", "reframe")) {
+            assertFalse(LEXICON.verb(verb).orElseThrow().reversible(), verb + " has no sense to turn");
         }
         for (Rune rune : LEXICON.runes()) {
             if (rune.is(WordClass.VERB)) {
@@ -88,8 +95,20 @@ class LexiconTest {
         assertEquals(1.0D, LEXICON.costOf("vocant"));
         assertEquals(1.0D, LEXICON.costOf("vertere"));
         assertEquals(0.1D, LEXICON.costOf("ligabis"));
-        assertEquals(1.0D, LEXICON.costOf("transvocatio"));
-        assertEquals(0.0D, LEXICON.costOf("exsugat"));
+    }
+
+    @Test
+    void theOriginTookThePlaceOfTheCapture() {
+        FilterSpec tenet = LEXICON.filter("tenet").orElseThrow();
+        assertEquals(Parameter.ORIGIN, tenet.parameter());
+        assertEquals(FilterSpec.Argument.OPERANDS, tenet.argument());
+        for (String gone : List.of("exsugat", "transvocatio", "exhaustio", "exsuctio", "extractio", "exinanitio",
+                "orbis")) {
+            assertFalse(LEXICON.isRune(gone), gone + " is no longer a word of the language");
+            assertTrue(LEXICON.retired(gone).isPresent(), gone + ": the spirit says what to write instead");
+        }
+        assertTrue(LEXICON.retired("igni").isEmpty(), "a rune is not retired");
+        assertTrue(LEXICON.retired("m1").isEmpty(), "nor is a word that never was one");
     }
 
     @Test
@@ -135,7 +154,7 @@ class LexiconTest {
         assertTrue(LEXICON.isPrimordial("igni"));
         assertTrue(LEXICON.isPrimordial("surgit"));
         assertFalse(LEXICON.isPrimordial("fusus"));
-        assertFalse(LEXICON.isPrimordial("transvocatio"));
+        assertFalse(LEXICON.isPrimordial("transiectio"));
         assertFalse(LEXICON.isPrimordial("m1"));
     }
 }

@@ -28,6 +28,7 @@ public final class LexiconBuilder {
     private final List<String> repertoire = new ArrayList<>();
     private final List<Meeting> meetings = new ArrayList<>();
     private final Map<String, String> notes = new LinkedHashMap<>();
+    private final Map<String, String> retired = new LinkedHashMap<>();
 
     private LexiconBuilder() {
     }
@@ -44,6 +45,7 @@ public final class LexiconBuilder {
         builder.repertoire.addAll(lexicon.repertoire());
         builder.meetings.addAll(lexicon.meetings());
         builder.notes.putAll(lexicon.notes());
+        builder.retired.putAll(lexicon.retiredWords());
         return builder;
     }
 
@@ -86,6 +88,17 @@ public final class LexiconBuilder {
     public LexiconBuilder note(String key, String text) {
         if (key != null && text != null) {
             notes.put(key, text);
+        }
+        return this;
+    }
+
+    /**
+     * A word the language had and no longer has ({@code exsugat}), with what the spirit tells a mage who still writes it.
+     * A rune of that name, if one is added again, is read as the rune.
+     */
+    public LexiconBuilder retire(String id, String note) {
+        if (id != null && note != null) {
+            retired.put(Rune.normalize(id), note);
         }
         return this;
     }
@@ -139,7 +152,7 @@ public final class LexiconBuilder {
         if (!problems.isEmpty()) {
             throw new IllegalStateException("The lexicon does not hold together: " + String.join("; ", problems));
         }
-        return new Lexicon(runes, defaultSource, repertoire, meetings, notes);
+        return new Lexicon(runes, defaultSource, repertoire, meetings, notes, retired);
     }
 
     private boolean expandsForever(String id, Set<String> path, int depth) {

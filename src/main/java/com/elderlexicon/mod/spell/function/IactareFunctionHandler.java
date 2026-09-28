@@ -38,8 +38,10 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
         }
         Optional<String> subject = action.flatMap(SpellAction::subjectMark);
         if (subject.isPresent()) {
-            // m1 iactare: the marked thing is thrown from where it is toward the aim (or the ubis place).
-            MarkSpells.push(context, subject.get(), action.flatMap(SpellAction::place), MarkSpells.Push.TOWARD_AIM,
+            // m1 iactare: the marked thing is thrown from where it is toward the aim (or the ubis place); with a negative
+            // quantity the force is turned around and it is pulled toward the mage (m1 quantum -20 iactare).
+            MarkSpells.Push push = action.get().reversed() ? MarkSpells.Push.TOWARD_CASTER : MarkSpells.Push.TOWARD_AIM;
+            MarkSpells.push(context, subject.get(), action.flatMap(SpellAction::place), push,
                     action.get().quantity().orElse(MarkCost.DEFAULT_THROW_ENERGY),
                     Chronos.window(action.get()));
             return;

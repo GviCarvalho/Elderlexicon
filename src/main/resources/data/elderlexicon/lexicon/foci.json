@@ -18,7 +18,7 @@
     "acacia": {"translation": "material.elderlexicon.wand.acacia", "capacity": 26, "discounts": {"impediunt": 0.10}},
     "dark_oak": {"translation": "material.elderlexicon.wand.dark_oak", "capacity": 27, "discounts": {"impediunt": 0.05}},
     "cherry": {"translation": "material.elderlexicon.wand.cherry", "capacity": 25, "discounts": {"vocant": 0.10}},
-    "spruce": {"translation": "material.elderlexicon.wand.spruce", "capacity": 23, "discounts": {"exsugat": 0.10}},
+    "spruce": {"translation": "material.elderlexicon.wand.spruce", "capacity": 23, "discounts": {"vocant": 0.10}},
     "crimson": {"translation": "material.elderlexicon.wand.crimson", "capacity": 40, "conversions": ["igni", "aura"]},
     "warped": {"translation": "material.elderlexicon.wand.warped", "capacity": 40, "conversions": ["firmo", "aqua"]}
   }
