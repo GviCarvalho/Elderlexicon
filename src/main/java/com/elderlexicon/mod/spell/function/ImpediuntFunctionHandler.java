@@ -24,7 +24,9 @@ import java.util.function.Supplier;
  *   <li>{@code quantum} is the UMU put in, and they buy area ({@link Barrier#radius}): 10 keep three blocks clear.</li>
  *   <li>{@code chronos} keeps the zone for that long, a tap held open (SpellFlow); two seconds without it.</li>
  * </ul>
- * With a mark before it ({@code m1 impediunt}) it pushes the marked thing away instead.
+ * With a mark before it ({@code m1 impediunt}) it pushes the marked thing away instead; after a verb whose result it
+ * acts on ({@code igni vocant impediunt}), it pushes that away from the centre. Turned around (a negative quantity) it
+ * draws in: the zone pulls its element toward the centre ({@code aura quantum -30 chronos 5 impediunt}, a vortex).
  */
 public final class ImpediuntFunctionHandler implements SpellFunctionHandler {
 
@@ -58,12 +60,6 @@ public final class ImpediuntFunctionHandler implements SpellFunctionHandler {
             return;
         }
 
-        if (action.isPresent() && action.get().reversed()) {
-            // A zone that draws its element in instead of keeping it out is the radial force of the new vocabulary
-            // (docs/plano-materia-e-forca.md, stage 4); until then the spirit says so.
-            MarkSpells.tell(player, "O espirito ainda nao sabe atrair um elemento para uma zona.");
-            return;
-        }
         ServerLevel level = player.serverLevel();
         Optional<SpellPlace> place = action.flatMap(SpellAction::place);
         Supplier<Optional<Vec3>> center;
@@ -93,7 +89,9 @@ public final class ImpediuntFunctionHandler implements SpellFunctionHandler {
         double umu = action.map(SpellAction::quantity).orElse(OptionalDouble.empty()).orElse(Barrier.DEFAULT_UMU);
         int window = action.map(Chronos::window).orElse(0);
         context.addTotalCost(SpellFlow.total(umu, window) - Barrier.DEFAULT_UMU);
-        ImpediuntZones.open(player, element, center, Barrier.radius(umu), window > 0 ? window : DEFAULT_TICKS);
+        // Turned around (a negative quantity), the force points in: the zone draws its element toward the centre.
+        boolean drawsIn = action.map(SpellAction::reversed).orElse(false);
+        ImpediuntZones.open(player, element, center, Barrier.radius(umu), window > 0 ? window : DEFAULT_TICKS, drawsIn);
         SpellEffects.playImpediuntSound(player);
     }
 }

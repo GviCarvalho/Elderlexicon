@@ -9,6 +9,9 @@ import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
@@ -159,6 +162,92 @@ public final class SpellGameTests {
             }
             if (!anyIn(helper, Blocks.DIRT, 3, 3)) {
                 helper.fail("no earth against the wall yet");
+            }
+        });
+    }
+
+    @GameTest(template = EMPTY)
+    public static void solidMatterTakenFromTheWorldIsPutWhereTheMageAims(GameTestHelper helper) {
+        ServerPlayer mage = mageBeforeAWall(helper);
+        // The floor is the solid matter nearest the mage: it is taken, stone as stone, and put before the wall.
+        SpellCastingService.Result result = cast(mage, "firmo tenet vocant");
+        if (result.failed()) {
+            helper.fail("firmo tenet vocant failed: " + result.message().getString());
+        }
+        int holes = 0;
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < 4; z++) {
+                holes += helper.getBlockState(new BlockPos(x, 0, z)).isAir() ? 1 : 0;
+            }
+        }
+        if (holes == 0) {
+            helper.fail("no floor was taken");
+        }
+        if (!anyIn(helper, Blocks.STONE, 2, 3)) {
+            helper.fail("no stone was put before the wall");
+        }
+        helper.succeed();
+    }
+
+    private static boolean anyInFloor(GameTestHelper helper, Block block) {
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < 5; z++) {
+                if (helper.getBlockState(new BlockPos(x, 0, z)).is(block)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @GameTest(template = EMPTY)
+    public static void stoneTakenToTheLiquidRungIsLava(GameTestHelper helper) {
+        ServerPlayer mage = mageBeforeAWall(helper);
+        // Vertere on matter of the world climbs the ladder and keeps what it is: solid stone, one rung up, is liquid
+        // stone, which the game shows as lava.
+        SpellCastingService.Result result = cast(mage, "firmo tenet vertere aqua");
+        if (result.failed()) {
+            helper.fail("firmo tenet vertere aqua failed: " + result.message().getString());
+        }
+        if (!anyInFloor(helper, Blocks.LAVA)) {
+            helper.fail("the floor did not melt");
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY)
+    public static void waterTakenToTheSolidRungIsIce(GameTestHelper helper) {
+        ServerPlayer mage = mageBeforeAWall(helper);
+        for (int x = 0; x < 5; x++) {
+            helper.setBlock(new BlockPos(x, 0, 2), Blocks.WATER);
+        }
+        SpellCastingService.Result result = cast(mage, "aqua tenet vertere firmo");
+        if (result.failed()) {
+            helper.fail("aqua tenet vertere firmo failed: " + result.message().getString());
+        }
+        if (!anyInFloor(helper, Blocks.ICE)) {
+            helper.fail("the water did not freeze");
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY)
+    public static void impediuntTurnedAroundDrawsThingsIn(GameTestHelper helper) {
+        ServerPlayer mage = mageBeforeAWall(helper);
+        Vec3 start = helper.absoluteVec(new Vec3(0.5D, 1.0D, 3.5D));
+        ItemEntity stone = new ItemEntity(helper.getLevel(), start.x, start.y, start.z, new ItemStack(Items.COBBLESTONE));
+        stone.setPickUpDelay(32767);
+        helper.getLevel().addFreshEntity(stone);
+        double before = stone.position().distanceTo(mage.position());
+        // R4 on impediunt: the force over the area points in. Air carries what is loose in it: a vortex.
+        SpellCastingService.Result result = cast(mage, "aura quantum -30 chronos 3 impediunt");
+        if (result.failed()) {
+            helper.fail("aura quantum -30 chronos 3 impediunt failed: " + result.message().getString());
+        }
+        helper.succeedWhen(() -> {
+            double now = stone.position().distanceTo(mage.position());
+            if (now > before - 1.5D) {
+                helper.fail("the stone was not drawn in: " + before + " -> " + now);
             }
         });
     }

@@ -183,7 +183,7 @@ class CompositionTest {
         Lexicon before = Lexicons.get();
         assertThrows(IllegalStateException.class, () -> Lexicons.extend(words -> words.rune(
                 Rune.builder("lux", WordClass.VERB).glyph("C")
-                        .verb(new VerbSpec("shine", null, 0.0D, null, null, false, null, false, null, null, false))
+                        .verb(new VerbSpec("shine", null, 0.0D, null, null, false, null, false, null, null, false, false))
                         .build())),
                 "C is igni's glyph");
         assertThrows(IllegalStateException.class, () -> Lexicons.extend(words -> words.rune(

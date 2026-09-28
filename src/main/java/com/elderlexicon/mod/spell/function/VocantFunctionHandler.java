@@ -47,6 +47,12 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
             MarkSpells.summon(context, subject.get(), place, SUMMON_DELAY_TICKS, Chronos.window(action.get()));
             return;
         }
+        if (action.isPresent() && action.get().fromWorld() && !action.get().chained() && !action.get().gathers()) {
+            // firmo tenet vocant: the matter is taken from the world as it is and put where the vocant puts things (to
+            // gather it all, or condense it, the flow captures it as energy instead).
+            Transfer.fromWorld(context, element, action.get());
+            return;
+        }
         // The ubis place is fixed when the spell is cast; without one, the aim is read when it lands.
         Optional<MarkSpells.Destination> written = place.isPresent()
                 ? MarkSpells.destination(context, place, MarkSpells.SUMMON_RANGE)
@@ -82,9 +88,7 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
         boolean condensed = condensedEarth || condensedWater || condensedAir || condensedVis;
         Product product = action.isPresent() && action.get().handsOn() && !condensed
                 ? new Product(element, SpellFlow.total(energy, window)) : null;
-        if (product != null) {
-            context.handOn(product);
-        }
+        context.handOn(product); // nothing, when no verb after takes it: what an earlier verb left is not handed on
         String rune = context.elementRuneId();
         // A condensation is gathered where it will appear before it does: where the mage aimed when the gathering began,
         // wherever they look by the time it is released.

@@ -173,6 +173,14 @@ public final class SpellAction {
         return seconds().isPresent() && seconds().getAsDouble() <= 1.0E-4D;
     }
 
+    /**
+     * Whether what it spends is gathered first: everything in reach (a bare quantity) or so much condensed into one point
+     * ({@code quantum 20 chronos 0}).
+     */
+    public boolean gathers() {
+        return quantityAll() || atOnce() && potency().isPresent();
+    }
+
     /** Whether this is a bond of sight to its subject ({@code surgit m1 ligabis}). */
     public boolean sightBond() {
         return Boolean.TRUE.equals(metadata.get(SIGHT_BOND));

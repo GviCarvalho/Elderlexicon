@@ -59,16 +59,19 @@ public final class ImpediuntZones {
         final Supplier<Optional<Vec3>> center;
         final double radius;
         final long untilTick;
+        /** Turned around (a negative quantity): it draws the element in toward its centre instead of keeping it out. */
+        final boolean drawsIn;
         Vec3 lastCenter;
 
         Zone(ServerLevel level, ServerPlayer caster, VitaElement element, Supplier<Optional<Vec3>> center, double radius,
-             long untilTick, Vec3 lastCenter) {
+             long untilTick, boolean drawsIn, Vec3 lastCenter) {
             this.level = level;
             this.caster = caster;
             this.element = element;
             this.center = center;
             this.radius = radius;
             this.untilTick = untilTick;
+            this.drawsIn = drawsIn;
             this.lastCenter = lastCenter;
         }
     }
@@ -78,12 +81,24 @@ public final class ImpediuntZones {
      * then, into a wall at the edge; fire, water and creatures are kept out for as long as it lasts.
      */
     static void open(ServerPlayer caster, VitaElement element, Supplier<Optional<Vec3>> center, double radius, int ticks) {
+        open(caster, element, center, radius, ticks, false);
+    }
+
+    /**
+     * Opens a zone that draws in ({@code drawsIn}, impediunt turned around: {@code aura quantum -30 chronos 5
+     * impediunt}): for as long as it lasts, what of the element is within its radius is pulled toward the centre. The
+     * air carries everything loose in it, so a zone of air (or of vis) draws in any creature and any thing on the
+     * ground: a vortex.
+     */
+    static void open(ServerPlayer caster, VitaElement element, Supplier<Optional<Vec3>> center, double radius, int ticks,
+                     boolean drawsIn) {
         Optional<Vec3> at = center.get();
         if (at.isEmpty() || radius <= 0.0D) {
             return;
         }
         ServerLevel level = caster.serverLevel();
-        Zone zone = new Zone(level, caster, element, center, radius, level.getGameTime() + Math.max(1, ticks), at.get());
+        Zone zone = new Zone(level, caster, element, center, radius, level.getGameTime() + Math.max(1, ticks), drawsIn,
+                at.get());
         sweep(zone, at.get(), true);
         showEdge(zone, at.get(), 48);
         ZONES.add(zone);
@@ -165,8 +180,8 @@ public final class ImpediuntZones {
 
     private static Zone find(ServerLevel level, double x, double y, double z, VitaElement element, boolean withGround) {
         for (Zone zone : ZONES) {
-            if (zone.level != level || zone.element != element) {
-                continue;
+            if (zone.level != level || zone.element != element || zone.drawsIn) {
+                continue; // a zone that draws in keeps nothing out
             }
             Vec3 center = zone.lastCenter;
             int floor = (int) Math.floor(center.y);
@@ -213,6 +228,10 @@ public final class ImpediuntZones {
     // ------------------------------------------------------------------ the sweep
 
     private static void sweep(Zone zone, Vec3 center, boolean first) {
+        if (zone.drawsIn) {
+            drawIn(zone, center);
+            return;
+        }
         pushCreatures(zone, center);
         Optional<Revelation.Kind> kind = switch (zone.element) {
             case IGNI -> Optional.of(Revelation.Kind.IGNI);
@@ -277,6 +296,55 @@ public final class ImpediuntZones {
             Vec3 out = length < 1.0E-6D ? new Vec3(1.0D, 0.0D, 0.0D) : new Vec3(dx / length, 0.0D, dz / length);
             entity.setDeltaMovement(out.x * PUSH_SPEED, PUSH_LIFT, out.z * PUSH_SPEED);
             entity.hurtMarked = true;
+        }
+    }
+
+    /**
+     * What of the element is within the radius is pulled toward the centre; the air (and vis) carries everything loose.
+     * What reaches the middle stays there while the zone lasts.
+     */
+    private static void drawIn(Zone zone, Vec3 center) {
+        AABB box = new AABB(center.x - zone.radius, Math.floor(center.y) - 1.0D, center.z - zone.radius,
+                center.x + zone.radius, Math.floor(center.y) + Barrier.HEIGHT, center.z + zone.radius);
+        boolean any = zone.element == null || zone.element.isBalanced() || zone.element == VitaElement.AURA;
+        List<Entity> inside = new ArrayList<>();
+        inside.addAll(zone.level.getEntitiesOfClass(LivingEntity.class, box, living -> living != zone.caster
+                && living.isAlive() && !living.isSpectator()
+                && (any || ElementAffinityService.matches(zone.element, living))));
+        inside.addAll(zone.level.getEntitiesOfClass(ItemEntity.class, box,
+                item -> any || ElementAffinityService.matchesItem(zone.element, item.getItem())));
+        for (Entity entity : inside) {
+            double dx = center.x - entity.getX();
+            double dz = center.z - entity.getZ();
+            double distance = Math.sqrt(dx * dx + dz * dz);
+            if (distance > zone.radius) {
+                continue;
+            }
+            Vec3 motion = entity.getDeltaMovement();
+            if (distance < 1.0D) {
+                // In the middle: held there.
+                entity.setDeltaMovement(0.0D, motion.y, 0.0D);
+            } else {
+                double speed = Math.min(PUSH_SPEED, distance / SWEEP_TICKS);
+                entity.setDeltaMovement(dx / distance * speed, Math.max(motion.y, 0.0D), dz / distance * speed);
+            }
+            entity.hasImpulse = true;
+            entity.hurtMarked = true;
+        }
+        if (zone.level.getGameTime() % (SWEEP_TICKS * 2) == 0) {
+            showVortex(zone, center);
+        }
+    }
+
+    /** Air seen streaming in toward the centre from the edge. */
+    private static void showVortex(Zone zone, Vec3 center) {
+        int points = 16;
+        for (int i = 0; i < points; i++) {
+            double angle = 2.0D * Math.PI * i / points + zone.level.getGameTime() * 0.2D;
+            double x = center.x + Math.cos(angle) * zone.radius;
+            double z = center.z + Math.sin(angle) * zone.radius;
+            Vec3 in = new Vec3(center.x - x, 0.0D, center.z - z).normalize();
+            zone.level.sendParticles(ParticleTypes.CLOUD, x, center.y + 0.5D, z, 0, in.x, 0.0D, in.z, 0.4D);
         }
     }
 

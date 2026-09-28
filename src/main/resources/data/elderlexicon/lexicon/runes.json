@@ -242,7 +242,7 @@
     "vocant": {
       "class": "verb", "glyph": "J", "translation": "summon", "name": "invocar",
       "lore": "Função: faz surgir no ponto mirado.",
-      "operation": "manifest", "cost": 1, "gathering": "destination", "reversible": true,
+      "operation": "manifest", "cost": 1, "gathering": "destination", "reversible": true, "transfers": true,
       "texts": {
         "role": "Faz {what} surgir no ponto mirado",
         "role.reversed": "Traz {what} até quem conjura; uma fonte vem do que está mais perto (ou do lugar do ubis) e é absorvida para o corpo",

@@ -2,6 +2,7 @@ package com.elderlexicon.mod.magic.flow;
 
 import com.elderlexicon.mod.magic.lexicon.Flow;
 import com.elderlexicon.mod.magic.lexicon.Lexicon;
+import com.elderlexicon.mod.magic.lexicon.VerbSpec;
 import com.elderlexicon.mod.spell.Charge;
 import com.elderlexicon.mod.spell.Conversion;
 import com.elderlexicon.mod.spell.Heat;
@@ -108,7 +109,10 @@ public final class FlowInterpreter {
             // and the ones after it spend, which is only known once they have run. A verb turned around (vocant with a
             // negative quantity) brings from the world by itself, and a marked thing or what the verb before produced
             // is no source to take.
-            if (action.fromWorld() && !action.image() && !marked && !action.chained() && !action.reversed()) {
+            // A verb that moves matter (vocant) carries what it takes as it is: there is nothing to capture as energy,
+            // unless it gathers it all first, or condenses it (firmo tenet quantum chronos 0 vocant).
+            if (action.fromWorld() && !action.image() && !marked && !action.chained() && !action.reversed()
+                    && !(transfers(action) && !action.gathers())) {
                 captured = currentElement;
                 capturedAs = currentElement;
                 capture = originOf(action);
@@ -180,8 +184,7 @@ public final class FlowInterpreter {
                 continue;
             }
             FlowWorld.Captured all = null;
-            boolean condensing = action.atOnce() && action.potency().isPresent();
-            if (captured != null && capturedForSpell && (action.quantityAll() || condensing) && world.hasCaster()) {
+            if (captured != null && capturedForSpell && action.gathers() && world.hasCaster()) {
                 // firmo tenet quantum iactare: everything in reach is taken now and spent by this verb (quantum 20
                 // chronos 0: twenty of it). With chronos 0 it is released in one instant, as intense as all of it
                 // together (docs/condensacao-design.md).
@@ -313,6 +316,11 @@ public final class FlowInterpreter {
         SpellAction.Builder origin = action.toBuilder().removeMetadata(SpellAction.PLACE);
         action.originPlace().ifPresent(place -> origin.putMetadata(SpellAction.PLACE, place));
         return origin.build();
+    }
+
+    /** Whether the verb moves matter rather than spending energy (the lexicon's {@code transfers}). */
+    private boolean transfers(SpellAction action) {
+        return lexicon.verb(action.runeId()).map(VerbSpec::transfers).orElse(false);
     }
 
     /** Whether the next verb after {@code index} acts on what the verb at {@code index} produces (R2). */

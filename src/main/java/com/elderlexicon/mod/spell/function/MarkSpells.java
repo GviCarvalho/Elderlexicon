@@ -507,6 +507,11 @@ final class MarkSpells {
         }
         double estimate = 0.0D;
         for (Marked thing : things) {
+            if (thing.isBlock() && StateChange.knows(thing.level, thing.blockPos)) {
+                // Matter the table knows only changes state: what it costs is the work of it.
+                estimate += StateChange.workOf(thing.level, thing.blockPos, element);
+                continue;
+            }
             double vita = MarkCost.vitaOf(thing.entity instanceof LivingEntity living
                     ? living.getHealth() + living.getAbsorptionAmount()
                     : thing.mass);
@@ -522,6 +527,9 @@ final class MarkSpells {
             for (Marked thing : things) {
                 if (!thing.present()) {
                     continue;
+                }
+                if (thing.isBlock() && StateChange.block(context, thing.level, thing.blockPos, element)) {
+                    continue; // natural matter: it goes to the target's state and stays what it is (L2)
                 }
                 Vec3 at = thing.isBlock() ? Vec3.atCenterOf(thing.blockPos) : thing.entity.position();
                 double released = convertOne(player, thing, limit);
