@@ -236,6 +236,45 @@ A ponte com o mundo fica em `spell/matter/WorldMatter`, e o plano de como a mat�
   - o vórtice puxando uma pedra solta;
   - o sinal negativo recusado no `vertere`.
 
+## 6.4 Como a etapa 5 ficou
+
+- **Matéria informe:** um bloco novo (`formless_solid` e `formless_liquid`) guarda a matéria exatamente como ela é, com
+  composição, estado e UMU, num block entity. A cor é a mistura das cores dos quatro aspectos: terra marrom, água azul,
+  ar claro e fogo laranja. Ele aparece em dois casos:
+  - **Uma substância num estado em que a tabela não dá aparência a ela**, sólido ou líquido: terra derretida, ferro
+    derretido, fogo sólido. Isso substitui a recusa da etapa 4, e agora `firmo tenet vertere aqua` sobre terra dá terra
+    derretida. Gás ou plasma sem aparência continuam virando partículas e se dispersam.
+  - **Um amálgama**, a mistura que não bate com nenhuma receita. Ele treme, dura `amalgam.seconds` (20 s no
+    `materials.json`) e depois se desfaz de uma vez, o corpo inteiro, nas primordiais, cada uma no estado natural (L5).
+    O que não fecha um bloco inteiro se dispersa no ar.
+  - O líquido não flui, nada colide com ele, a mira atravessa e os fluidos do jogo não o lavam. Um bloco quebrado ou
+    explodido se assenta no que é, junto com o corpo de que fazia parte.
+  - Um bloco informe guarda qualquer quantidade, então nada sobra. O amálgama ocupa o espaço que as partes ocupariam
+    separadas: um bloco de terra derretida e uma fonte de água misturados continuam sendo dois blocos.
+- **Derramar (L4):** matéria fluida que chega onde há matéria fluida (uma fonte, matéria informe líquida; nunca o ar
+  aberto) se mistura com o corpo onde caiu, que são os blocos iguais ligados a ele, até 64.
+  - Se a mistura continua sendo o que o corpo era (água na água, um pouco de água num lago de lava), o corpo fica e
+    cresce.
+  - Se não, o corpo é recolhido e a mistura é posta no lugar: uma substância, se bater com uma receita, ou um amálgama.
+  - Vale para o `vocant` do corpo que cai dentro de um fluido (`aqua quantum 1 ... ubis vocant` numa poça de terra
+    derretida) e para o que chega pela força (`igni vocant iactare` numa lava).
+  - A matéria que uma fonte traz do corpo é a substância da sua essência, no estado natural (L3): `aqua` é água e
+    `lutum` é lama.
+  - Com `chronos`, o `vocant` continua temporário e não se mistura.
+- **Transferir junta:** os fluidos que um `vocant` com `tenet` traz ao mesmo lugar se misturam antes de pousar (L4).
+  Sólidos continuam separados.
+- **O espírito conta o resultado:** quando a mistura vira outra coisa, ele diz o que virou ("A mistura virou
+  ardósia."), ou que é um amálgama e em quanto tempo se desfaz. É assim que as receitas são descobertas.
+- **Pedra por mistura**, que é o teste `stoneIsMadeByMixingThePrimordials`, com feitiços de verdade:
+  1. `firmo quantum 16 X Y Z tenet vertere aqua` derrete 32 blocos de terra.
+  2. Uma de água vira ardósia derretida; uma de ar vira um amálgama.
+  3. Duas de fogo fecham a proporção da pedra (8 : 0,5 : 0,5 : 1). A mistura vira pedra derretida, que aparece como 13
+     fontes de lava.
+  4. `aqua quantum 19 X Y Z tenet vertere firmo` esfria a lava em 13 blocos de pedra.
+- **Nota:** quando uma mistura vira uma substância que o jogo mostra como bloco próprio (lava, água), ela assume a
+  receita exata dessa substância, porque o bloco não guarda a diferença dentro dos 5%. Só a matéria informe guarda a
+  composição exata.
+
 ## 7. Segunda fase: próximo plano, depois desta
 
 - **Corpos.**

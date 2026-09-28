@@ -126,5 +126,7 @@
   "command.elderlexicon.spell.debug.on": "Spell details on: each spell shows its transcription, cost and notes in chat.",
   "command.elderlexicon.spell.debug.off": "Spell details off.",
   "overlay.elderlexicon.spelling.cooldown_toast": "Spirit still resting: %ss",
-  "overlay.elderlexicon.spelling.result.unknown": "The spirit gave no answer."
+  "overlay.elderlexicon.spelling.result.unknown": "The spirit gave no answer.",
+  "block.elderlexicon.formless_solid": "Formless Matter",
+  "block.elderlexicon.formless_liquid": "Formless Liquid Matter"
 }

@@ -182,6 +182,11 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
             return;
         }
         SpellEffects.spawnSummonEffect(player, element, rune, impact);
+        // Brought for good into fluid matter (aqua vocant into a pool of molten earth), it is poured in and mixes with it
+        // (L4); summoned for a while, or anywhere else, it appears as it always does.
+        if (window <= 0 && Pouring.summon(context, player, rune, impact, energy)) {
+            return;
+        }
         EmissionRecorder.pointAt(context, element, impact.location(), SpellFlow.total(energy, window), linger);
         Invocation.invoke(player, element, rune, where, energy / EmissionRecorder.DEFAULT_QUANTITY_UMU, window);
     }

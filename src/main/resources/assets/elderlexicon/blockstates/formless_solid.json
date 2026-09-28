@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "unstable=false": {
+      "model": "elderlexicon:block/formless_solid"
+    },
+    "unstable=true": {
+      "model": "elderlexicon:block/formless_solid"
+    }
+  }
+}

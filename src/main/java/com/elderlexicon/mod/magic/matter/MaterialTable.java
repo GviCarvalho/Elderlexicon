@@ -19,8 +19,11 @@ public final class MaterialTable {
 
     /** How far a mixture may be from a recipe and still be that substance: five points of each share. */
     public static final double TOLERANCE = 0.05D;
+    /** How long an amalgam holds together before it falls apart (L5), when the data does not say. */
+    public static final double DEFAULT_AMALGAM_SECONDS = 20.0D;
 
     private final Map<String, Substance> substances;
+    private final double amalgamSeconds;
     private final Map<VitaElement, Substance> primordials;
     private final Map<String, Reading> readings;
 
@@ -32,8 +35,9 @@ public final class MaterialTable {
         }
     }
 
-    MaterialTable(Map<String, Substance> substances) {
+    MaterialTable(Map<String, Substance> substances, double amalgamSeconds) {
         this.substances = Collections.unmodifiableMap(new LinkedHashMap<>(substances));
+        this.amalgamSeconds = amalgamSeconds > 0.0D ? amalgamSeconds : DEFAULT_AMALGAM_SECONDS;
         EnumMap<VitaElement, Substance> firsts = new EnumMap<>(VitaElement.class);
         Map<String, Reading> read = new LinkedHashMap<>();
         for (Substance substance : substances.values()) {
@@ -52,6 +56,27 @@ public final class MaterialTable {
 
     public Collection<Substance> substances() {
         return substances.values();
+    }
+
+    /** How long an amalgam holds together before it falls back apart into its primordials (L5), in seconds. */
+    public double amalgamSeconds() {
+        return amalgamSeconds;
+    }
+
+    /**
+     * The UMU one block of this matter holds: its substance's unit or, for an amalgam, what its primordials hold in the
+     * room they fill together (each share of it takes the room it would take alone), so mixing keeps the room.
+     */
+    public double unitOf(Matter matter) {
+        Optional<Substance> substance = matter.substance(this);
+        if (substance.isPresent()) {
+            return substance.get().unit();
+        }
+        double room = 0.0D;
+        for (Map.Entry<VitaElement, Double> share : matter.composition().shares().entrySet()) {
+            room += share.getValue() / primordial(share.getKey()).unit();
+        }
+        return room > 0.0D ? 1.0D / room : 1.0D;
     }
 
     public Optional<Substance> substance(String id) {
@@ -85,14 +110,18 @@ public final class MaterialTable {
     }
 
     /**
-     * How a substance shows in a state: as the data says or, when it says nothing for that state, as the nearest state
-     * that has something (the denser one on a tie). A gas or a plasma shown by a block or an item is shown as its
-     * particles, since what floats is neither.
+     * How a substance shows in a state, as the data says. A gas or a plasma the data is silent on shows as the nearest
+     * state that has something (the denser one on a tie), as its particles when that is a block or an item, since what
+     * floats is neither. A solid or a liquid the data is silent on has no look: it is formless matter, which the world
+     * shows as such ({@link Placement}).
      */
     public Optional<Form> form(Substance substance, State state) {
         List<Form> exact = substance.declared(state);
         if (!exact.isEmpty()) {
             return Optional.of(exact.get(0));
+        }
+        if (!floats(state)) {
+            return Optional.empty();
         }
         State[] states = State.values();
         for (int distance = 1; distance < states.length; distance++) {
@@ -104,7 +133,7 @@ public final class MaterialTable {
                 List<Form> near = substance.declared(states[at]);
                 if (!near.isEmpty()) {
                     Form form = near.get(0);
-                    if (state.fluid() && state != State.LIQUID && form.holdsMatter()) {
+                    if (form.holdsMatter()) {
                         String particles = (form.kind() == Form.Kind.BLOCK ? "block:" : "item:") + form.id();
                         return Optional.of(new Form(Form.Kind.PARTICLE, particles, 0.0D));
                     }
@@ -113,6 +142,11 @@ public final class MaterialTable {
             }
         }
         return Optional.empty();
+    }
+
+    /** Whether matter in this state floats off into the world (a gas, a plasma) rather than taking room in it. */
+    public static boolean floats(State state) {
+        return state == State.GAS || state == State.PLASMA;
     }
 
     /** What a block or an item of the game is, as matter; empty for what is no natural matter (a chest, a sword). */

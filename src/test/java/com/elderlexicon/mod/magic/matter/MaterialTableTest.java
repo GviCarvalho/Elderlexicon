@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -88,15 +87,40 @@ class MaterialTableTest {
     }
 
     @Test
-    void aStateTheDataIsSilentOnShowsAsTheNearestOne() {
+    void aFloatingStateTheDataIsSilentOnShowsAsTheNearestOne() {
         Substance earth = TABLE.primordial(VitaElement.FIRMO);
         Form floating = TABLE.form(earth, State.GAS).orElseThrow();
         assertEquals(Form.Kind.PARTICLE, floating.kind(), "earth as a gas is no block");
         assertEquals("block:minecraft:dirt", floating.id(), "but the particles of one");
-        Substance mud = TABLE.substance("mud").orElseThrow();
-        assertEquals("minecraft:mud", TABLE.form(mud, State.LIQUID).orElseThrow().id(), "the nearest state, the denser");
         Substance flesh = TABLE.substance("flesh").orElseThrow();
         assertEquals("item:minecraft:rotten_flesh", TABLE.form(flesh, State.PLASMA).orElseThrow().id());
+    }
+
+    @Test
+    void aSolidOrLiquidTheDataIsSilentOnHasNoLook() {
+        assertTrue(TABLE.form(TABLE.substance("mud").orElseThrow(), State.LIQUID).isEmpty(), "molten mud is formless");
+        assertTrue(TABLE.form(TABLE.primordial(VitaElement.FIRMO), State.LIQUID).isEmpty(), "and so is molten earth");
+        assertTrue(TABLE.form(TABLE.primordial(VitaElement.IGNI), State.SOLID).isEmpty(), "and solid fire");
+    }
+
+    @Test
+    void anAmalgamFillsTheRoomItsPartsFill() {
+        // A block of molten earth (half a UMU) and a source of water (three) mixed fill two blocks, as they did apart.
+        Matter mixed = MatterLaws.mix(List.of(Matter.of(TABLE.primordial(VitaElement.FIRMO), State.LIQUID, 0.5D),
+                Matter.of(TABLE.primordial(VitaElement.AQUA), State.LIQUID, 3.0D))).orElseThrow();
+        assertTrue(mixed.amalgam(TABLE));
+        assertEquals(2.0D, mixed.umu() / TABLE.unitOf(mixed), 1.0E-9);
+        assertEquals(1.5D, TABLE.unitOf(Matter.natural(TABLE.substance("stone").orElseThrow(), 3.0D)), 1.0E-9,
+                "a substance holds its own unit");
+    }
+
+    @Test
+    void anAmalgamHoldsTogetherForTheTimeTheDataGives() {
+        assertEquals(20.0D, TABLE.amalgamSeconds(), 1.0E-9);
+        MaterialTable quick = MaterialTableBuilder.from(TABLE).amalgamSeconds(3.0D).build();
+        assertEquals(3.0D, quick.amalgamSeconds(), 1.0E-9);
+        assertEquals(3.0D, MaterialTableBuilder.from(quick).build().amalgamSeconds(), 1.0E-9, "kept when extended");
+        assertThrows(IllegalArgumentException.class, () -> MaterialTableBuilder.from(TABLE).amalgamSeconds(0.0D));
     }
 
     @Test
@@ -144,12 +168,6 @@ class MaterialTableTest {
     }
 
     private static Composition compositionOf(SourceSpec source) {
-        Map<VitaElement, Double> amounts = new EnumMap<>(VitaElement.class);
-        source.essence().forEach((aspect, share) -> {
-            if (aspect != VitaElement.BALANCED) {
-                amounts.put(aspect, share);
-            }
-        });
-        return Composition.of(amounts);
+        return Composition.ofEssence(source.essence()).orElseThrow();
     }
 }

@@ -1,6 +1,7 @@
 {
   "_license": "© GviCarvalho – Part of Elderlexicon. See LICENSE.txt.",
-  "_about": "Every substance and how it shows in the game (docs/plano-materia-e-forca.md). A recipe is the share of each primordial (firmo is terra, aqua água, aura ar, igni fogo); what a mixture matches, within 5 points of each share, is what it becomes. The four primordials and the fusions the book teaches are known; every other recipe is found by trying. 'unit' is the UMU one block holds in any state; a block holds the unit, an item a ninth of it unless it says its own 'umu'. A state with no forms shows as the nearest state that has some.",
+  "_about": "Every substance and how it shows in the game (docs/plano-materia-e-forca.md). A recipe is the share of each primordial (firmo is terra, aqua água, aura ar, igni fogo); what a mixture matches, within 5 points of each share, is what it becomes. The four primordials and the fusions the book teaches are known; every other recipe is found by trying. 'unit' is the UMU one block holds in any state; a block holds the unit, an item a ninth of it unless it says its own 'umu'. A gas or a plasma with no forms shows as the nearest state that has some; a solid or a liquid with none is formless matter. A mixture that matches no recipe is an amalgam: it holds together for 'amalgam.seconds' and then falls apart into its primordials.",
+  "amalgam": {"seconds": 20},
   "substances": {
     "earth": {"name": "terra", "recipe": {"firmo": 1}, "state": "solid", "unit": 0.5,
               "forms": {"solid": [{"block": "minecraft:dirt"}]}},

@@ -16,7 +16,8 @@ import java.util.Objects;
  * @param recipe what it is made of; the four primordials are each all of one aspect
  * @param nature the state it is found in
  * @param unit   the UMU one block of it holds, in any state, so a block of stone melts into a block of lava
- * @param forms  how it shows in each state; a state with none shows as the nearest one that has some
+ * @param forms  how it shows in each state; a gas or a plasma with none shows as the nearest state that has some, a
+ *               solid or a liquid with none as formless matter
  */
 public record Substance(String id, String name, Composition recipe, State nature, double unit,
                         Map<State, List<Form>> forms) {

@@ -1,6 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
 import com.elderlexicon.mod.magic.matter.Matter;
+import com.elderlexicon.mod.magic.matter.MatterLaws;
 import com.elderlexicon.mod.magic.matter.State;
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.action.SpellAction;
@@ -174,15 +175,30 @@ final class Transfer {
         BlockPos spot = spotOf(impact);
         SpellEffects.spawnSummonEffect(player, element, rune, impact);
         double leftover = 0.0D;
-        double gas = 0.0D;
+        List<Matter> fluids = new ArrayList<>();
         for (Matter matter : taken) {
-            leftover += WorldMatter.place(level, spot, matter).leftover();
-            gas += matter.state() == State.GAS ? matter.umu() : 0.0D;
+            if (matter.state().fluid()) {
+                fluids.add(matter);
+            } else {
+                leftover += WorldMatter.place(level, spot, matter).leftover(); // solids do not mix: a bond joins them
+            }
         }
-        if (gas > 0.0D) {
-            // Air let out there joins the air around it: it is felt as a gust.
-            Invocation.invoke(player, element, rune, Invocation.Where.fixed(impact),
-                    gas / EmissionRecorder.DEFAULT_QUANTITY_UMU, 0);
+        // Brought to one place, the fluids mix (L4); landing in fluid matter, they are poured into it.
+        Optional<Matter> together = MatterLaws.mix(fluids);
+        if (together.isPresent()) {
+            if (fluids.size() > 1) {
+                Pouring.tell(player, together.get());
+            }
+            Optional<BlockPos> into = Pouring.into(level, impact);
+            WorldMatter.Placed placed = into.isPresent() ? WorldMatter.pour(level, into.get(), together.get())
+                    : WorldMatter.place(level, spot, together.get());
+            leftover += placed.leftover();
+            Pouring.tell(player, together.get(), placed);
+            if (into.isEmpty() && together.get().state() == State.GAS) {
+                // Air let out there joins the air around it: it is felt as a gust.
+                Invocation.invoke(player, element, rune, Invocation.Where.fixed(impact),
+                        together.get().umu() / EmissionRecorder.DEFAULT_QUANTITY_UMU, 0);
+            }
         }
         if (leftover > 0.0D && !context.focusActive()) {
             VitaSystem.restoreElementEnergy(player, element, leftover);
