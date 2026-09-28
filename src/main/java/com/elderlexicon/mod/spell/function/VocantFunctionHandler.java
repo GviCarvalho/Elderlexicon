@@ -9,6 +9,7 @@ import com.elderlexicon.mod.spell.mark.SpellPlace;
 import com.elderlexicon.mod.vita.VitaElement;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -46,6 +47,12 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
             MarkSpells.summon(context, subject.get(), place, SUMMON_DELAY_TICKS, Chronos.window(action.get()));
             return;
         }
+        if (action.isPresent() && action.get().fromWorld() && !action.get().chained() && !action.get().gathers()) {
+            // firmo tenet vocant: the matter is taken from the world as it is and put where the vocant puts things (to
+            // gather it all, or condense it, the flow captures it as energy instead).
+            Transfer.fromWorld(context, element, action.get());
+            return;
+        }
         // The ubis place is fixed when the spell is cast; without one, the aim is read when it lands.
         Optional<MarkSpells.Destination> written = place.isPresent()
                 ? MarkSpells.destination(context, place, MarkSpells.SUMMON_RANGE)
@@ -60,7 +67,6 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
         // aqua quantum 20 vocant brings twice the water (book 4.3.2, linear); what goes beyond 10 UMU is paid.
         double energy = action.map(SpellAction::quantity).orElse(OptionalDouble.empty())
                 .orElse(EmissionRecorder.DEFAULT_QUANTITY_UMU);
-        double power = energy / EmissionRecorder.DEFAULT_QUANTITY_UMU;
         // chronos is how long what was summoned stays or keeps acting (book 4.3.2: "igni exsugat chronos firmo vocant"),
         // and a tap held open: it spends that much for every two seconds (SpellFlow).
         int window = action.map(Chronos::window).orElse(0);
@@ -78,12 +84,20 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                 && action.get().metadata().get(SpellAction.INTENSITY) != null;
         boolean condensedVis = element == VitaElement.BALANCED && action.isPresent() && action.get().atOnce()
                 && action.get().metadata().get(SpellAction.INTENSITY) != null;
+        // The verb after acts on what this makes (igni vocant iactare): it is handed on, to be made where it starts from.
+        boolean condensed = condensedEarth || condensedWater || condensedAir || condensedVis;
+        Product product = action.isPresent() && action.get().handsOn() && !condensed
+                ? new Product(element, SpellFlow.total(energy, window)) : null;
+        context.handOn(product); // nothing, when no verb after takes it: what an earlier verb left is not handed on
+        String rune = context.elementRuneId();
         // A condensation is gathered where it will appear before it does: where the mage aimed when the gathering began,
         // wherever they look by the time it is released.
         int charge = action.map(SpellAction::charge).orElse(0);
         SpellEffects.SpellImpact aimed = charge > 0 ? written.map(MarkSpells.Destination::impact)
                 .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE)) : null;
-        SpellEffects.schedule(level, Math.max(SUMMON_DELAY_TICKS, charge), () -> {
+        // What is handed on waits a tick, for the verbs after it to be read and the one acting on it to take it.
+        int delay = Math.max(product != null ? 1 : SUMMON_DELAY_TICKS, charge);
+        SpellEffects.schedule(level, delay, () -> {
             // The orb the condensation grew into becomes what it held.
             if (action.isPresent() && action.get().orb() >= 0
                     && level.getEntity(action.get().orb()) instanceof ElementOrb orb) {
@@ -128,11 +142,17 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                 EarthSpots.place(level, player, spot, action.get().intensity(), action.get().carbon());
                 return;
             }
+            if (product != null && product.taken()) {
+                // Taken by the verb after: it is made where it leaves from (the ubis place, or the mage's hand) and
+                // does what it does where that verb carries it.
+                Vec3 from = written.map(MarkSpells.Destination::point).orElseGet(() -> ExsugatFunctionHandler.handOf(player));
+                product.ready(level, from, landed -> appear(context, player, element, rune, landed,
+                        Invocation.Where.fixed(landed), energy, window, linger));
+                return;
+            }
             SpellEffects.SpellImpact impact = aimed != null ? aimed : written
                     .map(MarkSpells.Destination::impact)
                     .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE));
-            SpellEffects.spawnSummonEffect(player, element, context.elementRuneId(), impact);
-            EmissionRecorder.pointAt(context, element, impact.location(), SpellFlow.total(energy, window), linger);
             // A place written with marks moves with them: while chronos lasts, the invocation follows.
             Invocation.Where where = follow.map(following -> (Invocation.Where) new Invocation.Where() {
                 @Override
@@ -145,13 +165,25 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                     return true;
                 }
             }).orElseGet(() -> Invocation.Where.fixed(impact));
-            Invocation.invoke(player, element, context.elementRuneId(), where, power, window);
+            appear(context, player, element, context.elementRuneId(), impact, where, energy, window, linger);
             double heat = action.map(SpellAction::intensity).orElse(Heat.COMMON);
             if (heat > Heat.COMMON && element == VitaElement.IGNI) {
                 // Condensed fire invoked in place: a hot spot that cools little by little.
                 HeatSpots.strike(level, player, impact.location(), heat);
             }
         });
+    }
+
+    /** What is summoned appears at {@code impact} and does there what it does. */
+    private static void appear(SpellContext context, ServerPlayer player, VitaElement element, String rune,
+                               SpellEffects.SpellImpact impact, Invocation.Where where, double energy, int window,
+                               int linger) {
+        if (!SpellEffects.isPlayerValid(player)) {
+            return;
+        }
+        SpellEffects.spawnSummonEffect(player, element, rune, impact);
+        EmissionRecorder.pointAt(context, element, impact.location(), SpellFlow.total(energy, window), linger);
+        Invocation.invoke(player, element, rune, where, energy / EmissionRecorder.DEFAULT_QUANTITY_UMU, window);
     }
 
     /**

@@ -203,6 +203,39 @@ A ponte com o mundo fica em `spell/matter/WorldMatter`, e o plano de como a mat�
   verdade: pedra, lava e gelo lidos como matéria, pedra derretida colocada como lava, um amálgama assentando em terra
   e água, um bloco tirado, um gás solto.
 
+## 6.3 Como a etapa 4 ficou
+
+- **Escada no custo:** converter custa 5% por degrau (`firmo` sólido, `aqua` líquido, `aura` gás, `igni` plasma).
+  Sair de vis não custa nada; voltar a vis custa a escada inteira (3 degraus). `igni` para `firmo` passou de 1 para 3.
+- **R2 no mundo:** quando o verbo seguinte age sobre o resultado (o grimório marca isso como `handsOn`), o `vocant`
+  entrega o que faz em vez de largar no ponto. A regra de onde ele surge é uma só: **no `ubis` do `vocant`, ou, sem ele,
+  na mão de quem conjura**, já que é de lá que a matéria sai do corpo. Sem verbo depois, continua surgindo onde se mira.
+  - `iactare` empurra o produto para o ponto (o `ubis` antes dele, ou a mira); `impediunt` para longe do centro; com
+    negativo, ao contrário. O produto voa como um orbe e, onde bate, faz o que faria no ponto: a terra se assenta, o
+    fogo acende. A quantidade do verbo de força é a energia do empurrão: mais energia, mais rápido.
+  - Assim `igni vocant iactare` é a lança de fogo, `igni 10 40 50 ubis vocant iactare` faz o fogo surgir lá e voar até a
+    mira, e `firmo tenet vocant iactare` arremessa a terra tirada do chão.
+- **Transferência:** o léxico marca o `vocant` com `"transfers": true`. Com `tenet`, ele não captura energia: tira os
+  blocos do estado da fonte mais perto (de quem conjura ou da origem escrita), como são, e os põe no destino. Pedra
+  continua pedra. O que não acha lugar volta ao corpo como energia do estado (L3).
+- **`vertere` no mundo** muda o estado e mantém a substância: pedra vira lava, lava vira pedra, gelo vira água, água vira
+  gelo ou vapor. O trabalho, 5% por degrau, é pago por quem conjura. Voltar a vis desfaz a matéria, e o que sobra do
+  trabalho entra no corpo como vis. Se a substância não tem forma declarada no estado alvo e teria de virar bloco ou
+  item (ferro líquido), o espírito recusa. Gás e plasma sempre se dispersam. Vale também para `m1 vertere aqua` num
+  bloco marcado; criaturas continuam convertendo o vita como antes.
+  - **Isso muda um feitiço antigo:** `igni tenet vertere aqua` não troca mais fogo por água. O fogo muda de estado e
+    continua sendo fogo. Para fazer água, é preciso trazê-la do corpo ou do mundo (`aqua vocant`, `aqua tenet vocant`).
+- **`impediunt` invertido** abre uma zona que puxa para o centro durante o `chronos`, em vez de manter fora. O ar
+  carrega tudo o que está solto, então `aura quantum -30 chronos 5 impediunt` é um vórtice. Com outros elementos, puxa
+  o que for daquele elemento.
+- **Testes no jogo:** `gametest/SpellGameTests` lança feitiços de verdade com um mago falso (com um canal de rede que
+  engole os pacotes). Os testes cobrem:
+  - terra que surge 2 blocos à frente e voa até a parede;
+  - o chão tirado e posto diante da parede;
+  - pedra derretida em lava e água congelada em gelo;
+  - o vórtice puxando uma pedra solta;
+  - o sinal negativo recusado no `vertere`.
+
 ## 7. Segunda fase: próximo plano, depois desta
 
 - **Corpos.**

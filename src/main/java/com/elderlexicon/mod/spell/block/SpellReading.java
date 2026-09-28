@@ -212,12 +212,12 @@ public final class SpellReading {
         }
         VitaElement fromElement = lexicon().elementOf(from.get().id());
         VitaElement toElement = lexicon().elementOf(to.get().id());
-        int qualities = Conversion.qualities(fromElement, toElement);
-        String cost = qualities == 0 ? text(function, "role.free", Map.of())
+        int steps = Conversion.steps(fromElement, toElement);
+        String cost = steps == 0 ? text(function, "role.free", Map.of())
                 : text(function, "role.cost", Map.of(
-                        "q", String.valueOf(qualities),
-                        "qualities", text(function, qualities == 1 ? "role.quality" : "role.qualities", Map.of()),
-                        "p", String.valueOf((int) Math.round(qualities * Conversion.WORK_PER_QUALITY * 100.0D))));
+                        "q", String.valueOf(steps),
+                        "steps", text(function, steps == 1 ? "role.step" : "role.steps", Map.of()),
+                        "p", String.valueOf((int) Math.round(Conversion.workShare(steps) * 100.0D))));
         boolean inPlace = nextFunction(ids, next.get()).isEmpty();
         return text(function, "role", Map.of("from", nameOf(from.get()), "to", target, "cost", cost))
                 + text(function, inPlace ? "role.inplace" : "role.end", Map.of());

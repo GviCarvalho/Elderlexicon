@@ -66,6 +66,11 @@ public final class SpellAction {
      * ({@code igni vocant iactare}: the fire made to appear is what is pushed). R2.
      */
     public static final String CHAINED = "chained";
+    /**
+     * Metadata key, set by the flow as the spell runs: the verb after this one acts on what this one produces, so it is
+     * handed on rather than left where it is ({@code igni vocant iactare}: the fire is made for the iactare to push).
+     */
+    public static final String HANDS_ON = "handsOn";
     /** How intense the captured source is when this function releases it (docs/condensacao-design.md). */
     public static final String INTENSITY = "intensity";
     /** How much coal the captured earth held, when it was nearly all coal: condensed hard, it turns to diamond. */
@@ -168,6 +173,14 @@ public final class SpellAction {
         return seconds().isPresent() && seconds().getAsDouble() <= 1.0E-4D;
     }
 
+    /**
+     * Whether what it spends is gathered first: everything in reach (a bare quantity) or so much condensed into one point
+     * ({@code quantum 20 chronos 0}).
+     */
+    public boolean gathers() {
+        return quantityAll() || atOnce() && potency().isPresent();
+    }
+
     /** Whether this is a bond of sight to its subject ({@code surgit m1 ligabis}). */
     public boolean sightBond() {
         return Boolean.TRUE.equals(metadata.get(SIGHT_BOND));
@@ -219,6 +232,11 @@ public final class SpellAction {
     /** Whether the function acts on what the function before it produced or moved. */
     public boolean chained() {
         return Boolean.TRUE.equals(metadata.get(CHAINED));
+    }
+
+    /** Whether the function after this one acts on what this one produces (set by the flow as the spell runs). */
+    public boolean handsOn() {
+        return Boolean.TRUE.equals(metadata.get(HANDS_ON));
     }
 
     public Builder toBuilder() {

@@ -13,6 +13,7 @@ import com.elderlexicon.mod.spell.function.ExsugatFunctionHandler;
 import com.elderlexicon.mod.spell.function.Gatherings;
 import com.elderlexicon.mod.spell.function.ImageSpells;
 import com.elderlexicon.mod.spell.function.SpellFunctionHandler;
+import com.elderlexicon.mod.spell.function.StateChange;
 import com.elderlexicon.mod.spell.registry.SpellFunctionHandlerRegistry;
 import com.elderlexicon.mod.spell.vertere.VertereRequest;
 import com.elderlexicon.mod.vita.VitaElement;
@@ -167,7 +168,8 @@ public final class SpellActionExecutor {
 
         @Override
         public double convertInPlace(VitaElement from, VitaElement as, double amount, double workShare) {
-            return ExsugatFunctionHandler.convertInPlace(context, from, as, amount, workShare);
+            // Matter in the world changes state where it is (L2): the work is paid as each block changes.
+            return StateChange.inPlace(context, from, as, amount);
         }
 
         @Override

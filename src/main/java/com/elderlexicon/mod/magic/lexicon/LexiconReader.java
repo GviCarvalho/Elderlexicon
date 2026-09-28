@@ -190,7 +190,8 @@ public final class LexiconReader {
                 bool(json, "binds", false),
                 string(json, "phrase").orElse(null),
                 string(json, "joiner").orElse(null),
-                bool(json, "reversible", false));
+                bool(json, "reversible", false),
+                bool(json, "transfers", false));
     }
 
     private static FilterSpec filter(String id, JsonObject json) {

@@ -2,6 +2,7 @@ package com.elderlexicon.mod.magic.flow;
 
 import com.elderlexicon.mod.magic.lexicon.Flow;
 import com.elderlexicon.mod.magic.lexicon.Lexicon;
+import com.elderlexicon.mod.magic.lexicon.VerbSpec;
 import com.elderlexicon.mod.spell.Charge;
 import com.elderlexicon.mod.spell.Conversion;
 import com.elderlexicon.mod.spell.Heat;
@@ -23,7 +24,7 @@ import java.util.Objects;
  *       quantity), or when a verb asks for all of it; otherwise the spell simply costs the body what its verbs
  *       spend.</li>
  *   <li><b>What it becomes on the way:</b> every conversion ({@link Flow#CONVERT}) turns the energy in hand into its
- *       target, and adds the qualities it changed; the spirit's work of unmaking and remaking is taken out of the energy
+ *       target, and adds the rungs it crossed; the spirit's work of unmaking and remaking is taken out of the energy
  *       itself. With nothing in hand, a conversion turns the body's own Vita.</li>
  *   <li><b>What spends it:</b> every other verb. Released at once ({@code chronos 0}) what it spends is gathered into one
  *       point first, as intense as all of it ({@link IntensityLaws}).</li>
@@ -70,8 +71,8 @@ public final class FlowInterpreter {
         // is now, and how much.
         VitaElement held = null;
         double heldUmu = 0.0D;
-        // The qualities changed by the conversions along the way (each adds its own), for their work and time.
-        int qualities = 0;
+        // The rungs crossed by the conversions along the way (each adds its own), for their work and time.
+        int steps = 0;
         // Every element the energy has been along the way, in order, so its orb can show each conversion.
         List<VitaElement> chain = new ArrayList<>();
 
@@ -108,7 +109,10 @@ public final class FlowInterpreter {
             // and the ones after it spend, which is only known once they have run. A verb turned around (vocant with a
             // negative quantity) brings from the world by itself, and a marked thing or what the verb before produced
             // is no source to take.
-            if (action.fromWorld() && !action.image() && !marked && !action.chained() && !action.reversed()) {
+            // A verb that moves matter (vocant) carries what it takes as it is: there is nothing to capture as energy,
+            // unless it gathers it all first, or condenses it (firmo tenet quantum chronos 0 vocant).
+            if (action.fromWorld() && !action.image() && !marked && !action.chained() && !action.reversed()
+                    && !(transfers(action) && !action.gathers())) {
                 captured = currentElement;
                 capturedAs = currentElement;
                 capture = originOf(action);
@@ -122,7 +126,7 @@ public final class FlowInterpreter {
             if (flow == Flow.CONVERT && !marked && captured != null) {
                 if (vertereIndex < vertereQueue.size()) {
                     VitaElement target = vertereQueue.get(vertereIndex++).target();
-                    qualities += Conversion.qualities(capturedAs, target);
+                    steps += Conversion.steps(capturedAs, target);
                     chain.add(target);
                     capturedAs = target;
                     currentElement = target;
@@ -134,7 +138,7 @@ public final class FlowInterpreter {
             if (flow == Flow.CONVERT && !marked && held != null) {
                 if (vertereIndex < vertereQueue.size()) {
                     VitaElement target = vertereQueue.get(vertereIndex++).target();
-                    qualities += Conversion.qualities(held, target);
+                    steps += Conversion.steps(held, target);
                     chain.add(target);
                     held = target;
                     currentElement = target;
@@ -154,7 +158,7 @@ public final class FlowInterpreter {
                         world.nothingInBody(currentElement);
                         continue;
                     }
-                    qualities += Conversion.qualities(currentElement, target);
+                    steps += Conversion.steps(currentElement, target);
                     chain.clear();
                     chain.add(currentElement);
                     chain.add(target);
@@ -180,8 +184,7 @@ public final class FlowInterpreter {
                 continue;
             }
             FlowWorld.Captured all = null;
-            boolean condensing = action.atOnce() && action.potency().isPresent();
-            if (captured != null && capturedForSpell && (action.quantityAll() || condensing) && world.hasCaster()) {
+            if (captured != null && capturedForSpell && action.gathers() && world.hasCaster()) {
                 // firmo tenet quantum iactare: everything in reach is taken now and spent by this verb (quantum 20
                 // chronos 0: twenty of it). With chronos 0 it is released in one instant, as intense as all of it
                 // together (docs/condensacao-design.md).
@@ -191,7 +194,7 @@ public final class FlowInterpreter {
                 // The spirit's work (merging all the sources into one, unmaking and remaking them as another element) is
                 // done with the energy in hand: it is lost from it, and what is left is what the verb releases.
                 double worked = all.total() - (atOnce && all.sources() > 1 ? Heat.work(all.total(), all.sources()) : 0.0D);
-                worked = Math.max(0.0D, worked * (1.0D - Conversion.workShare(qualities)));
+                worked = Math.max(0.0D, worked * (1.0D - Conversion.workShare(steps)));
                 // The UMU is kept through a conversion: the intensity is that of what the source became (forty UMU of
                 // earth turned to fire and pressed into one point are fire as hot as forty).
                 final double released = worked;
@@ -230,7 +233,7 @@ public final class FlowInterpreter {
                 boolean atOnce = action.atOnce() && fromBody > EPSILON;
                 int charge = atOnce ? Charge.ticks(fromBody) + Conversion.chainTicks(fromBody, chain) : 0;
                 // Converting it on the way is the spirit's work, done with the energy in hand: lost from it.
-                double worked = fromBody * (1.0D - Conversion.workShare(qualities));
+                double worked = fromBody * (1.0D - Conversion.workShare(steps));
                 Integer orb = null;
                 if (atOnce) {
                     // Gathered where it will be released, the energy seen streaming out of the mage into it.
@@ -245,11 +248,16 @@ public final class FlowInterpreter {
                         .build();
                 ledger.setCurrentAction(action);
             }
+            if (nextTakesResult(actions, index)) {
+                // The verb after acts on what this one produces (R2): it is made to be handed on.
+                action = action.toBuilder().putMetadata(SpellAction.HANDS_ON, Boolean.TRUE).build();
+                ledger.setCurrentAction(action);
+            }
             world.perform(action, currentElement);
             if (fromBody > EPSILON) {
                 // Taken out of the body already: it pays what the verb spent (the work was taken out of it).
                 ledger.addAmbientEnergy(currentElement, Math.min(fromBody, ledger.payableCost()));
-                qualities = 0;
+                steps = 0;
             }
             if (all != null && all.total() > EPSILON) {
                 // The captured source pays what the verb spent; the work of condensing it is paid by the body.
@@ -260,17 +268,17 @@ public final class FlowInterpreter {
         if (captured != null && !capturedAll && world.hasCaster()) {
             ledger.setCurrentAction(capture);
             if (capturedForSpell) {
-                world.capture(captured, capturedAs, spenderFrom(actions, captureIndex), Conversion.workShare(qualities));
+                world.capture(captured, capturedAs, spenderFrom(actions, captureIndex), Conversion.workShare(steps));
             } else {
                 // Converted and never spent (firmo tenet vertere igni): the portion taken becomes the other element where
                 // it is, in the world.
                 world.convertInPlace(captured, capturedAs, capture.quantity().orElse(DEFAULT_UMU),
-                        Conversion.workShare(qualities));
+                        Conversion.workShare(steps));
             }
         }
         if (held != null && heldUmu > EPSILON && world.hasCaster()) {
             // Taken from the body and converted, and no verb spent it: it goes back into the body as what it became.
-            ledger.absorbIntoBody(held, heldUmu * (1.0D - Conversion.workShare(qualities)));
+            ledger.absorbIntoBody(held, heldUmu * (1.0D - Conversion.workShare(steps)));
         }
     }
 
@@ -308,6 +316,22 @@ public final class FlowInterpreter {
         SpellAction.Builder origin = action.toBuilder().removeMetadata(SpellAction.PLACE);
         action.originPlace().ifPresent(place -> origin.putMetadata(SpellAction.PLACE, place));
         return origin.build();
+    }
+
+    /** Whether the verb moves matter rather than spending energy (the lexicon's {@code transfers}). */
+    private boolean transfers(SpellAction action) {
+        return lexicon.verb(action.runeId()).map(VerbSpec::transfers).orElse(false);
+    }
+
+    /** Whether the next verb after {@code index} acts on what the verb at {@code index} produces (R2). */
+    private static boolean nextTakesResult(List<SpellAction> actions, int index) {
+        for (int next = index + 1; next < actions.size(); next++) {
+            SpellAction later = actions.get(next);
+            if (later != null && later.type() == SpellActionType.FUNCTION) {
+                return later.chained();
+            }
+        }
+        return false;
     }
 
     /** Whether a verb after {@code index} spends the source; a conversion only converts it. */

@@ -5,6 +5,7 @@ import com.elderlexicon.mod.magic.grammar.SpellGrammar;
 import com.elderlexicon.mod.magic.lexicon.Lexicons;
 import com.elderlexicon.mod.parser.Parser;
 import com.elderlexicon.mod.spell.action.SpellAction;
+import com.elderlexicon.mod.spell.function.Product;
 import com.elderlexicon.mod.spell.scene.SpellScene;
 import com.elderlexicon.mod.spell.vertere.VertereRequest;
 import com.elderlexicon.mod.vita.VitaElement;
@@ -46,6 +47,8 @@ public final class SpellContext implements SpellLedger {
     private SpellScene scene = new SpellScene();
     private int sceneSpellId = scene.registerSpell();
     private SpellAction currentAction;
+    /** What the last verb made for the verb after it to act on (R2), until that verb takes it. */
+    private Product handedOn;
 
     public SpellContext(ServerPlayer player,
                         List<String> lexemes,
@@ -124,6 +127,18 @@ public final class SpellContext implements SpellLedger {
 
     public void setCurrentAction(SpellAction action) {
         this.currentAction = action;
+    }
+
+    /** A verb hands what it produces to the verb after it ({@code igni vocant iactare}). */
+    public void handOn(Product product) {
+        this.handedOn = product;
+    }
+
+    /** What the verb before handed on, taken by the verb acting on it: it is handed to no one else. */
+    public Optional<Product> takeHandedOn() {
+        Optional<Product> taken = Optional.ofNullable(handedOn);
+        handedOn = null;
+        return taken;
     }
 
     public Optional<Parser.PrimarySource> primarySource() {

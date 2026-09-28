@@ -20,9 +20,12 @@ import java.util.Locale;
  * @param joiner    the English word between what it converts and its target ({@code to}, {@code with})
  * @param reversible a negative quantity turns it the other way round ({@code m1 quantum -20 iactare} pulls instead of
  *                   pushing); for any other verb the spirit refuses one
+ * @param transfers it moves matter rather than spending energy: with a source from the world ({@code firmo tenet
+ *                  vocant}) it carries what it takes as it is, instead of the flow capturing it as energy
  */
 public record VerbSpec(String operation, Flow flow, double cost, Gathering gathering, ObjectFrame object, boolean view,
-                       String sense, boolean binds, String phrase, String joiner, boolean reversible) {
+                       String sense, boolean binds, String phrase, String joiner, boolean reversible,
+                       boolean transfers) {
 
     /** Where the energy a verb spends is gathered before it acts. */
     public enum Gathering {

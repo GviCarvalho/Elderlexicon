@@ -129,7 +129,7 @@ class FlowInterpreterTest {
     void manaDrawnOutAndConvertedIsReleasedAsWhatItBecame() {
         Run run = cast("vis quantum vertere igni chronos 0 iactare");
         assertEquals(VitaElement.IGNI, run.world().last("perform").element());
-        // vis into an element changes no quality: nothing is lost to the work.
+        // vis into an element crosses no rung: nothing is lost to the work.
         assertEquals(30.0D, run.world().last("perform").action().intensity(), 1.0E-9);
         assertNull(run.world().last("vita"), "what is held is converted, not the Vita");
     }
@@ -175,26 +175,44 @@ class FlowInterpreterTest {
         assertNotNull(all.world().last("captureAll"));
         assertEquals("'m1'", all.world().origins.get(0).place().orElseThrow().describe());
 
+        // vocant moves matter: it takes it itself, from where the origin says, and nothing is captured as energy.
         Run placed = cast("igni 10 tenet 5 ubis vocant");
-        assertNotNull(placed.world().last("capture"));
-        assertEquals(SpellPlace.Kind.DISTANCE, placed.world().origins.get(0).place().orElseThrow().kind());
-        assertEquals(10.0D, placed.world().origins.get(0).place().orElseThrow().distance(), 1.0E-9,
-                "searched ten blocks ahead");
-        assertEquals(5.0D, placed.world().last("perform").action().place().orElseThrow().distance(), 1.0E-9,
-                "and made to appear five blocks ahead");
+        assertNull(placed.world().last("capture"));
+        SpellAction moving = placed.world().last("perform").action();
+        assertTrue(moving.fromWorld());
+        assertEquals(SpellPlace.Kind.DISTANCE, moving.originPlace().orElseThrow().kind());
+        assertEquals(10.0D, moving.originPlace().orElseThrow().distance(), 1.0E-9, "taken ten blocks ahead");
+        assertEquals(5.0D, moving.place().orElseThrow().distance(), 1.0E-9, "and put five blocks ahead");
 
         Run near = cast("firmo tenet vertere igni");
         assertTrue(near.world().origins.get(0).place().isEmpty(), "with no place, within the mage's reach");
     }
 
     @Test
-    void whatTheWorldGaveIsSpentByTheVerbsChainedToIt() {
+    void whatIsTakenFromTheWorldIsMovedAndHandedToTheVerbAfter() {
         Run run = cast("igni tenet vocant iactare");
         assertEquals(List.of("vocant", "iactare"), run.world().performed());
+        assertNull(run.world().last("capture"), "the fire is moved as it is, not captured as energy");
+        SpellAction vocant = run.world().calls.stream().filter(call -> call.what().equals("perform"))
+                .findFirst().orElseThrow().action();
+        assertTrue(vocant.fromWorld());
+        assertTrue(vocant.handsOn(), "what it brings is handed on");
         assertTrue(run.world().last("perform").action().chained(), "the iactare pushes what the vocant brought");
+    }
+
+    @Test
+    void aVerbThatMovesMatterStillGathersItAllAsEnergyToCondenseIt() {
+        Run run = cast("firmo tenet quantum chronos 0 vocant");
+        assertNotNull(run.world().last("captureAll"), "all the earth in reach, condensed into one point");
+        assertNull(run.world().last("capture"));
+    }
+
+    @Test
+    void aVerbThatSpendsEnergyStillCapturesItFromTheWorld() {
+        Run run = cast("igni tenet iactare");
         FakeFlow.Call capture = run.world().last("capture");
-        assertNotNull(capture, "the world pays both");
-        assertEquals("vocant", capture.action().runeId());
+        assertNotNull(capture, "the world pays the push");
+        assertEquals("iactare", capture.action().runeId());
     }
 
     @Test
