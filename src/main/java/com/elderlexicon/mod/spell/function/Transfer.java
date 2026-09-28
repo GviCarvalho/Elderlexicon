@@ -91,7 +91,7 @@ final class Transfer {
                 }
                 if (product.taken()) {
                     Vec3 from = written.map(MarkSpells.Destination::point)
-                            .orElseGet(() -> ExsugatFunctionHandler.handOf(player));
+                            .orElseGet(() -> WorldSources.handOf(player));
                     product.ready(level, from, landed -> put(context, player, element, rune, landed, taken));
                 } else {
                     put(context, player, element, rune, destination(player, written), taken);

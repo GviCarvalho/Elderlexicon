@@ -78,9 +78,13 @@ The UMU is the accounting system. How a given platform translates it into tangib
 ### 5.1 Rune Categories
 
 1. **Sources (Fontes):** The energy to mobilize (`igni`, `aqua`, `vis`, `vita`, `fusus`, `nebula`, etc.).
-2. **Functions (Funções):** What to do with the energy (`iactare`, `vertere`, `exsugat`, `ligabis`, `reframe`, etc.).
-3. **Forms (Formas):** How to shape the manifestation (`hasta`, `murus`, `orbis`, `vortex`, `sigillum`, etc.).
-4. **Filters (Filtros):** Adjustments to time, quantity, or range (`chronos`, `quantum`, `ubis`).
+2. **Functions (Funções):** What to do with the energy (`iactare`, `impediunt`, `vocant`, `vertere`, `ligabis`, `surgit`, `reframe`).
+3. **Forms (Formas):** How to shape the manifestation (`hasta`, `murus`, `vortex`, `sigillum`, `catena`).
+4. **Filters (Filtros):** Adjustments to time, quantity, place, or origin (`chronos`, `quantum`, `ubis`, `tenet`).
+
+Some words the language once had are gone: `exsugat` (its work is now done by `tenet` and by a turned-around verb),
+`transvocatio` (move each thing with `vocant`), and the forms and fusions built on them (`orbis`, `exhaustio`,
+`exsuctio`, `extractio`, `exinanitio`). The Dreaming Mind still recognizes them, and says what to write instead.
 
 ### 5.2 Canonical Syntax
 
@@ -93,14 +97,35 @@ Expr ::= source → function
 
 Examples:
 
-- `igni iactare` — Evoke fire.
-- `igni hasta iactare` — Evoke a lance of fire.
+- `igni iactare` — Push a wave of heat toward where the caster aims.
+- `igni vocant iactare` — Bring fire out at the hand and hurl it: a lance of fire.
 - `igni hasta 5 chronos iactare` — Evoke a lance of fire that persists for 5 seconds.
 
-Filters placed before a rune modify its value; filters placed after extract the pattern:
+A filter governs the function written right after it. A value may be written before or after its filter:
 
-- `igni 5 quantum iactare` — Evoke five measures of fire.
-- `igni iactare chronos exsugat` — Absorb fire for the default casting window (2 seconds).
+- `igni 5 quantum iactare` / `igni quantum 5 iactare` — Five measures of fire.
+- `igni quantum -10 vocant` — Turned around: ten measures of fire are drawn from the world into the body.
+
+### 5.2.1 The Grammar of Force and Matter
+
+- **Subject.** A function acts on the last thing named before it: a source, a mark, or what the function before it
+  produced or moved. In `igni 10 40 50 ubis vocant iactare` the fire appears at the place and is hurled from there.
+- **Where.** `ubis` before a function says where it acts; without it, where the caster aims. For `iactare` it is where
+  the force pushes to, for `impediunt` the centre it pushes away from, for `vocant` where things arrive.
+- **Sign.** A negative quantity turns a function around: `iactare` pulls, `impediunt` draws in, `vocant` brings to the
+  caster. Other functions refuse it.
+- **Origin.** Without `tenet` the source comes from the caster's body. `firmo tenet` takes the earth of the world within
+  reach; marks and numbers written before `tenet` say where from (`firmo m1 tenet`).
+- **Force on a raw source.** With nothing materialized, a force releases the source as a flow of its state: fire as a
+  heat wave, air as a gust, water as a jet, earth as a shock through the ground, vis as a pure push.
+
+The three functions of force and matter:
+
+| Function    | Action                                   | Turned around                        |
+|-------------|------------------------------------------|--------------------------------------|
+| `vocant`    | Moves the subject to a point; nothing is created, only carried | Brings it to the caster, or absorbs it |
+| `iactare`   | Pushes the subject toward a point        | Pulls it                             |
+| `impediunt` | Pushes everything in an area away from a centre | Draws it in toward the centre   |
 
 ### 5.3 Conversion with `vertere`
 
@@ -108,9 +133,32 @@ Filters placed before a rune modify its value; filters placed after extract the 
 
 `[source-origin] vertere [source-target]`
 
+The four elements are the rungs of one ladder of states: `firmo` is solid, `aqua` liquid, `aura` gas, `igni` plasma.
+`vis` stands off the ladder. Converting climbs or descends it, and the farther it goes, the more of the energy the
+Dreaming Mind spends on the work; returning anything to `vis` costs the whole ladder.
+
+- In the body, `vertere` turns one aspect of the caster's energy into another: `igni vertere aqua` cools fever into
+  water.
+- On matter of the world (`firmo tenet vertere aqua`, or a marked thing), it changes only the state: stone melts and
+  is still stone, molten; water freezes and is still water. What a thing *is* does not change.
+
 The final source does not leak; its purpose is fulfilled. A function can be appended:
 
 - `igni vertere aqua iactare` — Convert heat into water and evoke it immediately.
+
+### 5.3.1 Matter and Its Recipes
+
+Every natural thing is a recipe: a proportion of the four elements. Earth, water, air and fire are the four primordial
+substances, each all of one element; mud, dust, mist, vapor, magma and lightning are the recipes the book teaches.
+Every other recipe — stone, iron, wood, bone — is found by trying.
+
+- **Mixing.** Fluid matter (anything but a solid) poured where fluid matter is mixes with it. If the proportion
+  matches a recipe, within a small tolerance, the mixture *becomes* that substance. Solids do not mix; they are joined
+  by `ligabis`.
+- **Amalgam.** A mixture that matches no recipe is an amalgam: formless, trembling, it holds together only for a while
+  and then falls back apart into its primordials, losing nothing.
+- **The body keeps energy, not matter.** What the body absorbs loses what it was and enters it as the element of the
+  state it was in; what leaves it with no recipe known is the primordial of its state (`firmo vocant` brings earth).
 
 ### 5.4 Custom Runes with `reframe`
 
@@ -132,7 +180,7 @@ The new rune must be physically recorded, or the Dreaming Mind will forget it af
 
 - **Bidirectional:** `[source] ligabis [mark]` — Both feel the link.
 - **Unidirectional (master-slave):** `[source] ligabis vertere [mark]` — The target becomes the master.
-- **Removal:** `[mark] ligabis exsugat` — The link is drained.
+- **Removal:** a link breaks when the marks of its members are removed, or when its cost can no longer be paid.
 
 Marks can be custom runes (e.g., `SIGMA`) or sigillic symbols. Active links consume UMU continuously.
 
@@ -166,7 +214,6 @@ Every rune carries ancestral memory. The Dreaming Mind feels its meaning, not ju
 | `hasta`    | A sudden column, lance, or linear jet.           |
 | `murus`    | A wall rising from the ground, holding the source in its surface. |
 | `catena`   | A chain or curved trajectory, linking or dragging. |
-| `orbis`    | A closed sphere or compact projectile.           |
 | `sigillum` | A glyph that fixes the order to a point.         |
 | `vortex`   | A whirlpool that mixes sources actively.         |
 
@@ -176,10 +223,9 @@ Every rune carries ancestral memory. The Dreaming Mind feels its meaning, not ju
 |--------------|-------------------------------------|
 | `iactare`    | Evoke, project, cast outward.      |
 | `vertere`    | Convert one source into another.   |
-| `impediunt`  | Repel what came before it in the order. |
+| `impediunt`  | Push away from a centre, over an area. |
 | `ligabis`    | Create a persistent link or bond.  |
-| `exsugat`    | Drain, absorb, sequester energy.   |
-| `vocant`     | Summon, attract from afar.         |
+| `vocant`     | Carry to a point; turned around, bring to the caster. |
 | `reframe`    | Compress a spell into a new rune.  |
 | `surgit`     | Raise senses; make the Dreaming Mind read what the caster sees. |
 
@@ -192,16 +238,11 @@ These are fusions of two core functions, forming more specific actions:
 | `transiectio`   | `vertere`+`iactare`   | Convert and hurl (teleport).              |
 | `aversio`       | `vertere`+`impediunt` | Convert and repel.                        |
 | `cohaesio`      | `vertere`+`ligabis`   | Fuse targets (alchemy).                   |
-| `exhaustio`     | `vertere`+`exsugat`   | Exhaust energy reserves.                  |
-| `transvocatio`  | `vertere`+`vocant`    | Convert and invoke elsewhere (transference). |
 | `deflectio`     | `iactare`+`impediunt` | Deflect flows and projectiles.            |
 | `vinculatio`    | `iactare`+`ligabis`   | Link targets via launching.               |
-| `exsuctio`      | `iactare`+`exsugat`   | Channeled draining (active siphon).       |
 | `evocatio`      | `iactare`+`vocant`    | Conjure stably.                           |
 | `compeditio`    | `impediunt`+`ligabis` | Shackle and immobilize.                   |
-| `exinanitio`    | `impediunt`+`exsugat` | Bleed slowly.                             |
 | `coniuratio`    | `ligabis`+`vocant`    | Conspire, gather targets.                 |
-| `extractio`     | `exsugat`+`vocant`    | Converge content to a focus.              |
 
 ---
 

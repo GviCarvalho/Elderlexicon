@@ -1,5 +1,10 @@
 # Impediunt de fonte: a zona que o elemento não atravessa
 
+> **Nota (docs/plano-materia-e-forca.md, etapa 6):** `exsugat` e `transvocatio` saíram da língua. Onde este documento
+> os usa, leia: tirar uma fonte do mundo é `tenet` antes do verbo (`igni tenet iactare`); absorver é um `vocant` com
+> quantidade negativa (`igni quantum -10 vocant`); puxar uma coisa marcada é `m1 quantum -10 iactare`; trocar de lugar
+> não existe mais. A tabela completa está na seção 4 do plano.
+
 O grimório só dá o nome da runa, M: impediunt, "repelir" (apêndice 10.2), e não descreve a mecânica. Esta proposta segue
 as regras de filtro que já valem para as outras funções. O nome é lido ao pé da letra: *impediunt* = "impedem".
 

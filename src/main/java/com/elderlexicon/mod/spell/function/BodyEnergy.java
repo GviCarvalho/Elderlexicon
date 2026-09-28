@@ -7,7 +7,7 @@ import com.elderlexicon.mod.vita.VitaSystem;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * All of one energy the mage's own body holds, for a bare quantum written with no exsugat ({@code firmo quantum
+ * All of one energy the mage's own body holds, for a bare quantum written with no tenet ({@code firmo quantum
  * chronos 0 iactare}: all the earth of the body; {@code vis quantum …}: all its mana). The spirit is literal: it takes
  * all of it, and the body lives with what is left (the Vita's imbalance takes its course until it settles again).
  */

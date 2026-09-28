@@ -11,7 +11,7 @@ public final class Illusion {
     public static final double COST_SHARE = 0.1D;
     /** Without chronos an image lasts the trance window, as every sight spell does: two seconds (book, chapter V). */
     public static final double DEFAULT_SECONDS = 2.0D;
-    /** How far from the mage exsugat and impediunt reach the images of a source. */
+    /** How far from the mage a source taken from the world (tenet) and impediunt reach the images of a source. */
     public static final double REACH = 5.0D;
 
     private Illusion() {

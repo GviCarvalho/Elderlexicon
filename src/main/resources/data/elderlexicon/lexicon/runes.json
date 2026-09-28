@@ -184,7 +184,7 @@
 
     "vertere": {
       "class": "verb", "glyph": "H", "translation": "convert", "name": "converter",
-      "lore": "Função: converte um elemento em outro.",
+      "lore": "Função: converte. No corpo, um aspecto em outro; na matéria do mundo, o estado (sólido, líquido, gás, plasma), e ela continua o que é.",
       "operation": "convert", "flow": "convert", "cost": 1,
       "object": {"takes": ["source", "mark"], "as": "target", "immediate": true, "markNeedsMarkedSubject": true},
       "joiner": "to",
@@ -203,7 +203,7 @@
     },
     "iactare": {
       "class": "verb", "glyph": "I", "translation": "cast", "name": "lançar",
-      "lore": "Função: lança na direção mirada.",
+      "lore": "Função: empurra na direção mirada; com quantidade negativa, puxa.",
       "operation": "project", "cost": 2, "gathering": "hand", "reversible": true,
       "texts": {
         "role": "Lança {what} na direção mirada",
@@ -218,7 +218,7 @@
     },
     "impediunt": {
       "class": "verb", "glyph": "M", "translation": "repel", "name": "repelir",
-      "lore": "Função: afasta um elemento de uma zona.",
+      "lore": "Função: afasta de uma zona, a partir do centro; com quantidade negativa, atrai para ele.",
       "operation": "repel", "reversible": true,
       "texts": {
         "role": "Afasta {what} de uma zona (um cilindro) ao redor do ponto",
@@ -243,7 +243,7 @@
     },
     "vocant": {
       "class": "verb", "glyph": "J", "translation": "summon", "name": "invocar",
-      "lore": "Função: faz surgir no ponto mirado.",
+      "lore": "Função: leva ao ponto mirado, sem criar nada; com quantidade negativa, traz até quem conjura.",
       "operation": "manifest", "cost": 1, "gathering": "destination", "reversible": true, "transfers": true,
       "texts": {
         "role": "Faz {what} surgir no ponto mirado",
@@ -299,7 +299,7 @@
 
     "quantum": {
       "class": "filter", "glyph": "N", "translation": "quantity", "name": "quanto",
-      "lore": "Filtro: quanto (extensão ou quantidade).",
+      "lore": "Filtro: quanto (extensão ou quantidade); negativo, vira o verbo ao contrário.",
       "parameter": "quantity", "argument": "value", "bare": "all",
       "texts": {
         "number": "O quanto do {filter}: {n} unidades.",

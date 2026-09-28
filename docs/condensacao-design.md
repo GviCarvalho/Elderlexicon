@@ -1,5 +1,10 @@
 # Condensação: a intensidade dos elementos
 
+> **Nota (docs/plano-materia-e-forca.md, etapa 6):** `exsugat` e `transvocatio` saíram da língua. Onde este documento
+> os usa, leia: tirar uma fonte do mundo é `tenet` antes do verbo (`igni tenet iactare`); absorver é um `vocant` com
+> quantidade negativa (`igni quantum -10 vocant`); puxar uma coisa marcada é `m1 quantum -10 iactare`; trocar de lugar
+> não existe mais. A tabela completa está na seção 4 do plano.
+
 **Status:** **os quatro elementos estão implementados** (26/09/2026). As interações entre eles ainda são só desenho. A seção "O que já existe"
 lista as peças do mod que este desenho aproveita.
 

@@ -50,16 +50,11 @@
   - `transiectio`.
   - `aversio`.
   - `cohaesio`.
-  - `exhaustio`.
-  - `transvocatio`.
   - `deflectio`.
   - `vinculatio`.
-  - `exsuctio`.
   - `evocatio`.
   - `compeditio`.
-  - `exinanitio`.
   - `coniuratio`.
-  - `extractio`.
 - Melhorar validacao de sequencias invalidas.
 - Garantir que o parser, o repertorio e o executor aceitem o mesmo conjunto real de runas.
 

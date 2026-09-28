@@ -96,7 +96,6 @@ These do have defined costs from the document, now organized here as base UMU:
 
 Function   | Meaning            | Base Cost         | How to interpret
 -----------|--------------------|-------------------|-------------------
-exsugat    | absorb             | 0 UMU             | Cost occurs in transfer, not activation
 ligabis    | connect            | 0.1 UMU × time    | Continuous maintenance
 vertere    | convert            | UMU converted     | Transfers 1:1
 iactare    | evoke/project      | 1 UMU/s           | Cost flows during cast
@@ -107,8 +106,10 @@ impediunt  | repel/contain      | UMU of the impulse| Thrust value defines cost
 
 🜁 Filters
 
+(`exsugat` left the language: `tenet`, a filter, now says a source comes from the world, which then pays what the
+verbs spend; see docs/plano-materia-e-forca.md.)
+
 Função	Significado	Custo Base	Como interpretar
-exsugat	absorver	0 UMU	custo ocorre na transferência, não na ativação
 ligabis	conectar	0.1 UMU × tempo	manutenção contínua
 vertere	converter	UMU convertido	transfere 1:1
 iactare	evocar/projetar	1 UMU/s	custo flui ao longo do cast

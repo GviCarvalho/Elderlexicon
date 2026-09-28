@@ -3,7 +3,7 @@ package com.elderlexicon.mod.spell;
 import java.util.List;
 
 /**
- * How much of the world an exsugat takes (book 8.2): whole sources, the nearest first, until what is needed is in hand.
+ * How much of the world a source taken with tenet takes (book 8.2): whole sources, the nearest first, until what is needed is in hand.
  * A source is never taken in part, so the last one may bring more than was needed; nothing is wasted, the rest goes
  * into the mage's body ("não há desperdício, não há sobra", 4.3.2).
  */

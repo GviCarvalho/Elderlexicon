@@ -33,8 +33,7 @@ import java.util.function.Supplier;
 
 /**
  * What the functions do when a mark is their subject ({@code docs/marcas-como-runas-design.md}):
- * summon (vocant), throw, pull and push (iactare, exsugat, impediunt), swap (transvocatio) and convert
- * (vertere). Costs are charged when the spell is cast, from where things are at that moment.
+ * summon (vocant), throw and pull (iactare), push away and draw in (impediunt) and convert (vertere). Costs are charged when the spell is cast, from where things are at that moment.
  */
 final class MarkSpells {
 
@@ -43,8 +42,6 @@ final class MarkSpells {
     static final double THROW_AIM_RANGE = 64.0D;
     /** Upward nudge of every throw, so things leave the ground in an arc. */
     private static final double THROW_LIFT = 0.2D;
-    /** Transvocatio happens at once unless chronos sets when. */
-    static final int SWAP_DELAY_TICKS = 0;
     private static final int RELEASE_LINGER_TICKS = 20;
     private static final ResourceKey<DamageType> VERTERE_VITA =
             ResourceKey.create(Registries.DAMAGE_TYPE, ResourceLocation.fromNamespaceAndPath(ElderLexicon.MODID, "vertere_vita"));
@@ -248,7 +245,7 @@ final class MarkSpells {
         MarkMotion.freeSpotFor(entity, level, origin).ifPresent(feet -> MarkMotion.teleport(entity, feet));
     }
 
-    // ------------------------------------------------------------------ iactare, exsugat, impediunt
+    // ------------------------------------------------------------------ iactare, impediunt
 
     /**
      * Throws, pulls or pushes whatever carries the mark, from where it is, with {@code energy} UMU (quantum,
@@ -368,99 +365,6 @@ final class MarkSpells {
                 thrust(flying, speed, steering, now, ticks - 1);
             }
         });
-    }
-
-    // ------------------------------------------------------------------ transvocatio
-
-    /**
-     * {@code m1 transvocatio m2}: the two swap places. Groups pair up from the closest to the farthest (from
-     * the caster); whoever is left without a pair stays. A missing side is the caster.
-     */
-    static void swap(SpellContext context, Optional<String> subjectMark, Optional<String> targetMark, int delayTicks) {
-        ServerPlayer player = context.player();
-        ServerLevel level = player.serverLevel();
-        List<Marked> left = side(player, subjectMark);
-        List<Marked> right = side(player, targetMark);
-        if (left.isEmpty() || right.isEmpty()) {
-            return;
-        }
-        left.sort(Comparator.comparingDouble(thing -> distanceFor(player, thing)));
-        right.sort(Comparator.comparingDouble(thing -> distanceFor(player, thing)));
-
-        List<Marked[]> pairs = new ArrayList<>();
-        double cost = 0.0D;
-        for (int index = 0; index < Math.min(left.size(), right.size()); index++) {
-            Marked a = left.get(index);
-            Marked b = right.get(index);
-            if (a.sameAs(b)) {
-                continue;
-            }
-            if (a.level != b.level) {
-                tell(player, "Nao da para trocar coisas de dimensoes diferentes.");
-                continue;
-            }
-            double distance = a.position.distanceTo(b.position);
-            cost += MarkCost.movement(a.mass, distance) + MarkCost.movement(b.mass, distance);
-            pairs.add(new Marked[] {a, b});
-        }
-        if (pairs.isEmpty()) {
-            return;
-        }
-        context.addTotalCost(cost);
-
-        List<Marked> everything = new ArrayList<>();
-        pairs.forEach(pair -> {
-            everything.add(pair[0]);
-            everything.add(pair[1]);
-        });
-        SpellEffects.schedule(level, delayTicks, () -> MarkTargets.load(everything, () -> {
-            for (Marked[] pair : pairs) {
-                if (pair[0].present() && pair[1].present() && !swapPair(pair[0], pair[1])) {
-                    tell(player, "Sem espaco para a troca.");
-                }
-            }
-        }));
-    }
-
-    private static List<Marked> side(ServerPlayer player, Optional<String> mark) {
-        if (mark.isEmpty()) {
-            List<Marked> caster = new ArrayList<>();
-            caster.add(MarkTargets.caster(player));
-            return caster;
-        }
-        List<Marked> found = MarkTargets.find(player.server, mark.get());
-        if (found.isEmpty()) {
-            tell(player, "A marca '" + mark.get() + "' nao responde.");
-        }
-        return found;
-    }
-
-    private static boolean swapPair(Marked a, Marked b) {
-        ServerLevel level = a.level;
-        if (!a.isBlock() && !b.isBlock()) {
-            Vec3 aFeet = a.entity.position();
-            Vec3 bFeet = b.entity.position();
-            MarkMotion.teleport(a.entity, bFeet);
-            MarkMotion.teleport(b.entity, aFeet);
-            return true;
-        }
-        if (a.isBlock() && b.isBlock()) {
-            MarkMotion.LiftedBlock aBlock = MarkMotion.lift(level, a.blockPos, a.mark);
-            MarkMotion.LiftedBlock bBlock = MarkMotion.lift(level, b.blockPos, b.mark);
-            MarkMotion.place(level, b.blockPos, aBlock);
-            MarkMotion.place(level, a.blockPos, bBlock);
-            return true;
-        }
-        Marked block = a.isBlock() ? a : b;
-        Marked entity = a.isBlock() ? b : a;
-        Optional<BlockPos> spot = MarkMotion.freeBlockSpot(level, BlockPos.containing(entity.entity.position()));
-        if (spot.isEmpty()) {
-            return false;
-        }
-        MarkMotion.LiftedBlock lifted = MarkMotion.lift(level, block.blockPos, block.mark);
-        MarkMotion.teleport(entity.entity, Vec3.atBottomCenterOf(block.blockPos));
-        MarkMotion.place(level, spot.get(), lifted);
-        return true;
     }
 
     // ------------------------------------------------------------------ vertere

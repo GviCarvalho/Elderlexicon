@@ -17,7 +17,8 @@ import java.util.Locale;
 import java.util.Objects;
 
 /**
- * Runs the steps of a spell as one flow of energy (docs/exsugat-vertere-design.md, "Um fluxo só para todo feitiço"):
+ * Runs the steps of a spell as one flow of energy (docs/exsugat-vertere-design.md, "Um fluxo só para todo feitiço"; with tenet in exsugat's place,
+ * docs/plano-materia-e-forca.md):
  * <ol>
  *   <li><b>Where it comes from:</b> the world, when an origin filter says so ({@code firmo tenet iactare}, R5 of
  *       docs/plano-materia-e-forca.md); the body, when a quantity on a conversion draws it out (all of it with a bare
