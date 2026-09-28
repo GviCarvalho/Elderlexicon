@@ -1,5 +1,8 @@
 package com.elderlexicon.mod.spell.action;
 
+import com.elderlexicon.mod.magic.lexicon.Flow;
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -27,6 +30,23 @@ public final class SpellCostProcessor {
             });
         }
         this.defaultSourceCost = Math.max(0.0D, defaultSourceCost);
+    }
+
+    /**
+     * Whether a spell costs anything at all: it does when a verb spends energy. A spell whose verbs only capture
+     * ({@code igni exsugat}) takes from the world and costs nothing.
+     */
+    public static boolean requiresEnergy(List<SpellAction> actions) {
+        if (actions == null || actions.isEmpty()) {
+            return false;
+        }
+        for (SpellAction action : actions) {
+            if (action != null && action.type() == SpellActionType.FUNCTION
+                    && Lexicons.get().flowOf(action.runeId()) != Flow.CAPTURE) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public double computeTotalCost(List<SpellAction> actions) {
@@ -63,13 +83,8 @@ public final class SpellCostProcessor {
         return runeId == null ? "" : runeId.toLowerCase(Locale.ROOT);
     }
 
+    /** Every verb's base cost, as the lexicon gives it (iactare 2, vocant 1, vertere 1, ligabis 0.1 ...). */
     private static Map<String, Double> defaultFunctionCosts() {
-        Map<String, Double> map = new HashMap<>();
-        map.put("iactare", 2.0D);
-        map.put("vocant", 1.0D);
-        map.put("vertere", 1.0D);
-        map.put("ligabis", 0.1D);
-        map.put("transvocatio", 1.0D);
-        return map;
+        return new HashMap<>(Lexicons.get().verbCosts());
     }
 }

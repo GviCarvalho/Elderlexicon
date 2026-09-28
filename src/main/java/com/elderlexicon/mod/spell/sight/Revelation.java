@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.sight;
 
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
+
 import java.util.Locale;
 
 /**
@@ -44,18 +46,24 @@ public final class Revelation {
             return color;
         }
 
-        /** The kind sought by a source rune; anything else (no source, vis) is mana, as the book fills the gap. */
+        /**
+         * The kind sought by a source rune, as the lexicon says of it ({@code reveals}); anything else (no source, vis,
+         * a source that names nothing to reveal) is mana, as the book fills the gap.
+         */
         public static Kind ofSource(String runeId) {
             if (runeId == null) {
                 return VIS;
             }
-            return switch (runeId.toLowerCase(Locale.ROOT)) {
-                case "igni" -> IGNI;
-                case "aqua" -> AQUA;
-                case "firmo" -> FIRMO;
-                case "aura" -> AURA;
-                default -> VIS;
-            };
+            String reveals = Lexicons.get().traitsOf(runeId.toLowerCase(Locale.ROOT)).reveals();
+            if (reveals == null) {
+                return VIS;
+            }
+            for (Kind kind : values()) {
+                if (kind != MARK && kind.name().equalsIgnoreCase(reveals.trim())) {
+                    return kind;
+                }
+            }
+            return VIS;
         }
     }
 

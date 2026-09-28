@@ -1,12 +1,25 @@
 package com.elderlexicon.mod.spell.block;
 
+import com.elderlexicon.mod.magic.grammar.SpellGrammar;
+import com.elderlexicon.mod.magic.lexicon.FilterSpec;
+import com.elderlexicon.mod.magic.lexicon.Flow;
+import com.elderlexicon.mod.magic.lexicon.Lexicon;
+import com.elderlexicon.mod.magic.lexicon.Meeting;
+import com.elderlexicon.mod.magic.lexicon.Parameter;
+import com.elderlexicon.mod.magic.lexicon.Rune;
+import com.elderlexicon.mod.magic.lexicon.Template;
+import com.elderlexicon.mod.magic.lexicon.WordClass;
 import com.elderlexicon.mod.parser.ParserDictionary;
+import com.elderlexicon.mod.spell.Conversion;
+import com.elderlexicon.mod.vita.VitaElement;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -14,6 +27,9 @@ import java.util.TreeMap;
  * The grimoire's own description of a page of spells, written once the spirit has cast it: a name for it, what each
  * spell does (grouped by the instant it is released) and notes on what the elements may do where they meet, from the
  * aspects of energy (docs/interacoes-design.md). Only words; what really happens is up to the laws of nature.
+ * <p>
+ * Every word of it comes from the lexicon: each verb says how its deed is told and each source how it is named, so a
+ * rune an addon brings is described like the book's own.
  */
 public final class SpellDescription {
 
@@ -24,15 +40,9 @@ public final class SpellDescription {
     /** Energy a spell spends when no quantum says otherwise (book 4.3.2). */
     private static final int DEFAULT_UMU = 10;
 
-    private static final Map<String, String> ELEMENT = Map.of(
-            "igni", "fogo", "aqua", "água", "aura", "ar", "firmo", "terra", "vis", "mana");
-    private static final Set<String> SOURCES = Set.of("igni", "aqua", "aura", "firmo", "vis");
-    private static final Set<String> FUNCTIONS = Set.of("iactare", "vocant", "impediunt", "surgit", "ligabis",
-            "reframe", "transvocatio");
-
     /** One spell of the page, as the grimoire understands it. */
-    private record Spell(int release, String source, String mark, boolean capture, String amount, List<String> turns,
-                         boolean condensed, String seconds, String place, String function) {
+    private record Spell(int release, String source, String mark, boolean capture, String captureVerb, String amount,
+                         List<String> turns, boolean condensed, String seconds, String place, String function) {
 
         String element() {
             return turns.isEmpty() ? source : turns.get(turns.size() - 1);
@@ -57,7 +67,7 @@ public final class SpellDescription {
             }
         }
         if (spells.isEmpty()) {
-            return new Text("Página em branco", List.of(), List.of());
+            return new Text(note("describe.blank", Map.of()), List.of(), List.of());
         }
         TreeMap<Integer, List<Spell>> byInstant = new TreeMap<>();
         for (Spell spell : spells) {
@@ -69,9 +79,9 @@ public final class SpellDescription {
             String when = seconds(instant.getKey());
             List<Spell> together = instant.getValue();
             if (together.size() == 1) {
-                paragraphs.add(sentence(together.get(0)) + " Solto em " + when + " s.");
+                paragraphs.add(sentence(together.get(0)) + " " + note("describe.released", Map.of("when", when)));
             } else {
-                paragraphs.add("Ao mesmo tempo, em " + when + " s:");
+                paragraphs.add(note("describe.together", Map.of("when", when)));
                 for (Spell spell : together) {
                     paragraphs.add("• " + sentence(spell));
                 }
@@ -87,7 +97,7 @@ public final class SpellDescription {
     // ------------------------------------------------------------------ reading a spell
 
     private Spell read(List<String> row) {
-        List<String> words = new ArrayList<>();
+        List<String> written = new ArrayList<>();
         int release = -1;
         for (int i = 0; i < row.size(); i++) {
             String id = row.get(i) == null ? "" : row.get(i);
@@ -96,14 +106,17 @@ public final class SpellDescription {
             }
             release = i;
             // A named rune is read as the spell it holds.
-            words.addAll(named.getOrDefault(id, List.of(id)));
+            written.addAll(named.getOrDefault(id, List.of(id)));
         }
-        if (words.isEmpty()) {
+        if (written.isEmpty()) {
             return null;
         }
+        // A fusion that stands for other runes is read as them.
+        List<String> words = new SpellGrammar(lexicon()).expand(written, new ArrayList<>());
         String source = null;
         String mark = null;
         boolean capture = false;
+        String captureVerb = null;
         String amount = null;
         List<String> turns = new ArrayList<>();
         boolean condensed = false;
@@ -114,9 +127,12 @@ public final class SpellDescription {
             String word = words.get(i);
             String next = i + 1 < words.size() ? words.get(i + 1) : "";
             boolean number = word.matches("-?\\d+");
-            if ((number || isMark(word)) && "ubis".equals(next)) {
-                place = number ? "a " + word + " blocos na direção mirada" : "onde está o que tem a marca “" + word
-                        + "”";
+            Optional<Rune> placeFilter = lexicon().ofClass(next, WordClass.FILTER)
+                    .filter(filter -> filter.filter().map(spec -> spec.argument() == FilterSpec.Argument.OPERANDS)
+                            .orElse(false));
+            if ((number || isMark(word)) && placeFilter.isPresent()) {
+                place = number ? text(placeFilter.get(), "place.distance", Map.of("n", word))
+                        : text(placeFilter.get(), "place.mark", Map.of("mark", word));
                 i++;
                 continue;
             }
@@ -124,178 +140,178 @@ public final class SpellDescription {
                 mark = word;
                 continue;
             }
-            if (SOURCES.contains(word)) {
+            Optional<Rune> rune = lexicon().rune(word);
+            if (rune.isEmpty()) {
+                continue;
+            }
+            if (rune.get().is(WordClass.SOURCE)) {
                 if (source == null) {
                     source = word;
                 }
                 continue;
             }
-            switch (word) {
-                case "exsugat" -> capture = true;
-                case "vertere" -> {
-                    if (SOURCES.contains(next)) {
-                        turns.add(next);
-                        i++;
-                    }
+            Flow flow = rune.get().verb().map(verb -> verb.flow()).orElse(null);
+            Parameter parameter = rune.get().filter()
+                    .filter(filter -> filter.argument() == FilterSpec.Argument.VALUE)
+                    .map(FilterSpec::parameter).orElse(null);
+            if (flow == Flow.CAPTURE) {
+                capture = true;
+                captureVerb = word;
+            } else if (flow == Flow.CONVERT) {
+                if (lexicon().ofClass(next, WordClass.SOURCE).isPresent()) {
+                    turns.add(next);
+                    i++;
                 }
-                case "quantum" -> {
-                    if (next.matches("-?\\d+")) {
-                        amount = next;
-                        i++;
-                    } else {
-                        amount = "all";
-                    }
+            } else if (parameter == Parameter.QUANTITY) {
+                if (next.matches("-?\\d+")) {
+                    amount = next;
+                    i++;
+                } else {
+                    amount = "all";
                 }
-                case "chronos" -> {
-                    if ("0".equals(next)) {
-                        condensed = true;
-                        i++;
-                    } else if (next.matches("-?\\d+")) {
-                        time = next;
-                        i++;
-                    }
+            } else if (parameter == Parameter.TIME) {
+                if ("0".equals(next)) {
+                    condensed = true;
+                    i++;
+                } else if (next.matches("-?\\d+")) {
+                    time = next;
+                    i++;
                 }
-                default -> {
-                    if (FUNCTIONS.contains(word)) {
-                        function = word;
-                    }
-                }
+            } else if (flow == Flow.SPEND) {
+                function = word;
             }
         }
         if (function == null && capture) {
-            function = "exsugat";
+            function = captureVerb;
         }
-        return new Spell(release, source, mark, capture, amount, turns, condensed, time, place, function);
+        return new Spell(release, source, mark, capture, captureVerb, amount, turns, condensed, time, place, function);
     }
 
     private boolean isMark(String word) {
-        return !word.matches("-?\\d+") && !named.containsKey(word) && dictionary.lookup(word).isEmpty();
+        return !word.matches("-?\\d+") && !named.containsKey(word) && !lexicon().isRune(word);
     }
 
     // ------------------------------------------------------------------ writing it
 
-    private static String sentence(Spell spell) {
+    private String sentence(Spell spell) {
         StringBuilder text = new StringBuilder();
         if (spell.source() == null && spell.mark() != null) {
-            text.append(capitalize(action(spell, "o que tem a marca “" + spell.mark() + "”")));
+            text.append(capitalize(action(spell, note("describe.marked", Map.of("mark", spell.mark())))));
             return text.append('.').toString();
         }
         if (spell.source() == null && spell.amount() == null) {
-            // No energy named: only what is done (surgit reads, a function on its own).
+            // No energy named: only what is done (surgit reads, a verb on its own).
             String done = action(spell, null);
             return capitalize(done.startsWith("e ") ? done.substring(2) : done) + ".";
         }
         String element = elementName(spell.source());
-        String amount = "all".equals(spell.amount()) ? "toda a energia de " + element
-                : (spell.amount() == null ? DEFAULT_UMU : spell.amount()) + " UMU de " + element;
-        String origin = spell.capture() ? " do mundo ao redor da mão"
-                : "vis".equals(spell.source()) ? " do corpo (a experiência)" : " do corpo";
+        String amount = "all".equals(spell.amount()) ? note("describe.all", Map.of("element", element))
+                : note("describe.amount", Map.of("amount", spell.amount() == null ? String.valueOf(DEFAULT_UMU)
+                        : spell.amount(), "element", element));
+        String origin = spell.capture() ? note("describe.world", Map.of())
+                : lexicon().rune(spell.source() == null ? "" : spell.source()).flatMap(rune -> rune.text("origin"))
+                        .orElseGet(() -> note("describe.body", Map.of()));
         if (!spell.turns().isEmpty()) {
-            List<String> into = spell.turns().stream().map(turn -> elementName(turn)).toList();
-            text.append(spell.capture() ? "Captura " : "Converte ").append(amount).append(origin)
-                    .append(spell.capture() ? ", converte em " : " em ").append(String.join(" e depois em ", into));
+            List<String> into = spell.turns().stream().map(this::elementName).toList();
+            text.append(note(spell.capture() ? "describe.capture" : "describe.convert", Map.of())).append(' ')
+                    .append(amount).append(origin)
+                    .append(note(spell.capture() ? "describe.capture.convert" : "describe.into", Map.of()))
+                    .append(String.join(note("describe.then", Map.of()), into));
         } else {
-            text.append(spell.capture() ? "Captura " : "Usa ").append(amount).append(origin);
+            text.append(note(spell.capture() ? "describe.capture" : "describe.use", Map.of())).append(' ')
+                    .append(amount).append(origin);
         }
         if (spell.condensed()) {
-            text.append(", condensa tudo num só ponto");
+            text.append(note("describe.condensed", Map.of()));
         }
         if (spell.seconds() != null) {
-            text.append(", por ").append(spell.seconds()).append(" s");
+            text.append(note("describe.seconds", Map.of("s", spell.seconds())));
         }
         text.append(' ').append(action(spell, null));
         return text.append('.').toString();
     }
 
     /** What the spell does with its energy; {@code subject} names it when it is a marked thing. */
-    private static String action(Spell spell, String subject) {
-        String what = subject == null ? "" : subject + " ";
-        String where = spell.place() == null ? "" : " " + spell.place();
+    private String action(Spell spell, String subject) {
         if (spell.function() == null) {
-            return "e não faz nada com ela: falta uma função";
+            return note("describe.nothing", Map.of());
         }
-        return switch (spell.function()) {
-            case "iactare" -> subject == null ? "e lança na direção mirada" + where
-                    : "lança " + what + "na direção mirada" + where;
-            case "vocant" -> subject == null ? "e faz surgir" + (where.isEmpty() ? " no ponto mirado" : where)
-                    : "faz " + what + "surgir" + (where.isEmpty() ? " no ponto mirado" : where);
-            case "impediunt" -> "e afasta esse elemento de uma zona ao redor" + (where.isEmpty() ? " do ponto" : where);
-            case "exsugat" -> "e absorve para o corpo";
-            case "surgit" -> "e faz o espírito ler e revelar";
-            case "ligabis" -> "e liga o que foi marcado";
-            case "reframe" -> "e guarda o feitiço com um nome";
-            case "transvocatio" -> "e transfere o que foi marcado";
-            default -> "e " + spell.function();
-        };
+        Optional<Rune> verb = lexicon().rune(spell.function());
+        if (verb.isEmpty() || verb.get().text("describe").isEmpty() && verb.get().text("describe.marked").isEmpty()) {
+            return note("describe.unformed", Map.of("verb", spell.function()));
+        }
+        String where = spell.place() == null ? verb.get().text("describe.where").orElse("") : " " + spell.place();
+        if (subject != null && verb.get().text("describe.marked").isPresent()) {
+            return text(verb.get(), "describe.marked", Map.of("what", subject, "where", where));
+        }
+        return text(verb.get(), "describe", Map.of("where", where));
     }
 
     /** What the elements released in the same instant may do to each other, by their aspects. */
-    private static List<String> meetings(List<Spell> together) {
-        Set<String> elements = new LinkedHashSet<>();
-        for (Spell spell : together) {
-            if (spell.element() != null) {
-                elements.add(spell.element());
-            }
-        }
+    private List<String> meetings(List<Spell> together) {
+        Set<VitaElement> elements = elementsOf(together);
         List<String> notes = new ArrayList<>();
-        if (elements.contains("aqua") && elements.contains("aura")) {
-            notes.add("A água levada pelo ar agitado se desfaz em gotículas. O atrito entre elas (e o gelo em que "
-                    + "congelam, se o ar esfriar) acumula carga estática, que pode descarregar num relâmpago.");
-        }
-        if (elements.contains("igni") && elements.contains("aqua")) {
-            notes.add("O calor encontra a água: ela ferve, e o vapor, se não tiver por onde sair, explode.");
-        }
-        if (elements.contains("igni") && elements.contains("aura")) {
-            notes.add("O ar alimenta o fogo, e o calor expande o ar em rajadas quentes.");
-        }
-        if (elements.contains("igni") && elements.contains("firmo")) {
-            notes.add("Calor bastante derrete a rocha em lava, que endurece ao esfriar: obsidiana se esfriar de repente.");
-        }
-        if (elements.contains("aqua") && elements.contains("firmo")) {
-            notes.add("Água e terra viram lama; a água que congela nas fendas racha a pedra.");
-        }
-        if (elements.contains("aura") && elements.contains("firmo")) {
-            notes.add("A pressão arremessa a terra como estilhaços.");
+        for (Meeting meeting : lexicon().meetings()) {
+            if (meeting.among(elements)) {
+                notes.add(meeting.note());
+            }
         }
         return notes;
     }
 
+    private Set<VitaElement> elementsOf(List<Spell> spells) {
+        Set<VitaElement> elements = EnumSet.noneOf(VitaElement.class);
+        for (Spell spell : spells) {
+            if (spell.element() != null) {
+                elements.add(lexicon().elementOf(spell.element()));
+            }
+        }
+        return elements;
+    }
+
     /** What a spell alone is worth noting. */
-    private static List<String> own(Spell spell) {
+    private List<String> own(Spell spell) {
         List<String> notes = new ArrayList<>();
-        if (spell.capture() && "aura".equals(spell.source())) {
-            notes.add("Tirar o ar do mundo deixa um vácuo onde ele estava: sem ar não se respira e o fogo apaga.");
+        if (spell.capture() && spell.source() != null) {
+            lexicon().rune(spell.source()).flatMap(rune -> rune.text("captureNote")).ifPresent(notes::add);
         }
         if (spell.condensed()) {
-            notes.add("Condensar é trabalho do espírito: parte da energia se perde nele, e juntar leva tempo antes "
-                    + "da soltura.");
+            notes.add(note("note.condensed", Map.of()));
         }
-        if (spell.condensed() && "vis".equals(spell.element())) {
-            notes.add("A vis condensada mostra os quatro aspectos de uma vez: calor, água, ar e massa no mesmo ponto.");
+        if (spell.condensed() && spell.element() != null) {
+            lexicon().rune(spell.element()).flatMap(rune -> rune.text("condensedNote")).ifPresent(notes::add);
         }
-        if (!spell.turns().isEmpty() && !"vis".equals(spell.source())) {
-            notes.add("Converter um elemento em outro custa ao espírito 5% da energia por qualidade mudada.");
+        if (!spell.turns().isEmpty() && changesQualities(spell)) {
+            notes.add(note("note.conversion", Map.of()));
         }
         return notes;
+    }
+
+    /** Whether the conversions of a spell change any quality (making anything of Vis changes none). */
+    private boolean changesQualities(Spell spell) {
+        VitaElement from = lexicon().elementOf(spell.source() == null ? lexicon().defaultSource().id() : spell.source());
+        for (String turn : spell.turns()) {
+            VitaElement to = lexicon().elementOf(turn);
+            if (Conversion.qualities(from, to) > 0) {
+                return true;
+            }
+            from = to;
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------ the name
 
-    private static String name(TreeMap<Integer, List<Spell>> byInstant, List<Spell> spells) {
+    private String name(TreeMap<Integer, List<Spell>> byInstant, List<Spell> spells) {
         for (List<Spell> together : byInstant.values()) {
             if (together.size() < 2) {
                 continue;
             }
-            Set<String> elements = new LinkedHashSet<>();
-            together.forEach(spell -> elements.add(spell.element()));
-            if (elements.contains("aqua") && elements.contains("aura")) {
-                return "Tempestade";
-            }
-            if (elements.contains("igni") && elements.contains("aqua")) {
-                return "Explosão de vapor";
-            }
-            if (elements.contains("igni") && elements.contains("aura")) {
-                return "Redemoinho de fogo";
+            Set<VitaElement> elements = elementsOf(together);
+            for (Meeting meeting : lexicon().meetings()) {
+                if (meeting.name() != null && meeting.among(elements)) {
+                    return meeting.name();
+                }
             }
         }
         Set<String> names = new LinkedHashSet<>();
@@ -303,44 +319,50 @@ public final class SpellDescription {
             names.add(name(spell));
         }
         List<String> distinct = new ArrayList<>(names);
-        return distinct.size() == 1 ? distinct.get(0) : distinct.get(0) + " e " + lower(distinct.get(1));
+        return distinct.size() == 1 ? distinct.get(0)
+                : distinct.get(0) + note("describe.and", Map.of()) + lower(distinct.get(1));
     }
 
-    private static String name(Spell spell) {
-        String element = spell.element();
-        boolean dense = spell.condensed();
+    private String name(Spell spell) {
         if (spell.function() == null) {
-            return "Feitiço incompleto";
+            return note("describe.incomplete", Map.of());
         }
-        return switch (spell.function()) {
-            case "iactare" -> switch (element == null ? "" : element) {
-                case "igni" -> dense ? "Bola de fogo" : "Lança de fogo";
-                case "aqua" -> dense ? "Projétil de gelo" : "Jato d'água";
-                case "aura" -> dense ? "Bomba de ar" : "Rajada";
-                case "firmo" -> dense ? "Meteoro" : "Pedra arremessada";
-                case "vis" -> dense ? "Esfera de mana" : "Raio de mana";
-                default -> spell.mark() != null ? "Arremesso" : "Lançamento";
-            };
-            case "vocant" -> switch (element == null ? "" : element) {
-                case "igni" -> dense ? "Coração de fogo" : "Chama";
-                case "aqua" -> dense ? "Gelo condensado" : "Fonte";
-                case "aura" -> dense ? "Explosão de ar" : "Brisa";
-                case "firmo" -> dense ? "Rocha condensada" : "Pedra invocada";
-                case "vis" -> dense ? "Erupção de vis" : "Luz de mana";
-                default -> spell.mark() != null ? "Chamado" : "Invocação";
-            };
-            case "impediunt" -> "Barreira de " + elementName(element);
-            case "exsugat" -> "Absorção de " + elementName(element);
-            case "surgit" -> "Revelação";
-            case "ligabis" -> "Vínculo";
-            case "reframe" -> "Nomeação";
-            default -> "Feitiço";
-        };
+        Optional<Rune> verb = lexicon().rune(spell.function());
+        String operation = verb.flatMap(Rune::verb).map(spec -> spec.operation()).orElse(spell.function());
+        String key = "title." + operation + (spell.condensed() ? ".condensed" : "");
+        Optional<String> own = spell.element() == null ? Optional.empty()
+                : lexicon().rune(spell.element()).flatMap(rune -> rune.text(key));
+        if (own.isPresent()) {
+            return own.get();
+        }
+        if (verb.isPresent() && verb.get().text("title").isPresent()) {
+            return text(verb.get(), "title", Map.of("element", elementName(spell.element())));
+        }
+        if (verb.isPresent() && spell.mark() != null && verb.get().text("title.marked").isPresent()) {
+            return verb.get().text("title.marked").get();
+        }
+        return verb.flatMap(rune -> rune.text("title.fallback")).orElseGet(() -> note("describe.spell", Map.of()));
     }
 
     /** An element's name in the text; a spell with no element works on "energia". */
-    private static String elementName(String element) {
-        return element == null ? "energia" : ELEMENT.getOrDefault(element, element);
+    private String elementName(String element) {
+        if (element == null) {
+            return note("describe.energy", Map.of());
+        }
+        return lexicon().rune(element).map(Rune::name).orElse(element);
+    }
+
+    /** The lexicon as it is now, so words an addon adds later are read too. */
+    private Lexicon lexicon() {
+        return dictionary.lexicon();
+    }
+
+    private String note(String key, Map<String, String> values) {
+        return Template.fill(lexicon().note(key).orElse(key), values);
+    }
+
+    private static String text(Rune rune, String key, Map<String, String> values) {
+        return Template.fill(rune.text(key).orElse(""), values);
     }
 
     private static String seconds(int column) {

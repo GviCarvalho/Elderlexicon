@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.vita;
 
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
+
 import java.util.Locale;
 
 /**
@@ -26,25 +28,25 @@ public enum VitaElement {
         return this == BALANCED;
     }
 
+    /**
+     * The element a source rune follows the laws of: its own for the four and vis, and for any other source (a fusion,
+     * or one an addon brings) the one the lexicon gives it ({@code fusus} follows fire's). Anything that is no source
+     * is mana, as the book fills the gap.
+     */
     public static VitaElement fromRuneId(String runeId) {
         if (runeId == null || runeId.isBlank()) {
             return BALANCED;
         }
-        String normalized = runeId.toLowerCase(Locale.ROOT);
-        // Map fusion sources to their closest base element so they aren't treated as balanced/mana.
-        switch (normalized) {
-            case "fusus" -> { return IGNI; }
-            case "caligo" -> { return AQUA; }
-            case "lutum" -> { return FIRMO; }
-            case "pulvis" -> { return FIRMO; }
-            case "nebula" -> { return AURA; }
-            case "fulmen" -> { return IGNI; }
-        }
+        String normalized = runeId.toLowerCase(Locale.ROOT).trim();
         for (VitaElement element : values()) {
             if (element.runeId.equals(normalized)) {
                 return element;
             }
         }
-        return BALANCED;
+        try {
+            return Lexicons.get().elementOf(normalized);
+        } catch (RuntimeException unreadable) {
+            return BALANCED;
+        }
     }
 }

@@ -1,67 +1,64 @@
 package com.elderlexicon.mod.parser;
 
-import com.google.gson.Gson;
-import com.google.gson.annotations.SerializedName;
-import com.google.gson.reflect.TypeToken;
+import com.elderlexicon.mod.magic.lexicon.Lexicon;
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
+import com.elderlexicon.mod.magic.lexicon.Rune;
+import com.elderlexicon.mod.magic.lexicon.WordClass;
 
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
- * Loads and resolves tokens defined in {@code ParserList.json}.
+ * The runes as the older parts of the mod see them (an id, a type, a translation, whether it takes a target), read from
+ * the {@link Lexicon}. The lexicon is where the words live; this is only a window on it.
  */
 public final class ParserDictionary {
 
-    private static final String RESOURCE_PATH = "/com/elderlexicon/mod/parser/ParserList.json";
-    private static final Type MAP_TYPE = new TypeToken<Map<String, RuneConfig>>() { }.getType();
+    /** A fixed lexicon, or null to follow the one in force as addons change it. */
+    private final Lexicon fixed;
 
-    private final Map<String, RuneDefinition> definitions;
-
-    private ParserDictionary(Map<String, RuneDefinition> definitions) {
-        this.definitions = definitions;
+    private ParserDictionary(Lexicon fixed) {
+        this.fixed = fixed;
     }
 
+    /** The dictionary of the lexicon in force, whatever addons add to it later. */
     public static ParserDictionary load() {
-        var stream = ParserDictionary.class.getResourceAsStream(RESOURCE_PATH);
-        if (stream == null) {
-            throw new IllegalStateException("Resource '" + RESOURCE_PATH + "' not found on classpath.");
-        }
-        try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-            Map<String, RuneConfig> parsed = new Gson().fromJson(reader, MAP_TYPE);
-            if (parsed == null || parsed.isEmpty()) {
-                throw new IllegalStateException("Parser dictionary is empty.");
-            }
+        return new ParserDictionary(null);
+    }
 
-            Map<String, RuneDefinition> mapped = parsed.entrySet().stream()
-                    .collect(Collectors.toUnmodifiableMap(
-                            entry -> entry.getKey().toLowerCase(Locale.ROOT),
-                            entry -> entry.getValue().toDefinition(entry.getKey())));
+    /** The dictionary of one lexicon. */
+    public static ParserDictionary of(Lexicon lexicon) {
+        return new ParserDictionary(Objects.requireNonNull(lexicon, "lexicon"));
+    }
 
-            return new ParserDictionary(mapped);
-        } catch (IOException exception) {
-            throw new IllegalStateException("Failed to load parser dictionary", exception);
-        }
+    public Lexicon lexicon() {
+        return fixed != null ? fixed : Lexicons.get();
     }
 
     public Optional<RuneDefinition> lookup(String token) {
         if (token == null || token.isBlank()) {
             return Optional.empty();
         }
-        String lookupKey = token.toLowerCase(Locale.ROOT).trim();
-        return Optional.ofNullable(definitions.get(lookupKey));
+        return lexicon().rune(token.toLowerCase(Locale.ROOT).trim()).map(ParserDictionary::definitionOf);
     }
 
     public Map<String, RuneDefinition> entries() {
-        return Collections.unmodifiableMap(definitions);
+        Map<String, RuneDefinition> entries = new LinkedHashMap<>();
+        for (Rune rune : lexicon().runes()) {
+            entries.put(rune.id(), definitionOf(rune));
+        }
+        return Collections.unmodifiableMap(entries);
+    }
+
+    /** How the older parts of the mod see a rune of the lexicon. */
+    public static RuneDefinition definitionOf(Rune rune) {
+        boolean requiresTarget = rune.verb().map(verb -> verb.awaitsTarget()).orElse(false)
+                || rune.expansion().contains(Rune.NEXT_WORD);
+        return new RuneDefinition(rune.id(), RuneType.of(rune.wordClass()), rune.translation(), requiresTarget);
     }
 
     public enum RuneType {
@@ -70,26 +67,15 @@ public final class ParserDictionary {
         SHAPE,
         FILTER;
 
-        static RuneType from(String value) {
-            try {
-                return RuneType.valueOf(value.toUpperCase(Locale.ROOT));
-            } catch (IllegalArgumentException exception) {
-                throw new IllegalStateException("Unknown rune type: " + value, exception);
-            }
+        static RuneType of(WordClass wordClass) {
+            return switch (wordClass) {
+                case SOURCE -> SOURCE;
+                case VERB -> FUNCTION;
+                case FILTER -> FILTER;
+                case FORM -> SHAPE;
+            };
         }
     }
 
     public record RuneDefinition(String id, RuneType type, String translation, boolean requiresTarget) { }
-
-    private record RuneConfig(String type, String translation,
-                              @SerializedName("requiresTarget") Boolean requiresTarget) {
-
-        RuneDefinition toDefinition(String id) {
-            Objects.requireNonNull(type, "Missing type for rune '" + id + "'");
-            Objects.requireNonNull(translation, "Missing translation for rune '" + id + "'");
-
-            boolean needsTarget = requiresTarget != null && requiresTarget;
-            return new RuneDefinition(id, RuneType.from(type), translation, needsTarget);
-        }
-    }
 }

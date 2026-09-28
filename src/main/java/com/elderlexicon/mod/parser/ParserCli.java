@@ -166,19 +166,7 @@ public final class ParserCli {
     }
 
     private static boolean requiresEnergyConsumption(List<SpellAction> actions) {
-        if (actions == null || actions.isEmpty()) {
-            return false;
-        }
-        for (SpellAction action : actions) {
-            if (action == null) {
-                continue;
-            }
-            if (action.type() == com.elderlexicon.mod.spell.action.SpellActionType.FUNCTION
-                    && !"exsugat".equalsIgnoreCase(action.runeId())) {
-                return true;
-            }
-        }
-        return false;
+        return com.elderlexicon.mod.spell.action.SpellCostProcessor.requiresEnergy(actions);
     }
 
     private static String capitalize(String text) {
