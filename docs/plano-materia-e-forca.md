@@ -186,6 +186,23 @@ O modelo da matéria fica em `magic/matter`, sem nada de Minecraft, e os dados e
   extensão que quebre a tabela é recusada: receita perto demais de outra, bloco lido como duas coisas, falta de uma
   primordial.
 
+## 6.2 Como a etapa 3 ficou
+
+A ponte com o mundo fica em `spell/matter/WorldMatter`, e o plano de como a matéria entra no mundo em
+`magic/matter/Placement` (sem Minecraft, testado à parte).
+
+- **Ler:** um bloco é o que a tabela diz dele. Um fluido só é matéria na fonte, porque o que escorre dela é a mesma água.
+  Um item é o que ele segura (ou o bloco que ele coloca), vezes a quantidade. Um item no chão é o item dele. O que é
+  feito (um baú, uma espada) não é matéria natural e não é lido.
+- **Tirar:** ler um bloco e deixar o lugar vazio.
+- **Colocar:** só blocos e itens inteiros. A partir do ponto, os blocos vão para os lugares livres mais próximos (ar,
+  plantas, fluido escorrendo), nunca por cima de uma fonte de fluido, que também é matéria. Um gás aparece como
+  partículas e vai todo para o mundo; ar solto se junta ao ar. Um amálgama assenta primeiro (L5) e cada parte é
+  colocada como o que é. O que não faz uma unidade inteira, ou não acha lugar, sobra para quem colocou (L1).
+- **Testes no jogo:** `./gradlew runGameTestServer` roda os GameTests (`gametest/MatterGameTests`) num servidor de
+  verdade: pedra, lava e gelo lidos como matéria, pedra derretida colocada como lava, um amálgama assentando em terra
+  e água, um bloco tirado, um gás solto.
+
 ## 7. Segunda fase: próximo plano, depois desta
 
 - **Corpos.**
