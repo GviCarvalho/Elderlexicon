@@ -384,6 +384,37 @@ public final class SpellGameTests {
         }
     }
 
+    /**
+     * Condensation still holds (docs/condensacao-design.md): everything taken from the world in reach and released in
+     * one instant appears as one block as dense as all of it, not as more loose soil.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 200)
+    public static void earthTakenAllAndReleasedAtOnceIsCondensed(GameTestHelper helper) {
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < 5; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.GLASS);
+            }
+        }
+        for (int x = 0; x < 5; x++) {
+            for (int z = 3; z < 5; z++) {
+                helper.setBlock(new BlockPos(x, 1, z), Blocks.DIRT);
+                helper.setBlock(new BlockPos(x, 2, z), Blocks.DIRT);
+            }
+        }
+        ServerPlayer mage = mage(helper);
+        Vec3 stand = helper.absoluteVec(new Vec3(0.5D, 1.0D, 0.5D));
+        mage.moveTo(stand.x, stand.y, stand.z, 0.0F, 0.0F);
+        castOrFail(helper, mage, "firmo " + at(helper, 2, 2, 4) + " tenet quantum chronos 0 " + at(helper, 2, 1, 1)
+                + " ubis vocant");
+        helper.succeedWhen(() -> {
+            check(helper, countIn(helper, Blocks.DIRT) == 0, "the earth in reach should all be taken");
+            // Twenty blocks of soil pressed into one are denser than any rock: a well of gravity (crying obsidian).
+            int dense = countIn(helper, Blocks.STONE) + countIn(helper, Blocks.DEEPSLATE)
+                    + countIn(helper, Blocks.OBSIDIAN) + countIn(helper, Blocks.CRYING_OBSIDIAN);
+            check(helper, dense == 1, "one block as dense as all of it, were " + dense);
+        });
+    }
+
     @GameTest(template = EMPTY)
     public static void aNegativeQuantityOnAVerbThatCannotTurnIsRefused(GameTestHelper helper) {
         ServerPlayer mage = mageBeforeAWall(helper);
