@@ -3,6 +3,8 @@ package com.elderlexicon.mod.spelling.server;
 import com.elderlexicon.mod.command.SpellCostCalculator;
 import com.elderlexicon.mod.ligabis.world.LigabisData;
 import com.elderlexicon.mod.ligabis.world.LigabisManager;
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
+import com.elderlexicon.mod.magic.lexicon.Rune;
 import com.elderlexicon.mod.spell.SpellCastingService;
 import com.elderlexicon.mod.spell.SpellTicks;
 import com.elderlexicon.mod.spell.block.SpellBlock;
@@ -95,7 +97,7 @@ public final class ServerSpellingController {
         if (runes.size() > MAX_SEQUENCE) {
             return applyFailure(player, Component.literal("Sequencia excede o limite permitido."), now, true, runes);
         }
-        if (runes.size() == 1 && "surgit".equalsIgnoreCase(runes.get(0))) {
+        if (runes.size() == 1 && readsWhatIsSeen(runes.get(0))) {
             SpellCastResponse framedResponse = processFramedPageSpell(player, now);
             if (framedResponse != null) {
                 return framedResponse;
@@ -158,6 +160,24 @@ public final class ServerSpellingController {
         return new SpellCastResponse(true, result.message(), responseWarnings, appliedCooldown, List.copyOf(expandedRunes));
     }
 
+    /**
+     * Whether a word alone makes the spirit read what the mage sees (surgit, book 5.1): a verb of the senses, as the
+     * lexicon says, with nothing else written.
+     */
+    private static boolean readsWhatIsSeen(String word) {
+        return Lexicons.get().verb(word).map(verb -> verb.sense() != null).orElse(false);
+    }
+
+    /** The word that reads, shown with the result of a reading. */
+    private static List<String> reading() {
+        return Lexicons.get().runes().stream()
+                .filter(rune -> rune.verb().map(verb -> verb.sense() != null).orElse(false))
+                .map(Rune::id)
+                .findFirst()
+                .map(List::of)
+                .orElse(List.of());
+    }
+
     private boolean playerHasRunes(ServerPlayer player, List<String> runes) {
         Set<String> allowed = new HashSet<>();
         try {
@@ -212,14 +232,14 @@ public final class ServerSpellingController {
     private SpellCastResponse processGrimoireSpell(ServerPlayer player, long now) {
         ItemStack grimoire = findGrimoire(player);
         if (grimoire.isEmpty()) {
-            return applyFailure(player, Component.literal("Nenhum grimorio em maos."), now, true, List.of("surgit"));
+            return applyFailure(player, Component.literal("Nenhum grimorio em maos."), now, true, reading());
         }
         GrimoireExtractionResult extraction = extractRunesFromGrimoire(grimoire);
         if (extraction.hasForbiddenRune()) {
-            return applyFailure(player, FUSION_RUNE_DENIED, now, true, List.of("surgit"));
+            return applyFailure(player, FUSION_RUNE_DENIED, now, true, reading());
         }
         if (extraction.block().isEmpty()) {
-            return applyFailure(player, Component.literal("Pagina do grimorio sem feitico."), now, true, List.of("surgit"));
+            return applyFailure(player, Component.literal("Pagina do grimorio sem feitico."), now, true, reading());
         }
         // Once the spirit has read the page, the grimoire can describe it: it keeps the text read and what it cost.
         String text = pageText(grimoire);
@@ -298,10 +318,10 @@ public final class ServerSpellingController {
         }
         GrimoireExtractionResult extraction = extractRunesFromText(written.get().text());
         if (extraction.hasForbiddenRune()) {
-            return applyFailure(player, FUSION_RUNE_DENIED, now, true, List.of("surgit"));
+            return applyFailure(player, FUSION_RUNE_DENIED, now, true, reading());
         }
         if (extraction.block().isEmpty()) {
-            return applyFailure(player, Component.literal("Inscricao sem feitico."), now, true, List.of("surgit"));
+            return applyFailure(player, Component.literal("Inscricao sem feitico."), now, true, reading());
         }
         return castPage(player, extraction.block(), now);
     }
@@ -341,7 +361,7 @@ public final class ServerSpellingController {
             }
         }
         if (spells.isEmpty()) {
-            return applyFailure(player, Component.literal("Circulo sem feitico."), now, true, List.of("surgit"));
+            return applyFailure(player, Component.literal("Circulo sem feitico."), now, true, reading());
         }
         List<String> shown = List.copyOf(expanded);
         SpellCastingService.Result result = castingService.castBlock(player, spells,
@@ -421,29 +441,29 @@ public final class ServerSpellingController {
             Component message = lastSuccess == null
                     ? Component.literal("Pergaminhos vinculados ativados.")
                     : lastSuccess.message();
-            List<String> runes = lastSuccess == null ? List.of("surgit") : lastSuccess.runes();
+            List<String> runes = lastSuccess == null ? reading() : lastSuccess.runes();
             return new SpellCastResponse(true, message, warnings, maxCooldown, runes);
         }
 
         if (firstFailure != null) {
             return new SpellCastResponse(false, firstFailure.message(), warnings, maxCooldown, firstFailure.runes());
         }
-        return applyFailure(player, Component.literal("Nenhum pergaminho vinculado valido."), now, true, List.of("surgit"));
+        return applyFailure(player, Component.literal("Nenhum pergaminho vinculado valido."), now, true, reading());
     }
 
     private SpellCastResponse castPlacedScroll(ServerPlayer player, Entity scrollEntity, long now, boolean enforceReach) {
         if (scrollEntity == null || scrollEntity.isRemoved() || !scrollEntity.isAlive()) {
-            return applyFailure(player, Component.literal("Pergaminho vinculado indisponivel."), now, true, List.of("surgit"));
+            return applyFailure(player, Component.literal("Pergaminho vinculado indisponivel."), now, true, reading());
         }
         if (enforceReach) {
             double reach = Math.max(1.0D, player.getBlockReach());
             if (player.distanceToSqr(scrollEntity) > reach * reach) {
-                return applyFailure(player, Component.literal("Pergaminho fora de alcance."), now, true, List.of("surgit"));
+                return applyFailure(player, Component.literal("Pergaminho fora de alcance."), now, true, reading());
             }
         }
         ItemStack displayed = displayedScroll(scrollEntity);
         if (!isDetachedPage(displayed)) {
-            return applyFailure(player, Component.literal("Suporte sem pergaminho destacado."), now, true, List.of("surgit"));
+            return applyFailure(player, Component.literal("Suporte sem pergaminho destacado."), now, true, reading());
         }
         CompoundTag tag = displayed.getTag();
         String pageText = tag == null ? "" : tag.getString("DetachedPageText");
@@ -452,10 +472,10 @@ public final class ServerSpellingController {
         }
         GrimoireExtractionResult extraction = extractRunesFromText(pageText);
         if (extraction.hasForbiddenRune()) {
-            return applyFailure(player, FUSION_RUNE_DENIED, now, true, List.of("surgit"));
+            return applyFailure(player, FUSION_RUNE_DENIED, now, true, reading());
         }
         if (extraction.block().isEmpty()) {
-            return applyFailure(player, Component.literal("Pagina destacada sem feitico."), now, true, List.of("surgit"));
+            return applyFailure(player, Component.literal("Pagina destacada sem feitico."), now, true, reading());
         }
         return castPage(player, extraction.block(), now);
     }
@@ -524,10 +544,10 @@ public final class ServerSpellingController {
         }
         GrimoireExtractionResult extraction = extractRunesFromText(pageText);
         if (extraction.hasForbiddenRune()) {
-            return applyFailure(player, FUSION_RUNE_DENIED, now, true, List.of("surgit"));
+            return applyFailure(player, FUSION_RUNE_DENIED, now, true, reading());
         }
         if (extraction.block().isEmpty()) {
-            return applyFailure(player, Component.literal("Pagina destacada sem feitico."), now, true, List.of("surgit"));
+            return applyFailure(player, Component.literal("Pagina destacada sem feitico."), now, true, reading());
         }
 
         SpellCastResponse response = castPage(player, extraction.block(), now);

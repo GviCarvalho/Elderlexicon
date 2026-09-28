@@ -13,10 +13,12 @@ This repository contains the core systems, design docs and implementation scaffo
 Documentation
 - ReadmeUMU.md — Details the UMU system, resource conversion order, runes, functions and cost calculations.
 - ReadmeVITA.md — Details Vita (HP as elemental energy), composition, effects of imbalance and technical notes for implementation.
+- docs/magia-modular-design.md — How a spell is read and run: the rune lexicon kept as data (runes.json), the grammar and energy flow that know word classes and roles instead of rune names, and how addons add runes, operations and foci.
 
 Quick links
 - ReadmeUMU.md: ./ReadmeUMU.md
 - ReadmeVITA.md: ./ReadmeVITA.md
+- Modular magic design: ./docs/magia-modular-design.md
 - License: ./LICENSE.txt
 
 Features
@@ -57,6 +59,7 @@ Contact / Author
 Português — Resumo rápido
 - Elder Lexicon implementa UMU (Unidade Mágica Universal) para custeio de feitiços e Vita (HP como energia elemental).
 - Veja ReadmeUMU.md e ReadmeVITA.md para documentação detalhada em português.
+- O léxico de runas fica em dados (`src/main/resources/data/elderlexicon/lexicon/runes.json`); veja docs/magia-modular-design.md para como um feitiço é lido pela lógica e como estender a magia.
 - Para construir: use o wrapper do Gradle (./gradlew build). Veja build.gradle para a versão alvo e dependências.
 
 If you want, I can:

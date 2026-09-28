@@ -131,6 +131,8 @@ O aqua tem dois canais, um para cada tipo de membro:
 - **Blocos comuns:** o registro guarda o tipo do bloco ao marcar; ao disparar, se o tipo mudou, o bloco foi destruído e a marca some (validação preguiçosa).
 - **Molduras e pergaminhos:** `ServerSpellingController.collectLinkedScrolls` hoje consulta `LigabisLinkManager` e, sem elo, varre 64 blocos atrás da mesma marca. Deve passar a consultar o índice de marcas, **mantendo o comportamento visível** do `surgit` em cadeia.
 - **Sai:** o mapa estático `LINKS`, o `LigabisLinkManager` atual, o `LigabisEvents` (totem) e os blocos fantasma.
+  - Feito no rework modular (`magia-modular-design.md`): o `LigabisFunctionHandler` só entrega o vínculo ao
+    `LigabisManager`, e o aspecto vem do léxico (`bond` de cada fonte).
 - **Fica:** o `MarkHelper`, o `SetMarkPacket` e o Pincel Elder.
 
 ## 9. Fora do escopo da primeira versão

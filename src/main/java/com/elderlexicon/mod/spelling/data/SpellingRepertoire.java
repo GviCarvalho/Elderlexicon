@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.spelling.data;
 
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -18,17 +19,6 @@ import java.util.Optional;
 public final class SpellingRepertoire {
 
     public static final int SLOT_COUNT = 9;
-    private static final List<String> DEFAULT_RUNES = List.of(
-            "igni",
-            "aqua",
-            "aura",
-            "firmo",
-            "impediunt",
-            "vertere",
-            "vocant",
-            "murus",
-            "iactare"
-    );
 
     private final NonNullList<String> slots = NonNullList.withSize(SLOT_COUNT, "");
 
@@ -36,13 +26,15 @@ public final class SpellingRepertoire {
         applyDefaults();
     }
 
+    /** The runes a new mage is given to recite in trance, as the lexicon says. */
     public static List<String> defaultRunes() {
-        return List.copyOf(DEFAULT_RUNES);
+        return List.copyOf(Lexicons.get().repertoire());
     }
 
     public void applyDefaults() {
+        List<String> defaults = defaultRunes();
         for (int i = 0; i < SLOT_COUNT; i++) {
-            slots.set(i, DEFAULT_RUNES.get(i));
+            slots.set(i, i < defaults.size() ? defaults.get(i) : "");
         }
     }
 

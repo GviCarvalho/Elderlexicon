@@ -55,7 +55,16 @@ public final class SpellActionResult {
         return Collections.unmodifiableList(vertereRequests);
     }
 
-    static SpellActionResult empty() {
+    /** The result of a sentence as the grammar read it. */
+    public static SpellActionResult of(List<String> lexemes,
+                                       List<SpellAction> actions,
+                                       Optional<Parser.PrimarySource> primarySource,
+                                       List<String> issues,
+                                       List<VertereRequest> vertereRequests) {
+        return new SpellActionResult(lexemes, actions, primarySource, issues, vertereRequests);
+    }
+
+    public static SpellActionResult empty() {
         return new SpellActionResult(List.of(), List.of(), Optional.empty(), List.of(), List.of());
     }
 }

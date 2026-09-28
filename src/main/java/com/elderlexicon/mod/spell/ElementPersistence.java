@@ -1,7 +1,8 @@
 package com.elderlexicon.mod.spell;
 
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
+
 import java.util.Locale;
-import java.util.Set;
 
 /**
  * Whether what an element brings into the world stays or goes.
@@ -17,13 +18,14 @@ public enum ElementPersistence {
     PERMANENT,
     EPHEMERAL;
 
-    private static final Set<String> PERMANENT_RUNES = Set.of("aqua", "firmo", "lutum", "fusus");
-
-    /** By rune id, so fusions keep their own nature (steam goes, though it maps to aqua). */
+    /**
+     * By rune id, as the lexicon says of each source ({@code persistent}), so fusions keep their own nature (steam goes,
+     * though it follows water's laws).
+     */
     public static ElementPersistence of(String elementRuneId) {
         if (elementRuneId == null) {
             return EPHEMERAL;
         }
-        return PERMANENT_RUNES.contains(elementRuneId.trim().toLowerCase(Locale.ROOT)) ? PERMANENT : EPHEMERAL;
+        return Lexicons.get().traitsOf(elementRuneId.trim().toLowerCase(Locale.ROOT)).persistent() ? PERMANENT : EPHEMERAL;
     }
 }

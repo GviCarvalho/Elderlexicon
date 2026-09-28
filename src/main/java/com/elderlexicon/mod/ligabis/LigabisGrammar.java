@@ -1,5 +1,9 @@
 package com.elderlexicon.mod.ligabis;
 
+import com.elderlexicon.mod.magic.lexicon.Lexicon;
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
+import com.elderlexicon.mod.magic.lexicon.SourceSpec;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -39,7 +43,7 @@ public final class LigabisGrammar {
                 }
             }
         }
-        int firstLigabis = words.indexOf("ligabis");
+        int firstLigabis = indexOfBond(words, 0);
         if (firstLigabis < 0) {
             return error("Falta a runa ligabis.");
         }
@@ -71,8 +75,8 @@ public final class LigabisGrammar {
         // After each ligabis: at most one mark, up to the next ligabis.
         int index = firstLigabis;
         while (index < words.size()) {
-            int next = words.subList(index + 1, words.size()).indexOf("ligabis");
-            int end = next < 0 ? words.size() : index + 1 + next;
+            int next = indexOfBond(words, index + 1);
+            int end = next < 0 ? words.size() : next;
             List<String> segment = words.subList(index + 1, end);
             if (countMarks(segment, isRune) > 1) {
                 return error("Use uma unica marca depois de cada ligabis.");
@@ -109,15 +113,28 @@ public final class LigabisGrammar {
         return count;
     }
 
+    /** The first bond verb of the lexicon ({@code ligabis}) at or after {@code from}, or -1. */
+    private static int indexOfBond(List<String> words, int from) {
+        Lexicon lexicon = Lexicons.get();
+        for (int index = from; index < words.size(); index++) {
+            if (lexicon.isBinding(words.get(index))) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    /** What a source binds when written as the aspect of a bond, as the lexicon says ({@code firmo}: integrity). */
     private static Aspect aspectOf(String word) {
-        return switch (word) {
-            case "firmo" -> Aspect.FIRMO;
-            case "igni" -> Aspect.IGNI;
-            case "aqua" -> Aspect.AQUA;
-            case "aura" -> Aspect.AURA;
-            case "vis" -> Aspect.VIS;
-            default -> null;
-        };
+        String bond = Lexicons.get().source(word).map(SourceSpec::bond).orElse(null);
+        if (bond == null) {
+            return null;
+        }
+        try {
+            return Aspect.valueOf(bond.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException unknown) {
+            return null;
+        }
     }
 
     private static Result error(String message) {

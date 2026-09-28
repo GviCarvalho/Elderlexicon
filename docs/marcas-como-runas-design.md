@@ -156,7 +156,7 @@ O livro define `exsugat` como "puxar um elemento externo para si". Com marca: `m
 
 Ordem de leitura de cada palavra:
 
-1. **Runa do dicionário** (`ParserList.json`).
+1. **Runa do léxico** (`runes.json`, antes `ParserList.json`; veja `magia-modular-design.md`).
 2. **Símbolo de `reframe`** registrado pelo mago (ex.: `fireball`). O reframe também cria palavras livres, então ele vem antes da marca.
 3. **Número** (só algarismos, com sinal opcional).
 4. **Marca:** qualquer outra palavra com **duas letras ou mais e ao menos uma letra**. Uma letra solta continua sendo glifo de runa no leitor de páginas (limite já conhecido no `ligabis-design.md`). `10` é número; `m1` é marca.

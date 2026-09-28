@@ -1,5 +1,8 @@
 package com.elderlexicon.mod.spell.action;
 
+import com.elderlexicon.mod.magic.lexicon.Flow;
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -10,11 +13,14 @@ import java.util.Map;
  */
 public final class SpellCostProcessor {
 
+    /** Fixed costs by verb, or null to ask the lexicon in force for each verb's cost. */
     private final Map<String, Double> functionCosts;
     private final double defaultSourceCost;
 
+    /** Costs every verb what the lexicon in force says it costs (iactare 2, vocant 1, vertere 1, ligabis 0.1 ...). */
     public SpellCostProcessor() {
-        this(defaultFunctionCosts(), 1.0D);
+        this.functionCosts = null;
+        this.defaultSourceCost = 1.0D;
     }
 
     public SpellCostProcessor(Map<String, Double> functionCosts, double defaultSourceCost) {
@@ -29,6 +35,23 @@ public final class SpellCostProcessor {
         this.defaultSourceCost = Math.max(0.0D, defaultSourceCost);
     }
 
+    /**
+     * Whether a spell costs anything at all: it does when a verb spends energy. A spell whose verbs only capture
+     * ({@code igni exsugat}) takes from the world and costs nothing.
+     */
+    public static boolean requiresEnergy(List<SpellAction> actions) {
+        if (actions == null || actions.isEmpty()) {
+            return false;
+        }
+        for (SpellAction action : actions) {
+            if (action != null && action.type() == SpellActionType.FUNCTION
+                    && Lexicons.get().flowOf(action.runeId()) != Flow.CAPTURE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public double computeTotalCost(List<SpellAction> actions) {
         if (actions == null || actions.isEmpty()) {
             return 0.0D;
@@ -40,7 +63,7 @@ public final class SpellCostProcessor {
             }
             switch (action.type()) {
                 case SOURCE -> total += sourceCost(action);
-                case FUNCTION -> total += functionCosts.getOrDefault(normalize(action.runeId()), 0.0D);
+                case FUNCTION -> total += functionCost(normalize(action.runeId()));
                 default -> {
                 }
             }
@@ -63,13 +86,10 @@ public final class SpellCostProcessor {
         return runeId == null ? "" : runeId.toLowerCase(Locale.ROOT);
     }
 
-    private static Map<String, Double> defaultFunctionCosts() {
-        Map<String, Double> map = new HashMap<>();
-        map.put("iactare", 2.0D);
-        map.put("vocant", 1.0D);
-        map.put("vertere", 1.0D);
-        map.put("ligabis", 0.1D);
-        map.put("transvocatio", 1.0D);
-        return map;
+    private double functionCost(String runeId) {
+        if (functionCosts == null) {
+            return Lexicons.get().costOf(runeId);
+        }
+        return functionCosts.getOrDefault(runeId, 0.0D);
     }
 }

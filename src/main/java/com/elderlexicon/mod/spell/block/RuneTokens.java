@@ -1,7 +1,7 @@
 package com.elderlexicon.mod.spell.block;
 
+import com.elderlexicon.mod.magic.lexicon.Glyphs;
 import com.elderlexicon.mod.spell.mark.NumberGlyphs;
-import com.elderlexicon.mod.spelling.client.RuneSgaMapper;
 
 import java.util.Locale;
 import java.util.Optional;
@@ -42,7 +42,7 @@ public final class RuneTokens {
             return number.get();
         }
         if (cleaned.length() == 1) {
-            return RuneSgaMapper.runeForGlyph(cleaned.charAt(0)).orElse("");
+            return Glyphs.runeForGlyph(cleaned.charAt(0)).orElse("");
         }
         return cleaned.toLowerCase(Locale.ROOT);
     }
@@ -55,6 +55,6 @@ public final class RuneTokens {
         if (typed == null || typed.isEmpty()) {
             return "";
         }
-        return RuneSgaMapper.glyphForRune(typed).map(String::valueOf).orElseGet(() -> NumberGlyphs.toGlyphs(typed));
+        return Glyphs.glyphForRune(typed).map(String::valueOf).orElseGet(() -> NumberGlyphs.toGlyphs(typed));
     }
 }

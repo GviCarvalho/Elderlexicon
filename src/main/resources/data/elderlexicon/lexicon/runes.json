@@ -1,0 +1,350 @@
+{
+  "_license": "© GviCarvalho – Part of Elderlexicon. The rune structure, nomenclature and texts in this file fall under LICENSE-DOCS.txt (CC BY-NC-ND 4.0).",
+  "_about": "The words of the Old Tongue. The engine knows no rune by name: every rune says here what it is, and a spell means what its words compose. See docs/magia-modular-design.md.",
+  "defaultSource": "vis",
+  "repertoire": ["igni", "aqua", "aura", "firmo", "impediunt", "vertere", "vocant", "murus", "iactare"],
+  "notes": {
+    "reading.empty": "Um passo de tempo em que nada é lido (0,25 s): atrasa o que vem depois.",
+    "reading.named": "Lê, neste ponto, o feitiço que ela guarda: {spell}.",
+    "reading.number": "Um número sem runa que o use aqui.",
+    "reading.mark": "O que tem a marca “{mark}”.",
+    "reading.mark.object": "O objeto do {verb}: o que tem a marca “{mark}”.",
+    "reading.source": "A fonte do {verb}: {from}.",
+    "reading.source.unused": "Uma fonte sem função que a use: {from}.",
+    "reading.fusion": "Runa de fusão.",
+    "reading.subject.mark": "o que tem a marca “{mark}”",
+    "reading.subject.energy": "a energia",
+    "reading.title.empty": "Vazio",
+    "reading.title.number": "Número {n}",
+    "reading.title.mark": "Marca “{mark}”",
+    "reading.title.named": "Runa nomeada “{name}”",
+    "reading.title.rune": "{rune} · {name}",
+    "describe.blank": "Página em branco",
+    "describe.together": "Ao mesmo tempo, em {when} s:",
+    "describe.released": "Solto em {when} s.",
+    "describe.all": "toda a energia de {element}",
+    "describe.amount": "{amount} UMU de {element}",
+    "describe.world": " do mundo ao redor da mão",
+    "describe.body": " do corpo",
+    "describe.capture": "Captura",
+    "describe.use": "Usa",
+    "describe.convert": "Converte",
+    "describe.capture.convert": ", converte em ",
+    "describe.into": " em ",
+    "describe.then": " e depois em ",
+    "describe.condensed": ", condensa tudo num só ponto",
+    "describe.seconds": ", por {s} s",
+    "describe.nothing": "e não faz nada com ela: falta uma função",
+    "describe.energy": "energia",
+    "describe.incomplete": "Feitiço incompleto",
+    "describe.spell": "Feitiço",
+    "describe.and": " e ",
+    "describe.marked": "o que tem a marca “{mark}”",
+    "describe.unformed": "e {verb}",
+    "note.condensed": "Condensar é trabalho do espírito: parte da energia se perde nele, e juntar leva tempo antes da soltura.",
+    "note.conversion": "Converter um elemento em outro custa ao espírito 5% da energia por qualidade mudada.",
+    "transcript.caster": "the caster",
+    "transcript.done": "Feitico interpretado com sucesso.",
+    "issue.unformed": "A fusão '{rune}' ainda não tem composição no léxico: escreva as runas que ela funde.",
+    "issue.nooperation": "O espírito não sabe o que '{rune}' faz: nenhuma operação responde por ela."
+  },
+  "meetings": [
+    {"elements": ["aqua", "aura"], "name": "Tempestade", "note": "A água levada pelo ar agitado se desfaz em gotículas. O atrito entre elas (e o gelo em que congelam, se o ar esfriar) acumula carga estática, que pode descarregar num relâmpago."},
+    {"elements": ["igni", "aqua"], "name": "Explosão de vapor", "note": "O calor encontra a água: ela ferve, e o vapor, se não tiver por onde sair, explode."},
+    {"elements": ["igni", "aura"], "name": "Redemoinho de fogo", "note": "O ar alimenta o fogo, e o calor expande o ar em rajadas quentes."},
+    {"elements": ["igni", "firmo"], "note": "Calor bastante derrete a rocha em lava, que endurece ao esfriar: obsidiana se esfriar de repente."},
+    {"elements": ["aqua", "firmo"], "note": "Água e terra viram lama; a água que congela nas fendas racha a pedra."},
+    {"elements": ["aura", "firmo"], "note": "A pressão arremessa a terra como estilhaços."}
+  ],
+  "runes": {
+    "firmo": {
+      "class": "source", "glyph": "D", "translation": "earth", "name": "terra", "noun": "a terra",
+      "lore": "Fonte: a terra, a energia como massa (densidade).",
+      "essence": {"firmo": 1}, "bond": "firmo",
+      "traits": {"persistent": true, "matter": "minecraft:dirt", "reveals": "firmo"},
+      "texts": {
+        "title.project": "Pedra arremessada", "title.project.condensed": "Meteoro",
+        "title.manifest": "Pedra invocada", "title.manifest.condensed": "Rocha condensada"
+      }
+    },
+    "aqua": {
+      "class": "source", "glyph": "A", "translation": "water", "name": "água", "noun": "a água",
+      "lore": "Fonte: a água, a energia como coesão.",
+      "essence": {"aqua": 1}, "bond": "aqua",
+      "traits": {"persistent": true, "matter": "minecraft:water", "quenches": true, "reveals": "aqua"},
+      "texts": {
+        "title.project": "Jato d'água", "title.project.condensed": "Projétil de gelo",
+        "title.manifest": "Fonte", "title.manifest.condensed": "Gelo condensado"
+      }
+    },
+    "aura": {
+      "class": "source", "glyph": "B", "translation": "air", "name": "ar", "noun": "o ar",
+      "lore": "Fonte: o ar, a energia como expansão (pressão).",
+      "essence": {"aura": 1}, "bond": "aura",
+      "traits": {"wind": true, "windStrikes": true, "reveals": "aura"},
+      "texts": {
+        "title.project": "Rajada", "title.project.condensed": "Bomba de ar",
+        "title.manifest": "Brisa", "title.manifest.condensed": "Explosão de ar",
+        "captureNote": "Tirar o ar do mundo deixa um vácuo onde ele estava: sem ar não se respira e o fogo apaga."
+      }
+    },
+    "igni": {
+      "class": "source", "glyph": "C", "translation": "fire", "name": "fogo", "noun": "o fogo",
+      "lore": "Fonte: o fogo, a energia como calor.",
+      "essence": {"igni": 1}, "bond": "igni",
+      "traits": {"kindles": true, "image": "minecraft:fire", "reveals": "igni"},
+      "texts": {
+        "title.project": "Lança de fogo", "title.project.condensed": "Bola de fogo",
+        "title.manifest": "Chama", "title.manifest.condensed": "Coração de fogo"
+      }
+    },
+    "vis": {
+      "class": "source", "glyph": "E", "translation": "mana", "name": "mana", "noun": "a vis",
+      "lore": "Fonte: a vis, os quatro aspectos em equilíbrio; no corpo, a experiência.",
+      "essence": {"igni": 0.25, "aqua": 0.25, "aura": 0.25, "firmo": 0.25}, "bond": "vis",
+      "traits": {"touches": false, "glow": "minecraft:end_rod"},
+      "texts": {
+        "reading.name": "vis",
+        "fromBody": "a mana do corpo (a experiência)", "origin": " do corpo (a experiência)",
+        "title.project": "Raio de mana", "title.project.condensed": "Esfera de mana",
+        "title.manifest": "Luz de mana", "title.manifest.condensed": "Erupção de vis",
+        "condensedNote": "A vis condensada mostra os quatro aspectos de uma vez: calor, água, ar e massa no mesmo ponto."
+      }
+    },
+    "vita": {
+      "class": "source", "origin": "fusion", "translation": "life", "name": "vida", "noun": "a vida",
+      "lore": "Fonte: a vida, a mistura dos quatro de que os seres vivos são feitos.",
+      "essence": {"aqua": 0.56, "aura": 0.38, "firmo": 0.04, "igni": 0.02}, "element": "vis"
+    },
+    "fusus": {
+      "class": "source", "origin": "fusion", "components": ["igni", "firmo"],
+      "translation": "magma", "name": "magma", "noun": "o magma",
+      "lore": "Fonte de fusão: o magma, a terra derretida pelo fogo.",
+      "essence": {"igni": 0.5, "firmo": 0.5}, "element": "igni",
+      "traits": {"persistent": true, "matter": "minecraft:magma_block", "particle": "minecraft:lava", "burnTicks": 400}
+    },
+    "caligo": {
+      "class": "source", "origin": "fusion", "components": ["aqua", "igni"],
+      "translation": "steam", "name": "vapor", "noun": "o vapor",
+      "lore": "Fonte de fusão: o vapor, a água aquecida.",
+      "essence": {"aqua": 0.5, "igni": 0.5}, "element": "aqua",
+      "traits": {"particle": "minecraft:campfire_cosy_smoke", "glow": "minecraft:cloud"}
+    },
+    "lutum": {
+      "class": "source", "origin": "fusion", "components": ["aqua", "firmo"],
+      "translation": "mud", "name": "lama", "noun": "a lama",
+      "lore": "Fonte de fusão: a lama, a terra que prende.",
+      "essence": {"aqua": 0.5, "firmo": 0.5}, "element": "firmo",
+      "traits": {"persistent": true, "matter": "minecraft:mud", "particle": "block:minecraft:mud"}
+    },
+    "pulvis": {
+      "class": "source", "origin": "fusion", "components": ["aura", "firmo"],
+      "translation": "dust", "name": "poeira", "noun": "a poeira",
+      "lore": "Fonte de fusão: a poeira, a terra levada pelo ar.",
+      "essence": {"aura": 0.5, "firmo": 0.5}, "element": "firmo",
+      "traits": {"wind": true, "particle": "minecraft:ash", "glow": "minecraft:white_ash"}
+    },
+    "nebula": {
+      "class": "source", "origin": "fusion", "components": ["aura", "aqua"],
+      "translation": "mist", "name": "névoa", "noun": "a névoa",
+      "lore": "Fonte de fusão: a névoa, a água suspensa no ar.",
+      "essence": {"aura": 0.5, "aqua": 0.5}, "element": "aura",
+      "traits": {"wind": true, "particle": "minecraft:snowflake", "glow": "minecraft:cloud"}
+    },
+    "fulmen": {
+      "class": "source", "origin": "fusion", "components": ["aura", "igni"],
+      "translation": "lightning", "name": "relâmpago", "noun": "o relâmpago",
+      "lore": "Fonte de fusão: o relâmpago, a fúria partilhada do ar e do fogo.",
+      "essence": {"aura": 0.5, "igni": 0.5}, "element": "igni",
+      "traits": {"strikes": true, "particle": "minecraft:electric_spark", "burnTicks": 100}
+    },
+
+    "vortex": {"class": "form", "origin": "fusion", "components": ["vertere", "source"], "translation": "vortex", "form": "vortex"},
+    "hasta": {"class": "form", "origin": "fusion", "components": ["iactare", "source"], "translation": "spear", "form": "spear"},
+    "murus": {"class": "form", "origin": "fusion", "components": ["impediunt", "source"], "translation": "wall", "form": "wall"},
+    "catena": {"class": "form", "origin": "fusion", "components": ["ligabis", "source"], "translation": "chain", "form": "chain"},
+    "orbis": {"class": "form", "origin": "fusion", "components": ["exsugat", "source"], "translation": "bolt", "form": "bolt"},
+    "sigillum": {"class": "form", "origin": "fusion", "components": ["vocant", "source"], "translation": "sigil", "form": "sigil"},
+    "turbio": {"class": "form", "origin": "fusion", "components": ["vertere", "source"], "translation": "vortex", "form": "vortex"},
+    "cuspis": {"class": "form", "origin": "fusion", "components": ["iactare", "source"], "translation": "spear", "form": "spear"},
+    "murum": {"class": "form", "origin": "fusion", "components": ["impediunt", "source"], "translation": "wall", "form": "wall"},
+    "vinculum": {"class": "form", "origin": "fusion", "components": ["ligabis", "source"], "translation": "chain", "form": "chain"},
+
+    "vertere": {
+      "class": "verb", "glyph": "H", "translation": "convert", "name": "converter",
+      "lore": "Função: converte um elemento em outro.",
+      "operation": "convert", "flow": "convert", "cost": 1,
+      "object": {"takes": ["source", "mark"], "as": "target", "immediate": true, "markNeedsMarkedSubject": true},
+      "joiner": "to",
+      "texts": {
+        "target": "O alvo do {verb}: a energia vira {element}.",
+        "role": "Converte {from} em {to} ({cost})",
+        "role.missing": "Converte, mas falta o elemento em que converter.",
+        "role.nosource": "Converte em {to}.",
+        "role.free": "sem custo",
+        "role.cost": "muda {q} {qualities}, custa {p}% da energia",
+        "role.quality": "qualidade",
+        "role.qualities": "qualidades",
+        "role.inplace": "; sem função depois, converte no lugar.",
+        "role.end": "."
+      }
+    },
+    "iactare": {
+      "class": "verb", "glyph": "I", "translation": "cast", "name": "lançar",
+      "lore": "Função: lança na direção mirada.",
+      "operation": "project", "cost": 2, "gathering": "hand",
+      "texts": {
+        "role": "Lança {what} na direção mirada",
+        "role.condensed": ", condensado numa esfera que se junta antes (diante da mão)",
+        "describe": "e lança na direção mirada{where}",
+        "describe.marked": "lança {what} na direção mirada{where}",
+        "title.marked": "Arremesso", "title.fallback": "Lançamento"
+      }
+    },
+    "impediunt": {
+      "class": "verb", "glyph": "M", "translation": "repel", "name": "repelir",
+      "lore": "Função: afasta um elemento de uma zona.",
+      "operation": "repel",
+      "texts": {
+        "role": "Afasta {what} de uma zona (um cilindro) ao redor do ponto",
+        "describe": "e afasta esse elemento de uma zona ao redor{where}",
+        "describe.where": " do ponto",
+        "title": "Barreira de {element}"
+      }
+    },
+    "ligabis": {
+      "class": "verb", "glyph": "G", "translation": "bind", "name": "ligar",
+      "lore": "Função: liga coisas marcadas.",
+      "operation": "bind", "cost": 0.1, "binds": true,
+      "texts": {
+        "role": "Liga o que foi marcado",
+        "mark": "O que tem a marca “{mark}”, no vínculo do {verb}.",
+        "describe": "e liga o que foi marcado",
+        "title": "Vínculo"
+      }
+    },
+    "exsugat": {
+      "class": "verb", "glyph": "F", "translation": "drain", "name": "absorver",
+      "lore": "Função: absorve uma fonte do mundo.",
+      "operation": "draw", "flow": "capture",
+      "texts": {
+        "role": "Absorve {what} do mundo para o corpo",
+        "role.feeding": "Captura {what} do mundo, ao redor da mão, e entrega ao {next}",
+        "source": "A fonte que o {verb} vai buscar no mundo: {element}.",
+        "describe": "e absorve para o corpo",
+        "title": "Absorção de {element}"
+      }
+    },
+    "vocant": {
+      "class": "verb", "glyph": "J", "translation": "summon", "name": "invocar",
+      "lore": "Função: faz surgir no ponto mirado.",
+      "operation": "manifest", "cost": 1, "gathering": "destination",
+      "texts": {
+        "role": "Faz {what} surgir no ponto mirado",
+        "role.condensed": ", condensado: junta ali antes de surgir",
+        "describe": "e faz surgir{where}",
+        "describe.marked": "faz {what} surgir{where}",
+        "describe.where": " no ponto mirado",
+        "title.marked": "Chamado", "title.fallback": "Invocação"
+      }
+    },
+    "reframe": {
+      "class": "verb", "glyph": "K", "translation": "reframe", "name": "nomear",
+      "lore": "Função: reformula o que foi escrito.",
+      "operation": "name",
+      "object": {"takes": ["name"], "as": "name"},
+      "texts": {
+        "describe": "e guarda o feitiço com um nome",
+        "title": "Nomeação"
+      }
+    },
+    "surgit": {
+      "class": "verb", "glyph": "L", "translation": "rise", "name": "ver",
+      "lore": "Função: faz o espírito ler e revelar.",
+      "operation": "perceive", "beforeVerb": "view", "sense": "sight",
+      "object": {"takes": ["mark"], "as": "subject", "measure": "visibility"},
+      "texts": {
+        "role": "Faz o espírito ler e revelar {what}",
+        "describe": "e faz o espírito ler e revelar",
+        "title": "Revelação"
+      }
+    },
+    "transvocatio": {
+      "class": "verb", "origin": "fusion", "components": ["vertere", "vocant"],
+      "translation": "transfer", "name": "trocar",
+      "lore": "Função: transfere o que foi marcado.",
+      "operation": "exchange", "cost": 1,
+      "object": {"takes": ["mark"], "as": "target", "optionalWithSubject": true,
+                 "refusal": "troca coisas marcadas: escreva uma marca depois dela."},
+      "joiner": "to",
+      "texts": {
+        "transcript.marked": "Swap {subject} with {target|caster}",
+        "describe": "e transfere o que foi marcado"
+      }
+    },
+
+    "transiectio": {"class": "verb", "origin": "fusion", "components": ["vertere", "iactare"], "translation": "transition",
+                    "lore": "Fusão: converte e lança.", "expands": ["vertere", "@", "iactare"]},
+    "aversio": {"class": "verb", "origin": "fusion", "components": ["vertere", "impediunt"], "translation": "repulsion",
+                "lore": "Fusão: converte e repele.", "expands": ["vertere", "@", "impediunt"]},
+    "cohaesio": {"class": "verb", "origin": "fusion", "components": ["vertere", "ligabis"], "translation": "fuse",
+                 "lore": "Fusão: funde alvos (alquimia)."},
+    "exhaustio": {"class": "verb", "origin": "fusion", "components": ["vertere", "exsugat"], "translation": "exhaust",
+                  "lore": "Fusão: esgota uma fonte do mundo, convertendo-a onde está.", "expands": ["exsugat", "vertere", "@"]},
+    "deflectio": {"class": "verb", "origin": "fusion", "components": ["iactare", "impediunt"], "translation": "deflect",
+                  "lore": "Fusão: desvia fluxos e projéteis."},
+    "vinculatio": {"class": "verb", "origin": "fusion", "components": ["iactare", "ligabis"], "translation": "spellbind",
+                   "lore": "Fusão: liga alvos por arremesso."},
+    "exsuctio": {"class": "verb", "origin": "fusion", "components": ["iactare", "exsugat"], "translation": "channel",
+                 "lore": "Fusão: drena uma fonte do mundo e a lança.", "expands": ["exsugat", "iactare"]},
+    "evocatio": {"class": "verb", "origin": "fusion", "components": ["iactare", "vocant"], "translation": "conjure",
+                 "lore": "Fusão: conjura de forma estável."},
+    "compeditio": {"class": "verb", "origin": "fusion", "components": ["impediunt", "ligabis"], "translation": "tether",
+                   "lore": "Fusão: acorrenta e imobiliza."},
+    "exinanitio": {"class": "verb", "origin": "fusion", "components": ["impediunt", "exsugat"], "translation": "leech",
+                   "lore": "Fusão: sangra devagar."},
+    "coniuratio": {"class": "verb", "origin": "fusion", "components": ["ligabis", "vocant"], "translation": "conspire",
+                   "lore": "Fusão: conspira, reúne alvos."},
+    "extractio": {"class": "verb", "origin": "fusion", "components": ["exsugat", "vocant"], "translation": "converge",
+                  "lore": "Fusão: junta o que foi drenado num foco.", "expands": ["exsugat", "vocant"]},
+
+    "quantum": {
+      "class": "filter", "glyph": "N", "translation": "quantity", "name": "quanto",
+      "lore": "Filtro: quanto (extensão ou quantidade).",
+      "parameter": "quantity", "argument": "value", "bare": "all",
+      "texts": {
+        "number": "O quanto do {filter}: {n} unidades.",
+        "role": "Quanto: {n} unidades ({n} UMU).",
+        "role.bare.world": "Sem número: toda a energia disponível da fonte, do mundo ao redor.",
+        "role.bare.body": "Sem número: toda a energia disponível da fonte, do corpo."
+      }
+    },
+    "chronos": {
+      "class": "filter", "glyph": "O", "translation": "time", "name": "tempo",
+      "lore": "Filtro: quando e por quanto tempo.",
+      "parameter": "time", "argument": "value",
+      "texts": {
+        "number": "O tempo do {filter}: {n} segundos.",
+        "number.zero": "{Filter} 0: tudo num único instante.",
+        "role": "Dura {n} segundos, gastando o tempo todo.",
+        "role.zero": "Solta tudo num único instante: condensa, e a intensidade vira a energia toda.",
+        "role.bare": "{Filter} sem número."
+      }
+    },
+    "ubis": {
+      "class": "filter", "glyph": "P", "translation": "range", "name": "onde",
+      "lore": "Filtro: onde.",
+      "parameter": "place", "argument": "operands",
+      "texts": {
+        "number": "O lugar do {filter}: {n} blocos na direção mirada.",
+        "mark": "O lugar do {filter}: onde está o que tem a marca “{mark}”.",
+        "role.number": "Onde: {n} blocos na direção mirada.",
+        "role.mark": "Onde: no que tem a marca “{mark}”.",
+        "role.other": "Onde: o que vem antes dele.",
+        "role.none": "Onde: falta o que vem antes dele (um número ou uma marca).",
+        "place.distance": "a {n} blocos na direção mirada",
+        "place.mark": "onde está o que tem a marca “{mark}”"
+      }
+    }
+  }
+}

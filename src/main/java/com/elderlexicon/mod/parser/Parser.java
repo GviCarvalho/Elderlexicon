@@ -1,5 +1,8 @@
 package com.elderlexicon.mod.parser;
 
+import com.elderlexicon.mod.magic.lexicon.Rune;
+import com.elderlexicon.mod.magic.lexicon.Template;
+import com.elderlexicon.mod.magic.lexicon.VerbSpec;
 import com.elderlexicon.mod.parser.ParserDictionary.RuneDefinition;
 import com.elderlexicon.mod.parser.ParserDictionary.RuneType;
 import com.elderlexicon.mod.spell.action.SpellAction;
@@ -8,7 +11,9 @@ import com.elderlexicon.mod.vita.VitaElement;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -138,7 +143,7 @@ public class Parser {
         } else if (!plainSources.isEmpty()) {
             response = String.join(" ", plainSources);
         } else {
-            response = "Feitico interpretado com sucesso.";
+            response = dictionary.lexicon().note("transcript.done").orElse("Feitico interpretado com sucesso.");
         }
 
         String resolvedPrimarySourceId = resolvePrimarySourceId(copiedLexemes, preferredPrimarySource);
@@ -154,7 +159,8 @@ public class Parser {
             return Optional.empty();
         }
 
-        RuneDefinition fallbackDefinition = dictionary.lookup("vis").orElse(null);
+        RuneDefinition fallbackDefinition = dictionary.lexicon().defaultSource() == null ? null
+                : ParserDictionary.definitionOf(dictionary.lexicon().defaultSource());
         PrimarySource fallback = fallbackDefinition != null ? new PrimarySource(fallbackDefinition) : null;
 
         PrimarySource latestSource = null;
@@ -232,70 +238,44 @@ public class Parser {
     }
 
 
+    /**
+     * How a verb is told in the transcript: its English verb, and for a verb that takes a target the target joined to
+     * what it acts on ({@code Convert fire to water}). All of it comes from the lexicon.
+     */
     private String renderFunction(RuneDefinition function, SpellState state, String targetElement) {
-        return switch (function.id()) {
-            case "vertere" -> {
-                if (targetElement == null) {
-                    throw new IllegalStateException("Função 'vertere' requer alvo.");
-                }
-                yield "Convert " + state.element() + " to " + targetElement;
-            }
-            case "transiectio" -> {
-                if (targetElement == null) {
-                    throw new IllegalStateException("Função 'transiectio' requer alvo.");
-                }
-                yield "Transition " + state.element() + " to " + targetElement;
-            }
-            case "cohaesio" -> {
-                if (targetElement == null) {
-                    throw new IllegalStateException("Função 'cohaesio' requer alvo.");
-                }
-                yield "Fuse " + state.element() + " with " + targetElement;
-            }
-            case "transvocatio" -> {
-                if (targetElement == null) {
-                    throw new IllegalStateException("Função 'transvocatio' requer alvo.");
-                }
-                yield "Transfer " + state.element() + " to " + targetElement;
-            }
-            case "extractio" -> {
-                if (targetElement == null) {
-                    throw new IllegalStateException("Função 'extractio' requer alvo.");
-                }
-                yield "Converge " + state.element() + " with " + targetElement;
-            }
-            case "vocant" -> "Summon " + state.describe();
-            case "impediunt" -> "Repel " + state.describe();
-            case "ligabis" -> "Bind " + state.describe();
-            case "exsugat" -> "Drain " + state.describe();
-            case "aversio" -> "Repulse " + state.describe();
-            case "exhaustio" -> "Exhaust " + state.describe();
-            case "deflectio" -> "Deflect " + state.describe();
-            case "vinculatio" -> "Spellbind " + state.describe();
-            case "exsuctio" -> "Channel " + state.describe();
-            case "evocatio" -> "Conjure " + state.describe();
-            case "compeditio" -> "Tether " + state.describe();
-            case "exinanitio" -> "Leech " + state.describe();
-            case "coniuratio" -> "Conspire " + state.describe();
-            default -> {
-                String action = capitalize(function.translation());
-                if (targetElement != null) {
-                    yield action + " " + targetElement;
-                }
-                yield action + " " + state.describe();
-            }
-        };
+        Optional<Rune> rune = dictionary.lexicon().rune(function.id());
+        String verb = verbOf(function, rune);
+        String joiner = rune.flatMap(Rune::verb).map(VerbSpec::joiner).orElse(null);
+        if (joiner != null && targetElement != null) {
+            return verb + " " + state.element() + " " + joiner + " " + targetElement;
+        }
+        if (targetElement != null) {
+            return verb + " " + targetElement;
+        }
+        return verb + " " + state.describe();
     }
 
-    /** A function acting on marked things: {@code Summon 'm1'}, {@code Transfer 'm1' with 'm2'}. */
+    /** A verb acting on marked things: {@code Summon 'm1'}, {@code Swap 'm1' with 'm2'}. */
     private String renderMarkedFunction(RuneDefinition function, SpellAction action, String targetElement) {
-        String subject = action.subjectMark().map(mark -> "'" + mark + "'").orElse("the caster");
+        Optional<Rune> rune = dictionary.lexicon().rune(function.id());
+        String caster = dictionary.lexicon().note("transcript.caster").orElse("the caster");
+        String subject = action.subjectMark().map(mark -> "'" + mark + "'").orElse(caster);
         String target = action.targetMark().map(mark -> "'" + mark + "'").orElse(targetElement);
-        String verb = capitalize(function.translation());
-        if ("transvocatio".equals(function.id())) {
-            return "Swap " + subject + " with " + (target == null ? "the caster" : target);
+        Optional<String> template = rune.flatMap(found -> found.text("transcript.marked"));
+        if (template.isPresent()) {
+            Map<String, String> values = new HashMap<>();
+            values.put("subject", subject);
+            values.put("target", target == null ? "" : target);
+            values.put("caster", caster);
+            return Template.fill(template.get(), values);
         }
+        String verb = verbOf(function, rune);
         return target == null ? verb + " " + subject : verb + " " + subject + " to " + target;
+    }
+
+    private static String verbOf(RuneDefinition function, Optional<Rune> rune) {
+        return rune.flatMap(Rune::verb).map(VerbSpec::phrase).filter(phrase -> !phrase.isBlank())
+                .orElseGet(() -> capitalize(function.translation()));
     }
 
     private static String capitalize(String text) {

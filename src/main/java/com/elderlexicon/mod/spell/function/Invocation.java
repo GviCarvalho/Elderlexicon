@@ -1,6 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
 import com.elderlexicon.mod.ligabis.world.LigabisManager;
+import com.elderlexicon.mod.magic.lexicon.Traits;
 import com.elderlexicon.mod.spell.ElementPersistence;
 import com.elderlexicon.mod.spell.SpellFlow;
 import com.elderlexicon.mod.spell.mark.MarkCost;
@@ -117,6 +118,7 @@ final class Invocation {
         Vec3 center = impact.location();
         double radius = FIELD_BASE_RADIUS + 0.5D * Math.sqrt(SpellEffects.blocksFor(power));
         Vec3 direction = windDirection(player, impact);
+        boolean strikes = SourceLooks.traits(rune).strikes();
         for (int elapsed = 0; elapsed <= ticks; elapsed += PULSE_TICKS) {
             final int tick = elapsed;
             SpellEffects.schedule(level, elapsed, () -> {
@@ -125,7 +127,7 @@ final class Invocation {
                 } else {
                     show(level, rune, element, center, power);
                 }
-                if ("fulmen".equals(rune) && tick % LIGHTNING_TICKS == 0) {
+                if (strikes && tick % LIGHTNING_TICKS == 0) {
                     LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
                     if (bolt != null) {
                         bolt.moveTo(center);
@@ -137,16 +139,15 @@ final class Invocation {
         }
     }
 
-    /** The matter an element's image shows as a block, or null when it has none to show (air, Vis, lightning). */
+    /**
+     * The matter a source's image shows as a block, or null when it has none to show (air, Vis, lightning): the block
+     * the lexicon gives its image, or its matter when it is permanent.
+     */
     static BlockState imageMatterOf(String rune) {
         if (rune == null) {
             return null;
         }
-        String normalized = rune.toLowerCase(Locale.ROOT);
-        if ("igni".equals(normalized)) {
-            return Blocks.FIRE.defaultBlockState();
-        }
-        return ElementPersistence.of(normalized) == ElementPersistence.PERMANENT ? matterOf(normalized) : null;
+        return SourceLooks.block(SourceLooks.traits(rune).imageBlock()).orElse(null);
     }
 
     // ------------------------------------------------------------------ permanent
@@ -158,7 +159,7 @@ final class Invocation {
         if (impact.entity() != null && !where.atFeet()) {
             SpellEffects.applyToEntity(player, element, rune, impact.entity(), power, false);
         }
-        if ("aqua".equals(rune) && impact.entity() == null && impact.blockPos() != null
+        if (SourceLooks.traits(rune).quenches() && impact.entity() == null && impact.blockPos() != null
                 && SpellEffects.applyAquaBlockEffect(level, impact.blockPos())) {
             return; // it filled a cauldron or put out a fire: the water went there
         }
@@ -200,13 +201,9 @@ final class Invocation {
         });
     }
 
+    /** The block a permanent source lays, as the lexicon says of it (loose soil when it names none). */
     private static BlockState matterOf(String rune) {
-        return switch (rune) {
-            case "aqua" -> Blocks.WATER.defaultBlockState();
-            case "lutum" -> Blocks.MUD.defaultBlockState();
-            case "fusus" -> Blocks.MAGMA_BLOCK.defaultBlockState();
-            default -> Blocks.DIRT.defaultBlockState();
-        };
+        return SourceLooks.block(SourceLooks.traits(rune).matterBlock()).orElse(Blocks.DIRT.defaultBlockState());
     }
 
     /**
@@ -248,7 +245,8 @@ final class Invocation {
     private static void ephemeral(ServerPlayer player, VitaElement element, String rune, Where where,
                                   SpellEffects.SpellImpact impact, double power, int windowTicks) {
         ServerLevel level = player.serverLevel();
-        boolean laysFire = "igni".equals(rune);
+        Traits traits = SourceLooks.traits(rune);
+        boolean laysFire = traits.kindles();
         boolean wind = isWind(rune);
         double energy = power * EmissionRecorder.DEFAULT_QUANTITY_UMU;
         double radius = FIELD_BASE_RADIUS + 0.5D * Math.sqrt(SpellEffects.blocksFor(power));
@@ -257,16 +255,16 @@ final class Invocation {
             Vec3 center = impact.location();
             if (wind) {
                 blow(level, center, radius, energy, 1, windDirection(player, impact));
-                if ("aura".equals(rune) && impact.entity() != null && !where.atFeet()) {
+                if (traits.windStrikes() && impact.entity() != null && !where.atFeet()) {
                     SpellEffects.applyToEntity(player, element, rune, impact.entity(), power, false);
                 }
             } else if (laysFire) {
                 SpellEffects.applyElementEffect(player, element, rune, impact, power);
-            } else if (impact.entity() != null && !"vis".equals(rune)) {
+            } else if (impact.entity() != null && traits.touches()) {
                 SpellEffects.applyToEntity(player, element, rune, impact.entity(), power, false);
             }
             show(level, rune, element, center, power);
-            if ("fulmen".equals(rune)) {
+            if (traits.strikes()) {
                 strike(level, player, center);
             }
             return;
@@ -286,7 +284,7 @@ final class Invocation {
             SpellEffects.schedule(level, elapsed, () -> where.now().ifPresent(now -> {
                 Vec3 center = now.location();
                 show(level, rune, element, center, Math.max(0.5D, power / Math.sqrt(pulses)));
-                if (!wind && !"vis".equals(rune)) {
+                if (!wind && traits.touches()) {
                     // What burns or scalds spares its caster; the wind does not (see blow). Inside an impediunt of its
                     // element it is pushed out: it burns the band just past the edge and spares the middle.
                     Optional<ImpediuntZones.Edge> edge = ImpediuntZones.zoneAt(level, center, element);
@@ -307,7 +305,7 @@ final class Invocation {
                         level.setBlock(pos, Blocks.FIRE.defaultBlockState(), 3); // it keeps burning while the window lasts
                     }
                 }
-                if ("fulmen".equals(rune) && tick % LIGHTNING_TICKS == 0) {
+                if (traits.strikes() && tick % LIGHTNING_TICKS == 0) {
                     strike(level, player, center);
                 }
             }));
@@ -352,8 +350,9 @@ final class Invocation {
         }
     }
 
+    /** Whether a source blows, as the lexicon says (air, mist, dust): it moves what it reaches. */
     private static boolean isWind(String rune) {
-        return "aura".equals(rune) || "nebula".equals(rune) || "pulvis".equals(rune);
+        return SourceLooks.traits(rune).wind();
     }
 
     /**
@@ -492,15 +491,15 @@ final class Invocation {
         }
     }
 
-    /** What can be seen of it: Vis is a faint glow one can follow (book 9.4), the rest their element's particles. */
+    /**
+     * What can be seen of it: the glow the lexicon gives it where it is invoked (Vis is a faint glow one can follow, book
+     * 9.4), or else the particles it flows with.
+     */
     private static void show(ServerLevel level, String rune, VitaElement element, Vec3 at, double power) {
         int count = (int) Math.max(4, Math.min(60, Math.round(12.0D * power)));
-        Optional<ParticleOptions> particle = switch (rune) {
-            case "vis" -> Optional.of(ParticleTypes.END_ROD);
-            case "caligo", "nebula" -> Optional.of(ParticleTypes.CLOUD);
-            case "pulvis" -> Optional.of(ParticleTypes.WHITE_ASH);
-            default -> SpellEffects.resolveParticle(element, rune);
-        };
+        String glow = SourceLooks.traits(rune).glow();
+        Optional<ParticleOptions> particle = glow != null ? SourceLooks.particle(glow)
+                : SpellEffects.resolveParticle(element, rune);
         particle.ifPresent(options -> level.sendParticles(options, at.x, at.y + 0.5D, at.z, count, 0.5D, 0.5D, 0.5D, 0.02D));
     }
 }
