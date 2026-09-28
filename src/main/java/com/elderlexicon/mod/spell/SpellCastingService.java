@@ -57,6 +57,11 @@ public final class SpellCastingService {
     }
 
     public Result cast(ServerPlayer player, List<String> rawLexemes) {
+        return cast(player, rawLexemes, 1.0D);
+    }
+
+    /** @param costFactor what the spell costs as a share of its own cost (a circle read from afar costs more) */
+    public Result cast(ServerPlayer player, List<String> rawLexemes, double costFactor) {
         Objects.requireNonNull(player, "player");
         List<String> lexemes = sanitizeLexemes(rawLexemes);
         if (lexemes.isEmpty()) {
@@ -125,6 +130,9 @@ public final class SpellCastingService {
         context.setFocusActive(SpellConduitItem.holdsReadyConduit(player));
 
         actionExecutor.execute(context, actions);
+        if (costFactor > 1.0D) {
+            context.addTotalCost(context.totalCost() * (costFactor - 1.0D));
+        }
         UmuLeakHandler.handleLeaks(context, actions);
         SpellModuleRegistry.snapshot().forEach(module -> module.apply(context));
         context.commitAmbientEnergy();
@@ -181,12 +189,18 @@ public final class SpellCastingService {
      * @param delayedSink receives the result of every spell that starts later than the returned one
      */
     public Result castBlock(ServerPlayer player, List<TimedSpell> spells, Consumer<Result> delayedSink) {
+        return castBlock(player, spells, delayedSink, 1.0D);
+    }
+
+    /** @param costFactor what each spell costs as a share of its own cost */
+    public Result castBlock(ServerPlayer player, List<TimedSpell> spells, Consumer<Result> delayedSink,
+                            double costFactor) {
         Objects.requireNonNull(player, "player");
         if (spells == null || spells.isEmpty()) {
             return Result.failure(Component.literal("Spell requer ao menos um termo."));
         }
-        if (spells.size() == 1) {
-            return cast(player, spells.get(0).lexemes());
+        if (spells.size() == 1 && spells.get(0).delaySteps() == 0) {
+            return cast(player, spells.get(0).lexemes(), costFactor);
         }
 
         for (int index = 0; index < spells.size(); index++) {
@@ -201,7 +215,7 @@ public final class SpellCastingService {
         for (TimedSpell spell : spells) {
             int delayTicks = (spell.delaySteps() - baseDelay) * STEP_TICKS;
             if (delayTicks <= 0) {
-                immediate.add(cast(player, spell.lexemes()));
+                immediate.add(cast(player, spell.lexemes(), costFactor));
                 continue;
             }
             scheduleLater(player, delayTicks, () -> {
@@ -209,7 +223,7 @@ public final class SpellCastingService {
                     return;
                 }
                 try {
-                    Result result = cast(player, spell.lexemes());
+                    Result result = cast(player, spell.lexemes(), costFactor);
                     if (delayedSink != null) {
                         delayedSink.accept(result);
                     }

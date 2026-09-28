@@ -70,6 +70,70 @@ public final class GrimoireItem extends WritableBookItem {
         stack.getOrCreateTag().putInt(LAST_PAGE_TAG, Math.max(0, page));
     }
 
+    /** The pages the spirit has read (their text and what they cost), and the names the mage gave the pages. */
+    public static final String READINGS_TAG = "Readings";
+    public static final String PAGE_NAMES_TAG = "PageNames";
+    private static final int MAX_READINGS = 100;
+
+    /**
+     * The spirit read a page with this {@code text} and it cost {@code spent} UMU (added to what it cost so far when
+     * {@code more}: spells of the page released later). The grimoire describes a page only once it has been read.
+     */
+    public static void recordReading(ItemStack stack, String text, double spent, boolean more) {
+        if (!(stack.getItem() instanceof GrimoireItem) || text == null) {
+            return;
+        }
+        CompoundTag tag = stack.getOrCreateTag();
+        ListTag readings = tag.getList(READINGS_TAG, Tag.TAG_COMPOUND);
+        for (int i = 0; i < readings.size(); i++) {
+            CompoundTag reading = readings.getCompound(i);
+            if (text.equals(reading.getString("Text"))) {
+                reading.putDouble("Cost", (more ? reading.getDouble("Cost") : 0.0D) + Math.max(0.0D, spent));
+                tag.put(READINGS_TAG, readings);
+                return;
+            }
+        }
+        CompoundTag reading = new CompoundTag();
+        reading.putString("Text", text);
+        reading.putDouble("Cost", Math.max(0.0D, spent));
+        readings.add(reading);
+        while (readings.size() > MAX_READINGS) {
+            readings.remove(0);
+        }
+        tag.put(READINGS_TAG, readings);
+    }
+
+    /** Who made the grimoire (the first to write in it), and the runes they have written in it so far. */
+    public static final String AUTHOR_TAG = "Author";
+    public static final String AUTHOR_ID_TAG = "AuthorId";
+    public static final String GLOSSARY_TAG = "Glossary";
+    private static final com.elderlexicon.mod.parser.ParserDictionary DICTIONARY =
+            com.elderlexicon.mod.parser.ParserDictionary.load();
+
+    /**
+     * {@code writer} saved {@code pages}: the first to write in a grimoire becomes its maker, and every rune of the
+     * language its maker writes joins the glossary at the front of the book, in the order first written.
+     */
+    public static void recordWriting(ItemStack stack, Player writer, List<String> pages) {
+        CompoundTag tag = stack.getOrCreateTag();
+        if (!tag.hasUUID(AUTHOR_ID_TAG)) {
+            tag.putUUID(AUTHOR_ID_TAG, writer.getUUID());
+            tag.putString(AUTHOR_TAG, writer.getGameProfile().getName());
+        }
+        if (!writer.getUUID().equals(tag.getUUID(AUTHOR_ID_TAG))) {
+            return;
+        }
+        List<String> known = new ArrayList<>();
+        ListTag stored = tag.getList(GLOSSARY_TAG, Tag.TAG_STRING);
+        for (int i = 0; i < stored.size(); i++) {
+            known.add(stored.getString(i));
+        }
+        ListTag glossary = new ListTag();
+        com.elderlexicon.mod.spell.block.Glossary.grow(known, pages, id -> DICTIONARY.lookup(id).isPresent())
+                .forEach(id -> glossary.add(StringTag.valueOf(id)));
+        tag.put(GLOSSARY_TAG, glossary);
+    }
+
     /**
      * Stores a rune sequence into the grimoire, sanitizing the identifiers.
      */

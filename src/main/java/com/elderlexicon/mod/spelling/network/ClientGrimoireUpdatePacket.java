@@ -29,10 +29,12 @@ public record ClientGrimoireUpdatePacket(InteractionHand hand,
                                          int currentPage,
                                          boolean detachPage,
                                          String detachedText,
-                                         int detachedIndex) {
+                                         int detachedIndex,
+                                         List<String> names) {
 
     private static final int MAX_PAGES = 100;
     private static final int MAX_CHARS = 1024;
+    private static final int MAX_NAME = 40;
 
     public static ClientGrimoireUpdatePacket decode(FriendlyByteBuf buffer) {
         InteractionHand hand = buffer.readEnum(InteractionHand.class);
@@ -45,7 +47,12 @@ public record ClientGrimoireUpdatePacket(InteractionHand hand,
         boolean detach = buffer.readBoolean();
         String detached = buffer.readUtf(MAX_CHARS);
         int detachedIndex = buffer.readVarInt();
-        return new ClientGrimoireUpdatePacket(hand, pages, currentPage, detach, detached, detachedIndex);
+        int count = buffer.readVarInt();
+        List<String> names = new ArrayList<>(Math.min(count, MAX_PAGES));
+        for (int i = 0; i < count; i++) {
+            names.add(buffer.readUtf(MAX_NAME));
+        }
+        return new ClientGrimoireUpdatePacket(hand, pages, currentPage, detach, detached, detachedIndex, names);
     }
 
     public void encode(FriendlyByteBuf buffer) {
@@ -58,6 +65,12 @@ public record ClientGrimoireUpdatePacket(InteractionHand hand,
         buffer.writeBoolean(this.detachPage);
         buffer.writeUtf(this.detachedText == null ? "" : this.detachedText, MAX_CHARS);
         buffer.writeVarInt(this.detachedIndex);
+        List<String> safeNames = this.names == null ? List.of() : this.names;
+        buffer.writeVarInt(safeNames.size());
+        for (String name : safeNames) {
+            String value = name == null ? "" : name;
+            buffer.writeUtf(value.length() > MAX_NAME ? value.substring(0, MAX_NAME) : value, MAX_NAME);
+        }
     }
 
     public static void handle(ClientGrimoireUpdatePacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
@@ -82,6 +95,15 @@ public record ClientGrimoireUpdatePacket(InteractionHand hand,
             tag.put("pages", listtag);
             GrimoireItem.storeLastPage(stack, safePage);
             CustomRuneHelper.pruneAbsentCustomRunes(stack, sanitizedPages);
+            GrimoireItem.recordWriting(stack, sender, sanitizedPages);
+            // The names the mage gave the pages, one for each page ("" where the grimoire names it itself).
+            ListTag names = new ListTag();
+            for (int i = 0; i < sanitizedPages.size(); i++) {
+                String name = packet.names != null && i < packet.names.size() && packet.names.get(i) != null
+                        ? packet.names.get(i).trim() : "";
+                names.add(StringTag.valueOf(name.length() > MAX_NAME ? name.substring(0, MAX_NAME) : name));
+            }
+            tag.put(GrimoireItem.PAGE_NAMES_TAG, names);
             if (packet.detachPage && packet.detachedIndex >= 0) {
                 spawnDetachedPage(sender, packet.detachedText, packet.detachedIndex);
             }
