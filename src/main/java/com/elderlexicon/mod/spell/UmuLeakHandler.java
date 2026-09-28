@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell;
 
+import com.elderlexicon.mod.magic.lexicon.Flow;
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
 import com.elderlexicon.mod.spell.action.SpellAction;
 import com.elderlexicon.mod.spell.action.SpellActionType;
 import com.elderlexicon.mod.spelling.item.SpellConduitItem;
@@ -28,7 +30,6 @@ import java.util.Objects;
  */
 final class UmuLeakHandler {
 
-    private static final String VERTERE_RUNE_ID = "vertere";
     private static final int NAUSEA_PER_LEAK_TICKS = 5 * 20;
     private static final int FIRE_SECONDS = 4;
 
@@ -65,11 +66,12 @@ final class UmuLeakHandler {
             if (action.type() != SpellActionType.FUNCTION) {
                 continue;
             }
-            boolean isVertere = isVertere(action.runeId());
+            // A conversion names the source it turns into: that one is its target, not a source left unspent.
+            boolean converts = converts(action.runeId());
             if (!pendingSources.isEmpty()) {
                 pendingSources.removeLast();
             }
-            protectNextSource = isVertere;
+            protectNextSource = converts;
         }
 
         List<VitaElement> leaks = new ArrayList<>();
@@ -81,11 +83,8 @@ final class UmuLeakHandler {
         return leaks;
     }
 
-    private static boolean isVertere(String runeId) {
-        if (runeId == null) {
-            return false;
-        }
-        return VERTERE_RUNE_ID.equals(runeId.toLowerCase(Locale.ROOT));
+    private static boolean converts(String runeId) {
+        return runeId != null && Lexicons.get().flowOf(runeId.toLowerCase(Locale.ROOT)) == Flow.CONVERT;
     }
 
     private static void applyElementalPenalty(ServerPlayer player, VitaElement element) {

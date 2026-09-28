@@ -28,7 +28,8 @@ public final class ConduitMitigationModule implements SpellModule {
             return;
         }
 
-        List<String> runes = context.lexemes();
+        // A focus favours the runes the spell says, a shorthand counting as the runes it stands for.
+        List<String> runes = context.words();
         double remaining = payable;
         remaining = conductThrough(player.getMainHandItem(), remaining, player, runes);
         remaining = conductThrough(player.getOffhandItem(), remaining, player, runes);

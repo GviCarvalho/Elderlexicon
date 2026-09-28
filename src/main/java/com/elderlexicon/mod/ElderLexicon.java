@@ -6,6 +6,7 @@ import com.elderlexicon.mod.item.ElderBrushItem;
 import com.elderlexicon.mod.item.LifeCompassItem;
 import com.elderlexicon.mod.ligabis.network.LigabisNetwork;
 import com.elderlexicon.mod.ligabis.world.golem.GolemEntity;
+import com.elderlexicon.mod.magic.lexicon.Foci;
 import com.elderlexicon.mod.mark.network.MarkNetwork;
 import com.elderlexicon.mod.spelling.config.SpellingClientConfig;
 import com.elderlexicon.mod.spell.scene.ArcBoltEntity;
@@ -43,7 +44,6 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
-import java.util.Map;
 
 @SuppressWarnings("null")
 /** Elder Lexicon: runic magic spelled from an ancient grimoire. Registers the mod's content and wiring. */
@@ -71,31 +71,31 @@ public class ElderLexicon {
                     new Item.Properties(),
                     8D,
                     "tooltip.elderlexicon.improvised_wand_bone",
-                    Map.of("firmo", 0.20D)));
+                    Foci.discountsOf("improvised_wand_bone")));
     public static final RegistryObject<Item> IMPROVISED_WAND_BAMBOO = ITEMS.register("improvised_wand_bamboo",
             () -> new ImprovisedWandItem(
                     new Item.Properties(),
                     8D,
                     "tooltip.elderlexicon.improvised_wand_bamboo",
-                    Map.of("aura", 0.10D, "aqua", 0.10D)));
+                    Foci.discountsOf("improvised_wand_bamboo")));
     public static final RegistryObject<Item> IMPROVISED_WAND_BLAZE = ITEMS.register("improvised_wand_blaze",
             () -> new ImprovisedWandItem(
                     new Item.Properties(),
                     12D,
                     "tooltip.elderlexicon.improvised_wand_blaze",
-                    Map.of("igni", 0.20D)));
+                    Foci.discountsOf("improvised_wand_blaze")));
 
     public static final RegistryObject<Item> WAND = ITEMS.register("wand",
-            () -> new ModularWandItem(new Item.Properties(), 6D, "tooltip.elderlexicon.wand", Map.of()));
+            () -> new ModularWandItem(new Item.Properties(), 6D, "tooltip.elderlexicon.wand", Foci.discountsOf("wand")));
     public static final RegistryObject<Item> WAND_BONE = ITEMS.register("wand_bone",
             () -> new ModularWandItem(new Item.Properties(), 8D, "tooltip.elderlexicon.wand_bone",
-                    Map.of("firmo", 0.20D)));
+                    Foci.discountsOf("wand_bone")));
     public static final RegistryObject<Item> WAND_BAMBOO = ITEMS.register("wand_bamboo",
             () -> new ModularWandItem(new Item.Properties(), 8D, "tooltip.elderlexicon.wand_bamboo",
-                    Map.of("aura", 0.10D, "aqua", 0.10D)));
+                    Foci.discountsOf("wand_bamboo")));
     public static final RegistryObject<Item> WAND_BLAZE = ITEMS.register("wand_blaze",
             () -> new ModularWandItem(new Item.Properties(), 12D, "tooltip.elderlexicon.wand_blaze",
-                    Map.of("igni", 0.20D)));
+                    Foci.discountsOf("wand_blaze")));
     /** For testing: unbreakable, conducts any spell; only in the creative tab, with no recipe. */
     public static final RegistryObject<Item> CREATIVE_WAND = ITEMS.register("creative_wand",
             () -> new CreativeWandItem(new Item.Properties().rarity(Rarity.EPIC)));

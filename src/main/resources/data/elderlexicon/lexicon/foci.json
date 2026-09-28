@@ -1,0 +1,25 @@
+{
+  "_license": "© GviCarvalho – This data is part of Elderlexicon. See LICENSE.txt.",
+  "_about": "Foci (book 9.3): what each focus favours. 'discounts' is the share of a rune's base cost the focus bears; a wand's wood adds its own, and 'conversions' makes it bear the cost of every conversion into those sources.",
+  "items": {
+    "improvised_wand": {},
+    "improvised_wand_bone": {"discounts": {"firmo": 0.20}},
+    "improvised_wand_bamboo": {"discounts": {"aura": 0.10, "aqua": 0.10}},
+    "improvised_wand_blaze": {"discounts": {"igni": 0.20}},
+    "wand": {},
+    "wand_bone": {"discounts": {"firmo": 0.20}},
+    "wand_bamboo": {"discounts": {"aura": 0.10, "aqua": 0.10}},
+    "wand_blaze": {"discounts": {"igni": 0.20}}
+  },
+  "woods": {
+    "oak": {"translation": "material.elderlexicon.wand.oak", "capacity": 30},
+    "birch": {"translation": "material.elderlexicon.wand.birch", "capacity": 22, "discounts": {"iactare": 0.10}},
+    "mangrove": {"translation": "material.elderlexicon.wand.mangrove", "capacity": 24, "discounts": {"vertere": 0.10}},
+    "acacia": {"translation": "material.elderlexicon.wand.acacia", "capacity": 26, "discounts": {"impediunt": 0.10}},
+    "dark_oak": {"translation": "material.elderlexicon.wand.dark_oak", "capacity": 27, "discounts": {"impediunt": 0.05}},
+    "cherry": {"translation": "material.elderlexicon.wand.cherry", "capacity": 25, "discounts": {"vocant": 0.10}},
+    "spruce": {"translation": "material.elderlexicon.wand.spruce", "capacity": 23, "discounts": {"exsugat": 0.10}},
+    "crimson": {"translation": "material.elderlexicon.wand.crimson", "capacity": 40, "conversions": ["igni", "aura"]},
+    "warped": {"translation": "material.elderlexicon.wand.warped", "capacity": 40, "conversions": ["firmo", "aqua"]}
+  }
+}

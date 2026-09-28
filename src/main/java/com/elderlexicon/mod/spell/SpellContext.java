@@ -1,5 +1,8 @@
 package com.elderlexicon.mod.spell;
 
+import com.elderlexicon.mod.magic.flow.SpellLedger;
+import com.elderlexicon.mod.magic.grammar.SpellGrammar;
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
 import com.elderlexicon.mod.parser.Parser;
 import com.elderlexicon.mod.spell.action.SpellAction;
 import com.elderlexicon.mod.spell.scene.SpellScene;
@@ -8,18 +11,24 @@ import com.elderlexicon.mod.vita.VitaElement;
 import com.elderlexicon.mod.vita.VitaSystem;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public final class SpellContext {
+/**
+ * One spell being cast: who casts it, its words and steps, and the account of its energy ({@link SpellLedger}) that the
+ * flow keeps as it runs.
+ */
+public final class SpellContext implements SpellLedger {
 
     private static final double EPSILON = 1.0E-4D;
 
     private final ServerPlayer player;
     private final List<String> lexemes;
+    private List<String> words;
     private final List<SpellAction> actions;
     private Optional<Parser.PrimarySource> primarySource;
     private final VitaElement basePrimaryElement;
@@ -83,8 +92,22 @@ public final class SpellContext {
         this.sceneSpellId = sharedScene.registerSpell();
     }
 
+    /** The words as they were written, shorthands and all (what a naming verb records is this). */
     public List<String> lexemes() {
         return lexemes;
+    }
+
+    /**
+     * The words the spell says: its lexemes with every fusion that stands for other runes written out
+     * ({@code transiectio igni} says {@code vertere igni iactare}), as the grammar read them.
+     */
+    public List<String> words() {
+        List<String> found = words;
+        if (found == null) {
+            found = List.copyOf(new SpellGrammar(Lexicons.get()).expand(lexemes, new ArrayList<>()));
+            words = found;
+        }
+        return found;
     }
 
     public List<SpellAction> actions() {

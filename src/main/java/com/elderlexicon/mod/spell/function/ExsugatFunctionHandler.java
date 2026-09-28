@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
+import com.elderlexicon.mod.magic.lexicon.VerbSpec;
 import com.elderlexicon.mod.spell.AirPressure;
 import com.elderlexicon.mod.spell.Capture;
 import com.elderlexicon.mod.spell.Charge;
@@ -208,39 +210,48 @@ public final class ExsugatFunctionHandler implements SpellFunctionHandler {
     }
 
     /**
-     * Where what is captured is gathered, so its particles are seen flowing there: to where a vocant makes it appear,
-     * to just before the mage's hand for an iactare (where the shot leaves from), and into the mage otherwise.
+     * Where what is captured is gathered, so its particles are seen flowing there: where the verb that spends it makes it
+     * appear, just before the mage's hand for a verb that throws it (where the shot leaves from), and into the mage
+     * otherwise, as the lexicon says of each verb ({@code gathering}).
      */
     static Vec3 gatheringPoint(SpellContext context, SpellAction spender) {
         ServerPlayer player = context.player();
-        String rune = spender == null ? "" : spender.runeId();
-        if ("vocant".equals(rune)) {
+        VerbSpec.Gathering gathering = gatheringOf(spender);
+        if (gathering == VerbSpec.Gathering.DESTINATION) {
             Optional<MarkSpells.Destination> place = spender.place().isPresent()
                     ? MarkSpells.destination(context, spender.place(), MarkSpells.SUMMON_RANGE) : Optional.empty();
             return place.map(MarkSpells.Destination::point)
                     .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE).location());
         }
-        if ("iactare".equals(rune)) {
+        if (gathering == VerbSpec.Gathering.HAND) {
             return handOf(player);
         }
         return bodyOf(player);
     }
 
     /**
-     * Where a condensation is gathered while it charges: an iactare gathers it before the mage's hand, wherever the hand
-     * goes; a vocant, where it will appear; anything else, at the hand.
+     * Where a condensation is gathered while it charges: before the mage's hand, wherever the hand goes, for a verb that
+     * throws it; where it will appear, for a verb that makes it appear; at the hand for anything else.
      */
     public static java.util.function.Supplier<Vec3> orbPoint(SpellContext context, SpellAction spender) {
         ServerPlayer player = context.player();
-        String rune = spender == null ? "" : spender.runeId();
-        if ("iactare".equals(rune)) {
+        VerbSpec.Gathering gathering = gatheringOf(spender);
+        if (gathering == VerbSpec.Gathering.HAND) {
             return () -> player.getEyePosition().subtract(0.0D, 0.35D, 0.0D).add(player.getViewVector(1.0F).scale(0.9D));
         }
-        if ("vocant".equals(rune)) {
+        if (gathering == VerbSpec.Gathering.DESTINATION) {
             Vec3 fixed = gatheringPoint(context, spender);
             return () -> fixed;
         }
         return () -> handOf(player);
+    }
+
+    /** Where the verb that spends a capture gathers it, as the lexicon says; into the body when nothing spends it. */
+    private static VerbSpec.Gathering gatheringOf(SpellAction spender) {
+        if (spender == null) {
+            return VerbSpec.Gathering.BODY;
+        }
+        return Lexicons.get().verb(spender.runeId()).map(VerbSpec::gathering).orElse(VerbSpec.Gathering.BODY);
     }
 
     private static Vec3 bodyOf(ServerPlayer player) {

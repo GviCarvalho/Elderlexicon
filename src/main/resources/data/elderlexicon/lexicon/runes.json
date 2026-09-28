@@ -1,5 +1,5 @@
 {
-  "_license": "© GviCarvalho – This data is part of Elderlexicon. See LICENSE.txt.",
+  "_license": "© GviCarvalho – Part of Elderlexicon. The rune structure, nomenclature and texts in this file fall under LICENSE-DOCS.txt (CC BY-NC-ND 4.0).",
   "_about": "The words of the Old Tongue. The engine knows no rune by name: every rune says here what it is, and a spell means what its words compose. See docs/magia-modular-design.md.",
   "defaultSource": "vis",
   "repertoire": ["igni", "aqua", "aura", "firmo", "impediunt", "vertere", "vocant", "murus", "iactare"],
@@ -45,7 +45,8 @@
     "note.conversion": "Converter um elemento em outro custa ao espírito 5% da energia por qualidade mudada.",
     "transcript.caster": "the caster",
     "transcript.done": "Feitico interpretado com sucesso.",
-    "issue.unformed": "A fusão '{rune}' ainda não tem composição no léxico: escreva as runas que ela funde."
+    "issue.unformed": "A fusão '{rune}' ainda não tem composição no léxico: escreva as runas que ela funde.",
+    "issue.nooperation": "O espírito não sabe o que '{rune}' faz: nenhuma operação responde por ela."
   },
   "meetings": [
     {"elements": ["aqua", "aura"], "name": "Tempestade", "note": "A água levada pelo ar agitado se desfaz em gotículas. O atrito entre elas (e o gelo em que congelam, se o ar esfriar) acumula carga estática, que pode descarregar num relâmpago."},

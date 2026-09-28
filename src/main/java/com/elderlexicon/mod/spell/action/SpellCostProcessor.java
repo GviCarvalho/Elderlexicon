@@ -13,11 +13,14 @@ import java.util.Map;
  */
 public final class SpellCostProcessor {
 
+    /** Fixed costs by verb, or null to ask the lexicon in force for each verb's cost. */
     private final Map<String, Double> functionCosts;
     private final double defaultSourceCost;
 
+    /** Costs every verb what the lexicon in force says it costs (iactare 2, vocant 1, vertere 1, ligabis 0.1 ...). */
     public SpellCostProcessor() {
-        this(defaultFunctionCosts(), 1.0D);
+        this.functionCosts = null;
+        this.defaultSourceCost = 1.0D;
     }
 
     public SpellCostProcessor(Map<String, Double> functionCosts, double defaultSourceCost) {
@@ -60,7 +63,7 @@ public final class SpellCostProcessor {
             }
             switch (action.type()) {
                 case SOURCE -> total += sourceCost(action);
-                case FUNCTION -> total += functionCosts.getOrDefault(normalize(action.runeId()), 0.0D);
+                case FUNCTION -> total += functionCost(normalize(action.runeId()));
                 default -> {
                 }
             }
@@ -83,8 +86,10 @@ public final class SpellCostProcessor {
         return runeId == null ? "" : runeId.toLowerCase(Locale.ROOT);
     }
 
-    /** Every verb's base cost, as the lexicon gives it (iactare 2, vocant 1, vertere 1, ligabis 0.1 ...). */
-    private static Map<String, Double> defaultFunctionCosts() {
-        return new HashMap<>(Lexicons.get().verbCosts());
+    private double functionCost(String runeId) {
+        if (functionCosts == null) {
+            return Lexicons.get().costOf(runeId);
+        }
+        return functionCosts.getOrDefault(runeId, 0.0D);
     }
 }

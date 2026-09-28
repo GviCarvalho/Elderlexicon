@@ -5,10 +5,8 @@ import com.elderlexicon.mod.vita.VitaElement;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -48,10 +46,6 @@ import net.minecraft.world.phys.HitResult.Type;
 final class SpellEffects {
    private static final ParticleOptions SMALL_GUST_PARTICLE = findSmallGustParticle();
    private static final Map<VitaElement, ParticleOptions> PARTICLES = createParticleMap();
-   private static final Map<String, ParticleOptions> RUNE_PARTICLES = createRuneParticleMap();
-   private static final int IGNI_FURNACE_BURN_TICKS = 200;
-   private static final int FUSUS_FURNACE_BURN_TICKS = 400;
-   private static final int FULMEN_FURNACE_BURN_TICKS = 100;
    private static final Field FURNACE_LIT_TIME = findFurnaceField("litTime");
    private static final Field FURNACE_LIT_DURATION = findFurnaceField("litDuration");
    /** Most blocks one element effect lays or touches, whatever the power (reached at 400 UMU). */
@@ -427,24 +421,9 @@ final class SpellEffects {
       }
    }
 
+   /** How long a source keeps a furnace lit, as the lexicon says of it (magma longer, lightning shorter). */
    private static int furnaceBurnTicks(String elementRuneId) {
-      if (elementRuneId != null && !elementRuneId.isBlank()) {
-         short var10000;
-         switch (elementRuneId.toLowerCase(Locale.ROOT)) {
-            case "fusus":
-               var10000 = 400;
-               break;
-            case "fulmen":
-               var10000 = 100;
-               break;
-            default:
-               var10000 = 200;
-         }
-
-         return var10000;
-      } else {
-         return 200;
-      }
+      return SourceLooks.traits(elementRuneId).burnTicks();
    }
 
    private static Field findFurnaceField(String name) {
@@ -521,11 +500,12 @@ final class SpellEffects {
       }
    }
 
+   /** The particle a source flows with: its own, as the lexicon says of it, or its element's. */
    static Optional<ParticleOptions> resolveParticle(VitaElement element, String elementRuneId) {
       if (elementRuneId != null && !elementRuneId.isBlank()) {
-         ParticleOptions specific = (ParticleOptions)RUNE_PARTICLES.get(elementRuneId.toLowerCase(Locale.ROOT));
-         if (specific != null) {
-            return Optional.of(specific);
+         Optional<ParticleOptions> specific = SourceLooks.particle(SourceLooks.traits(elementRuneId).particle());
+         if (specific.isPresent()) {
+            return specific;
          }
       }
 
@@ -539,17 +519,6 @@ final class SpellEffects {
       map.put(VitaElement.FIRMO, new BlockParticleOption(ParticleTypes.BLOCK, Blocks.DIRT.defaultBlockState()));
       map.put(VitaElement.AURA, SMALL_GUST_PARTICLE);
       map.put(VitaElement.BALANCED, new SculkChargeParticleOptions(1.0F));
-      return map;
-   }
-
-   private static Map<String, ParticleOptions> createRuneParticleMap() {
-      Map<String, ParticleOptions> map = new HashMap();
-      map.put("fusus", ParticleTypes.LAVA);
-      map.put("caligo", ParticleTypes.CAMPFIRE_COSY_SMOKE);
-      map.put("lutum", new BlockParticleOption(ParticleTypes.BLOCK, Blocks.MUD.defaultBlockState()));
-      map.put("pulvis", ParticleTypes.ASH);
-      map.put("nebula", ParticleTypes.SNOWFLAKE);
-      map.put("fulmen", ParticleTypes.ELECTRIC_SPARK);
       return map;
    }
 

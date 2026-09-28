@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spelling.client;
 
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -18,22 +20,18 @@ public final class SpellingRepertoire {
     private final List<String> slots = new ArrayList<>(HOTBAR_SIZE);
 
     public SpellingRepertoire() {
-        slots.add("igni");
-        slots.add("aqua");
-        slots.add("aura");
-        slots.add("firmo");
-        slots.add("impediunt");
-        slots.add("vertere");
-        slots.add("vocant");
-        slots.add("murus");
-        slots.add("iactare");
+        // The runes a new mage is given, as the lexicon says.
+        List<String> defaults = Lexicons.get().repertoire();
+        for (int i = 0; i < HOTBAR_SIZE; i++) {
+            slots.add(i < defaults.size() ? defaults.get(i) : "");
+        }
     }
 
     public Optional<String> runeForSlot(int slotIndex) {
         if (slotIndex < 0 || slotIndex >= slots.size()) {
             return Optional.empty();
         }
-        return Optional.ofNullable(slots.get(slotIndex));
+        return Optional.ofNullable(slots.get(slotIndex)).filter(rune -> !rune.isBlank());
     }
 
     public List<String> slotsView() {

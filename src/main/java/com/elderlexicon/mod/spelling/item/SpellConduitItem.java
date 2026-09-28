@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.spelling.item;
 
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
 import com.elderlexicon.mod.vita.VitaElement;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
@@ -27,11 +28,6 @@ public class SpellConduitItem extends Item {
     private static final String REMAINING_KEY = "ConduitRemaining";
     protected static final double EPSILON = 1.0E-4D;
     protected static final double DEFAULT_SOURCE_COST = 1.0D;
-    private static final Map<String, Double> DEFAULT_FUNCTION_COSTS = Map.of(
-            "iactare", 2.0D,
-            "vocant", 1.0D,
-            "vertere", 1.0D
-    );
     private final double capacity;
 
     public SpellConduitItem(Properties properties, double capacity) {
@@ -220,8 +216,9 @@ public class SpellConduitItem extends Item {
         if (normalized.isEmpty()) {
             return 0.0D;
         }
-        Double functionCost = DEFAULT_FUNCTION_COSTS.get(normalized);
-        if (functionCost != null) {
+        // A verb's base cost is what the lexicon gives it; a source moved costs its unit.
+        double functionCost = Lexicons.get().costOf(normalized);
+        if (functionCost > 0.0D) {
             return functionCost;
         }
         VitaElement element = VitaElement.fromRuneId(normalized);
