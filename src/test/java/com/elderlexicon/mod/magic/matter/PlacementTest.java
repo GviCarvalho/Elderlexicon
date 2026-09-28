@@ -45,21 +45,47 @@ class PlacementTest {
     }
 
     @Test
-    void anAmalgamSettlesAndEachPartIsPlacedAsWhatItIs() {
+    void anAmalgamStaysAsFormlessMatterUntilItFallsApart() {
         Matter amalgam = MatterLaws.mix(List.of(
                 Matter.of(TABLE.primordial(VitaElement.FIRMO), State.LIQUID, 1.0D),
                 Matter.of(TABLE.primordial(VitaElement.AQUA), State.LIQUID, 9.0D))).orElseThrow();
         assertTrue(amalgam.amalgam(TABLE));
         List<Placement> plan = Placement.plan(TABLE, amalgam);
-        assertEquals(2, plan.size());
-        Placement earth = plan.stream().filter(p -> p.substance().primordial()
-                && p.substance().recipe().share(VitaElement.FIRMO) > 0.5D).findFirst().orElseThrow();
-        assertEquals("minecraft:dirt", earth.form().id(), "the earth settles as soil");
-        assertEquals(2, earth.units());
-        Placement water = plan.stream().filter(p -> p != earth).findFirst().orElseThrow();
-        assertEquals("minecraft:water", water.form().id());
-        assertEquals(3, water.units());
+        assertEquals(1, plan.size());
+        Placement formless = plan.get(0);
+        assertTrue(formless.formless());
+        assertTrue(formless.amalgam());
+        assertNull(formless.form());
+        assertEquals(10.0D, formless.placed(), 1.0E-9, "formless matter holds it all, exactly");
+        assertEquals(0.0D, formless.leftover(), 1.0E-9);
+        // Two blocks of molten earth and three of water fill five blocks together.
+        assertEquals(5, formless.units());
+    }
+
+    @Test
+    void aSubstanceInAStateWithNoLookIsFormless() {
+        Placement molten = Placement.plan(TABLE, Matter.of(TABLE.primordial(VitaElement.FIRMO), State.LIQUID, 4.0D))
+                .get(0);
+        assertTrue(molten.formless());
+        assertFalse(molten.amalgam(), "molten earth is still earth");
+        assertEquals(8, molten.units(), "four UMU of earth fill eight blocks, liquid or not");
+        assertEquals(4.0D, molten.placed(), 1.0E-9);
+        Placement small = Placement.plan(TABLE, Matter.of(TABLE.primordial(VitaElement.FIRMO), State.LIQUID, 0.1D))
+                .get(0);
+        assertEquals(1, small.units(), "however little there is, it takes a block");
+        assertEquals(0.1D, small.placed(), 1.0E-9);
+    }
+
+    @Test
+    void aFloatingAmalgamComesApartAsItGoes() {
+        Matter hot = MatterLaws.mix(List.of(
+                Matter.of(TABLE.primordial(VitaElement.AQUA), State.GAS, 6.0D),
+                Matter.of(TABLE.primordial(VitaElement.IGNI), State.PLASMA, 1.0D))).orElseThrow();
+        assertTrue(hot.amalgam(TABLE));
+        List<Placement> plan = Placement.plan(TABLE, hot);
+        assertEquals(2, plan.size(), "water and fire, each as what it is");
+        assertTrue(plan.stream().noneMatch(Placement::formless));
         double total = plan.stream().mapToDouble(p -> p.placed() + p.leftover()).sum();
-        assertEquals(10.0D, total, 1.0E-9, "nothing is lost (L1)");
+        assertEquals(7.0D, total, 1.0E-9, "nothing is lost (L1)");
     }
 }

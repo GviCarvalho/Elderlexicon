@@ -57,6 +57,23 @@ public final class Composition {
         return new Composition(Collections.unmodifiableMap(shares));
     }
 
+    /**
+     * What a source's essence is made of, as matter: its shares of the four primordials, the balance of vis left out
+     * (lutum's essence is half aqua and half firmo: mud). Empty when there is none of the four in it.
+     */
+    public static Optional<Composition> ofEssence(Map<VitaElement, Double> essence) {
+        if (essence == null) {
+            return Optional.empty();
+        }
+        EnumMap<VitaElement, Double> amounts = new EnumMap<>(VitaElement.class);
+        essence.forEach((aspect, share) -> {
+            if (aspect != VitaElement.BALANCED && share != null && share > EPSILON) {
+                amounts.put(aspect, share);
+            }
+        });
+        return amounts.isEmpty() ? Optional.empty() : Optional.of(of(amounts));
+    }
+
     /** A primordial substance alone: all of one aspect ({@code firmo} is terra). */
     public static Composition pure(VitaElement aspect) {
         return of(Map.of(aspect, 1.0D));

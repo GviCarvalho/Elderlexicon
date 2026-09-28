@@ -1,10 +1,8 @@
 package com.elderlexicon.mod.spell.function;
 
-import com.elderlexicon.mod.magic.matter.Materials;
 import com.elderlexicon.mod.magic.matter.Matter;
 import com.elderlexicon.mod.magic.matter.MatterLaws;
 import com.elderlexicon.mod.magic.matter.State;
-import com.elderlexicon.mod.magic.matter.Substance;
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.action.SpellAction;
 import com.elderlexicon.mod.spell.mark.SpellPlace;
@@ -25,8 +23,9 @@ import java.util.Optional;
  * names the state the matter is in, the target the state it goes to; the work is 5% of it for every rung, paid by the
  * mage. Going back into vis unmakes it: what is left of it goes into the mage as vis.
  * <p>
- * A state the substance is not known in, that would lay a block or an item, is refused: the spirit does not know
- * molten iron until the table says what it looks like. A gas or a plasma needs no look of its own: it disperses.
+ * A state the table gives the substance no look in is still that substance in that state: molten earth, molten iron,
+ * solid fire are formless matter (stage 5), which can be poured, mixed and changed back. A gas or a plasma with no look
+ * of its own disperses.
  */
 public final class StateChange {
 
@@ -61,7 +60,6 @@ public final class StateChange {
         }
         Optional<State> target = State.of(to);
         double changed = 0.0D;
-        String refused = null;
         for (BlockPos pos : Transfer.nearest(level, player, BlockPos.containing(around), source.get())) {
             if (changed >= amount - EPSILON) {
                 break;
@@ -69,16 +67,10 @@ public final class StateChange {
             if (level.getBlockState(pos).isAir()) {
                 continue; // air changed is the air around: nothing to see
             }
-            Optional<String> unknown = target.isPresent() ? unknownIn(level, pos, target.get()) : Optional.empty();
-            if (unknown.isPresent()) {
-                refused = unknown.get();
-                continue;
-            }
             changed += change(context, player, level, pos, target);
         }
         if (changed <= EPSILON) {
-            MarkSpells.tell(player, refused != null ? refused
-                    : "Nao ha " + from.runeId() + " ao alcance para converter.");
+            MarkSpells.tell(player, "Nao ha " + from.runeId() + " ao alcance para converter.");
         }
         return changed;
     }
@@ -91,13 +83,7 @@ public final class StateChange {
         if (WorldMatter.read(level, pos).isEmpty()) {
             return false;
         }
-        Optional<State> target = State.of(to);
-        Optional<String> unknown = target.isPresent() ? unknownIn(level, pos, target.get()) : Optional.empty();
-        if (unknown.isPresent()) {
-            MarkSpells.tell(context.player(), unknown.get());
-            return true;
-        }
-        change(context, context.player(), level, pos, target);
+        change(context, context.player(), level, pos, State.of(to));
         return true;
     }
 
@@ -137,29 +123,6 @@ public final class StateChange {
         }
         show(level, pos, target.get().element());
         return matter.umu();
-    }
-
-    /**
-     * Why the block at {@code pos} cannot go to {@code state}: the table gives its substance no look there, and it would
-     * have to lay a block or an item. Empty when it can.
-     */
-    private static Optional<String> unknownIn(ServerLevel level, BlockPos pos, State state) {
-        Optional<Substance> substance = WorldMatter.read(level, pos).flatMap(matter -> matter.substance(Materials.get()));
-        if (substance.isEmpty() || !substance.get().declared(state).isEmpty() || state == State.GAS
-                || state == State.PLASMA) {
-            return Optional.empty();
-        }
-        return Optional.of("O espirito nao conhece " + substance.get().name() + " " + stateName(state)
-                + ": nada mudou.");
-    }
-
-    private static String stateName(State state) {
-        return switch (state) {
-            case SOLID -> "solido";
-            case LIQUID -> "liquido";
-            case GAS -> "gasoso";
-            case PLASMA -> "em plasma";
-        };
     }
 
     /** What finds no room, or is unmade, goes into the mage as energy (L3); with a focus the body is left alone. */

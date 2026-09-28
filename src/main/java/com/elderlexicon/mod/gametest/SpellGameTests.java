@@ -1,7 +1,11 @@
 package com.elderlexicon.mod.gametest;
 
 import com.elderlexicon.mod.ElderLexicon;
+import com.elderlexicon.mod.magic.matter.Materials;
+import com.elderlexicon.mod.magic.matter.Matter;
+import com.elderlexicon.mod.magic.matter.Substance;
 import com.elderlexicon.mod.spell.SpellCastingService;
+import com.elderlexicon.mod.spell.matter.FormlessMatterBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -14,6 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
@@ -250,6 +255,133 @@ public final class SpellGameTests {
                 helper.fail("the stone was not drawn in: " + before + " -> " + now);
             }
         });
+    }
+
+    /** The absolute coordinates of a block of the test, as a spell writes them before a place filter. */
+    private static String at(GameTestHelper helper, int x, int y, int z) {
+        BlockPos pos = helper.absolutePos(new BlockPos(x, y, z));
+        return pos.getX() + " " + pos.getY() + " " + pos.getZ();
+    }
+
+    private static int countIn(GameTestHelper helper, Block block) {
+        int found = 0;
+        for (BlockPos pos : BlockPos.betweenClosed(helper.absolutePos(BlockPos.ZERO),
+                helper.absolutePos(new BlockPos(4, 4, 4)))) {
+            BlockState state = helper.getLevel().getBlockState(pos);
+            if (state.is(block) && (state.getFluidState().isEmpty() || state.getFluidState().isSource())) {
+                found++;
+            }
+        }
+        return found;
+    }
+
+    /** The formless matter in the test and just around it, where what is put at its edge spills. */
+    private static List<Matter> formlessIn(GameTestHelper helper) {
+        List<Matter> found = new java.util.ArrayList<>();
+        for (BlockPos pos : BlockPos.betweenClosed(helper.absolutePos(new BlockPos(-2, 0, -2)),
+                helper.absolutePos(new BlockPos(6, 6, 6)))) {
+            if (helper.getLevel().getBlockEntity(pos) instanceof FormlessMatterBlockEntity formless) {
+                formless.matter().ifPresent(found::add);
+            }
+        }
+        return found;
+    }
+
+    private static void castOrFail(GameTestHelper helper, ServerPlayer mage, String spell) {
+        SpellCastingService.Result result = cast(mage, spell);
+        if (result.failed()) {
+            helper.fail(spell + " failed: " + result.message().getString());
+        }
+        if (!result.warnings().isEmpty()) {
+            helper.fail(spell + " was misread: " + result.warnings().get(0).getString());
+        }
+    }
+
+    /**
+     * The chain the plan ends on (docs/plano-materia-e-forca.md, stage 5): stone made by mixing. Earth is melted, and
+     * into the molten earth go water, air and fire, a little of each, until the proportion is stone's (eight parts earth,
+     * half a part water, half a part air, one part fire): the mixture is molten stone, lava, which cools into stone.
+     */
+    @GameTest(template = EMPTY)
+    public static void stoneIsMadeByMixingThePrimordials(GameTestHelper helper) {
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < 5; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.GLASS); // glass is made: no matter to melt
+            }
+        }
+        for (int x = 2; x <= 3; x++) {
+            for (int y = 1; y <= 4; y++) {
+                for (int z = 1; z <= 4; z++) {
+                    helper.setBlock(new BlockPos(x, y, z), Blocks.DIRT);
+                }
+            }
+        }
+        ServerPlayer mage = mage(helper);
+        Vec3 stand = helper.absoluteVec(new Vec3(0.5D, 1.0D, 0.5D));
+        mage.moveTo(stand.x, stand.y, stand.z, 0.0F, 0.0F);
+
+        // Sixteen UMU of earth (thirty-two blocks of soil) melted where they are: molten earth, formless matter.
+        castOrFail(helper, mage, "firmo quantum 16 " + at(helper, 2, 3, 2) + " tenet vertere aqua");
+        List<Matter> molten = formlessIn(helper);
+        check(helper, molten.size() == 32 && countIn(helper, Blocks.DIRT) == 0,
+                "the soil did not melt: " + molten.size() + " formless, " + countIn(helper, Blocks.DIRT) + " dirt left");
+
+        String pool = at(helper, 2, 1, 2);
+        // One UMU of water: sixteen of earth and one of water are deepslate, molten.
+        castOrFail(helper, mage, "aqua quantum 1 " + pool + " ubis vocant");
+        check(helper, formlessIn(helper).stream().allMatch(matter -> named(matter, "deepslate")),
+                "earth and a little water should be molten deepslate");
+        // One of air: that matches nothing, an amalgam.
+        castOrFail(helper, mage, "aura quantum 1 " + pool + " ubis vocant");
+        check(helper, !formlessIn(helper).isEmpty()
+                && formlessIn(helper).stream().allMatch(matter -> matter.amalgam(Materials.get())),
+                "with air too it should be an amalgam");
+        // Two of fire: now it is stone's proportion. Molten stone is lava.
+        castOrFail(helper, mage, "igni quantum 2 " + pool + " ubis vocant");
+        check(helper, formlessIn(helper).isEmpty(), "no formless matter should be left: " + formlessIn(helper));
+        int lava = countIn(helper, Blocks.LAVA);
+        check(helper, lava == 13, "twenty UMU of molten stone are thirteen sources of lava, were " + lava);
+
+        // Cooled, it is stone.
+        castOrFail(helper, mage, "aqua quantum 19 " + pool + " tenet vertere firmo");
+        int stone = countIn(helper, Blocks.STONE);
+        check(helper, stone == 13, "the lava should cool into thirteen blocks of stone, were " + stone);
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY)
+    public static void fluidsBroughtTogetherMix(GameTestHelper helper) {
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < 5; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.GLASS);
+            }
+        }
+        helper.setBlock(new BlockPos(1, 1, 2), Blocks.WATER);
+        helper.setBlock(new BlockPos(3, 1, 2), Blocks.LAVA);
+        ServerPlayer mage = mage(helper);
+        Vec3 stand = helper.absoluteVec(new Vec3(0.5D, 1.0D, 0.5D));
+        mage.moveTo(stand.x, stand.y, stand.z, 0.0F, 0.0F);
+        // The liquids nearest (2, 1, 2), four UMU of them, taken and put at (2, 1, 4): a source of water and one of
+        // lava, brought to one place, mix (L4). Half stone and half water is no recipe: an amalgam.
+        castOrFail(helper, mage, "aqua quantum 4 " + at(helper, 2, 1, 2) + " tenet " + at(helper, 2, 1, 4) + " ubis vocant");
+        check(helper, countIn(helper, Blocks.WATER) == 0 && countIn(helper, Blocks.LAVA) == 0,
+                "the water and the lava should have been taken");
+        List<Matter> brought = formlessIn(helper);
+        check(helper, !brought.isEmpty() && brought.stream().allMatch(matter -> matter.amalgam(Materials.get())),
+                "they should be one amalgam now: " + brought);
+        double held = brought.stream().mapToDouble(Matter::umu).sum();
+        check(helper, Math.abs(held - 4.5D) < 1.0E-6D, "all of both, 4.5 UMU, were " + held);
+        helper.succeed();
+    }
+
+    private static boolean named(Matter matter, String substance) {
+        return matter.substance(Materials.get()).map(Substance::id).filter(substance::equals).isPresent();
+    }
+
+    private static void check(GameTestHelper helper, boolean holds, String what) {
+        if (!holds) {
+            helper.fail(what);
+        }
     }
 
     @GameTest(template = EMPTY)

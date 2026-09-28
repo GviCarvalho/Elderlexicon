@@ -1,0 +1,118 @@
+package com.elderlexicon.mod.spell.function;
+
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
+import com.elderlexicon.mod.magic.lexicon.Template;
+import com.elderlexicon.mod.magic.matter.Composition;
+import com.elderlexicon.mod.magic.matter.Materials;
+import com.elderlexicon.mod.magic.matter.Matter;
+import com.elderlexicon.mod.magic.matter.Substance;
+import com.elderlexicon.mod.spell.SpellContext;
+import com.elderlexicon.mod.spell.matter.WorldMatter;
+import com.elderlexicon.mod.vita.VitaSystem;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * Matter a spell brings where fluid matter is is poured into it and mixes with it (L4, docs/plano-materia-e-forca.md,
+ * stage 5): water summoned into a pool of molten earth, fire thrown into lava. The spirit says what the mixture became,
+ * which is how a mage finds the recipes out.
+ */
+final class Pouring {
+
+    private static final double EPSILON = 1.0E-6D;
+
+    private Pouring() {
+    }
+
+    /**
+     * Where matter arriving at {@code impact} is poured, when it arrives in fluid matter: the block it struck, or the one
+     * before the face it struck. Empty when it arrives anywhere else, or at a creature, which it strikes.
+     */
+    static Optional<BlockPos> into(ServerLevel level, SpellEffects.SpellImpact impact) {
+        if (impact.entity() != null) {
+            return Optional.empty();
+        }
+        if (impact.blockPos() != null && WorldMatter.holdsFluid(level, impact.blockPos())) {
+            return Optional.of(impact.blockPos());
+        }
+        BlockPos spot = Transfer.spotOf(impact);
+        return WorldMatter.holdsFluid(level, spot) ? Optional.of(spot) : Optional.empty();
+    }
+
+    /**
+     * What a source brought out of the body is, as matter (L3): the substance its essence makes (lutum's is mud), as
+     * it is found, {@code umu} of it. Empty for what is energy and no matter (vis).
+     */
+    static Optional<Matter> summoned(String rune, double umu) {
+        if (rune == null || umu <= EPSILON) {
+            return Optional.empty();
+        }
+        return Lexicons.get().source(rune.toLowerCase(Locale.ROOT))
+                .flatMap(source -> Composition.ofEssence(source.essence()))
+                .flatMap(composition -> Materials.get().identify(composition))
+                .map(substance -> Matter.natural(substance, umu));
+    }
+
+    /**
+     * {@code aqua vocant} landing in fluid matter: what it brings out of the body is poured in, instead of appearing
+     * beside it. False when it does not land in fluid matter, or brings nothing fluid, and appears as it always does.
+     */
+    static boolean summon(SpellContext context, ServerPlayer player, String rune, SpellEffects.SpellImpact impact,
+                          double umu) {
+        ServerLevel level = player.serverLevel();
+        Optional<Matter> matter = summoned(rune, umu).filter(summoned -> summoned.state().fluid());
+        if (matter.isEmpty()) {
+            return false;
+        }
+        Optional<BlockPos> landing = into(level, impact);
+        if (landing.isEmpty()) {
+            return false;
+        }
+        WorldMatter.Placed placed = WorldMatter.pour(level, landing.get(), matter.get());
+        keep(context, player, matter.get(), placed);
+        tell(player, matter.get(), placed);
+        return true;
+    }
+
+    /** What found no room, or made no whole block, goes into the mage as energy of the state it was in (L1, L3). */
+    static void keep(SpellContext context, ServerPlayer player, Matter poured, WorldMatter.Placed placed) {
+        if (placed.leftover() <= EPSILON || context.focusActive()) {
+            return;
+        }
+        Matter left = placed.mixed().orElse(poured);
+        VitaSystem.restoreElementEnergy(player, left.state().element(), placed.leftover());
+    }
+
+    /**
+     * The spirit says what the mixture became, when it became something else than what was poured: a substance, by its
+     * name, or an amalgam, which falls apart.
+     */
+    static void tell(ServerPlayer player, Matter poured, WorldMatter.Placed placed) {
+        Optional<Matter> mixture = placed.mixed();
+        if (mixture.isEmpty()) {
+            return;
+        }
+        Optional<Substance> becomes = mixture.get().substance(Materials.get());
+        if (becomes.isPresent() && becomes.equals(poured.substance(Materials.get()))) {
+            return;
+        }
+        tell(player, mixture.get());
+    }
+
+    /** The spirit says what a mixture is: a substance, by its name, or an amalgam, which falls apart. */
+    static void tell(ServerPlayer player, Matter mixture) {
+        Optional<Substance> becomes = mixture.substance(Materials.get());
+        String text = becomes
+                .map(substance -> Template.fill(Lexicons.get().note("note.mixture.substance")
+                        .orElse("A mistura virou {substance}."), Map.of("substance", substance.name())))
+                .orElseGet(() -> Template.fill(Lexicons.get().note("note.mixture.amalgam")
+                                .orElse("A mistura e um amalgama, que se desfaz em {seconds} segundos."),
+                        Map.of("seconds", String.valueOf(Math.round(Materials.get().amalgamSeconds())))));
+        MarkSpells.tell(player, text);
+    }
+}

@@ -9,6 +9,7 @@ import com.elderlexicon.mod.ligabis.world.golem.GolemEntity;
 import com.elderlexicon.mod.magic.lexicon.Foci;
 import com.elderlexicon.mod.mark.network.MarkNetwork;
 import com.elderlexicon.mod.spelling.config.SpellingClientConfig;
+import com.elderlexicon.mod.spell.matter.MatterBlocks;
 import com.elderlexicon.mod.spell.scene.ArcBoltEntity;
 import com.elderlexicon.mod.spelling.entity.PlacedScrollEntity;
 import com.elderlexicon.mod.spelling.item.SpellScrollItem;
@@ -182,6 +183,7 @@ public class ElderLexicon {
 
         ITEMS.register(modEventBus);
         ENTITY_TYPES.register(modEventBus);
+        MatterBlocks.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
         RECIPE_SERIALIZERS.register(modEventBus);
 
