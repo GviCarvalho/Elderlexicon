@@ -40,9 +40,13 @@ public final class SpellDescription {
     /** Energy a spell spends when no quantum says otherwise (book 4.3.2). */
     private static final int DEFAULT_UMU = 10;
 
-    /** One spell of the page, as the grimoire understands it. */
-    private record Spell(int release, String source, String mark, boolean capture, String captureVerb, String amount,
-                         List<String> turns, boolean condensed, String seconds, String place, String function) {
+    /**
+     * One spell of the page, as the grimoire understands it: {@code capture} when its source is taken from the world
+     * (from {@code origin}, or within the mage's reach), {@code reversed} when a negative quantity turns its verb around.
+     */
+    private record Spell(int release, String source, String mark, boolean capture, String origin, String amount,
+                         boolean reversed, List<String> turns, boolean condensed, String seconds, String place,
+                         String function) {
 
         String element() {
             return turns.isEmpty() ? source : turns.get(turns.size() - 1);
@@ -116,8 +120,9 @@ public final class SpellDescription {
         String source = null;
         String mark = null;
         boolean capture = false;
-        String captureVerb = null;
+        String origin = null;
         String amount = null;
+        boolean reversed = false;
         List<String> turns = new ArrayList<>();
         boolean condensed = false;
         String time = null;
@@ -131,8 +136,15 @@ public final class SpellDescription {
                     .filter(filter -> filter.filter().map(spec -> spec.argument() == FilterSpec.Argument.OPERANDS)
                             .orElse(false));
             if ((number || isMark(word)) && placeFilter.isPresent()) {
-                place = number ? text(placeFilter.get(), "place.distance", Map.of("n", word))
+                String where = number ? text(placeFilter.get(), "place.distance", Map.of("n", word))
                         : text(placeFilter.get(), "place.mark", Map.of("mark", word));
+                // The operands of an origin say where the source comes from; those of a place, where the verb acts.
+                if (parameterOf(placeFilter.get()) == Parameter.ORIGIN) {
+                    capture = true;
+                    origin = where;
+                } else {
+                    place = where;
+                }
                 i++;
                 continue;
             }
@@ -154,9 +166,8 @@ public final class SpellDescription {
             Parameter parameter = rune.get().filter()
                     .filter(filter -> filter.argument() == FilterSpec.Argument.VALUE)
                     .map(FilterSpec::parameter).orElse(null);
-            if (flow == Flow.CAPTURE) {
+            if (parameterOf(rune.get()) == Parameter.ORIGIN) {
                 capture = true;
-                captureVerb = word;
             } else if (flow == Flow.CONVERT) {
                 if (lexicon().ofClass(next, WordClass.SOURCE).isPresent()) {
                     turns.add(next);
@@ -164,7 +175,9 @@ public final class SpellDescription {
                 }
             } else if (parameter == Parameter.QUANTITY) {
                 if (next.matches("-?\\d+")) {
-                    amount = next;
+                    // Negative, it turns the verb around; its size is still what is spent.
+                    reversed = next.startsWith("-");
+                    amount = reversed ? next.substring(1) : next;
                     i++;
                 } else {
                     amount = "all";
@@ -181,10 +194,12 @@ public final class SpellDescription {
                 function = word;
             }
         }
-        if (function == null && capture) {
-            function = captureVerb;
-        }
-        return new Spell(release, source, mark, capture, captureVerb, amount, turns, condensed, time, place, function);
+        return new Spell(release, source, mark, capture, origin, amount, reversed, turns, condensed, time, place,
+                function);
+    }
+
+    private static Parameter parameterOf(Rune rune) {
+        return rune.filter().map(FilterSpec::parameter).orElse(null);
     }
 
     private boolean isMark(String word) {
@@ -208,9 +223,7 @@ public final class SpellDescription {
         String amount = "all".equals(spell.amount()) ? note("describe.all", Map.of("element", element))
                 : note("describe.amount", Map.of("amount", spell.amount() == null ? String.valueOf(DEFAULT_UMU)
                         : spell.amount(), "element", element));
-        String origin = spell.capture() ? note("describe.world", Map.of())
-                : lexicon().rune(spell.source() == null ? "" : spell.source()).flatMap(rune -> rune.text("origin"))
-                        .orElseGet(() -> note("describe.body", Map.of()));
+        String origin = origin(spell);
         if (!spell.turns().isEmpty()) {
             List<String> into = spell.turns().stream().map(this::elementName).toList();
             text.append(note(spell.capture() ? "describe.capture" : "describe.convert", Map.of())).append(' ')
@@ -231,6 +244,23 @@ public final class SpellDescription {
         return text.append('.').toString();
     }
 
+    /**
+     * Where the energy comes from: the world (around where the origin says, or the mage's reach), where a verb turned
+     * around takes it from, or the body.
+     */
+    private String origin(Spell spell) {
+        Optional<Rune> verb = spell.function() == null ? Optional.empty() : lexicon().rune(spell.function());
+        if (spell.reversed() && verb.isPresent() && verb.get().text("origin.reversed").isPresent()) {
+            return verb.get().text("origin.reversed").get();
+        }
+        if (spell.capture()) {
+            return spell.origin() == null ? note("describe.world", Map.of())
+                    : note("describe.world.place", Map.of("place", spell.origin()));
+        }
+        return lexicon().rune(spell.source() == null ? "" : spell.source()).flatMap(rune -> rune.text("origin"))
+                .orElseGet(() -> note("describe.body", Map.of()));
+    }
+
     /** What the spell does with its energy; {@code subject} names it when it is a marked thing. */
     private String action(Spell spell, String subject) {
         if (spell.function() == null) {
@@ -241,6 +271,9 @@ public final class SpellDescription {
             return note("describe.unformed", Map.of("verb", spell.function()));
         }
         String where = spell.place() == null ? verb.get().text("describe.where").orElse("") : " " + spell.place();
+        if (spell.reversed() && verb.get().text("describe.reversed").isPresent()) {
+            return text(verb.get(), "describe.reversed", Map.of("where", where));
+        }
         if (subject != null && verb.get().text("describe.marked").isPresent()) {
             return text(verb.get(), "describe.marked", Map.of("what", subject, "where", where));
         }

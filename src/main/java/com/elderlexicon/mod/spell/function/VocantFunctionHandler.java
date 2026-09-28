@@ -19,6 +19,8 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
     /** Vocant acts at once (book 8.4: it "makes the source appear where you point"); chronos stretches it, never delays it. */
     private static final int SUMMON_DELAY_TICKS = 0;
     private static final int LINGER_TICKS = 20;
+    /** Where a marked thing brought to the mage is set down: just before them, along the aim. */
+    private static final double BEFORE_THE_MAGE = 1.5D;
 
     @Override
     public void execute(SpellContext context, VitaElement element) {
@@ -28,6 +30,10 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
         }
         ServerLevel level = player.serverLevel();
         Optional<SpellAction> action = context.currentAction();
+        if (action.isPresent() && action.get().reversed()) {
+            bringToCaster(context, element, action.get());
+            return;
+        }
         if (action.isPresent() && action.get().image()) {
             ImageSpells.vocant(context, element, action.get());
             return;
@@ -146,5 +152,25 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                 HeatSpots.strike(level, player, impact.location(), heat);
             }
         });
+    }
+
+    /**
+     * vocant turned around (a negative quantity): what is at the point comes to the mage instead of going there. A marked
+     * thing is brought before the mage; a source is taken into the body, as much as the quantity says, from around the
+     * ubis place or, with none, from what is nearest the mage's hand; an image is drawn in.
+     */
+    private static void bringToCaster(SpellContext context, VitaElement element, SpellAction action) {
+        if (action.image()) {
+            ImageSpells.absorb(context, element, action);
+            return;
+        }
+        Optional<String> subject = action.subjectMark();
+        if (subject.isPresent()) {
+            MarkSpells.summon(context, subject.get(), Optional.of(SpellPlace.distance(BEFORE_THE_MAGE)),
+                    SUMMON_DELAY_TICKS, Chronos.window(action));
+            return;
+        }
+        ExsugatFunctionHandler.absorb(context, element, element,
+                action.quantity().orElse(ExsugatFunctionHandler.DEFAULT_ABSORBED_UMU));
     }
 }

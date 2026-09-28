@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class LigabisGrammarTest {
 
     private static final Set<String> RUNES = Set.of("firmo", "igni", "aqua", "aura", "vis", "ligabis", "vertere",
-            "iactare", "vocant", "exsugat", "surgit", "quantum", "chronos", "ubis");
+            "iactare", "vocant", "tenet", "surgit", "quantum", "chronos", "ubis");
     private static final Predicate<String> IS_RUNE = RUNES::contains;
 
     private static LigabisGrammar.Result parse(String... words) {

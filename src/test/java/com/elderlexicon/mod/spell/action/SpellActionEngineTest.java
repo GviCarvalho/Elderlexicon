@@ -42,18 +42,18 @@ class SpellActionEngineTest {
 
     @Test
     void attachesShapesAndIgnoresImplicitFallback() {
-        SpellActionResult result = engine.generateActions(List.of("orbis", "vis", "vocant"));
+        SpellActionResult result = engine.generateActions(List.of("hasta", "vis", "vocant"));
 
         assertFalse(result.hasIssues());
         assertEquals(2, result.actions().size(), "Implicit fallback source must not be emitted");
 
         SpellAction source = result.actions().get(0);
         assertEquals("vis", source.runeId());
-        assertEquals(List.of("bolt"), source.shapes());
+        assertEquals(List.of("spear"), source.shapes());
 
         SpellAction function = result.actions().get(1);
         assertEquals("vocant", function.runeId());
-        assertEquals(List.of("bolt"), function.shapes());
+        assertEquals(List.of("spear"), function.shapes());
     }
 
     @Test
@@ -90,9 +90,9 @@ class SpellActionEngineTest {
     }
 
     @Test
-    void vertereAfterExsugatConvertsTheCapturedSource() {
-        // Book 8.2.1: capture first, then convert.
-        SpellActionResult result = engine.generateActions(List.of("igni", "exsugat", "vertere", "aqua"));
+    void vertereOfASourceFromTheWorldConvertsIt() {
+        // Book 8.2.1: taken from the world, then converted.
+        SpellActionResult result = engine.generateActions(List.of("igni", "tenet", "vertere", "aqua"));
 
         assertFalse(result.hasIssues(), "Unexpected issues: " + result.issues());
         assertEquals(VitaElement.IGNI, result.vertereRequests().get(0).source());
@@ -120,8 +120,8 @@ class SpellActionEngineTest {
     }
 
     @Test
-    void aBareQuantumAfterExsugatTakesAllThatWasCaptured() {
-        SpellActionResult result = engine.generateActions(List.of("igni", "exsugat", "quantum", "iactare"));
+    void aBareQuantumFromTheWorldTakesAllThereIs() {
+        SpellActionResult result = engine.generateActions(List.of("igni", "tenet", "quantum", "iactare"));
 
         assertTrue(result.issues().isEmpty(), result.issues().toString());
         SpellAction iactare = result.actions().get(result.actions().size() - 1);
@@ -131,7 +131,7 @@ class SpellActionEngineTest {
     }
 
     @Test
-    void aBareQuantumWithoutExsugatIsAllOfItInTheBody() {
+    void aBareQuantumWithoutAnOriginIsAllOfItInTheBody() {
         SpellActionResult result = engine.generateActions(List.of("vis", "quantum", "chronos", "0", "iactare"));
 
         assertTrue(result.issues().isEmpty(), result.issues().toString());
@@ -141,8 +141,8 @@ class SpellActionEngineTest {
     }
 
     @Test
-    void quantumChronosZeroReleasesAllThatWasCapturedAtOnce() {
-        SpellActionResult result = engine.generateActions(List.of("igni", "exsugat", "quantum", "chronos", "0", "iactare"));
+    void quantumChronosZeroReleasesAllThatWasTakenAtOnce() {
+        SpellActionResult result = engine.generateActions(List.of("igni", "tenet", "quantum", "chronos", "0", "iactare"));
 
         assertTrue(result.issues().isEmpty(), result.issues().toString());
         SpellAction iactare = result.actions().get(result.actions().size() - 1);

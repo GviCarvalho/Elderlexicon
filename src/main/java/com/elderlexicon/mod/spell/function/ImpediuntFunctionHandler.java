@@ -43,12 +43,21 @@ public final class ImpediuntFunctionHandler implements SpellFunctionHandler {
             return;
         }
         if (action.flatMap(SpellAction::subjectMark).isPresent()) {
-            // m1 impediunt: the marked thing is pushed away from the mage (or from the ubis place).
-            MarkSpells.push(context, action.get().subjectMark().get(), action.get().place(), MarkSpells.Push.AWAY_FROM_CASTER,
+            // m1 impediunt: the marked thing is pushed away from the mage (or from the ubis place); turned around, it is
+            // drawn in.
+            MarkSpells.Push push = action.get().reversed() ? MarkSpells.Push.TOWARD_CASTER
+                    : MarkSpells.Push.AWAY_FROM_CASTER;
+            MarkSpells.push(context, action.get().subjectMark().get(), action.get().place(), push,
                     action.get().quantity().orElse(MarkCost.DEFAULT_THROW_ENERGY), Chronos.window(action.get()));
             return;
         }
 
+        if (action.isPresent() && action.get().reversed()) {
+            // A zone that draws its element in instead of keeping it out is the radial force of the new vocabulary
+            // (docs/plano-materia-e-forca.md, stage 4); until then the spirit says so.
+            MarkSpells.tell(player, "O espirito ainda nao sabe atrair um elemento para uma zona.");
+            return;
+        }
         ServerLevel level = player.serverLevel();
         Optional<SpellPlace> place = action.flatMap(SpellAction::place);
         Supplier<Optional<Vec3>> center;

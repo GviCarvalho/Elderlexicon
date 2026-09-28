@@ -24,14 +24,16 @@ public final class Lexicon {
     private final List<String> repertoire;
     private final List<Meeting> meetings;
     private final Map<String, String> notes;
+    private final Map<String, String> retired;
 
     Lexicon(Map<String, Rune> runes, String defaultSource, List<String> repertoire, List<Meeting> meetings,
-            Map<String, String> notes) {
+            Map<String, String> notes, Map<String, String> retired) {
         this.runes = Collections.unmodifiableMap(new LinkedHashMap<>(runes));
         this.defaultSource = defaultSource;
         this.repertoire = List.copyOf(repertoire);
         this.meetings = List.copyOf(meetings);
         this.notes = Collections.unmodifiableMap(new LinkedHashMap<>(notes));
+        this.retired = Collections.unmodifiableMap(new LinkedHashMap<>(retired));
     }
 
     // ------------------------------------------------------------------ runes
@@ -93,6 +95,22 @@ public final class Lexicon {
     /** Every text of the language itself, by key. */
     public Map<String, String> notes() {
         return notes;
+    }
+
+    /**
+     * What the spirit tells a mage who writes a word the language no longer has ({@code exsugat}), or empty for a word
+     * that is a rune or never was one.
+     */
+    public Optional<String> retired(String word) {
+        if (word == null || word.isBlank() || isRune(word)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(retired.get(Rune.normalize(word)));
+    }
+
+    /** Every retired word, with what the spirit says of it. */
+    public Map<String, String> retiredWords() {
+        return retired;
     }
 
     // ------------------------------------------------------------------ what the engine asks

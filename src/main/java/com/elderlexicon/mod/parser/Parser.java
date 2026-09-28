@@ -115,7 +115,7 @@ public class Parser {
                 String targetElement = translateRune(action.targetRuneId());
                 String phrase = action.subjectMark().isPresent() || action.targetMark().isPresent()
                         ? renderMarkedFunction(definition, action, targetElement)
-                        : renderFunction(definition, state, targetElement);
+                        : renderFunction(definition, state, targetElement, action.reversed());
                 if (action.place().isPresent()) {
                     phrase = phrase + " at " + action.place().get().describe();
                 }
@@ -242,9 +242,9 @@ public class Parser {
      * How a verb is told in the transcript: its English verb, and for a verb that takes a target the target joined to
      * what it acts on ({@code Convert fire to water}). All of it comes from the lexicon.
      */
-    private String renderFunction(RuneDefinition function, SpellState state, String targetElement) {
+    private String renderFunction(RuneDefinition function, SpellState state, String targetElement, boolean reversed) {
         Optional<Rune> rune = dictionary.lexicon().rune(function.id());
-        String verb = verbOf(function, rune);
+        String verb = verbOf(function, rune, reversed);
         String joiner = rune.flatMap(Rune::verb).map(VerbSpec::joiner).orElse(null);
         if (joiner != null && targetElement != null) {
             return verb + " " + state.element() + " " + joiner + " " + targetElement;
@@ -269,11 +269,18 @@ public class Parser {
             values.put("caster", caster);
             return Template.fill(template.get(), values);
         }
-        String verb = verbOf(function, rune);
+        String verb = verbOf(function, rune, action.reversed());
         return target == null ? verb + " " + subject : verb + " " + subject + " to " + target;
     }
 
-    private static String verbOf(RuneDefinition function, Optional<Rune> rune) {
+    /** The English verb of the transcript; turned around by a negative quantity, the one the lexicon gives for that. */
+    private static String verbOf(RuneDefinition function, Optional<Rune> rune, boolean reversed) {
+        if (reversed) {
+            Optional<String> turned = rune.flatMap(found -> found.text("transcript.reversed"));
+            if (turned.isPresent()) {
+                return turned.get();
+            }
+        }
         return rune.flatMap(Rune::verb).map(VerbSpec::phrase).filter(phrase -> !phrase.isBlank())
                 .orElseGet(() -> capitalize(function.translation()));
     }

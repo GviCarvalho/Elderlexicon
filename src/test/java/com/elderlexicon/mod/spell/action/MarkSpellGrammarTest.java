@@ -147,36 +147,28 @@ class MarkSpellGrammarTest {
     }
 
     @Test
-    void transvocatioSwapsTwoMarks() {
+    void aNegativeQuantityBringsTheMarkedThingToTheCaster() {
+        SpellActionResult result = parse("m1 quantum -10 vocant");
+
+        assertFalse(result.hasIssues(), "Unexpected issues: " + result.issues());
+        SpellAction bring = onlyFunction(result);
+        assertEquals(Optional.of("m1"), bring.subjectMark());
+        assertTrue(bring.reversed(), "vocant turned around: from where m1 is to the mage");
+        assertEquals(10.0D, bring.quantity().orElseThrow());
+    }
+
+    @Test
+    void aNegativeQuantityPullsTheMarkedThing() {
+        SpellAction pull = onlyFunction(parse("m1 quantum -20 iactare"));
+        assertEquals(Optional.of("m1"), pull.subjectMark());
+        assertTrue(pull.reversed());
+    }
+
+    @Test
+    void transvocatioIsNoLongerAWord() {
         SpellActionResult result = parse("m1 transvocatio m2");
-
-        assertFalse(result.hasIssues(), "Unexpected issues: " + result.issues());
-        SpellAction swap = onlyFunction(result);
-        assertEquals(Optional.of("m1"), swap.subjectMark());
-        assertEquals(Optional.of("m2"), swap.targetMark());
-    }
-
-    @Test
-    void transvocatioWithoutTargetSwapsWithTheCaster() {
-        SpellActionResult result = parse("m1 transvocatio");
-
-        assertFalse(result.hasIssues(), "Unexpected issues: " + result.issues());
-        SpellAction swap = onlyFunction(result);
-        assertEquals(Optional.of("m1"), swap.subjectMark());
-        assertTrue(swap.targetMark().isEmpty());
-    }
-
-    @Test
-    void transvocatioWithoutSubjectSwapsTheCasterWithTheTarget() {
-        SpellAction swap = onlyFunction(parse("transvocatio m2"));
-        assertTrue(swap.subjectMark().isEmpty());
-        assertEquals(Optional.of("m2"), swap.targetMark());
-    }
-
-    @Test
-    void transvocatioRefusesASource() {
-        SpellActionResult result = parse("m1 transvocatio igni");
-        assertTrue(result.issues().stream().anyMatch(issue -> issue.contains("troca coisas marcadas")));
+        assertTrue(result.issues().stream().anyMatch(issue -> issue.contains("transvocatio não existe mais")),
+                result.issues().toString());
     }
 
     @Test
@@ -345,8 +337,12 @@ class MarkSpellGrammarTest {
         String message = parser.transcribeActions(result.actions(), result.lexemes(), result.primarySource()).message();
         assertEquals("Summon 'm1' at 'casa'", message);
 
-        SpellActionResult swap = parse("m1 transvocatio m2");
-        assertEquals("Swap 'm1' with 'm2'",
-                parser.transcribeActions(swap.actions(), swap.lexemes(), swap.primarySource()).message());
+        SpellActionResult renamed = parse("m1 vertere m2");
+        assertEquals("Convert 'm1' to 'm2'",
+                parser.transcribeActions(renamed.actions(), renamed.lexemes(), renamed.primarySource()).message());
+
+        SpellActionResult pulled = parse("m1 quantum -10 iactare");
+        assertEquals("Pull 'm1'",
+                parser.transcribeActions(pulled.actions(), pulled.lexemes(), pulled.primarySource()).message());
     }
 }

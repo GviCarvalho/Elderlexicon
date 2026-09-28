@@ -14,6 +14,7 @@
     "reading.fusion": "Runa de fusão.",
     "reading.subject.mark": "o que tem a marca “{mark}”",
     "reading.subject.energy": "a energia",
+    "reading.subject.result": "o que resultou do {verb}",
     "reading.title.empty": "Vazio",
     "reading.title.number": "Número {n}",
     "reading.title.mark": "Marca “{mark}”",
@@ -25,6 +26,7 @@
     "describe.all": "toda a energia de {element}",
     "describe.amount": "{amount} UMU de {element}",
     "describe.world": " do mundo ao redor da mão",
+    "describe.world.place": " do mundo, {place}",
     "describe.body": " do corpo",
     "describe.capture": "Captura",
     "describe.use": "Usa",
@@ -56,6 +58,15 @@
     {"elements": ["aqua", "firmo"], "note": "Água e terra viram lama; a água que congela nas fendas racha a pedra."},
     {"elements": ["aura", "firmo"], "note": "A pressão arremessa a terra como estilhaços."}
   ],
+  "retired": {
+    "exsugat": "A runa exsugat não existe mais. Para tirar uma fonte do mundo, escreva tenet antes do verbo (firmo tenet quantum iactare); para absorver, vocant com quantidade negativa (igni quantum -10 vocant); para puxar uma coisa marcada, iactare com quantidade negativa (m1 quantum -10 iactare).",
+    "transvocatio": "A runa transvocatio não existe mais: mova cada coisa com vocant.",
+    "exhaustio": "A fusão exhaustio não existe mais: escreva tenet vertere (igni tenet vertere aqua).",
+    "exsuctio": "A fusão exsuctio não existe mais: escreva tenet iactare (igni tenet iactare).",
+    "extractio": "A fusão extractio não existe mais: escreva tenet vocant (igni tenet vocant).",
+    "exinanitio": "A fusão exinanitio não existe mais.",
+    "orbis": "A forma orbis não existe mais: era a forma do exsugat."
+  },
   "runes": {
     "firmo": {
       "class": "source", "glyph": "D", "translation": "earth", "name": "terra", "noun": "a terra",
@@ -163,7 +174,6 @@
     "hasta": {"class": "form", "origin": "fusion", "components": ["iactare", "source"], "translation": "spear", "form": "spear"},
     "murus": {"class": "form", "origin": "fusion", "components": ["impediunt", "source"], "translation": "wall", "form": "wall"},
     "catena": {"class": "form", "origin": "fusion", "components": ["ligabis", "source"], "translation": "chain", "form": "chain"},
-    "orbis": {"class": "form", "origin": "fusion", "components": ["exsugat", "source"], "translation": "bolt", "form": "bolt"},
     "sigillum": {"class": "form", "origin": "fusion", "components": ["vocant", "source"], "translation": "sigil", "form": "sigil"},
     "turbio": {"class": "form", "origin": "fusion", "components": ["vertere", "source"], "translation": "vortex", "form": "vortex"},
     "cuspis": {"class": "form", "origin": "fusion", "components": ["iactare", "source"], "translation": "spear", "form": "spear"},
@@ -192,9 +202,12 @@
     "iactare": {
       "class": "verb", "glyph": "I", "translation": "cast", "name": "lançar",
       "lore": "Função: lança na direção mirada.",
-      "operation": "project", "cost": 2, "gathering": "hand",
+      "operation": "project", "cost": 2, "gathering": "hand", "reversible": true,
       "texts": {
         "role": "Lança {what} na direção mirada",
+        "role.reversed": "Puxa {what} em direção a quem conjura",
+        "describe.reversed": "e puxa em direção a quem conjura",
+        "transcript.reversed": "Pull",
         "role.condensed": ", condensado numa esfera que se junta antes (diante da mão)",
         "describe": "e lança na direção mirada{where}",
         "describe.marked": "lança {what} na direção mirada{where}",
@@ -204,9 +217,12 @@
     "impediunt": {
       "class": "verb", "glyph": "M", "translation": "repel", "name": "repelir",
       "lore": "Função: afasta um elemento de uma zona.",
-      "operation": "repel",
+      "operation": "repel", "reversible": true,
       "texts": {
         "role": "Afasta {what} de uma zona (um cilindro) ao redor do ponto",
+        "role.reversed": "Atrai {what} para o centro de uma zona (um cilindro) ao redor do ponto",
+        "describe.reversed": "e atrai esse elemento para o centro de uma zona ao redor{where}",
+        "transcript.reversed": "Attract",
         "describe": "e afasta esse elemento de uma zona ao redor{where}",
         "describe.where": " do ponto",
         "title": "Barreira de {element}"
@@ -223,24 +239,16 @@
         "title": "Vínculo"
       }
     },
-    "exsugat": {
-      "class": "verb", "glyph": "F", "translation": "drain", "name": "absorver",
-      "lore": "Função: absorve uma fonte do mundo.",
-      "operation": "draw", "flow": "capture",
-      "texts": {
-        "role": "Absorve {what} do mundo para o corpo",
-        "role.feeding": "Captura {what} do mundo, ao redor da mão, e entrega ao {next}",
-        "source": "A fonte que o {verb} vai buscar no mundo: {element}.",
-        "describe": "e absorve para o corpo",
-        "title": "Absorção de {element}"
-      }
-    },
     "vocant": {
       "class": "verb", "glyph": "J", "translation": "summon", "name": "invocar",
       "lore": "Função: faz surgir no ponto mirado.",
-      "operation": "manifest", "cost": 1, "gathering": "destination",
+      "operation": "manifest", "cost": 1, "gathering": "destination", "reversible": true,
       "texts": {
         "role": "Faz {what} surgir no ponto mirado",
+        "role.reversed": "Traz {what} até quem conjura; uma fonte vem do que está mais perto (ou do lugar do ubis) e é absorvida para o corpo",
+        "describe.reversed": "e traz até quem conjura, para dentro do corpo",
+        "transcript.reversed": "Draw",
+        "origin.reversed": " do mundo ao redor",
         "role.condensed": ", condensado: junta ali antes de surgir",
         "describe": "e faz surgir{where}",
         "describe.marked": "faz {what} surgir{where}",
@@ -269,19 +277,6 @@
         "title": "Revelação"
       }
     },
-    "transvocatio": {
-      "class": "verb", "origin": "fusion", "components": ["vertere", "vocant"],
-      "translation": "transfer", "name": "trocar",
-      "lore": "Função: transfere o que foi marcado.",
-      "operation": "exchange", "cost": 1,
-      "object": {"takes": ["mark"], "as": "target", "optionalWithSubject": true,
-                 "refusal": "troca coisas marcadas: escreva uma marca depois dela."},
-      "joiner": "to",
-      "texts": {
-        "transcript.marked": "Swap {subject} with {target|caster}",
-        "describe": "e transfere o que foi marcado"
-      }
-    },
 
     "transiectio": {"class": "verb", "origin": "fusion", "components": ["vertere", "iactare"], "translation": "transition",
                     "lore": "Fusão: converte e lança.", "expands": ["vertere", "@", "iactare"]},
@@ -289,24 +284,16 @@
                 "lore": "Fusão: converte e repele.", "expands": ["vertere", "@", "impediunt"]},
     "cohaesio": {"class": "verb", "origin": "fusion", "components": ["vertere", "ligabis"], "translation": "fuse",
                  "lore": "Fusão: funde alvos (alquimia)."},
-    "exhaustio": {"class": "verb", "origin": "fusion", "components": ["vertere", "exsugat"], "translation": "exhaust",
-                  "lore": "Fusão: esgota uma fonte do mundo, convertendo-a onde está.", "expands": ["exsugat", "vertere", "@"]},
     "deflectio": {"class": "verb", "origin": "fusion", "components": ["iactare", "impediunt"], "translation": "deflect",
                   "lore": "Fusão: desvia fluxos e projéteis."},
     "vinculatio": {"class": "verb", "origin": "fusion", "components": ["iactare", "ligabis"], "translation": "spellbind",
                    "lore": "Fusão: liga alvos por arremesso."},
-    "exsuctio": {"class": "verb", "origin": "fusion", "components": ["iactare", "exsugat"], "translation": "channel",
-                 "lore": "Fusão: drena uma fonte do mundo e a lança.", "expands": ["exsugat", "iactare"]},
     "evocatio": {"class": "verb", "origin": "fusion", "components": ["iactare", "vocant"], "translation": "conjure",
                  "lore": "Fusão: conjura de forma estável."},
     "compeditio": {"class": "verb", "origin": "fusion", "components": ["impediunt", "ligabis"], "translation": "tether",
                    "lore": "Fusão: acorrenta e imobiliza."},
-    "exinanitio": {"class": "verb", "origin": "fusion", "components": ["impediunt", "exsugat"], "translation": "leech",
-                   "lore": "Fusão: sangra devagar."},
     "coniuratio": {"class": "verb", "origin": "fusion", "components": ["ligabis", "vocant"], "translation": "conspire",
                    "lore": "Fusão: conspira, reúne alvos."},
-    "extractio": {"class": "verb", "origin": "fusion", "components": ["exsugat", "vocant"], "translation": "converge",
-                  "lore": "Fusão: junta o que foi drenado num foco.", "expands": ["exsugat", "vocant"]},
 
     "quantum": {
       "class": "filter", "glyph": "N", "translation": "quantity", "name": "quanto",
@@ -316,7 +303,9 @@
         "number": "O quanto do {filter}: {n} unidades.",
         "role": "Quanto: {n} unidades ({n} UMU).",
         "role.bare.world": "Sem número: toda a energia disponível da fonte, do mundo ao redor.",
-        "role.bare.body": "Sem número: toda a energia disponível da fonte, do corpo."
+        "role.bare.body": "Sem número: toda a energia disponível da fonte, do corpo.",
+        "number.negative": "O quanto do {filter}: {n} unidades; negativo, o verbo seguinte age ao contrário.",
+        "role.negative": "Quanto: {abs} unidades ({abs} UMU), ao contrário: o verbo seguinte age no sentido inverso."
       }
     },
     "chronos": {
@@ -344,6 +333,21 @@
         "role.none": "Onde: falta o que vem antes dele (um número ou uma marca).",
         "place.distance": "a {n} blocos na direção mirada",
         "place.mark": "onde está o que tem a marca “{mark}”"
+      }
+    },
+    "tenet": {
+      "class": "filter", "glyph": "F", "translation": "hold", "name": "de onde",
+      "lore": "Filtro: de onde vem a fonte. Escrito, ela vem do mundo, e não do corpo.",
+      "parameter": "origin", "argument": "operands",
+      "texts": {
+        "number": "De onde vem a fonte: {n} blocos na direção mirada.",
+        "mark": "De onde vem a fonte: perto do que tem a marca “{mark}”.",
+        "source": "A fonte que vem do mundo, e não do corpo: {element}.",
+        "role.number": "Do mundo: a fonte vem de {n} blocos na direção mirada.",
+        "role.mark": "Do mundo: a fonte vem de perto do que tem a marca “{mark}”.",
+        "role.bare": "Do mundo: a fonte vem do que está ao alcance de quem conjura, e não do corpo.",
+        "place.distance": "a {n} blocos na direção mirada",
+        "place.mark": "perto do que tem a marca “{mark}”"
       }
     }
   }

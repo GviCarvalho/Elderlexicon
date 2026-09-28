@@ -18,9 +18,11 @@ import java.util.Locale;
  * @param binds     it binds: it reads an aspect and marks around it ({@code firmo m1 ligabis m2})
  * @param phrase    the English verb of the transcript ({@code Summon}); null capitalizes the translation
  * @param joiner    the English word between what it converts and its target ({@code to}, {@code with})
+ * @param reversible a negative quantity turns it the other way round ({@code m1 quantum -20 iactare} pulls instead of
+ *                   pushing); for any other verb the spirit refuses one
  */
 public record VerbSpec(String operation, Flow flow, double cost, Gathering gathering, ObjectFrame object, boolean view,
-                       String sense, boolean binds, String phrase, String joiner) {
+                       String sense, boolean binds, String phrase, String joiner, boolean reversible) {
 
     /** Where the energy a verb spends is gathered before it acts. */
     public enum Gathering {

@@ -15,10 +15,10 @@ class SpellBlockTest {
 
     @Test
     void singleLineIsOneSpellWithNoDelay() {
-        SpellBlock block = SpellBlock.parse("igni exsugat iactare", SpellBlockTest::normalize);
+        SpellBlock block = SpellBlock.parse("igni tenet iactare", SpellBlockTest::normalize);
 
         assertEquals(1, block.lines().size());
-        assertEquals(List.of("igni", "exsugat", "iactare"), block.lines().get(0).runeIds());
+        assertEquals(List.of("igni", "tenet", "iactare"), block.lines().get(0).runeIds());
         assertEquals(0, block.delaySteps(block.lines().get(0)));
     }
 

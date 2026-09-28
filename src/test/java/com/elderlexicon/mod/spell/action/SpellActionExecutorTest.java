@@ -77,7 +77,7 @@ class SpellActionExecutorTest {
     }
 
     @Test
-    void vertereAfterExsugatConvertsTheCapturedSourceNotTheVita() {
+    void vertereOfASourceFromTheWorldConvertsItNotTheVita() {
         RecordingGateway gateway = new RecordingGateway();
         AtomicInteger thrown = new AtomicInteger();
         VitaElement[] thrownAs = new VitaElement[1];
@@ -89,18 +89,20 @@ class SpellActionExecutorTest {
         SpellContext context = new SpellContext(null, List.of(), Optional.empty(), VitaElement.IGNI, 3.0D, List.of(),
                 List.of(new VertereRequest(VitaElement.IGNI, VitaElement.AQUA, 1.0D)));
         SpellAction igni = SpellAction.builder("igni", SpellActionType.SOURCE).element(VitaElement.IGNI).build();
-        SpellAction exsugat = SpellAction.builder("exsugat", SpellActionType.FUNCTION).element(VitaElement.IGNI).build();
-        SpellAction vertere = SpellAction.builder("vertere", SpellActionType.FUNCTION).element(VitaElement.IGNI).build();
+        // igni tenet vertere aqua iactare: the fire is taken from the world, converted, and the iactare throws it.
+        SpellAction vertere = SpellAction.builder("vertere", SpellActionType.FUNCTION).element(VitaElement.IGNI)
+                .putMetadata(SpellAction.FROM_WORLD, Boolean.TRUE).build();
         SpellAction aqua = SpellAction.builder("aqua", SpellActionType.SOURCE).element(VitaElement.AQUA).build();
-        SpellAction iactare = SpellAction.builder("iactare", SpellActionType.FUNCTION).element(VitaElement.AQUA).build();
+        SpellAction iactare = SpellAction.builder("iactare", SpellActionType.FUNCTION).element(VitaElement.AQUA)
+                .putMetadata(SpellAction.CHAINED, Boolean.TRUE).build();
 
-        executor.execute(context, List.of(igni, exsugat, vertere, aqua, iactare));
+        executor.execute(context, List.of(igni, vertere, aqua, iactare));
 
-        assertEquals(0, gateway.calls.get(), "the captured fire is converted, not the body's");
+        assertEquals(0, gateway.calls.get(), "the fire taken from the world is converted, not the body's");
         assertEquals(1, thrown.get());
         assertEquals(VitaElement.AQUA, thrownAs[0], "what is thrown is the converted water");
         assertEquals(VitaElement.AQUA, context.primaryElement());
-        assertEquals(3.0D, context.totalCost(), 1.0E-4, "converting what is captured adds nothing taken from the Vita");
+        assertEquals(3.0D, context.totalCost(), 1.0E-4, "converting what is taken adds nothing taken from the Vita");
     }
 
     @Test

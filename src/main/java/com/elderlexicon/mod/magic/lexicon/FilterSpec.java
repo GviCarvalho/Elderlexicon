@@ -7,8 +7,9 @@ import java.util.Locale;
  *
  * @param parameter what it sets on the verb after it
  * @param argument  how it takes its value: the number right after it (or right before it), or the numbers and marks
- *                  written before it ({@code m1 ubis}, {@code 10 64 -30 ubis})
- * @param bareAll   written with no number, it asks for all there is ({@code igni exsugat quantum iactare})
+ *                  written before it ({@code m1 ubis}, {@code 10 64 -30 ubis}); an origin needs none
+ *                  ({@code firmo tenet}: within the mage's reach)
+ * @param bareAll   written with no number, it asks for all there is ({@code firmo tenet quantum iactare})
  */
 public record FilterSpec(Parameter parameter, Argument argument, boolean bareAll) {
 

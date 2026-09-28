@@ -18,7 +18,7 @@ public final class SpellAction {
 
     /** Metadata key: the mark whose carriers the function acts on ({@code m1 vocant}). */
     public static final String SUBJECT_MARK = "subjectMark";
-    /** Metadata key: the mark a targeted function points at ({@code m1 transvocatio m2}). */
+    /** Metadata key: the mark a targeted function points at ({@code m1 vertere m2}). */
     public static final String TARGET_MARK = "targetMark";
     /** Metadata key: the {@link SpellPlace} written with {@code ubis}. */
     public static final String PLACE = "place";
@@ -43,8 +43,29 @@ public final class SpellAction {
     public static final String VISIBILITY = "visibility";
     /** Metadata key: the seconds written with {@code chronos} ({@code igni chronos 5 iactare}). */
     public static final String SECONDS = "seconds";
-    /** A bare quantum after exsugat ({@code igni exsugat quantum iactare}): all that was captured (book 4.3.2). */
+    /**
+     * A bare quantum: all there is of the source (book 4.3.2), in the body ({@code firmo quantum iactare}) or, taken from
+     * the world, all of it in reach ({@code firmo tenet quantum iactare}).
+     */
     public static final String QUANTITY_ALL = "quantityAll";
+    /**
+     * Metadata key: the verb works the other way round, written with a negative quantity ({@code m1 quantum -20 iactare}
+     * pulls m1 instead of pushing it). The quantity keeps its size; only its sense is turned
+     * (docs/plano-materia-e-forca.md, R4).
+     */
+    public static final String REVERSED = "reversed";
+    /**
+     * Metadata key: the source the verb works with comes from the world, not from the mage's body, written with an origin
+     * filter ({@code firmo tenet iactare}: the earth in reach). R5.
+     */
+    public static final String FROM_WORLD = "fromWorld";
+    /** Metadata key: where in the world that source is taken from ({@code firmo m1 tenet}: around m1). */
+    public static final String ORIGIN_PLACE = "originPlace";
+    /**
+     * Metadata key: the verb acts on what the verb before it produced or moved, not on a source or a mark written for it
+     * ({@code igni vocant iactare}: the fire made to appear is what is pushed). R2.
+     */
+    public static final String CHAINED = "chained";
     /** How intense the captured source is when this function releases it (docs/condensacao-design.md). */
     public static final String INTENSITY = "intensity";
     /** How much coal the captured earth held, when it was nearly all coal: condensed hard, it turns to diamond. */
@@ -117,7 +138,7 @@ public final class SpellAction {
         return potency.isPresent() ? potency : sourceValue();
     }
 
-    /** Whether a bare quantum asks for everything the exsugat before it captures ({@code igni exsugat quantum iactare}). */
+    /** Whether a bare quantum asks for all there is of the source ({@code firmo tenet quantum iactare}). */
     public boolean quantityAll() {
         return Boolean.TRUE.equals(metadata.get(QUANTITY_ALL));
     }
@@ -178,6 +199,26 @@ public final class SpellAction {
 
     public Optional<SpellPlace> place() {
         return metadata.get(PLACE) instanceof SpellPlace place ? Optional.of(place) : Optional.empty();
+    }
+
+    /** Whether the function works the other way round: a negative quantity was written for it. */
+    public boolean reversed() {
+        return Boolean.TRUE.equals(metadata.get(REVERSED));
+    }
+
+    /** Whether the source the function works with is taken from the world instead of the mage's body. */
+    public boolean fromWorld() {
+        return Boolean.TRUE.equals(metadata.get(FROM_WORLD));
+    }
+
+    /** Where in the world that source is taken from; empty is within the mage's reach. */
+    public Optional<SpellPlace> originPlace() {
+        return metadata.get(ORIGIN_PLACE) instanceof SpellPlace place ? Optional.of(place) : Optional.empty();
+    }
+
+    /** Whether the function acts on what the function before it produced or moved. */
+    public boolean chained() {
+        return Boolean.TRUE.equals(metadata.get(CHAINED));
     }
 
     public Builder toBuilder() {
@@ -257,6 +298,13 @@ public final class SpellAction {
         public Builder putMetadata(String key, Object value) {
             if (key != null && !key.isBlank() && value != null) {
                 this.metadata.put(key, value);
+            }
+            return this;
+        }
+
+        public Builder removeMetadata(String key) {
+            if (key != null) {
+                this.metadata.remove(key);
             }
             return this;
         }
