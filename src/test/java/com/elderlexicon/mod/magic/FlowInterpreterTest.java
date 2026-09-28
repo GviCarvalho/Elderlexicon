@@ -129,7 +129,7 @@ class FlowInterpreterTest {
     void manaDrawnOutAndConvertedIsReleasedAsWhatItBecame() {
         Run run = cast("vis quantum vertere igni chronos 0 iactare");
         assertEquals(VitaElement.IGNI, run.world().last("perform").element());
-        // vis into an element changes no quality: nothing is lost to the work.
+        // vis into an element crosses no rung: nothing is lost to the work.
         assertEquals(30.0D, run.world().last("perform").action().intensity(), 1.0E-9);
         assertNull(run.world().last("vita"), "what is held is converted, not the Vita");
     }

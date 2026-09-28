@@ -314,18 +314,18 @@ public final class SpellDescription {
         if (spell.condensed() && spell.element() != null) {
             lexicon().rune(spell.element()).flatMap(rune -> rune.text("condensedNote")).ifPresent(notes::add);
         }
-        if (!spell.turns().isEmpty() && changesQualities(spell)) {
+        if (!spell.turns().isEmpty() && crossesSteps(spell)) {
             notes.add(note("note.conversion", Map.of()));
         }
         return notes;
     }
 
-    /** Whether the conversions of a spell change any quality (making anything of Vis changes none). */
-    private boolean changesQualities(Spell spell) {
+    /** Whether the conversions of a spell cross any rung of the ladder (making anything of Vis crosses none). */
+    private boolean crossesSteps(Spell spell) {
         VitaElement from = lexicon().elementOf(spell.source() == null ? lexicon().defaultSource().id() : spell.source());
         for (String turn : spell.turns()) {
             VitaElement to = lexicon().elementOf(turn);
-            if (Conversion.qualities(from, to) > 0) {
+            if (Conversion.steps(from, to) > 0) {
                 return true;
             }
             from = to;

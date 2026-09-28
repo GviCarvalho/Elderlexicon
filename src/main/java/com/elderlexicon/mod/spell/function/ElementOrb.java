@@ -95,6 +95,8 @@ public class ElementOrb extends Entity {
     @Nullable
     private Consumer<Vec3> onStrike;
     @Nullable
+    private Consumer<HitResult> onHit;
+    @Nullable
     private UUID caster;
     private int flightStart;
     private int lastStage = -1;
@@ -141,6 +143,15 @@ public class ElementOrb extends Entity {
         entityData.set(FLYING, true);
         setDeltaMovement(velocity);
         hasImpulse = true;
+    }
+
+    /**
+     * Releases the orb along {@code velocity}; {@code onHit} is told what it struck (a creature, a block's face, or
+     * nothing when it flew out of its time), so what it carries can land on it.
+     */
+    public void strike(Vec3 velocity, Consumer<HitResult> onHit) {
+        launch(velocity, null);
+        this.onHit = onHit;
     }
 
     /** The gathering is over and what it held is released some other way: the orb is gone. */
@@ -395,6 +406,11 @@ public class ElementOrb extends Entity {
                 discard();
                 if (onStrike != null) {
                     onStrike.accept(at);
+                }
+                if (onHit != null) {
+                    onHit.accept(hit.getType() == HitResult.Type.MISS
+                            ? BlockHitResult.miss(at, net.minecraft.core.Direction.UP, net.minecraft.core.BlockPos.containing(at))
+                            : hit);
                 }
                 return;
             }

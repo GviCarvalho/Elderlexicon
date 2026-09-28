@@ -46,6 +46,11 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
                     Chronos.window(action.get()));
             return;
         }
+        // igni vocant iactare: the force is on what the vocant made, which flies from where it was made (R2).
+        if (action.isPresent() && Forces.onProduct(context, action.get(),
+                action.get().reversed() ? MarkSpells.Push.TOWARD_CASTER : MarkSpells.Push.TOWARD_AIM)) {
+            return;
+        }
         // igni quantum 20 iactare throws 20 UMU instead of 10 (book 4.3.2); what goes beyond the default is paid.
         double perWindow = action.map(SpellAction::quantity).orElse(OptionalDouble.empty())
                 .orElse(EmissionRecorder.DEFAULT_QUANTITY_UMU);

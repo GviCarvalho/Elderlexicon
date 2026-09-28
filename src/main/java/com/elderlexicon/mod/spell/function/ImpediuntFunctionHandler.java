@@ -52,6 +52,12 @@ public final class ImpediuntFunctionHandler implements SpellFunctionHandler {
             return;
         }
 
+        // igni vocant impediunt: what the vocant made is pushed away from the centre (drawn in, turned around).
+        if (action.isPresent() && Forces.onProduct(context, action.get(),
+                action.get().reversed() ? MarkSpells.Push.TOWARD_CASTER : MarkSpells.Push.AWAY_FROM_CASTER)) {
+            return;
+        }
+
         if (action.isPresent() && action.get().reversed()) {
             // A zone that draws its element in instead of keeping it out is the radial force of the new vocabulary
             // (docs/plano-materia-e-forca.md, stage 4); until then the spirit says so.

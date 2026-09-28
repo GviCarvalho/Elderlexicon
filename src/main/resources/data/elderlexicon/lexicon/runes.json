@@ -44,7 +44,7 @@
     "describe.marked": "o que tem a marca “{mark}”",
     "describe.unformed": "e {verb}",
     "note.condensed": "Condensar é trabalho do espírito: parte da energia se perde nele, e juntar leva tempo antes da soltura.",
-    "note.conversion": "Converter um elemento em outro custa ao espírito 5% da energia por qualidade mudada.",
+    "note.conversion": "Converter um elemento em outro custa ao espírito 5% da energia por degrau da escada (firmo sólido, aqua líquido, aura gás, igni plasma); voltar a vis custa a escada inteira.",
     "transcript.caster": "the caster",
     "transcript.done": "Feitico interpretado com sucesso.",
     "issue.unformed": "A fusão '{rune}' ainda não tem composição no léxico: escreva as runas que ela funde.",
@@ -192,9 +192,9 @@
         "role.missing": "Converte, mas falta o elemento em que converter.",
         "role.nosource": "Converte em {to}.",
         "role.free": "sem custo",
-        "role.cost": "muda {q} {qualities}, custa {p}% da energia",
-        "role.quality": "qualidade",
-        "role.qualities": "qualidades",
+        "role.cost": "sobe ou desce {q} {steps} da escada, custa {p}% da energia",
+        "role.step": "degrau",
+        "role.steps": "degraus",
         "role.inplace": "; sem função depois, converte no lugar.",
         "role.end": "."
       }
