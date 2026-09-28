@@ -7,11 +7,18 @@ UMU (Universal Magical Unit) is the standard unit used to measure, calculate, an
 
 Every rune, action, transformation, or effect uses UMU as fundamental energy.
 
+🔄 Atualização – Léxico em dados
+--------------------------------
+- As runas, seus custos base e o que cada foco de varinha favorece agora ficam em dados: `src/main/resources/data/elderlexicon/lexicon/runes.json` e `foci.json`.
+- A gramática e o fluxo de energia leem classes de palavra e papéis (gastar, capturar, converter), não nomes de runas.
+- Extensões/mods acrescentam palavras com `Lexicons.extend(...)` e novos efeitos com `SpellFunctionHandlerRegistry.register(operação, handler)`.
+- Consulte `docs/magia-modular-design.md`.
+
 🔄 Atualização Sprint 4 – Pipeline de Ações
 -------------------------------------------
 - O cálculo e o consumo de UMU agora são totalmente derivados do pipeline de ações (`SpellActionEngine` → `SpellActionExecutor` → `SpellCostProcessor`).
-- Extensões/mods devem registrar novos comportamentos via `SpellFunctionHandlerRegistry` e `SpellModuleRegistry` em vez de editar comandos diretamente.
-- Consulte `docs/action-pipeline-migration-guide.md` para ver o passo a passo de migração e exemplos de como plugar novos handlers ou módulos de custo.
+- Extensões/mods devem registrar novos comportamentos via `SpellFunctionHandlerRegistry` (por id de operação) e `SpellModuleRegistry` em vez de editar comandos diretamente.
+- Consulte `docs/magia-modular-design.md` para ver como plugar novas runas, operações e focos.
 
 ⚡ 1. Ordem de Consumo
 ⚡ 1. Consumption Order

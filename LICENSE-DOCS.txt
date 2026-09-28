@@ -4,7 +4,8 @@ Copyright (c) 2025 GviCarvalho
 
 The documentation contained in this repository, including all README.md,
 ReadmeUMU.md, ReadmeVITA.md files, the rune structure and nomenclature
-defined in ParserList.json, and any other descriptive texts of the
+defined in the rune lexicon (src/main/resources/data/elderlexicon/lexicon/
+runes.json, formerly ParserList.json), and any other descriptive texts of the
 Elderlexicon system ("Grimório da Linguagem Antiga"), is made available
 under the terms of the Creative Commons Attribution-NonCommercial-
 NoDerivatives 4.0 International License (CC BY-NC-ND 4.0).
