@@ -21,18 +21,15 @@ import java.util.Optional;
 
 /**
  * What a block of formless matter holds, exactly as it is: its composition, its state and its UMU
- * (docs/plano-materia-e-forca.md, stage 5). An amalgam also knows when it falls apart.
+ * (docs/plano-materia-e-forca.md, stage 5, and docs/plano-materia-emergente.md).
  */
 public final class FormlessMatterBlockEntity extends BlockEntity {
 
     private static final String SHARES = "shares";
     private static final String STATE = "state";
     private static final String UMU = "umu";
-    private static final String FALLS_APART_AT = "fallsApartAt";
 
     private Matter matter;
-    /** The game time an amalgam falls apart at; -1 for matter that holds together. */
-    private long fallsApartAt = -1L;
 
     public FormlessMatterBlockEntity(BlockPos pos, BlockState state) {
         super(MatterBlocks.FORMLESS_MATTER.get(), pos, state);
@@ -42,15 +39,9 @@ public final class FormlessMatterBlockEntity extends BlockEntity {
         return Optional.ofNullable(matter);
     }
 
-    /** The game time it falls apart at, or -1 when it holds together. */
-    public long fallsApartAt() {
-        return fallsApartAt;
-    }
-
-    /** Holds {@code matter}; an amalgam falls apart at {@code fallsApartAt} (-1 for matter that holds together). */
-    void hold(Matter matter, long fallsApartAt) {
+    /** Holds {@code matter}, exactly as it is. */
+    void hold(Matter matter) {
         this.matter = matter;
-        this.fallsApartAt = fallsApartAt;
         setChanged();
         if (level != null && !level.isClientSide) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
@@ -72,14 +63,12 @@ public final class FormlessMatterBlockEntity extends BlockEntity {
         tag.put(SHARES, shares);
         tag.putString(STATE, matter.state().name().toLowerCase(Locale.ROOT));
         tag.putDouble(UMU, matter.umu());
-        tag.putLong(FALLS_APART_AT, fallsApartAt);
     }
 
     @Override
     public void load(CompoundTag tag) {
         super.load(tag);
         matter = null;
-        fallsApartAt = tag.contains(FALLS_APART_AT) ? tag.getLong(FALLS_APART_AT) : -1L;
         if (!tag.contains(SHARES)) {
             return;
         }
@@ -135,9 +124,11 @@ public final class FormlessMatterBlockEntity extends BlockEntity {
 
     /** The colour of what it holds: the colours of its four aspects, blended in its proportion. */
     public int color() {
-        if (matter == null) {
-            return 0x9A9A9A;
-        }
+        return matter == null ? 0x9A9A9A : colorOf(matter);
+    }
+
+    /** The colour of any matter: the colours of its four aspects, blended in its proportion. */
+    public static int colorOf(Matter matter) {
         double red = 0.0D;
         double green = 0.0D;
         double blue = 0.0D;

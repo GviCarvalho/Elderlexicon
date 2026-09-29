@@ -331,11 +331,11 @@ public final class SpellGameTests {
         castOrFail(helper, mage, "aqua quantum 1 " + pool + " ubis vocant");
         check(helper, formlessIn(helper).stream().allMatch(matter -> named(matter, "deepslate")),
                 "earth and a little water should be molten deepslate");
-        // One of air: that matches nothing, an amalgam.
+        // One of air: near no natural thing's code, formless matter with no name.
         castOrFail(helper, mage, "aura quantum 1 " + pool + " ubis vocant");
         check(helper, !formlessIn(helper).isEmpty()
-                && formlessIn(helper).stream().allMatch(matter -> matter.amalgam(Materials.get())),
-                "with air too it should be an amalgam");
+                && formlessIn(helper).stream().allMatch(matter -> matter.unnamed(Materials.get())),
+                "with air too it should have no name");
         // Two of fire: now it is stone's proportion. Molten stone is lava.
         castOrFail(helper, mage, "igni quantum 2 " + pool + " ubis vocant");
         check(helper, formlessIn(helper).isEmpty(), "no formless matter should be left: " + formlessIn(helper));
@@ -362,15 +362,36 @@ public final class SpellGameTests {
         Vec3 stand = helper.absoluteVec(new Vec3(0.5D, 1.0D, 0.5D));
         mage.moveTo(stand.x, stand.y, stand.z, 0.0F, 0.0F);
         // The liquids nearest (2, 1, 2), four UMU of them, taken and put at (2, 1, 4): a source of water and one of
-        // lava, brought to one place, mix (L4). Half stone and half water is no recipe: an amalgam.
+        // lava, brought to one place, mix (L4). Half stone and half water is near no natural thing's code.
         castOrFail(helper, mage, "aqua quantum 4 " + at(helper, 2, 1, 2) + " tenet " + at(helper, 2, 1, 4) + " ubis vocant");
         check(helper, countIn(helper, Blocks.WATER) == 0 && countIn(helper, Blocks.LAVA) == 0,
                 "the water and the lava should have been taken");
         List<Matter> brought = formlessIn(helper);
-        check(helper, !brought.isEmpty() && brought.stream().allMatch(matter -> matter.amalgam(Materials.get())),
-                "they should be one amalgam now: " + brought);
+        check(helper, !brought.isEmpty() && brought.stream().allMatch(matter -> matter.unnamed(Materials.get())),
+                "they should be one mixture with no name now: " + brought);
         double held = brought.stream().mapToDouble(Matter::umu).sum();
         check(helper, Math.abs(held - 4.5D) < 1.0E-6D, "all of both, 4.5 UMU, were " + held);
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY)
+    public static void fireThrownIntoAPoolBoilsItAway(GameTestHelper helper) {
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < 5; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.GLASS);
+            }
+        }
+        for (int x = 1; x <= 3; x++) {
+            helper.setBlock(new BlockPos(x, 1, 2), Blocks.WATER);
+        }
+        ServerPlayer mage = mage(helper);
+        Vec3 stand = helper.absoluteVec(new Vec3(0.5D, 1.0D, 0.5D));
+        mage.moveTo(stand.x, stand.y, stand.z, 0.0F, 0.0F);
+        // Nine UMU of water and six of fire: six of each boil off as vapour, and three of water stay, one source.
+        castOrFail(helper, mage, "igni quantum 6 " + at(helper, 2, 1, 2) + " ubis vocant");
+        int water = countIn(helper, Blocks.WATER);
+        check(helper, water == 1, "the pool should boil down to one source, were " + water);
+        check(helper, formlessIn(helper).isEmpty(), "nothing formless: water is water");
         helper.succeed();
     }
 
@@ -382,6 +403,37 @@ public final class SpellGameTests {
         if (!holds) {
             helper.fail(what);
         }
+    }
+
+    /**
+     * Condensation still holds (docs/condensacao-design.md): everything taken from the world in reach and released in
+     * one instant appears as one block as dense as all of it, not as more loose soil.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 200)
+    public static void earthTakenAllAndReleasedAtOnceIsCondensed(GameTestHelper helper) {
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < 5; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.GLASS);
+            }
+        }
+        for (int x = 0; x < 5; x++) {
+            for (int z = 3; z < 5; z++) {
+                helper.setBlock(new BlockPos(x, 1, z), Blocks.DIRT);
+                helper.setBlock(new BlockPos(x, 2, z), Blocks.DIRT);
+            }
+        }
+        ServerPlayer mage = mage(helper);
+        Vec3 stand = helper.absoluteVec(new Vec3(0.5D, 1.0D, 0.5D));
+        mage.moveTo(stand.x, stand.y, stand.z, 0.0F, 0.0F);
+        castOrFail(helper, mage, "firmo " + at(helper, 2, 2, 4) + " tenet quantum chronos 0 " + at(helper, 2, 1, 1)
+                + " ubis vocant");
+        helper.succeedWhen(() -> {
+            check(helper, countIn(helper, Blocks.DIRT) == 0, "the earth in reach should all be taken");
+            // Twenty blocks of soil pressed into one are denser than any rock: a well of gravity (crying obsidian).
+            int dense = countIn(helper, Blocks.STONE) + countIn(helper, Blocks.DEEPSLATE)
+                    + countIn(helper, Blocks.OBSIDIAN) + countIn(helper, Blocks.CRYING_OBSIDIAN);
+            check(helper, dense == 1, "one block as dense as all of it, were " + dense);
+        });
     }
 
     @GameTest(template = EMPTY)

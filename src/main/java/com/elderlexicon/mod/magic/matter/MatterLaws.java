@@ -19,9 +19,11 @@ import java.util.Optional;
  *       costs nothing, going back into it costs the whole ladder.</li>
  *   <li><b>Body.</b> The body keeps energy, not matter: what it takes in loses its substance and enters the Vita as the
  *       aspect of the state it was in; what leaves it with no recipe is the primordial of its state.</li>
- *   <li><b>Mixing.</b> Fluid portions in one place mix into one, in the proportion of their UMU; what that proportion
- *       matches is what they become. Solids do not mix (a bond joins them).</li>
- *   <li><b>Amalgam.</b> A mixture that matches no recipe falls back apart into its primordials.</li>
+ *   <li><b>Mixing.</b> Fluid portions in one place mix into one, in the proportion of their UMU. What the mixture is
+ *       like comes from what it holds ({@link Qualities}); near the code of a natural thing it shows as that thing.
+ *       Solids do not mix (a bond joins them).</li>
+ *   <li><b>Opposites.</b> In a fluid, opposite aspects react: as much of one as of the other separates out as a gas
+ *       (docs/plano-materia-emergente.md). There is no recipe to match: any mixture is matter.</li>
  * </ol>
  */
 public final class MatterLaws {
@@ -128,19 +130,55 @@ public final class MatterLaws {
         return Optional.of(new Matter(Composition.of(amounts), state, total));
     }
 
-    // ------------------------------------------------------------------ L5: the amalgam
+    // ------------------------------------------------------------------ L5: opposites react
+
+    /** Two opposite aspects react once each is more than this much of a fluid. */
+    public static final double REACTS = 0.10D;
 
     /**
-     * L5: what matter is once it settles. A substance stays as it is; an amalgam falls back apart into its primordials,
-     * each in the state it is found in, with all its UMU.
+     * What a reaction leaves: the matter that stays, and what separated out of it as a gas; either may be absent.
      */
-    public static List<Matter> decay(MaterialTable table, Matter matter) {
-        if (!matter.amalgam(table)) {
-            return List.of(matter);
+    public record Reaction(Optional<Matter> remains, Optional<Matter> released) {
+
+        public boolean reacted() {
+            return released.isPresent();
         }
-        List<Matter> parts = new ArrayList<>();
-        matter.composition().split(matter.umu()).forEach((aspect, umu) ->
-                parts.add(Matter.natural(table.primordial(aspect), umu)));
-        return parts;
+    }
+
+    /**
+     * L5 (docs/plano-materia-emergente.md, section 3): in a fluid, where the parts move, opposite aspects that are each
+     * more than {@link #REACTS} of it react. As much of one as of the other separates out as a gas and goes: fire and
+     * water boil into vapour, earth and air scatter as dust. What stays is the side that won with the rest; nothing is
+     * lost (L1). A solid holds its parts still and does not react, and a gas is already what a reaction lets out.
+     */
+    public static Reaction react(Matter matter) {
+        if (matter.state() != State.LIQUID && matter.state() != State.PLASMA || matter.umu() <= 0.0D) {
+            return new Reaction(Optional.of(matter), Optional.empty());
+        }
+        Map<VitaElement, Double> amounts = new EnumMap<>(matter.composition().split(matter.umu()));
+        Map<VitaElement, Double> released = new EnumMap<>(VitaElement.class);
+        for (VitaElement[] pair : new VitaElement[][] {{VitaElement.IGNI, VitaElement.AQUA},
+                {VitaElement.FIRMO, VitaElement.AURA}}) {
+            double one = matter.composition().share(pair[0]);
+            double other = matter.composition().share(pair[1]);
+            if (one <= REACTS || other <= REACTS) {
+                continue;
+            }
+            double each = Math.min(one, other) * matter.umu();
+            for (VitaElement aspect : pair) {
+                amounts.merge(aspect, -each, Double::sum);
+                released.merge(aspect, each, Double::sum);
+            }
+        }
+        if (released.isEmpty()) {
+            return new Reaction(Optional.of(matter), Optional.empty());
+        }
+        double gone = released.values().stream().mapToDouble(Double::doubleValue).sum();
+        double left = Math.max(0.0D, matter.umu() - gone);
+        amounts.replaceAll((aspect, amount) -> Math.max(0.0D, amount));
+        Optional<Matter> remains = left > 1.0E-9D && amounts.values().stream().anyMatch(amount -> amount > 1.0E-9D)
+                ? Optional.of(new Matter(Composition.of(amounts), matter.state(), left))
+                : Optional.empty();
+        return new Reaction(remains, Optional.of(new Matter(Composition.of(released), State.GAS, gone)));
     }
 }

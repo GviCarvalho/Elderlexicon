@@ -6,21 +6,20 @@ import java.util.Optional;
 
 /**
  * How a portion of matter goes into the world, worked out before the world is touched (docs/plano-materia-e-forca.md,
- * stages 3 and 5). What it is decides how it shows:
+ * stage 3, and docs/plano-materia-emergente.md). First its opposites react (L5): what separates out goes as a gas of its
+ * own. Then what it is decides how it shows:
  * <ul>
- *   <li>a substance in a state the data gives a look: whole blocks or items of it, or a show of particles or a creature
- *       for what floats; only whole blocks and items are placed, and what does not make one is left over, never lost
- *       (L1);</li>
- *   <li>a solid or a liquid with no look (molten earth, an amalgam): formless matter, blocks that hold it exactly as it
- *       is, so nothing is left over. An amalgam stays so until it falls apart (L5);</li>
- *   <li>an amalgam that floats (a gas, a plasma) goes into the world falling apart as it goes: each of its primordials is
- *       placed as what it is.</li>
+ *   <li>near the code of a natural thing that has a look in its state: whole blocks or items of it, or a show of
+ *       particles or a creature for what floats; only whole blocks and items are placed, and what does not make one is
+ *       left over, never lost (L1);</li>
+ *   <li>anything else is formless matter: blocks that hold it exactly as it is, for a solid or a liquid (molten earth,
+ *       a mixture with no name), or a show of its own colour for what floats. Nothing of it is left over.</li>
  * </ul>
  *
  * @param matter    what is placed
- * @param substance what it is; null for an amalgam
- * @param form      how it shows there; null when it is formless, or when nothing shows it at all
- * @param units     how many blocks or items (formless blocks, when formless); 1 for particles or a creature
+ * @param substance the natural thing it is; null for a mixture with no name
+ * @param form      how it shows there; null when it is formless
+ * @param units     how many blocks or items (formless blocks, when formless); 1 for what floats
  * @param placed    the UMU that goes into the world
  * @param leftover  the UMU that does not make a whole unit, for whoever placed it to keep
  * @param formless  it shows as formless matter
@@ -35,39 +34,35 @@ public record Placement(Matter matter, Substance substance, Form form, int units
         return matter.state();
     }
 
-    /** Whether it is an amalgam, which falls apart with time (L5). */
-    public boolean amalgam() {
+    /** Whether it is a mixture with no name: near the code of no natural thing. */
+    public boolean unnamed() {
         return substance == null;
     }
 
-    /** How {@code matter} goes into the world. */
+    /** Whether it floats off into the world (a gas, a plasma) rather than taking room in it. */
+    public boolean floats() {
+        return MaterialTable.floats(matter.state());
+    }
+
+    /** How {@code matter} goes into the world: what its opposites let out, then what stays. */
     public static List<Placement> plan(MaterialTable table, Matter matter) {
         List<Placement> placements = new ArrayList<>();
         if (matter.umu() <= EPSILON) {
             return placements;
         }
-        Optional<Substance> substance = matter.substance(table);
-        if (substance.isEmpty()) {
-            if (MaterialTable.floats(matter.state())) {
-                // Floating off, an amalgam comes apart as it goes: each part is placed as what it is.
-                for (Matter part : MatterLaws.decay(table, matter)) {
-                    placements.addAll(plan(table, part));
-                }
-                return placements;
-            }
-            placements.add(formless(table, matter, null));
-            return placements;
-        }
-        Optional<Form> form = table.form(substance.get(), matter.state());
-        if (form.isPresent()) {
-            placements.add(of(matter, substance.get(), form.get()));
-        } else if (!MaterialTable.floats(matter.state())) {
-            placements.add(formless(table, matter, substance.get()));
-        } else {
-            // Nothing shows it at all: it stays with whoever placed it.
-            placements.add(new Placement(matter, substance.get(), null, 0, 0.0D, matter.umu(), false));
-        }
+        MatterLaws.Reaction reaction = MatterLaws.react(matter);
+        reaction.released().ifPresent(gas -> placements.add(placementOf(table, gas)));
+        reaction.remains().ifPresent(rest -> placements.add(placementOf(table, rest)));
         return placements;
+    }
+
+    private static Placement placementOf(MaterialTable table, Matter matter) {
+        Optional<Substance> substance = matter.substance(table);
+        Optional<Form> form = substance.flatMap(found -> table.form(found, matter.state()));
+        if (form.isPresent()) {
+            return of(matter, substance.get(), form.get());
+        }
+        return formless(table, matter, substance.orElse(null));
     }
 
     private static Placement of(Matter matter, Substance substance, Form form) {
@@ -82,10 +77,13 @@ public record Placement(Matter matter, Substance substance, Form form, int units
     }
 
     /**
-     * Formless matter: as many blocks as it fills (at least one), each holding its share of it exactly, so none of it is
-     * left over.
+     * Formless matter: for a solid or a liquid, as many blocks as it fills (at least one), each holding its share
+     * exactly; what floats goes into the world whole, a show of its own colour.
      */
     private static Placement formless(MaterialTable table, Matter matter, Substance substance) {
+        if (MaterialTable.floats(matter.state())) {
+            return new Placement(matter, substance, null, 1, matter.umu(), 0.0D, true);
+        }
         int units = (int) Math.max(1L, Math.round(matter.umu() / table.unitOf(matter)));
         return new Placement(matter, substance, null, units, matter.umu(), 0.0D, true);
     }

@@ -28,8 +28,7 @@ import java.util.Map;
  * </pre>
  * A recipe gives each primordial by its aspect, in any proportion (they are normalized). A block holds the substance's
  * unit; an item, a ninth of it unless it says its own {@code umu}. A gas or a plasma with no forms shows as the nearest
- * state that has some; a solid or a liquid with none is formless matter. {@code amalgam.seconds} is how long an amalgam
- * holds together before it falls apart.
+ * state that has some; a solid or a liquid with none is formless matter.
  */
 public final class MaterialTableReader {
 
@@ -47,9 +46,6 @@ public final class MaterialTableReader {
         JsonObject root = parsed.getAsJsonObject();
         if (root.has("remove")) {
             root.getAsJsonArray("remove").forEach(id -> into.remove(id.getAsString()));
-        }
-        if (root.has("amalgam") && root.getAsJsonObject("amalgam").has("seconds")) {
-            into.amalgamSeconds(root.getAsJsonObject("amalgam").get("seconds").getAsDouble());
         }
         if (root.has("substances")) {
             for (Map.Entry<String, JsonElement> entry : root.getAsJsonObject("substances").entrySet()) {

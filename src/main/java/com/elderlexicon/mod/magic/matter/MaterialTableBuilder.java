@@ -19,7 +19,6 @@ import java.util.Map;
 public final class MaterialTableBuilder {
 
     private final Map<String, Substance> substances = new LinkedHashMap<>();
-    private double amalgamSeconds = MaterialTable.DEFAULT_AMALGAM_SECONDS;
 
     private MaterialTableBuilder() {
     }
@@ -32,22 +31,12 @@ public final class MaterialTableBuilder {
     public static MaterialTableBuilder from(MaterialTable table) {
         MaterialTableBuilder builder = new MaterialTableBuilder();
         table.substances().forEach(builder::substance);
-        builder.amalgamSeconds = table.amalgamSeconds();
         return builder;
     }
 
     /** Adds a substance, or gives an existing one a new recipe or new forms. */
     public MaterialTableBuilder substance(Substance substance) {
         substances.put(normalize(substance.id()), substance);
-        return this;
-    }
-
-    /** How long an amalgam holds together before it falls apart (L5), in seconds. */
-    public MaterialTableBuilder amalgamSeconds(double seconds) {
-        if (!(seconds > 0.0D)) {
-            throw new IllegalArgumentException("an amalgam must hold together for some time, not " + seconds + " s");
-        }
-        this.amalgamSeconds = seconds;
         return this;
     }
 
@@ -124,7 +113,7 @@ public final class MaterialTableBuilder {
         if (!problems.isEmpty()) {
             throw new IllegalStateException("The matter does not hold together: " + String.join("; ", problems));
         }
-        return new MaterialTable(substances, amalgamSeconds);
+        return new MaterialTable(substances);
     }
 
     static String normalize(String id) {

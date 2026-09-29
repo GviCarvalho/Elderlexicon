@@ -19,11 +19,8 @@ public final class MaterialTable {
 
     /** How far a mixture may be from a recipe and still be that substance: five points of each share. */
     public static final double TOLERANCE = 0.05D;
-    /** How long an amalgam holds together before it falls apart (L5), when the data does not say. */
-    public static final double DEFAULT_AMALGAM_SECONDS = 20.0D;
 
     private final Map<String, Substance> substances;
-    private final double amalgamSeconds;
     private final Map<VitaElement, Substance> primordials;
     private final Map<String, Reading> readings;
 
@@ -35,9 +32,8 @@ public final class MaterialTable {
         }
     }
 
-    MaterialTable(Map<String, Substance> substances, double amalgamSeconds) {
+    MaterialTable(Map<String, Substance> substances) {
         this.substances = Collections.unmodifiableMap(new LinkedHashMap<>(substances));
-        this.amalgamSeconds = amalgamSeconds > 0.0D ? amalgamSeconds : DEFAULT_AMALGAM_SECONDS;
         EnumMap<VitaElement, Substance> firsts = new EnumMap<>(VitaElement.class);
         Map<String, Reading> read = new LinkedHashMap<>();
         for (Substance substance : substances.values()) {
@@ -58,13 +54,8 @@ public final class MaterialTable {
         return substances.values();
     }
 
-    /** How long an amalgam holds together before it falls back apart into its primordials (L5), in seconds. */
-    public double amalgamSeconds() {
-        return amalgamSeconds;
-    }
-
     /**
-     * The UMU one block of this matter holds: its substance's unit or, for an amalgam, what its primordials hold in the
+     * The UMU one block of this matter holds: its substance's unit or, for a mixture with no name, what its primordials hold in the
      * room they fill together (each share of it takes the room it would take alone), so mixing keeps the room.
      */
     public double unitOf(Matter matter) {
@@ -94,7 +85,7 @@ public final class MaterialTable {
 
     /**
      * The substance a composition is: the recipe nearest to it, if within {@link #TOLERANCE} of every share; empty when
-     * none is (an amalgam).
+     * none is (a mixture with no name).
      */
     public Optional<Substance> identify(Composition composition) {
         Substance nearest = null;

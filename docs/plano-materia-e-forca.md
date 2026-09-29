@@ -238,6 +238,10 @@ A ponte com o mundo fica em `spell/matter/WorldMatter`, e o plano de como a mat�
 
 ## 6.4 Como a etapa 5 ficou
 
+> **Substituído em parte por `plano-materia-emergente.md`:** não há mais receita nem amálgama que se desfaz por
+> tempo. Toda mistura é matéria e age pelas qualidades; os opostos num fluido reagem. O resto desta seção (matéria
+> informe, derramar, transferir junta) continua valendo.
+
 - **Matéria informe:** um bloco novo (`formless_solid` e `formless_liquid`) guarda a matéria exatamente como ela é, com
   composição, estado e UMU, num block entity. A cor é a mistura das cores dos quatro aspectos: terra marrom, água azul,
   ar claro e fogo laranja. Ele aparece em dois casos:

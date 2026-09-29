@@ -146,19 +146,26 @@ The final source does not leak; its purpose is fulfilled. A function can be appe
 
 - `igni vertere aqua iactare` — Convert heat into water and evoke it immediately.
 
-### 5.3.1 Matter and Its Recipes
+### 5.3.1 Matter and Its Codes
 
-Every natural thing is a recipe: a proportion of the four elements. Earth, water, air and fire are the four primordial
-substances, each all of one element; mud, dust, mist, vapor, magma and lightning are the recipes the book teaches.
-Every other recipe — stone, iron, wood, bone — is found by trying.
+All matter is a proportion of the four elements, and any proportion is matter. There is no recipe to match: what a
+mixture does comes from what it holds.
 
-- **Mixing.** Fluid matter (anything but a solid) poured where fluid matter is mixes with it. If the proportion
-  matches a recipe, within a small tolerance, the mixture *becomes* that substance. Solids do not mix; they are joined
-  by `ligabis`.
-- **Amalgam.** A mixture that matches no recipe is an amalgam: formless, trembling, it holds together only for a while
-  and then falls back apart into its primordials, losing nothing.
+- **Codes.** Every natural thing has a code, the proportion it is made of: stone is mostly earth, with a little water,
+  air and fire. Earth, water, air and fire are the four primordials; mud, dust, mist, vapor, magma and lightning are the
+  codes the book teaches. Every other code — stone, iron, wood, bone — is found by trying.
+- **Qualities.** Each element gives matter a quality in the proportion it is in it: earth weight, water cohesion, air
+  lightness, fire heat. Hot matter burns what touches it and kindles what is around; wet matter puts fire out; heavy
+  liquid is thick to wade through. A quality acts only once it is a real part of the matter: a little fire in stone does
+  not burn.
+- **Mixing.** Fluid matter (anything but a solid) poured where fluid matter is mixes with it. A mixture near a natural
+  thing's code *becomes* that thing; any other mixture is formless matter, which holds and acts by its qualities. Solids
+  do not mix; they are joined by `ligabis`.
+- **Opposites.** In a fluid, fire and water, and earth and air, react when each is a real part of it: as much of one as of
+  the other separates out as a gas, and the side that won stays. Fire poured into a pool boils it away; earth stirred
+  with air scatters as dust. A solid holds its parts still and does not react.
 - **The body keeps energy, not matter.** What the body absorbs loses what it was and enters it as the element of the
-  state it was in; what leaves it with no recipe known is the primordial of its state (`firmo vocant` brings earth).
+  state it was in; what leaves it with no code known is the primordial of its state (`firmo vocant` brings earth).
 
 ### 5.4 Custom Runes with `reframe`
 
