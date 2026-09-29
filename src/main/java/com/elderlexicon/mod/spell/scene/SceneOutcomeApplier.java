@@ -206,6 +206,7 @@ final class SceneOutcomeApplier {
 
     private static void burst(ServerLevel level, Vec3 at, double energy, @Nullable ServerPlayer attacker) {
         float power = (float) Mth.clamp(Math.sqrt(energy) * BURST_POWER_PER_SQRT_UMU, MIN_BURST_POWER, MAX_BURST_POWER);
-        level.explode(attacker, at.x, at.y, at.z, power, Level.ExplosionInteraction.MOB);
+        level.explode(attacker, at.x, at.y, at.z, power,
+                com.elderlexicon.mod.spell.function.Impacts.explosions());
     }
 }

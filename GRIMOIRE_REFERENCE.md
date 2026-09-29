@@ -118,6 +118,14 @@ A filter governs the function written right after it. A value may be written bef
   reach; marks and numbers written before `tenet` say where from (`firmo m1 tenet`).
 - **Force on a raw source.** With nothing materialized, a force releases the source as a flow of its state: fire as a
   heat wave, air as a gust, water as a jet, earth as a shock through the ground, vis as a pure push.
+- **Impact.** What a force throws strikes with the energy of its motion: half its mass times its speed squared. Earth
+  weighs, water half as much, fire and air almost nothing. The blow hurts and pushes what it hits, breaks the blocks it
+  can pay for by their hardness, and is heard louder and deeper the harder it is; strong enough, it goes off like an
+  explosion. Hot things burn where they strike, wet things put fire out. Servers choose whether magic breaks blocks
+  (`magic.breaksBlocks`: `ALWAYS`, `NEVER`, or `MOB_GRIEFING` to follow the world's rule).
+- **A condensation handed on.** `firmo tenet quantum chronos 0 vocant iactare` gathers all the earth in reach into an
+  orb before the hand; the `iactare` hurls that orb, and it is released where it strikes as one block as dense as all
+  of it.
 
 The three functions of force and matter:
 

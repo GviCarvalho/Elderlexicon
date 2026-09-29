@@ -235,7 +235,7 @@ public final class AirSpots {
 
     /** The pressure going all at once: an explosion with no fire and a shock that throws everything away. */
     public static void bomb(ServerLevel level, ServerPlayer caster, Vec3 at, double pressure) {
-        level.explode(caster, at.x, at.y, at.z, AirPressure.bomb(pressure), false, Level.ExplosionInteraction.BLOCK);
+        level.explode(caster, at.x, at.y, at.z, AirPressure.bomb(pressure), false, Impacts.explosions());
         throwAway(level, caster, at, AirPressure.reach(pressure), AirPressure.push(pressure), true);
         level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, at.x, at.y, at.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
         level.sendParticles(ParticleTypes.CLOUD, at.x, at.y, at.z, 60, 1.5D, 1.0D, 1.5D, 0.4D);

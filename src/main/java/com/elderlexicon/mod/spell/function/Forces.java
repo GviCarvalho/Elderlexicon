@@ -23,7 +23,8 @@ import java.util.Optional;
  *   <li>{@code impediunt}: away from the centre, the ubis written before it or the mage;</li>
  *   <li>turned around (a negative quantity), the other way.</li>
  * </ul>
- * The quantity is the energy of the push: more of it, faster the product flies.
+ * The quantity is the energy of the push: more of it, faster the product flies. Where it strikes, the energy of its
+ * motion is a blow ({@link Impacts}): heavy matter thrown fast hurts, breaks and is heard.
  */
 final class Forces {
 
@@ -68,10 +69,19 @@ final class Forces {
             ServerLevel level = product.level();
             Vec3 from = product.at();
             Vec3 direction = direction(player, push, from, written.map(MarkSpells.Destination::point));
-            ElementOrb orb = ElementOrb.gathering(level, player, List.of(product.element()), product.umu(), 0,
-                    () -> from, 1);
-            level.addFreshEntity(orb);
-            orb.strike(direction.scale(speed), hit -> product.arrive(impactOf(hit)));
+            // A condensation flies as the orb it was gathered into; anything else, as an orb of what it is.
+            ElementOrb orb = product.orb();
+            if (orb == null) {
+                orb = ElementOrb.gathering(level, player, List.of(product.element()), product.umu(), 0, () -> from, 1);
+                level.addFreshEntity(orb);
+            }
+            ElementOrb flying = orb;
+            flying.strike(direction.scale(speed), hit -> {
+                // It strikes with the energy of its motion (the law of impact), then does what it does where it lands.
+                SpellEffects.SpellImpact impact = impactOf(hit);
+                Impacts.strike(level, player, impact, product.qualities(), product.umu(), flying.getDeltaMovement());
+                product.arrive(impact);
+            });
         });
         return true;
     }
