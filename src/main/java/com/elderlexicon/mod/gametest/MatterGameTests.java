@@ -124,37 +124,73 @@ public final class MatterGameTests {
         return held;
     }
 
-    @GameTest(template = EMPTY, timeoutTicks = 600)
-    public static void anAmalgamHoldsAWhileAndThenFallsApartIntoItsParts(GameTestHelper helper) {
+    private static void glassFloor(GameTestHelper helper) {
         for (int x = 0; x < 5; x++) {
             for (int z = 0; z < 5; z++) {
                 helper.setBlock(new BlockPos(x, 0, z), Blocks.GLASS);
             }
         }
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 200)
+    public static void aMixtureWithNoNameHoldsAsItIs(GameTestHelper helper) {
+        glassFloor(helper);
         MaterialTable table = Materials.get();
-        Matter amalgam = MatterLaws.mix(List.of(
+        Matter mixed = MatterLaws.mix(List.of(
                 Matter.of(table.primordial(VitaElement.FIRMO), State.LIQUID, 1.0D),
                 Matter.of(table.primordial(VitaElement.AQUA), State.LIQUID, 9.0D))).orElseThrow();
         WorldMatter.Placed placed = WorldMatter.place(helper.getLevel(), helper.absolutePos(new BlockPos(2, 1, 2)),
-                amalgam);
-        // L5: it matches no recipe, so it is formless matter that holds for a while: all of it, in five blocks (two of
-        // molten earth and three of water fill five together).
-        check(helper, placed.blocks().size() == 5, "five blocks of amalgam, were " + placed.blocks().size());
-        close(helper, 10.0D, placed.placed(), "all of it placed");
+                mixed);
+        // Near no natural thing's code, it is still matter: all of it, in five blocks (two of molten earth and three of
+        // water fill five together), and it does not come apart.
+        check(helper, placed.blocks().size() == 5, "five blocks, were " + placed.blocks().size());
         close(helper, 10.0D, formlessUmu(helper), "held as it is");
-        check(helper, placed.blocks().stream().allMatch(pos ->
-                helper.getLevel().getBlockState(pos).getValue(FormlessMatterBlock.UNSTABLE)), "and unstable");
-        // Halfway through its time it still holds, all of it.
-        int halfway = WorldMatter.amalgamTicks() / 2;
-        helper.runAtTickTime(halfway, () -> close(helper, 10.0D, formlessUmu(helper), "halfway, it should still hold"));
-        // When its time is up it falls apart, all at once: into two blocks of soil and three sources of water.
-        helper.succeedWhen(() -> {
-            check(helper, helper.getTick() >= WorldMatter.amalgamTicks(), "its time is not up yet");
-            check(helper, formlessUmu(helper) < 1.0E-6D, "the amalgam still holds");
-            check(helper, count(helper, Blocks.DIRT) == 2 && count(helper, Blocks.WATER) == 3,
-                    "two blocks of soil and three of water, were " + count(helper, Blocks.DIRT) + " and "
-                            + count(helper, Blocks.WATER));
+        helper.runAtTickTime(150, () -> {
+            close(helper, 10.0D, formlessUmu(helper), "still all there");
+            helper.succeed();
         });
+    }
+
+    @GameTest(template = EMPTY)
+    public static void fireAndWaterInOneLiquidBoil(GameTestHelper helper) {
+        glassFloor(helper);
+        MaterialTable table = Materials.get();
+        Matter hot = MatterLaws.mix(List.of(
+                Matter.of(table.primordial(VitaElement.AQUA), State.LIQUID, 6.0D),
+                Matter.of(table.primordial(VitaElement.IGNI), State.PLASMA, 3.0D))).orElseThrow();
+        WorldMatter.Placed placed = WorldMatter.place(helper.getLevel(), helper.absolutePos(new BlockPos(2, 1, 2)), hot);
+        // L5: three of each boil off as vapour; the three of water left are one source of water.
+        check(helper, count(helper, Blocks.WATER) == 1, "one source of water left, were " + count(helper, Blocks.WATER));
+        close(helper, 9.0D, placed.placed() + placed.leftover(), "nothing is lost");
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 100)
+    public static void aHotMixtureBurnsWhatWadesIntoIt(GameTestHelper helper) {
+        glassFloor(helper);
+        Matter molten = new Matter(com.elderlexicon.mod.magic.matter.Composition.of(java.util.Map.of(
+                VitaElement.FIRMO, 0.45D, VitaElement.IGNI, 0.45D, VitaElement.AURA, 0.1D)), State.LIQUID, 2.0D);
+        check(helper, molten.unnamed(Materials.get()), "a mixture with no name");
+        WorldMatter.place(helper.getLevel(), helper.absolutePos(new BlockPos(2, 1, 2)), molten);
+        check(helper, helper.getLevel().getBlockState(helper.absolutePos(new BlockPos(2, 1, 2)))
+                .getValue(FormlessMatterBlock.GLOW) > 0, "it glows with its heat");
+        net.minecraft.world.entity.animal.Pig pig = helper.spawn(net.minecraft.world.entity.EntityType.PIG,
+                new BlockPos(2, 1, 2));
+        float health = pig.getHealth();
+        helper.succeedWhen(() -> check(helper, pig.isOnFire() || pig.getHealth() < health,
+                "no one wrote magma, but it is hot: it burns"));
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 100)
+    public static void aWetMixturePutsOutFire(GameTestHelper helper) {
+        glassFloor(helper);
+        Matter wet = new Matter(com.elderlexicon.mod.magic.matter.Composition.of(java.util.Map.of(
+                VitaElement.AQUA, 0.6D, VitaElement.FIRMO, 0.4D)), State.LIQUID, 2.0D);
+        WorldMatter.place(helper.getLevel(), helper.absolutePos(new BlockPos(2, 1, 2)), wet);
+        net.minecraft.world.entity.animal.Pig pig = helper.spawn(net.minecraft.world.entity.EntityType.PIG,
+                new BlockPos(2, 1, 2));
+        pig.setSecondsOnFire(10);
+        helper.succeedWhen(() -> check(helper, !pig.isOnFire(), "wet, it puts out the fire on what is in it"));
     }
 
     @GameTest(template = EMPTY)
@@ -165,8 +201,8 @@ public final class MatterGameTests {
         check(helper, placed.blocks().size() == 4, "two UMU of earth fill four blocks, were " + placed.blocks().size());
         for (BlockPos pos : placed.blocks()) {
             check(helper, helper.getLevel().getBlockState(pos).is(MatterBlocks.FORMLESS_LIQUID.get()), "formless");
-            check(helper, !helper.getLevel().getBlockState(pos).getValue(FormlessMatterBlock.UNSTABLE),
-                    "molten earth is earth: it holds together");
+            check(helper, helper.getLevel().getBlockState(pos).getValue(FormlessMatterBlock.GLOW) == 0,
+                    "molten earth has no fire in it: it does not glow");
         }
         Matter read = WorldMatter.read(helper.getLevel(), placed.blocks().get(0)).orElseThrow();
         check(helper, read.state() == State.LIQUID
@@ -187,9 +223,9 @@ public final class MatterGameTests {
         BlockPos at = helper.absolutePos(new BlockPos(2, 1, 2));
         Matter water = Matter.of(Materials.get().primordial(VitaElement.AQUA), State.LIQUID, 3.0D);
         WorldMatter.Placed placed = WorldMatter.place(helper.getLevel(), at, water);
-        // Three UMU of stone and three of water are half water: no recipe is that, so the pool is an amalgam now.
+        // Three UMU of stone and three of water are half water: near no natural thing's code, formless now.
         Matter mixture = placed.mixed().orElseThrow();
-        check(helper, mixture.amalgam(Materials.get()), "an amalgam");
+        check(helper, mixture.unnamed(Materials.get()), "a mixture with no name");
         close(helper, 6.0D, mixture.umu(), "all of the lava and the water");
         check(helper, count(helper, Blocks.LAVA) == 0, "the lava was taken into it");
         close(helper, 6.0D, formlessUmu(helper), "held as formless matter");

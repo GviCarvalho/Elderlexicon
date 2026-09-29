@@ -5,8 +5,9 @@ import java.util.Optional;
 
 /**
  * A portion of matter: what it is made of, the state it is in and how much of it there is. What it is (its substance)
- * is not written on it: it is the recipe its composition matches ({@link MaterialTable#identify}), so matter mixed into
- * the right proportion becomes that substance, and matter that matches none is an amalgam (L5).
+ * is not written on it: it is the natural thing whose code its composition is near ({@link MaterialTable#identify}), so
+ * matter mixed into the right proportion becomes that thing. Matter near no code is still matter, formless, and behaves by
+ * what it holds ({@link Qualities}).
  *
  * @param composition what it is made of
  * @param state       how it is
@@ -30,13 +31,13 @@ public record Matter(Composition composition, State state, double umu) {
         return of(substance, substance.nature(), umu);
     }
 
-    /** What it is, if its composition matches a recipe; empty for an amalgam. */
+    /** What natural thing it is, if its composition is near that thing's code; empty when it is near none. */
     public Optional<Substance> substance(MaterialTable table) {
         return table.identify(composition);
     }
 
-    /** Whether it matches no recipe: an amalgam, which falls back apart with time (L5). */
-    public boolean amalgam(MaterialTable table) {
+    /** Whether it is near the code of no natural thing: a mixture with no name, formless in the world. */
+    public boolean unnamed(MaterialTable table) {
         return substance(table).isEmpty();
     }
 

@@ -6,10 +6,12 @@ import com.elderlexicon.mod.magic.matter.Materials;
 import com.elderlexicon.mod.magic.matter.Matter;
 import com.elderlexicon.mod.magic.matter.MatterLaws;
 import com.elderlexicon.mod.magic.matter.Placement;
+import com.elderlexicon.mod.magic.matter.Qualities;
 import com.elderlexicon.mod.magic.matter.Substance;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
@@ -28,6 +30,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.registries.ForgeRegistries;
+import org.joml.Vector3f;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -40,8 +43,8 @@ import java.util.Set;
  * The world read as matter, and matter put into the world, by the material table in force
  * (docs/plano-materia-e-forca.md, stages 3 and 5). Nothing here knows one substance from another: a block is what the
  * table reads it as, and matter shows as the form the table gives its substance in its state, or as formless matter
- * ({@link FormlessMatterBlock}) when it has none there. Fluid matter put where fluid matter is mixes with it (L4); an
- * amalgam falls apart with time (L5).
+ * ({@link FormlessMatterBlock}) when it has none there. Fluid matter put where fluid matter is mixes with it (L4), and
+ * the opposites in a fluid react (L5, docs/plano-materia-emergente.md).
  */
 public final class WorldMatter {
 
@@ -160,7 +163,8 @@ public final class WorldMatter {
      * L4: {@code poured} mixes with the body of fluid matter at {@code at} (the blocks of the same matter joined to it,
      * nearest first, up to {@link #MAX_BODY}). When the mixture is still what the body was, as with water poured into
      * water, the body stays and what was poured is added to it as more of it; otherwise the body is taken up and the
-     * mixture put in its place: a substance, if it matches a recipe, or an amalgam.
+     * mixture put in its place: as a natural thing, near its code, or as formless matter; either way its opposites
+     * react first.
      */
     public static Placed pour(ServerLevel level, BlockPos at, Matter poured) {
         Optional<Matter> there = read(level, at);
@@ -218,6 +222,11 @@ public final class WorldMatter {
         return body;
     }
 
+    /** Whether two portions are the same matter: the same composition, in the same state. */
+    private static boolean same(Matter one, Matter other) {
+        return one.state() == other.state() && one.composition().distance(other.composition()) <= 1.0E-6D;
+    }
+
     /**
      * Lays matter down at {@code at}, mixing with nothing: whole blocks from there into the free room nearest it, items
      * dropped there, a gas shown there, formless matter where it has no look.
@@ -228,6 +237,12 @@ public final class WorldMatter {
         List<BlockPos> blocks = new ArrayList<>();
         for (Placement placement : Placement.plan(table(), matter)) {
             leftover += placement.leftover();
+            if (placement.formless() && placement.floats()) {
+                // A gas with no look of its own: a cloud of its colour, which spreads into the air.
+                cloud(level, at, placement.matter());
+                placed += placement.placed();
+                continue;
+            }
             if (placement.formless()) {
                 List<BlockPos> room = formless(level, at, placement);
                 double each = placement.placed() / placement.units();
@@ -304,105 +319,42 @@ public final class WorldMatter {
 
     /**
      * Lays formless matter: as many blocks as the placement fills, from {@code at} into the free room nearest it, each
-     * holding its share exactly. An amalgam is set to fall apart when its time is up (L5). Returns where it went.
+     * holding its share exactly and glowing with its heat. Returns where it went.
      */
     private static List<BlockPos> formless(ServerLevel level, BlockPos at, Placement placement) {
         boolean liquid = placement.state() != com.elderlexicon.mod.magic.matter.State.SOLID;
         BlockState block = (liquid ? MatterBlocks.FORMLESS_LIQUID.get() : MatterBlocks.FORMLESS_SOLID.get())
-                .defaultBlockState().setValue(FormlessMatterBlock.UNSTABLE, placement.amalgam());
+                .defaultBlockState().setValue(FormlessMatterBlock.GLOW, Qualities.of(placement.matter()).glow());
         List<BlockPos> room = room(level, at, block, placement.units());
         Matter share = placement.matter().withUmu(placement.placed() / placement.units());
-        int ticks = amalgamTicks();
-        long fallsApartAt = placement.amalgam() ? level.getGameTime() + ticks : -1L;
         for (BlockPos pos : room) {
             level.setBlock(pos, block, Block.UPDATE_ALL);
             if (level.getBlockEntity(pos) instanceof FormlessMatterBlockEntity formless) {
-                formless.hold(share, fallsApartAt);
-            }
-            if (placement.amalgam()) {
-                level.scheduleTick(pos, block.getBlock(), ticks);
+                formless.hold(share);
             }
         }
         return room;
     }
 
-    /** How long an amalgam holds together, in ticks. */
-    public static int amalgamTicks() {
-        return (int) Math.max(1L, Math.round(table().amalgamSeconds() * 20.0D));
+    /** A gas with no look of its own shows as a cloud of its colour at {@code at}, and spreads into the air. */
+    private static void cloud(ServerLevel level, BlockPos at, Matter matter) {
+        int rgb = FormlessMatterBlockEntity.colorOf(matter);
+        DustParticleOptions dust = new DustParticleOptions(new Vector3f(((rgb >> 16) & 0xFF) / 255.0F,
+                ((rgb >> 8) & 0xFF) / 255.0F, (rgb & 0xFF) / 255.0F), 1.5F);
+        Vec3 center = Vec3.atCenterOf(at);
+        int count = (int) Math.max(6, Math.min(80, Math.round(10.0D * matter.umu())));
+        level.sendParticles(dust, center.x, center.y, center.z, count, 0.8D, 0.8D, 0.8D, 0.02D);
     }
 
     /**
-     * The time asked for the formless matter at {@code pos} has come. An amalgam whose time is up falls apart (L5); one
-     * mixed again since waits for its new time; matter that became a substance holds together.
+     * Formless matter broken or blown up (already gone from {@code pos}) is scattered into the air as a gas, all of it:
+     * nothing holds it together any more.
      */
-    static void ripen(ServerLevel level, BlockPos pos) {
-        if (!(level.getBlockEntity(pos) instanceof FormlessMatterBlockEntity formless)) {
-            return;
-        }
-        Optional<Matter> matter = formless.matter();
-        BlockState state = level.getBlockState(pos);
-        if (matter.isEmpty() || !matter.get().amalgam(table())) {
-            if (state.hasProperty(FormlessMatterBlock.UNSTABLE) && state.getValue(FormlessMatterBlock.UNSTABLE)) {
-                level.setBlock(pos, state.setValue(FormlessMatterBlock.UNSTABLE, false), Block.UPDATE_CLIENTS);
-            }
-            return;
-        }
-        long left = formless.fallsApartAt() - level.getGameTime();
-        if (left > 0L) {
-            level.scheduleTick(pos, state.getBlock(), (int) Math.min(Integer.MAX_VALUE, left));
-            return;
-        }
-        // The whole of it falls apart at once, as one portion, so its parts come out whole.
-        Matter whole = takeBody(level, pos, matter.get(), 0.0D);
-        for (Matter part : MatterLaws.decay(table(), whole)) {
-            disperse(level, pos, lay(level, pos, part).leftover());
-        }
+    static void scatter(ServerLevel level, BlockPos pos, Matter matter) {
+        disperse(level, pos, lay(level, pos, matter.inState(com.elderlexicon.mod.magic.matter.State.GAS)).leftover());
     }
 
-    /**
-     * Formless matter broken or blown up (already gone from {@code pos}, holding {@code matter}) settles into what it is,
-     * with the body of it it was part of: an amalgam into its primordials (L5), a substance into the state it is found
-     * in.
-     */
-    static void settle(ServerLevel level, BlockPos pos, Matter matter) {
-        Matter whole = matter;
-        for (Direction direction : Direction.values()) {
-            BlockPos next = pos.relative(direction);
-            Optional<Matter> there = level.getBlockEntity(next) instanceof FormlessMatterBlockEntity formless
-                    ? formless.matter() : Optional.empty();
-            if (there.isPresent() && same(there.get(), matter)) {
-                whole = takeBody(level, next, there.get(), whole.umu());
-                break;
-            }
-        }
-        Matter settled = whole;
-        List<Matter> parts = settled.substance(table())
-                .map(substance -> List.of(Matter.natural(substance, settled.umu())))
-                .orElseGet(() -> MatterLaws.decay(table(), settled));
-        for (Matter part : parts) {
-            disperse(level, pos, lay(level, pos, part).leftover());
-        }
-    }
-
-    /**
-     * Takes up the body of formless matter at {@code at} ({@code matter} and the blocks of the same matter joined to it)
-     * and gives it back as one portion, with {@code more} UMU added.
-     */
-    private static Matter takeBody(ServerLevel level, BlockPos at, Matter matter, double more) {
-        double held = more;
-        for (BlockPos pos : bodyAt(level, at, matter)) {
-            held += read(level, pos).map(Matter::umu).orElse(0.0D);
-            level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-        }
-        return matter.withUmu(held);
-    }
-
-    /** Whether two portions are the same matter: the same composition, in the same state. */
-    private static boolean same(Matter one, Matter other) {
-        return one.state() == other.state() && one.composition().distance(other.composition()) <= 1.0E-6D;
-    }
-
-    /** What makes no whole block when matter settles, with no one to keep it, is scattered into the air around. */
+    /** What makes no whole block when matter is scattered, with no one to keep it, goes into the air around. */
     private static void disperse(ServerLevel level, BlockPos pos, double umu) {
         if (umu <= EPSILON) {
             return;

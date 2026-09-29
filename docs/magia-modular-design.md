@@ -13,7 +13,8 @@ através da lógica.**
   - O que ele não entende, ele diz o porquê (runa desconhecida, verbo sem alvo, fusão sem composição...).
 
 O vocabulário de força e matéria (o `tenet`, o sinal que inverte um verbo, o sujeito vindo do verbo anterior, a escada de
-estados, as receitas, a mistura e o amálgama) está em `plano-materia-e-forca.md`.
+estados, os códigos das coisas naturais e a mistura) está em `plano-materia-e-forca.md`; a matéria por emergência
+(qualidades pela composição, reações dos opostos, nada de receita) em `plano-materia-emergente.md`.
 
 Os casos de cada verbo continuam nos documentos próprios:
 - `exsugat-vertere-design.md`: captura e conversão (histórico: o `exsugat` saiu, e o `tenet` faz a captura).
@@ -29,7 +30,7 @@ Os casos de cada verbo continuam nos documentos próprios:
 | **Léxico** (dados) | `magic/lexicon`, `runes.json`, `foci.json` | O que cada palavra é: classe, glifo, essência, traços, operação, custo, textos. |
 | **Gramática** | `magic/grammar/SpellGrammar` | Como palavras viram ações, só por classe e quadro de objeto. |
 | **Fluxo** | `magic/flow/FlowInterpreter` | Por onde a energia passa: gastar, capturar, converter. Não conhece Minecraft. |
-| **Matéria** | `magic/matter`, `materials.json` | Substâncias como receitas dos quatro, estados, UMU e as leis L1 a L5. Não conhece Minecraft. |
+| **Matéria** | `magic/matter`, `materials.json` | Composição dos quatro, estados, UMU, qualidades, os códigos das coisas naturais e as leis L1 a L5. Não conhece Minecraft. |
 | **Ponte da matéria** | `spell/matter/WorldMatter`, `FormlessMatterBlock` | Lê o mundo como matéria e põe matéria nele, misturando o que é fluido. |
 | **Mundo** | `spell/action/SpellActionExecutor`, `spell/function/*` | Como cada **operação** acontece no jogo. |
 | **Textos** | `SpellReading`, `SpellDescription`, `Parser` | A leitura do grimório e a transcrição, vindas dos `texts` e `notes` do léxico. |
@@ -262,11 +263,11 @@ Toda chave, fora a `class` de cada runa, é opcional. As chaves do antigo `Parse
    ```
    - Ela diz quão intensa fica a energia de um aspecto quando é solta de uma vez.
 5. **Focos:** as entradas de `foci.json`. Os itens de varinha leem os descontos por id.
-6. **Substâncias novas**, com receita, estado natural, unidade e formas, no formato do `materials.json`:
+6. **Coisas naturais novas**, com código (a composição), estado natural, unidade e formas, no formato do `materials.json`:
    ```java
    Materials.extend(table -> table.read(reader));
    ```
-   - Uma extensão que quebre a matéria (receita perto demais de outra, bloco lido como duas coisas, falta de uma
+   - Uma extensão que quebre a matéria (código perto demais de outro, bloco lido como duas coisas, falta de uma
      primordial) é recusada.
 
 ## 5. O que continua em código

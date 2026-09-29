@@ -45,16 +45,16 @@ class PlacementTest {
     }
 
     @Test
-    void anAmalgamStaysAsFormlessMatterUntilItFallsApart() {
-        Matter amalgam = MatterLaws.mix(List.of(
+    void aMixtureWithNoNameIsFormlessMatterThatHolds() {
+        Matter mixed = MatterLaws.mix(List.of(
                 Matter.of(TABLE.primordial(VitaElement.FIRMO), State.LIQUID, 1.0D),
                 Matter.of(TABLE.primordial(VitaElement.AQUA), State.LIQUID, 9.0D))).orElseThrow();
-        assertTrue(amalgam.amalgam(TABLE));
-        List<Placement> plan = Placement.plan(TABLE, amalgam);
+        assertTrue(mixed.unnamed(TABLE));
+        List<Placement> plan = Placement.plan(TABLE, mixed);
         assertEquals(1, plan.size());
         Placement formless = plan.get(0);
         assertTrue(formless.formless());
-        assertTrue(formless.amalgam());
+        assertTrue(formless.unnamed());
         assertNull(formless.form());
         assertEquals(10.0D, formless.placed(), 1.0E-9, "formless matter holds it all, exactly");
         assertEquals(0.0D, formless.leftover(), 1.0E-9);
@@ -67,7 +67,7 @@ class PlacementTest {
         Placement molten = Placement.plan(TABLE, Matter.of(TABLE.primordial(VitaElement.FIRMO), State.LIQUID, 4.0D))
                 .get(0);
         assertTrue(molten.formless());
-        assertFalse(molten.amalgam(), "molten earth is still earth");
+        assertFalse(molten.unnamed(), "molten earth is still earth");
         assertEquals(8, molten.units(), "four UMU of earth fill eight blocks, liquid or not");
         assertEquals(4.0D, molten.placed(), 1.0E-9);
         Placement small = Placement.plan(TABLE, Matter.of(TABLE.primordial(VitaElement.FIRMO), State.LIQUID, 0.1D))
@@ -77,15 +77,29 @@ class PlacementTest {
     }
 
     @Test
-    void aFloatingAmalgamComesApartAsItGoes() {
+    void whatOppositesLetOutGoesAsAGasOfItsOwn() {
         Matter hot = MatterLaws.mix(List.of(
-                Matter.of(TABLE.primordial(VitaElement.AQUA), State.GAS, 6.0D),
-                Matter.of(TABLE.primordial(VitaElement.IGNI), State.PLASMA, 1.0D))).orElseThrow();
-        assertTrue(hot.amalgam(TABLE));
+                Matter.of(TABLE.primordial(VitaElement.AQUA), State.LIQUID, 6.0D),
+                Matter.of(TABLE.primordial(VitaElement.IGNI), State.PLASMA, 3.0D))).orElseThrow();
         List<Placement> plan = Placement.plan(TABLE, hot);
-        assertEquals(2, plan.size(), "water and fire, each as what it is");
-        assertTrue(plan.stream().noneMatch(Placement::formless));
+        assertEquals(2, plan.size(), "the vapour, and the water that stays");
+        Placement vapour = plan.get(0);
+        assertTrue(vapour.floats());
+        assertEquals("steam", vapour.substance().id(), "half water and half fire is the code of steam");
+        Placement water = plan.get(1);
+        assertEquals("minecraft:water", water.form().id());
+        assertEquals(1, water.units());
         double total = plan.stream().mapToDouble(p -> p.placed() + p.leftover()).sum();
-        assertEquals(7.0D, total, 1.0E-9, "nothing is lost (L1)");
+        assertEquals(9.0D, total, 1.0E-9, "nothing is lost (L1)");
+    }
+
+    @Test
+    void aFloatingMixtureWithNoNameShowsItsOwnColour() {
+        Matter hot = new Matter(Composition.of(java.util.Map.of(VitaElement.AURA, 0.7D, VitaElement.IGNI, 0.3D)),
+                State.GAS, 2.0D);
+        Placement cloud = Placement.plan(TABLE, hot).get(0);
+        assertTrue(cloud.formless());
+        assertTrue(cloud.floats());
+        assertEquals(2.0D, cloud.placed(), 1.0E-9);
     }
 }

@@ -23,6 +23,7 @@ public final class MatterBlocks {
     public static final RegistryObject<FormlessMatterBlock> FORMLESS_SOLID = BLOCKS.register("formless_solid",
             () -> new FormlessMatterBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_GRAY)
+                    .lightLevel(state -> state.getValue(FormlessMatterBlock.GLOW))
                     .strength(0.6F)
                     .sound(SoundType.MUD)
                     .noLootTable()
@@ -32,6 +33,7 @@ public final class MatterBlocks {
     public static final RegistryObject<FormlessMatterBlock> FORMLESS_LIQUID = BLOCKS.register("formless_liquid",
             () -> new FormlessMatterBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_GRAY)
+                    .lightLevel(state -> state.getValue(FormlessMatterBlock.GLOW))
                     .noCollission()
                     .noOcclusion()
                     .strength(100.0F)

@@ -104,23 +104,14 @@ class MaterialTableTest {
     }
 
     @Test
-    void anAmalgamFillsTheRoomItsPartsFill() {
+    void aMixtureWithNoNameFillsTheRoomItsPartsFill() {
         // A block of molten earth (half a UMU) and a source of water (three) mixed fill two blocks, as they did apart.
         Matter mixed = MatterLaws.mix(List.of(Matter.of(TABLE.primordial(VitaElement.FIRMO), State.LIQUID, 0.5D),
                 Matter.of(TABLE.primordial(VitaElement.AQUA), State.LIQUID, 3.0D))).orElseThrow();
-        assertTrue(mixed.amalgam(TABLE));
+        assertTrue(mixed.unnamed(TABLE));
         assertEquals(2.0D, mixed.umu() / TABLE.unitOf(mixed), 1.0E-9);
         assertEquals(1.5D, TABLE.unitOf(Matter.natural(TABLE.substance("stone").orElseThrow(), 3.0D)), 1.0E-9,
                 "a substance holds its own unit");
-    }
-
-    @Test
-    void anAmalgamHoldsTogetherForTheTimeTheDataGives() {
-        assertEquals(20.0D, TABLE.amalgamSeconds(), 1.0E-9);
-        MaterialTable quick = MaterialTableBuilder.from(TABLE).amalgamSeconds(3.0D).build();
-        assertEquals(3.0D, quick.amalgamSeconds(), 1.0E-9);
-        assertEquals(3.0D, MaterialTableBuilder.from(quick).build().amalgamSeconds(), 1.0E-9, "kept when extended");
-        assertThrows(IllegalArgumentException.class, () -> MaterialTableBuilder.from(TABLE).amalgamSeconds(0.0D));
     }
 
     @Test
