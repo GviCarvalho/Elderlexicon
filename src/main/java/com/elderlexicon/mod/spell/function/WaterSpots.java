@@ -160,7 +160,7 @@ public final class WaterSpots {
         if (shatter > 0.0F) {
             // Ice VII springing back to water: the pressure held in it shatters what is around, like a boiler bursting,
             // and the water then fills the hole it made.
-            level.explode(null, at.x, at.y, at.z, shatter, false, net.minecraft.world.level.Level.ExplosionInteraction.BLOCK);
+            level.explode(null, at.x, at.y, at.z, shatter, false, Impacts.explosions());
         }
         double reach = Pressure.burstReach(pressure);
         double push = Pressure.push(pressure);

@@ -109,3 +109,37 @@ Lição do Ars Nouveau: o verbo de força **entrega** e o que é entregue **age 
    pelo `surgit`.
 6. **Testes e documentos:** testes puros de cada lei, GameTests com feitiços reais para cada fenômeno e para o impacto,
    e a referência do grimório.
+
+## 6. Como ficou
+
+### Etapas 1 e 2
+
+- **Parte pura** (`magic/matter`):
+  - `Rose`: a posição (x do frio ao calor, y do peso à leveza) e a tensão latente de cada eixo. A vis conta como um
+    quarto de cada aspecto, então ela é o centro com tensão máxima. O caráter (|x| + |y|) e a tensão latente sempre
+    somam a porção inteira: é uma troca de coordenadas, nada se perde.
+  - `Agitation`: a energia posta na porção, por UMU. É cinética (metade da massa vezes a velocidade ao quadrado),
+    térmica (de nada no fogo comum a 1 no plasma) ou de concentração (de nada em 1 UMU a 1 no buraco negro).
+  - `Tension`: a latente (presa num sólido, livre num fluido) mais a agitação. Acima de 0,2 (a mesma linha da
+    reação dos opostos) a porção é fenômeno; abaixo, matéria. Terra, pedra, madeira, ferro, osso e carne são matéria.
+  - `Qualities` ficou sendo as propriedades de matéria e de energia: vale para uma composição, para um aspecto ou
+    para quantias com vis, e dá a densidade (a massa de um UMU).
+  - `ImpactLaw`: a energia do golpe, o dano, a parte que quebra blocos (cada um custa a sua dureza), o raio, o
+    empurrão, o volume e o tom, e quando o golpe vira explosão.
+- **Mundo:**
+  - `Impacts` é o resolvedor único: dano e empurrão em quem foi atingido; explosão com dano e empurrão em volta; os
+    blocos mais próximos primeiro, cada um quebrando quando o que sobra da energia paga a sua dureza; o som do bloco
+    atingido e o do golpe; e o caráter (o quente queima e acende, o molhado apaga).
+  - O que o `iactare` empurra (`firmo vocant iactare`, `firmo tenet vocant iactare`) bate pela lei do impacto antes de
+    fazer o que faz onde cai. A matéria tirada do mundo bate com a densidade que tem.
+  - **O lançamento condensado.** O `vocant` que condensa sabe, antes de juntar, que o verbo seguinte vai levar o que
+    ele faz. Então junta a esfera diante da mão (ou no lugar do `ubis`) e passa essa mesma esfera ao `iactare`, que a
+    lança. Ela se solta onde bate: terra densa, gelo VII, rajada, vis, ou o fogo com o seu ponto quente.
+  - A opção `magic.breaksBlocks` (`ALWAYS`, `NEVER`, `MOB_GRIEFING`, que é o padrão) vale para o impacto e para todas
+    as explosões da magia.
+- **Testes:**
+  - puros: a rosa, a tensão e a lei do impacto;
+  - no jogo: a terra condensada que voa como a própria esfera, quebra o vidro e vira um bloco denso; um golpe que
+    quebra pedra, fere um porco e não quebra nada quando a configuração proíbe.
+- **Fica para depois:** o impacto das coisas marcadas que são arremessadas (a massa delas usa outra medida) entra
+  junto com as etapas 3 e 4.

@@ -225,6 +225,11 @@ public final class WorldSources {
         if (spender == null) {
             return VerbSpec.Gathering.BODY;
         }
+        if (spender.handsOn()) {
+            // Made to be handed on (igni quantum chronos 0 vocant iactare): gathered where the verb after carries it
+            // from, the ubis place or before the hand.
+            return spender.place().isPresent() ? VerbSpec.Gathering.DESTINATION : VerbSpec.Gathering.HAND;
+        }
         return Lexicons.get().verb(spender.runeId()).map(VerbSpec::gathering).orElse(VerbSpec.Gathering.BODY);
     }
 

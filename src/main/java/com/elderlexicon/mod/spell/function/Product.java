@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.magic.matter.Qualities;
 import com.elderlexicon.mod.vita.VitaElement;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
@@ -7,6 +8,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import javax.annotation.Nullable;
 
 /**
  * What a verb produced, handed to the verb after it (R2 of docs/plano-materia-e-forca.md: {@code igni vocant iactare}
@@ -23,6 +25,9 @@ public final class Product {
 
     private final VitaElement element;
     private final double umu;
+    private final Qualities qualities;
+    @Nullable
+    private ElementOrb orb;
     private boolean taken;
     private ServerLevel level;
     private Vec3 at;
@@ -30,8 +35,32 @@ public final class Product {
     private final List<Consumer<Product>> movers = new ArrayList<>();
 
     Product(VitaElement element, double umu) {
+        this(element, umu, Qualities.of(element));
+    }
+
+    /** What it is like decides how hard it strikes where it lands (its weight) and what it does there (its heat...). */
+    Product(VitaElement element, double umu, Qualities qualities) {
         this.element = element;
         this.umu = umu;
+        this.qualities = qualities;
+    }
+
+    /**
+     * It is already gathered into {@code orb} (a condensation): the verb after throws that orb instead of making one
+     * (igni quantum chronos 0 vocant iactare).
+     */
+    void carriedBy(ElementOrb orb) {
+        this.orb = orb;
+    }
+
+    /** The orb it is gathered into, while it is still there. */
+    @Nullable
+    ElementOrb orb() {
+        return orb != null && orb.isAlive() && !orb.isRemoved() ? orb : null;
+    }
+
+    Qualities qualities() {
+        return qualities;
     }
 
     /** Whether the verb after took it to move: then it is made where it starts from, not where it would have gone. */

@@ -10,7 +10,8 @@ import java.util.Map;
 import java.util.StringJoiner;
 
 /**
- * What matter is like, from what it is made of (docs/plano-materia-emergente.md, section 2). Each aspect gives it a
+ * What matter, or energy, is like, from what it is made of (docs/plano-materia-emergente.md, section 2, and
+ * docs/plano-rosa-dos-elementos.md, section 3). Each aspect gives it a
  * quality in the proportion it is in it: firmo weight, aqua cohesion, aura lightness, igni heat. The laws of the world
  * ask for the qualities, never for what the matter is called, so any mixture behaves by what it holds.
  *
@@ -24,10 +25,40 @@ public record Qualities(double weight, double cohesion, double lightness, double
     /** A quality acts once it is this much of the matter: a little fire in stone does not make it burn. */
     public static final double ACTS = 0.25D;
 
+    /** How much a UMU of each aspect weighs: earth all of it, water half, fire and air almost nothing. */
+    private static final double EARTH_DENSITY = 1.0D;
+    private static final double WATER_DENSITY = 0.5D;
+    private static final double LIGHT_DENSITY = 0.05D;
+
     public static Qualities of(Matter matter) {
-        Composition composition = matter.composition();
-        return new Qualities(composition.share(VitaElement.FIRMO), composition.share(VitaElement.AQUA),
-                composition.share(VitaElement.AURA), composition.share(VitaElement.IGNI));
+        return of(matter.composition());
+    }
+
+    public static Qualities of(Composition composition) {
+        return ofShares(composition.shares());
+    }
+
+    /**
+     * The qualities of a portion of these amounts of each aspect, energy as well as matter: vis is a quarter of each of
+     * the four (docs/plano-rosa-dos-elementos.md), so an orb of vis is a little of everything.
+     */
+    public static Qualities of(Map<VitaElement, Double> amounts) {
+        return ofShares(Rose.spread(amounts));
+    }
+
+    /** The qualities of one aspect alone. */
+    public static Qualities of(VitaElement aspect) {
+        return of(Map.of(aspect, 1.0D));
+    }
+
+    private static Qualities ofShares(Map<VitaElement, Double> shares) {
+        return new Qualities(shares.getOrDefault(VitaElement.FIRMO, 0.0D), shares.getOrDefault(VitaElement.AQUA, 0.0D),
+                shares.getOrDefault(VitaElement.AURA, 0.0D), shares.getOrDefault(VitaElement.IGNI, 0.0D));
+    }
+
+    /** How much a UMU of it weighs, its mass: what makes a blow of it hit hard ({@link ImpactLaw}). */
+    public double density() {
+        return weight * EARTH_DENSITY + cohesion * WATER_DENSITY + (lightness + heat) * LIGHT_DENSITY;
     }
 
     /** It burns what touches it, kindles what burns around it and glows. */
