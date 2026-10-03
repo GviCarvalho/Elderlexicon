@@ -62,13 +62,13 @@ public final class MatterGameTests {
 
         Matter stone = WorldMatter.read(helper.getLevel(), helper.absolutePos(new BlockPos(1, 1, 1))).orElseThrow();
         check(helper, stone.substance(Materials.get()).map(Substance::id).equals(Optional.of("stone")), "stone is stone");
-        close(helper, 1.5D, stone.umu(), "a block of stone");
+        close(helper, 16.0D, stone.umu(), "a block of stone, as any block");
         Matter lava = WorldMatter.read(helper.getLevel(), helper.absolutePos(new BlockPos(2, 1, 1))).orElseThrow();
         check(helper, lava.state() == State.LIQUID
                 && lava.substance(Materials.get()).map(Substance::id).equals(Optional.of("stone")), "lava is molten stone");
         Matter ice = WorldMatter.read(helper.getLevel(), helper.absolutePos(new BlockPos(3, 1, 1))).orElseThrow();
         check(helper, ice.state() == State.SOLID, "ice is solid water");
-        close(helper, 3.0D, ice.umu(), "a block of ice holds a source of water");
+        close(helper, 16.0D, ice.umu(), "a block of ice holds a source of water");
         check(helper, WorldMatter.read(helper.getLevel(), helper.absolutePos(new BlockPos(1, 1, 3))).isEmpty(),
                 "a chest is made, no natural matter");
         check(helper, WorldMatter.read(helper.getLevel(), helper.absolutePos(new BlockPos(3, 1, 3))).isEmpty(),
@@ -78,9 +78,9 @@ public final class MatterGameTests {
 
     @GameTest(template = EMPTY)
     public static void itemsReadAsTheMatterTheyHold(GameTestHelper helper) {
-        close(helper, 5.0D, WorldMatter.read(new ItemStack(Items.RAW_IRON, 9)).orElseThrow().umu(),
-                "nine raw irons are a block of iron");
-        close(helper, 3.0D, WorldMatter.read(new ItemStack(Items.STONE, 2)).orElseThrow().umu(),
+        close(helper, 9.0D * 455.0D / 256.0D, WorldMatter.read(new ItemStack(Items.RAW_IRON, 9)).orElseThrow().umu(),
+                "nine raw irons are a block of iron, but for a particle");
+        close(helper, 32.0D, WorldMatter.read(new ItemStack(Items.STONE, 2)).orElseThrow().umu(),
                 "a block's item is the block");
         check(helper, WorldMatter.read(new ItemStack(Items.DIAMOND_SWORD)).isEmpty(), "a sword is made");
         helper.succeed();
@@ -90,14 +90,14 @@ public final class MatterGameTests {
     public static void moltenStoneIsPlacedAsLava(GameTestHelper helper) {
         BlockPos at = helper.absolutePos(new BlockPos(2, 2, 2));
         WorldMatter.Placed placed = WorldMatter.place(helper.getLevel(), at,
-                Matter.of(substance("stone"), State.LIQUID, 4.0D));
-        check(helper, placed.blocks().size() == 2, "four UMU of molten stone are two blocks of lava, were "
+                Matter.of(substance("stone"), State.LIQUID, 40.0D));
+        check(helper, placed.blocks().size() == 2, "forty UMU of molten stone are two blocks of lava, were "
                 + placed.blocks().size());
         for (BlockPos pos : placed.blocks()) {
             check(helper, helper.getLevel().getBlockState(pos).is(Blocks.LAVA), "lava at " + pos);
         }
-        close(helper, 3.0D, placed.placed(), "placed");
-        close(helper, 1.0D, placed.leftover(), "left over, not lost");
+        close(helper, 32.0D, placed.placed(), "placed");
+        close(helper, 8.0D, placed.leftover(), "left over, not lost");
         helper.succeed();
     }
 
@@ -137,16 +137,16 @@ public final class MatterGameTests {
         glassFloor(helper);
         MaterialTable table = Materials.get();
         Matter mixed = MatterLaws.mix(List.of(
-                Matter.of(table.primordial(VitaElement.FIRMO), State.LIQUID, 1.0D),
-                Matter.of(table.primordial(VitaElement.AQUA), State.LIQUID, 9.0D))).orElseThrow();
+                Matter.of(table.primordial(VitaElement.FIRMO), State.LIQUID, 16.0D),
+                Matter.of(table.primordial(VitaElement.AQUA), State.LIQUID, 64.0D))).orElseThrow();
         WorldMatter.Placed placed = WorldMatter.place(helper.getLevel(), helper.absolutePos(new BlockPos(2, 1, 2)),
                 mixed);
-        // Near no natural thing's code, it is still matter: all of it, in five blocks (two of molten earth and three of
-        // water fill five together), and it does not come apart.
+        // Near no natural thing's code, it is still matter: all of it, in five blocks of sixteen UMU, and it does not
+        // come apart.
         check(helper, placed.blocks().size() == 5, "five blocks, were " + placed.blocks().size());
-        close(helper, 10.0D, formlessUmu(helper), "held as it is");
+        close(helper, 80.0D, formlessUmu(helper), "held as it is");
         helper.runAtTickTime(150, () -> {
-            close(helper, 10.0D, formlessUmu(helper), "still all there");
+            close(helper, 80.0D, formlessUmu(helper), "still all there");
             helper.succeed();
         });
     }
@@ -156,12 +156,12 @@ public final class MatterGameTests {
         glassFloor(helper);
         MaterialTable table = Materials.get();
         Matter hot = MatterLaws.mix(List.of(
-                Matter.of(table.primordial(VitaElement.AQUA), State.LIQUID, 6.0D),
-                Matter.of(table.primordial(VitaElement.IGNI), State.PLASMA, 3.0D))).orElseThrow();
+                Matter.of(table.primordial(VitaElement.AQUA), State.LIQUID, 32.0D),
+                Matter.of(table.primordial(VitaElement.IGNI), State.PLASMA, 16.0D))).orElseThrow();
         WorldMatter.Placed placed = WorldMatter.place(helper.getLevel(), helper.absolutePos(new BlockPos(2, 1, 2)), hot);
-        // L5: three of each boil off as vapour; the three of water left are one source of water.
+        // L5: sixteen of each boil off as vapour; the sixteen of water left are one source of water.
         check(helper, count(helper, Blocks.WATER) == 1, "one source of water left, were " + count(helper, Blocks.WATER));
-        close(helper, 9.0D, placed.placed() + placed.leftover(), "nothing is lost");
+        close(helper, 48.0D, placed.placed() + placed.leftover(), "nothing is lost");
         helper.succeed();
     }
 
@@ -169,7 +169,7 @@ public final class MatterGameTests {
     public static void aHotMixtureBurnsWhatWadesIntoIt(GameTestHelper helper) {
         glassFloor(helper);
         Matter molten = new Matter(com.elderlexicon.mod.magic.matter.Composition.of(java.util.Map.of(
-                VitaElement.FIRMO, 0.45D, VitaElement.IGNI, 0.45D, VitaElement.AURA, 0.1D)), State.LIQUID, 2.0D);
+                VitaElement.FIRMO, 0.45D, VitaElement.IGNI, 0.45D, VitaElement.AURA, 0.1D)), State.LIQUID, 16.0D);
         check(helper, molten.unnamed(Materials.get()), "a mixture with no name");
         WorldMatter.place(helper.getLevel(), helper.absolutePos(new BlockPos(2, 1, 2)), molten);
         check(helper, helper.getLevel().getBlockState(helper.absolutePos(new BlockPos(2, 1, 2)))
@@ -185,7 +185,7 @@ public final class MatterGameTests {
     public static void aWetMixturePutsOutFire(GameTestHelper helper) {
         glassFloor(helper);
         Matter wet = new Matter(com.elderlexicon.mod.magic.matter.Composition.of(java.util.Map.of(
-                VitaElement.AQUA, 0.6D, VitaElement.FIRMO, 0.4D)), State.LIQUID, 2.0D);
+                VitaElement.AQUA, 0.6D, VitaElement.FIRMO, 0.4D)), State.LIQUID, 16.0D);
         WorldMatter.place(helper.getLevel(), helper.absolutePos(new BlockPos(2, 1, 2)), wet);
         net.minecraft.world.entity.animal.Pig pig = helper.spawn(net.minecraft.world.entity.EntityType.PIG,
                 new BlockPos(2, 1, 2));
@@ -195,10 +195,10 @@ public final class MatterGameTests {
 
     @GameTest(template = EMPTY)
     public static void moltenEarthIsFormlessMatterThatHolds(GameTestHelper helper) {
-        Matter molten = Matter.of(Materials.get().primordial(VitaElement.FIRMO), State.LIQUID, 2.0D);
+        Matter molten = Matter.of(Materials.get().primordial(VitaElement.FIRMO), State.LIQUID, 64.0D);
         WorldMatter.Placed placed = WorldMatter.place(helper.getLevel(), helper.absolutePos(new BlockPos(2, 1, 2)),
                 molten);
-        check(helper, placed.blocks().size() == 4, "two UMU of earth fill four blocks, were " + placed.blocks().size());
+        check(helper, placed.blocks().size() == 4, "64 UMU of earth fill four blocks, were " + placed.blocks().size());
         for (BlockPos pos : placed.blocks()) {
             check(helper, helper.getLevel().getBlockState(pos).is(MatterBlocks.FORMLESS_LIQUID.get()), "formless");
             check(helper, helper.getLevel().getBlockState(pos).getValue(FormlessMatterBlock.GLOW) == 0,
@@ -207,7 +207,7 @@ public final class MatterGameTests {
         Matter read = WorldMatter.read(helper.getLevel(), placed.blocks().get(0)).orElseThrow();
         check(helper, read.state() == State.LIQUID
                 && read.substance(Materials.get()).map(Substance::id).equals(Optional.of("earth")), "read back as it is");
-        close(helper, 0.5D, read.umu(), "half a UMU a block");
+        close(helper, 16.0D, read.umu(), "sixteen UMU a block");
         helper.succeed();
     }
 
@@ -221,14 +221,14 @@ public final class MatterGameTests {
         helper.setBlock(new BlockPos(2, 1, 2), Blocks.LAVA);
         helper.setBlock(new BlockPos(3, 1, 2), Blocks.LAVA);
         BlockPos at = helper.absolutePos(new BlockPos(2, 1, 2));
-        Matter water = Matter.of(Materials.get().primordial(VitaElement.AQUA), State.LIQUID, 3.0D);
+        Matter water = Matter.of(Materials.get().primordial(VitaElement.AQUA), State.LIQUID, 32.0D);
         WorldMatter.Placed placed = WorldMatter.place(helper.getLevel(), at, water);
-        // Three UMU of stone and three of water are half water: near no natural thing's code, formless now.
+        // Two blocks of molten stone and two of water are half water: near no natural thing's code, formless now.
         Matter mixture = placed.mixed().orElseThrow();
         check(helper, mixture.unnamed(Materials.get()), "a mixture with no name");
-        close(helper, 6.0D, mixture.umu(), "all of the lava and the water");
+        close(helper, 64.0D, mixture.umu(), "all of the lava and the water");
         check(helper, count(helper, Blocks.LAVA) == 0, "the lava was taken into it");
-        close(helper, 6.0D, formlessUmu(helper), "held as formless matter");
+        close(helper, 64.0D, formlessUmu(helper), "held as formless matter");
         helper.succeed();
     }
 

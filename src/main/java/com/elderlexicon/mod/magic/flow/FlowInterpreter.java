@@ -106,6 +106,14 @@ public final class FlowInterpreter {
                 }
                 continue;
             }
+            // aqua quantum 16 vertere m1: the marked thing's core changes, from what it holds; nothing of the mage's own
+            // energy is converted or taken.
+            if (flow == Flow.CONVERT && !marked && action.targetMark().isPresent()) {
+                if (world.hasCaster()) {
+                    world.perform(action, currentElement);
+                }
+                continue;
+            }
             // igni tenet iactare: the source comes from the world. Nothing is taken at once: the world pays what this verb
             // and the ones after it spend, which is only known once they have run. A verb turned around (vocant with a
             // negative quantity) brings from the world by itself, and a marked thing or what the verb before produced

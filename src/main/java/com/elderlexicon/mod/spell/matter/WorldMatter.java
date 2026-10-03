@@ -125,12 +125,17 @@ public final class WorldMatter {
      * What putting matter into the world did: how much went in, how much is left for whoever put it, and, when it was
      * poured into fluid matter, what the two became together.
      *
-     * @param mixture what the matter and the body it was poured into became; null when it was only put down
+     * @param mixture  what the matter and the body it was poured into became; null when it was only put down
+     * @param entities the items dropped and the creatures that showed it
      */
-    public record Placed(double placed, double leftover, List<BlockPos> blocks, Matter mixture) {
+    public record Placed(double placed, double leftover, List<BlockPos> blocks, Matter mixture, List<Entity> entities) {
 
         public Placed(double placed, double leftover, List<BlockPos> blocks) {
-            this(placed, leftover, blocks, null);
+            this(placed, leftover, blocks, null, List.of());
+        }
+
+        public Placed(double placed, double leftover, List<BlockPos> blocks, Matter mixture) {
+            this(placed, leftover, blocks, mixture, List.of());
         }
 
         public Optional<Matter> mixed() {
@@ -235,6 +240,7 @@ public final class WorldMatter {
         double placed = 0.0D;
         double leftover = 0.0D;
         List<BlockPos> blocks = new ArrayList<>();
+        List<Entity> entities = new ArrayList<>();
         for (Placement placement : Placement.plan(table(), matter)) {
             leftover += placement.leftover();
             if (placement.formless() && placement.floats()) {
@@ -282,14 +288,7 @@ public final class WorldMatter {
                         leftover += placement.placed();
                         continue;
                     }
-                    int left = placement.units();
-                    while (left > 0) {
-                        int count = Math.min(left, item.get().getMaxStackSize());
-                        Vec3 center = Vec3.atCenterOf(at);
-                        level.addFreshEntity(new ItemEntity(level, center.x, center.y, center.z,
-                                new ItemStack(item.get(), count)));
-                        left -= count;
-                    }
+                    entities.addAll(drop(level, Vec3.atCenterOf(at), item.get(), placement.units()));
                     placed += placement.placed();
                 }
                 case PARTICLE -> {
@@ -308,11 +307,56 @@ public final class WorldMatter {
                     }
                     entity.get().moveTo(Vec3.atBottomCenterOf(at));
                     level.addFreshEntity(entity.get());
+                    entities.add(entity.get());
                     placed += placement.placed();
                 }
             }
         }
-        return new Placed(placed, leftover, blocks);
+        return new Placed(placed, leftover, blocks, null, entities);
+    }
+
+    /** Drops {@code count} of an item at {@code at}, in stacks as full as the item allows; returns the stacks. */
+    public static List<Entity> drop(ServerLevel level, Vec3 at, Item item, long count) {
+        List<Entity> dropped = new ArrayList<>();
+        long left = count;
+        while (left > 0L) {
+            int stack = (int) Math.min(left, item.getMaxStackSize());
+            ItemEntity entity = new ItemEntity(level, at.x, at.y, at.z, new ItemStack(item, stack));
+            level.addFreshEntity(entity);
+            dropped.add(entity);
+            left -= stack;
+        }
+        return dropped;
+    }
+
+    /** An item that shows a substance, and the particles one of it holds. */
+    public record AsItem(Item item, long particles) {
+    }
+
+    /**
+     * The item matter of a substance is in a state, for what was items and stays items: the substance's own item there,
+     * or else the item of its block (a block of stone, 4096 particles); empty when it has neither, as water, fire and air
+     * have none.
+     */
+    public static Optional<AsItem> asItem(Substance substance, com.elderlexicon.mod.magic.matter.State state) {
+        for (Form form : substance.declared(state)) {
+            if (form.kind() == Form.Kind.ITEM) {
+                Optional<Item> item = item(form.id());
+                if (item.isPresent()) {
+                    return Optional.of(new AsItem(item.get(), form.particles()));
+                }
+            }
+        }
+        for (Form form : substance.declared(state)) {
+            if (form.kind() == Form.Kind.BLOCK) {
+                Optional<Item> item = block(form.id()).map(found -> found.getBlock().asItem())
+                        .filter(found -> found != net.minecraft.world.item.Items.AIR);
+                if (item.isPresent()) {
+                    return Optional.of(new AsItem(item.get(), form.particles()));
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     // ------------------------------------------------------------------ formless matter

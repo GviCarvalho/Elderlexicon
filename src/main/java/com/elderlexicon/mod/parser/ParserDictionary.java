@@ -56,8 +56,7 @@ public final class ParserDictionary {
 
     /** How the older parts of the mod see a rune of the lexicon. */
     public static RuneDefinition definitionOf(Rune rune) {
-        boolean requiresTarget = rune.verb().map(verb -> verb.awaitsTarget()).orElse(false)
-                || rune.expansion().contains(Rune.NEXT_WORD);
+        boolean requiresTarget = rune.verb().map(verb -> verb.awaitsTarget()).orElse(false);
         return new RuneDefinition(rune.id(), RuneType.of(rune.wordClass()), rune.translation(), requiresTarget);
     }
 
@@ -72,7 +71,6 @@ public final class ParserDictionary {
                 case SOURCE -> SOURCE;
                 case VERB -> FUNCTION;
                 case FILTER -> FILTER;
-                case FORM -> SHAPE;
             };
         }
     }

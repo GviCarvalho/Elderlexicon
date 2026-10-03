@@ -32,7 +32,7 @@ public final class SpellReading {
     public record Word(String rune, String title, String role) {
     }
 
-    private enum Kind { EMPTY, SOURCE, FUNCTION, FILTER, FORM, NUMBER, MARK, NAMED }
+    private enum Kind { EMPTY, SOURCE, FUNCTION, FILTER, NUMBER, MARK, NAMED }
 
     private final ParserDictionary dictionary;
     /** Runes the mage named with reframe in this grimoire, each with the spell it holds. */
@@ -56,7 +56,7 @@ public final class SpellReading {
     public static String lore(String rune) {
         Lexicon lexicon = Lexicons.get();
         return lexicon.rune(rune).map(Rune::lore).filter(line -> !line.isBlank())
-                .orElseGet(() -> note(lexicon, "reading.fusion", Map.of()));
+                .orElseGet(() -> note(lexicon, "reading.nolore", Map.of()));
     }
 
     /** The title of a word: the rune's name and what it translates to, a number, a mark. */
@@ -92,7 +92,6 @@ public final class SpellReading {
             case SOURCE -> sourceRole(ids, at);
             case FILTER -> filterRole(ids, at);
             case FUNCTION -> functionRole(ids, at);
-            case FORM -> lore(rune);
         };
     }
 
@@ -238,7 +237,6 @@ public final class SpellReading {
         return lexicon().rune(rune).map(found -> switch (found.wordClass()) {
             case SOURCE -> Kind.SOURCE;
             case FILTER -> Kind.FILTER;
-            case FORM -> Kind.FORM;
             case VERB -> Kind.FUNCTION;
         }).orElse(Kind.MARK);
     }

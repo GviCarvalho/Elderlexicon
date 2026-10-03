@@ -1,8 +1,6 @@
 package com.elderlexicon.mod.spell;
 
 import com.elderlexicon.mod.magic.flow.SpellLedger;
-import com.elderlexicon.mod.magic.grammar.SpellGrammar;
-import com.elderlexicon.mod.magic.lexicon.Lexicons;
 import com.elderlexicon.mod.parser.Parser;
 import com.elderlexicon.mod.spell.action.SpellAction;
 import com.elderlexicon.mod.spell.function.Product;
@@ -12,7 +10,6 @@ import com.elderlexicon.mod.vita.VitaElement;
 import com.elderlexicon.mod.vita.VitaSystem;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
@@ -100,14 +97,11 @@ public final class SpellContext implements SpellLedger {
         return lexemes;
     }
 
-    /**
-     * The words the spell says: its lexemes with every fusion that stands for other runes written out
-     * ({@code transiectio igni} says {@code vertere igni iactare}), as the grammar read them.
-     */
+    /** The words the spell says, as the grammar read them: its lexemes, since no rune stands for others. */
     public List<String> words() {
         List<String> found = words;
         if (found == null) {
-            found = List.copyOf(new SpellGrammar(Lexicons.get()).expand(lexemes, new ArrayList<>()));
+            found = List.copyOf(lexemes);
             words = found;
         }
         return found;

@@ -33,6 +33,13 @@ final class SightBonds {
             return;
         }
         Entity target = seen.get();
+        com.elderlexicon.mod.ligabis.world.LigabisManager bonds = com.elderlexicon.mod.ligabis.world.LigabisManager.get();
+        if (target instanceof net.minecraft.world.entity.Mob body && com.elderlexicon.mod.spell.life.Beings.isSoulless(body)
+                && bonds != null && bonds.auraBound(player.getUUID(), mark)) {
+            // Bound by movement and by sight to a body without a kern: nothing in it resists, and the mage lives in it.
+            Incorporations.start(context, body, chronos);
+            return;
+        }
         // Past the distance at which the game shows such an entity to players, the mage's client does not know it.
         double reach = target.getType().clientTrackingRange() * 16.0D;
         if (target.distanceTo(player) > reach) {

@@ -47,7 +47,7 @@ final class Pouring {
     }
 
     /**
-     * What a source brought out of the body is, as matter (L3): the substance its essence makes (lutum's is mud), as
+     * What a source brought out of the body is, as matter (L3): the substance its essence makes (firmo's is earth), as
      * it is found, {@code umu} of it. Empty for what is energy and no matter (vis).
      */
     static Optional<Matter> summoned(String rune, double umu) {

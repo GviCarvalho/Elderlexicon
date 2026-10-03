@@ -12,6 +12,8 @@ import com.elderlexicon.mod.vita.VitaSystem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -30,14 +32,18 @@ import java.util.Optional;
  * made or unmade (L1): the stone taken is the stone put down, and what finds no room goes back to the mage as energy of
  * its state (L3). The source names the state taken (firmo solid, aqua liquid, aura gas, igni plasma); the origin, where
  * it is taken from; the quantity, how much.
+ * <p>
+ * Natural things lying loose are taken as well as blocks, whole items at a time (docs/particulas-design.md): the flesh
+ * on the ground is flesh. What is brought is weighed in the instant with whatever else is released there, so the
+ * ingredients of a body brought beside an anchor of Vis bind into a being instead of being put down.
  */
 final class Transfer {
 
     /** How far around the mage, or the origin written, matter is looked for. */
     private static final int REACH = 8;
     private static final int VERTICAL_REACH = 4;
-    /** What is moved when no quantity says otherwise, in UMU. */
-    private static final double DEFAULT_UMU = 10.0D;
+    /** What is moved when no quantity says otherwise, in UMU: one block, as any vocant. */
+    private static final double DEFAULT_UMU = VocantFunctionHandler.DEFAULT_UMU;
     /** The break effect of a block (its particles and sound). */
     private static final int BREAK_EVENT = 2001;
 
@@ -99,7 +105,10 @@ final class Transfer {
             });
             return;
         }
-        put(context, player, element, rune, destination(player, written), taken);
+        // Brought in this instant: with an anchor released beside it, it is the body of a being (docs/vita-design.md).
+        SpellEffects.SpellImpact landing = destination(player, written);
+        Quickening.offer(level, player, landing.location(), taken,
+                () -> put(context, player, element, rune, landing, taken));
     }
 
     /** Where the vocant puts things: the place written, or where the mage aims. */
@@ -108,30 +117,74 @@ final class Transfer {
                 .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE));
     }
 
+    /** A place matter can be taken from: a block, or natural items lying loose. */
+    private record Source(BlockPos block, ItemEntity items, double distance) {
+    }
+
     /**
-     * Takes up to {@code wanted} UMU of matter in {@code state} from around {@code center}, nearest first, whole blocks
-     * at a time: never what the mage stands in or on.
+     * Takes up to {@code wanted} UMU of matter in {@code state} from around {@code center}, nearest first: whole blocks
+     * and whole items at a time, never what the mage stands in or on.
      */
     private static List<Matter> take(ServerLevel level, ServerPlayer player, BlockPos center, State state,
                                      double wanted) {
-        List<BlockPos> candidates = nearest(level, player, center, state);
+        Vec3 middle = Vec3.atCenterOf(center);
+        List<Source> sources = new ArrayList<>();
+        for (BlockPos pos : nearest(level, player, center, state)) {
+            sources.add(new Source(pos, null, Vec3.atCenterOf(pos).distanceToSqr(middle)));
+        }
+        for (ItemEntity items : loose(level, center, state)) {
+            sources.add(new Source(null, items, items.position().distanceToSqr(middle)));
+        }
+        sources.sort(Comparator.comparingDouble(Source::distance));
         List<Matter> taken = new ArrayList<>();
         double total = 0.0D;
-        for (BlockPos pos : candidates) {
+        for (Source source : sources) {
             if (total >= wanted) {
                 break;
             }
-            BlockState was = level.getBlockState(pos);
-            Optional<Matter> matter = WorldMatter.take(level, pos);
+            Optional<Matter> matter = source.block() != null ? takeBlock(level, source.block())
+                    : takeItems(source.items(), wanted - total);
             if (matter.isPresent()) {
-                if (!was.isAir()) {
-                    level.levelEvent(BREAK_EVENT, pos, Block.getId(was));
-                }
                 taken.add(matter.get());
                 total += matter.get().umu();
             }
         }
         return merged(taken);
+    }
+
+    private static Optional<Matter> takeBlock(ServerLevel level, BlockPos pos) {
+        BlockState was = level.getBlockState(pos);
+        Optional<Matter> matter = WorldMatter.take(level, pos);
+        if (matter.isPresent() && !was.isAir()) {
+            level.levelEvent(BREAK_EVENT, pos, Block.getId(was));
+        }
+        return matter;
+    }
+
+    /** As many items of a loose stack as it takes to make {@code wanted} UMU, whole ones: the rest stays where it lies. */
+    private static Optional<Matter> takeItems(ItemEntity items, double wanted) {
+        ItemStack stack = items.getItem();
+        ItemStack one = stack.copy();
+        one.setCount(1);
+        Optional<Matter> each = WorldMatter.read(one);
+        if (each.isEmpty() || each.get().umu() <= 0.0D) {
+            return Optional.empty();
+        }
+        int count = (int) Math.max(1L, Math.min(stack.getCount(), (long) Math.ceil(wanted / each.get().umu() - 1.0E-9D)));
+        stack.shrink(count);
+        if (stack.isEmpty()) {
+            items.discard();
+        } else {
+            items.setItem(stack);
+        }
+        return Optional.of(each.get().withUmu(each.get().umu() * count));
+    }
+
+    /** The natural things lying loose around {@code center} whose matter is in {@code state}. */
+    private static List<ItemEntity> loose(ServerLevel level, BlockPos center, State state) {
+        AABB around = new AABB(center).inflate(REACH, VERTICAL_REACH, REACH);
+        return level.getEntitiesOfClass(ItemEntity.class, around, items -> items.isAlive()
+                && WorldMatter.read(items).map(matter -> matter.state() == state).orElse(false));
     }
 
     /**
@@ -196,8 +249,7 @@ final class Transfer {
             Pouring.tell(player, together.get(), placed);
             if (into.isEmpty() && together.get().state() == State.GAS) {
                 // Air let out there joins the air around it: it is felt as a gust.
-                Invocation.invoke(player, element, rune, Invocation.Where.fixed(impact),
-                        together.get().umu() / EmissionRecorder.DEFAULT_QUANTITY_UMU, 0);
+                Invocation.invoke(player, element, rune, Invocation.Where.fixed(impact), together.get().umu(), 0);
             }
         }
         if (leftover > 0.0D && !context.focusActive()) {

@@ -4,7 +4,6 @@ import com.elderlexicon.mod.command.SpellCostCalculator;
 import com.elderlexicon.mod.magic.flow.FlowInterpreter;
 import com.elderlexicon.mod.magic.flow.FlowWorld;
 import com.elderlexicon.mod.magic.lexicon.Lexicons;
-import com.elderlexicon.mod.magic.lexicon.Origin;
 import com.elderlexicon.mod.magic.lexicon.Template;
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.function.BodyEnergy;
@@ -111,10 +110,7 @@ public final class SpellActionExecutor {
             // A verb with no operation to run: say so, rather than let the spell fall silent.
             ServerPlayer player = context.player();
             if (player != null) {
-                boolean fusion = Lexicons.get().rune(action.runeId()).map(rune -> rune.origin() == Origin.FUSION)
-                        .orElse(false);
-                String key = fusion ? "issue.unformed" : "issue.nooperation";
-                String text = Lexicons.get().note(key).orElse("'{rune}' nao faz nada ainda.");
+                String text = Lexicons.get().note("issue.nooperation").orElse("'{rune}' nao faz nada ainda.");
                 player.displayClientMessage(Component.literal(Template.fill(text, Map.of("rune", action.runeId()))),
                         true);
             }

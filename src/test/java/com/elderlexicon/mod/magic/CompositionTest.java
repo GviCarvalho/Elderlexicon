@@ -44,7 +44,7 @@ class CompositionTest {
             {
               "runes": {
                 "glacies": {
-                  "class": "source", "origin": "fusion", "components": ["aqua", "firmo"],
+                  "class": "source",
                   "translation": "ice", "name": "gelo", "noun": "o gelo",
                   "essence": {"aqua": 0.7, "firmo": 0.3}, "bond": "aqua",
                   "traits": {"persistent": true, "matter": "minecraft:ice"},
@@ -54,10 +54,7 @@ class CompositionTest {
                   "class": "verb", "translation": "hurl", "operation": "project", "cost": 3, "gathering": "hand",
                   "texts": {"role": "Arremessa {what} longe", "describe": "e arremessa longe{where}"}
                 },
-                "tempus": {"class": "filter", "translation": "while", "parameter": "time", "argument": "value"},
-                "ignivocare": {"class": "verb", "origin": "fusion", "components": ["igni", "vocant"],
-                               "expands": ["igni", "vocant"]},
-                "flammavocare": {"class": "verb", "origin": "fusion", "expands": ["ignivocare"]}
+                "tempus": {"class": "filter", "translation": "while", "parameter": "time", "argument": "value"}
               }
             }
             """;
@@ -78,9 +75,12 @@ class CompositionTest {
     // ------------------------------------------------------------------ composition of the book's own words
 
     @Test
-    void aFusionIsTheRunesItFuses() {
-        assertEquals(read("igni vertere aqua iactare").actions(), read("igni transiectio aqua").actions());
-        assertEquals(read("igni vertere aqua impediunt").actions(), read("igni aversio aqua").actions());
+    void aFusedRuneIsAnsweredWithWhatToWriteInstead() {
+        // docs/particulas-design.md, stage 3: the fused runes left the language.
+        SpellActionResult result = read("igni transiectio aqua");
+        assertTrue(result.issues().stream().anyMatch(issue -> issue.contains("vertere e iactare")),
+                result.issues().toString());
+        assertTrue(verbs(result).isEmpty(), "and nothing is done in its name");
     }
 
     @Test
@@ -148,28 +148,26 @@ class CompositionTest {
     }
 
     @Test
-    void anAddonsFilterAndShorthandsAreReadByTheSameRules() {
+    void anAddonsFilterIsReadByTheSameRules() {
         Lexicons.extend(words -> words.read(new StringReader(ADDON)));
 
         SpellAction held = verbs(read("igni tempus 5 iactare")).get(0);
         assertEquals(5.0D, held.seconds().orElseThrow(), 1.0E-9);
         assertTrue(read("igni tempus -2 iactare").issues().stream().anyMatch(issue -> issue.contains("outro volume")));
-
-        assertEquals(read("igni vocant").actions(), read("ignivocare").actions());
-        assertEquals(read("igni vocant").actions(), read("flammavocare").actions(), "a shorthand of a shorthand");
     }
 
     @Test
     void anAddonCanGiveAnOldRuneANewMeaning() {
-        Lexicons.extend(words -> words.rune(Lexicons.builtIn().rune("transiectio").orElseThrow().toBuilder()
-                .expansion(List.of("vertere", "@", "vocant")).build()));
-        assertEquals(read("igni vertere aqua vocant").actions(), read("igni transiectio aqua").actions());
+        List<SpellAction> before = read("igni vocant").actions();
+        Lexicons.extend(words -> words.rune(Lexicons.builtIn().rune("vocant").orElseThrow().toBuilder()
+                .name("chamar").build()));
+        assertEquals("chamar", Lexicons.get().rune("vocant").orElseThrow().name());
+        assertEquals(before, read("igni vocant").actions(), "and it is read as before");
     }
 
     @Test
     void anAddonCanBringASourceInCode() {
         Lexicons.extend(words -> words.rune(Rune.builder("umbra", WordClass.SOURCE)
-                .origin(com.elderlexicon.mod.magic.lexicon.Origin.FUSION)
                 .name("sombra")
                 .source(new SourceSpec(null, Map.of(VitaElement.AURA, 0.6, VitaElement.FIRMO, 0.4), null,
                         Traits.NONE))
@@ -186,12 +184,6 @@ class CompositionTest {
                         .verb(new VerbSpec("shine", null, 0.0D, null, null, false, null, false, null, null, false, false))
                         .build())),
                 "C is igni's glyph");
-        assertThrows(IllegalStateException.class, () -> Lexicons.extend(words -> words.rune(
-                Rune.builder("nihil", WordClass.VERB).expansion(List.of("nusquam")).build())),
-                "a shorthand of a word the language does not have");
-        assertThrows(IllegalStateException.class, () -> Lexicons.extend(words -> words.rune(
-                Rune.builder("ouroboros", WordClass.VERB).expansion(List.of("ouroboros")).build())),
-                "a shorthand of itself");
         assertEquals(before.runes().size(), Lexicons.get().runes().size(), "what was refused left no trace");
     }
 

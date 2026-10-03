@@ -59,7 +59,7 @@ public final class Composition {
 
     /**
      * What a source's essence is made of, as matter: its shares of the four primordials, the balance of vis left out
-     * (lutum's essence is half aqua and half firmo: mud). Empty when there is none of the four in it.
+     * (a source of half aqua and half firmo is mud). Empty when there is none of the four in it.
      */
     public static Optional<Composition> ofEssence(Map<VitaElement, Double> essence) {
         if (essence == null) {

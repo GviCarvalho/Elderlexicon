@@ -30,16 +30,14 @@ import java.util.Set;
  *     "igni":    {"class": "source", "glyph": "C", "essence": {"igni": 1}, "traits": {"kindles": true}, ...},
  *     "iactare": {"class": "verb", "glyph": "I", "operation": "project", "cost": 2, "gathering": "hand", ...},
  *     "quantum": {"class": "filter", "glyph": "N", "parameter": "quantity", "argument": "value", "bare": "all"},
- *     "tenet":   {"class": "filter", "glyph": "F", "parameter": "origin", "argument": "operands"},
- *     "hasta":   {"class": "form", "origin": "fusion", "components": ["iactare", "source"], "form": "spear"},
- *     "transiectio": {"class": "verb", "origin": "fusion", "components": ["vertere", "iactare"],
- *                     "expands": ["vertere", "@", "iactare"]}
+ *     "tenet":   {"class": "filter", "glyph": "F", "parameter": "origin", "argument": "operands"}
  *   }
  * }
  * </pre>
  * Every key but a rune's {@code class} may be left out. The older dictionary's keys ({@code type}, {@code function},
- * {@code shape}, {@code fusionOf}, {@code origin: original}) are still read. A retired word is one the language had and
- * no longer has: the spirit says what to write in its place.
+ * {@code origin: original}) are still read. A retired word is one the language had and no longer has: the spirit says
+ * what to write in its place. A fused rune (a form, an {@code origin: fusion}, one made of {@code components} or one
+ * that {@code expands} into others) is refused: the fused runes left the language (docs/particulas-design.md, stage 3).
  */
 public final class LexiconReader {
 
@@ -87,35 +85,36 @@ public final class LexiconReader {
     private static Rune rune(String id, JsonObject json) {
         String rawClass = string(json, "class").or(() -> string(json, "type"))
                 .orElseThrow(() -> new IllegalArgumentException("rune '" + id + "' has no class"));
+        if (fused(rawClass, json)) {
+            throw new IllegalArgumentException("rune '" + id + "' is a fused rune, and the fused runes left the language"
+                    + " (docs/particulas-design.md)");
+        }
         WordClass wordClass = WordClass.parse(rawClass)
                 .orElseThrow(() -> new IllegalArgumentException("rune '" + id + "' has an unknown class: " + rawClass));
         Rune.Builder builder = Rune.builder(id, wordClass)
-                .origin(Origin.parse(string(json, "origin").orElse(null)))
                 .glyph(string(json, "glyph").orElse(null))
                 .translation(string(json, "translation").orElse(null))
                 .name(string(json, "name").orElse(null))
                 .noun(string(json, "noun").orElse(null))
-                .lore(string(json, "lore").orElse(null))
-                .components(json.has("components") ? strings(json.get("components"))
-                        : json.has("fusionOf") ? strings(json.get("fusionOf")) : List.of())
-                .expansion(json.has("expands") ? strings(json.get("expands")) : List.of())
-                .form(string(json, "form").orElse(null));
+                .lore(string(json, "lore").orElse(null));
         if (json.has("texts")) {
             json.getAsJsonObject("texts").entrySet()
                     .forEach(entry -> builder.text(entry.getKey(), entry.getValue().getAsString()));
         }
         switch (wordClass) {
             case SOURCE -> builder.source(source(id, json));
-            case VERB -> {
-                if (json.has("operation") || !json.has("expands")) {
-                    builder.verb(verb(id, json));
-                }
-            }
+            case VERB -> builder.verb(verb(id, json));
             case FILTER -> builder.filter(filter(id, json));
-            default -> {
-            }
         }
         return builder.build();
+    }
+
+    /** Whether a rune is written as a fusion of others: a form, a fusion by origin, its parts, its expansion. */
+    private static boolean fused(String rawClass, JsonObject json) {
+        String wordClass = rawClass.trim().toLowerCase(Locale.ROOT);
+        return wordClass.equals("form") || wordClass.equals("shape")
+                || string(json, "origin").map(origin -> origin.trim().equalsIgnoreCase("fusion")).orElse(false)
+                || json.has("components") || json.has("fusionOf") || json.has("expands");
     }
 
     private static SourceSpec source(String id, JsonObject json) {

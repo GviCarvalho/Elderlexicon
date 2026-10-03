@@ -193,9 +193,24 @@ class MarkSpellGrammarTest {
     }
 
     @Test
-    void aSourceCannotBecomeAMark() {
+    void aSourceConvertedIntoAMarkChangesItsCore() {
+        SpellActionResult result = parse("aqua quantum 16 vertere m1");
+
+        assertFalse(result.hasIssues(), "Unexpected issues: " + result.issues());
+        SpellAction vertere = onlyFunction(result);
+        assertEquals(Optional.empty(), vertere.subjectMark());
+        assertEquals(Optional.of("m1"), vertere.targetMark());
+        assertEquals(16.0D, vertere.quantity().getAsDouble(), 1.0E-9D, "sixteen parts of the hundred");
+        assertTrue(result.vertereRequests().isEmpty(), "nothing of the mage's own energy is converted");
+    }
+
+    @Test
+    void aCoreWithoutAQuantumIsReadAsOneThatKeepsIt() {
         SpellActionResult result = parse("igni vertere m1");
-        assertTrue(result.issues().stream().anyMatch(issue -> issue.contains("fonte alvo imediatamente após")));
+        assertFalse(result.hasIssues(), "without a quantum the core is kept: " + result.issues());
+        SpellAction vertere = onlyFunction(result);
+        assertEquals(Optional.of("m1"), vertere.targetMark());
+        assertTrue(vertere.quantity().isEmpty());
         assertTrue(result.vertereRequests().isEmpty());
     }
 

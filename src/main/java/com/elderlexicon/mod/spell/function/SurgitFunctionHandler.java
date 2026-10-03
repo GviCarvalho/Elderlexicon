@@ -62,6 +62,15 @@ public final class SurgitFunctionHandler implements SpellFunctionHandler {
             }
             return;
         }
+        if (mark.isPresent()) {
+            // m1 surgit on a body without a kern: the mage's kern goes into it (docs/vita-design.md).
+            Optional<net.minecraft.world.entity.Mob> body = Incorporations.soullessBearing(player, mark.get());
+            if (body.isPresent()) {
+                Incorporations.start(context, body.get(),
+                        action.get().seconds().isPresent() ? action.get().seconds().getAsDouble() : null);
+                return;
+            }
+        }
         Double potency = action.filter(a -> a.potency().isPresent()).map(a -> a.potency().getAsDouble()).orElse(null);
         Double sought = action.filter(a -> a.sourceValue().isPresent()).map(a -> a.sourceValue().getAsDouble()).orElse(null);
         Double chronos = action.filter(a -> a.seconds().isPresent()).map(a -> a.seconds().getAsDouble()).orElse(null);

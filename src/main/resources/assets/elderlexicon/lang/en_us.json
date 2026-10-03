@@ -128,5 +128,6 @@
   "overlay.elderlexicon.spelling.cooldown_toast": "Spirit still resting: %ss",
   "overlay.elderlexicon.spelling.result.unknown": "The spirit gave no answer.",
   "block.elderlexicon.formless_solid": "Formless Matter",
-  "block.elderlexicon.formless_liquid": "Formless Liquid Matter"
+  "block.elderlexicon.formless_liquid": "Formless Liquid Matter",
+  "entity.elderlexicon.homunculus": "Homunculus"
 }

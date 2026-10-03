@@ -24,7 +24,19 @@ public final class CustomRuneHelper {
     private static final int MAX_RECURSION = 4;
     private static final Pattern RUNE_TOKEN = Pattern.compile("\\b([A-Za-z0-9_]+)\\b");
 
+    private static final com.elderlexicon.mod.parser.ParserDictionary DICTIONARY =
+            com.elderlexicon.mod.parser.ParserDictionary.load();
+
     private CustomRuneHelper() {
+    }
+
+    /**
+     * Whether a rune may be given this name: never a rune of the language or a number (a named rune called "igni"
+     * would take the place of fire in every spell).
+     */
+    public static boolean isNameable(String runeId) {
+        return runeId != null && runeId.length() >= 2 && !runeId.matches("-?\\d+")
+                && DICTIONARY.lookup(runeId).isEmpty();
     }
 
     public static String normalizeRuneId(String runeId) {
@@ -37,7 +49,7 @@ public final class CustomRuneHelper {
 
     public static boolean saveCustomRune(ItemStack stack, String runeId, List<String> runes) {
         String normalizedId = normalizeRuneId(runeId);
-        if (!(stack.getItem() instanceof GrimoireItem) || normalizedId == null || runes == null || runes.isEmpty()) {
+        if (!(stack.getItem() instanceof GrimoireItem) || !isNameable(normalizedId) || runes == null || runes.isEmpty()) {
             return false;
         }
         List<String> sanitized = sanitizeRunes(runes);
@@ -86,7 +98,7 @@ public final class CustomRuneHelper {
     }
 
     private static Optional<List<String>> findCustomRune(ItemStack stack, String runeId) {
-        if (!(stack.getItem() instanceof GrimoireItem) || runeId == null || stack.isEmpty()) {
+        if (!(stack.getItem() instanceof GrimoireItem) || !isNameable(runeId) || stack.isEmpty()) {
             return Optional.empty();
         }
         CompoundTag tag = stack.getTag();
@@ -217,7 +229,7 @@ public final class CustomRuneHelper {
         for (int i = entries.size() - 1; i >= 0; i--) {
             CompoundTag entry = entries.getCompound(i);
             String id = entry.getString(ID_TAG);
-            if (!present.contains(id)) {
+            if (!present.contains(id) || !isNameable(id)) {
                 entries.remove(i);
                 removed = true;
             }

@@ -14,11 +14,13 @@ import java.util.Map;
  * Builds a {@link MaterialTable}: from the mod's data, and then from whatever an addon brings (more substances, other
  * recipes or forms for the old ones). Building checks that the matter holds together: there is one primordial for each
  * aspect, found in the state it names; no two recipes are so close that a mixture could be both; every block and item
- * reads as one substance only; every substance holds something.
+ * reads as one substance only; every substance holds something. Beings need no room of their own, since an anchored body
+ * is always the nearest one, but each creature shows one being only and no name is both a substance and a being.
  */
 public final class MaterialTableBuilder {
 
     private final Map<String, Substance> substances = new LinkedHashMap<>();
+    private final Map<String, Being> beings = new LinkedHashMap<>();
 
     private MaterialTableBuilder() {
     }
@@ -27,10 +29,11 @@ public final class MaterialTableBuilder {
         return new MaterialTableBuilder();
     }
 
-    /** A builder holding every substance of {@code table}, to add to or change. */
+    /** A builder holding every substance and being of {@code table}, to add to or change. */
     public static MaterialTableBuilder from(MaterialTable table) {
         MaterialTableBuilder builder = new MaterialTableBuilder();
         table.substances().forEach(builder::substance);
+        table.beings().forEach(builder::being);
         return builder;
     }
 
@@ -40,8 +43,16 @@ public final class MaterialTableBuilder {
         return this;
     }
 
+    /** Adds a kind of being, or gives an existing one a new proportion or another creature. */
+    public MaterialTableBuilder being(Being being) {
+        beings.put(normalize(being.id()), being);
+        return this;
+    }
+
+    /** Takes out the substance or the being of that name. */
     public MaterialTableBuilder remove(String id) {
         substances.remove(normalize(id));
+        beings.remove(normalize(id));
         return this;
     }
 
@@ -52,16 +63,13 @@ public final class MaterialTableBuilder {
     }
 
     public boolean has(String id) {
-        return substances.containsKey(normalize(id));
+        return substances.containsKey(normalize(id)) || beings.containsKey(normalize(id));
     }
 
     public MaterialTable build() {
         List<String> problems = new ArrayList<>();
         Map<VitaElement, String> primordials = new HashMap<>();
         for (Substance substance : substances.values()) {
-            if (!(substance.unit() > 0.0D)) {
-                problems.add("'" + substance.id() + "' holds nothing in a block (its unit is not above zero)");
-            }
             substance.recipe().pureAspect().ifPresent(aspect -> {
                 String other = primordials.putIfAbsent(aspect, substance.id());
                 if (other != null) {
@@ -104,16 +112,27 @@ public final class MaterialTableBuilder {
                         problems.add("the " + key + " would read as both " + other + " and " + substance.id() + " "
                                 + state.name().toLowerCase(Locale.ROOT));
                     }
-                    if (!(form.umu() > 0.0D)) {
+                    if (form.particles() <= 0L) {
                         problems.add("the " + key + " of '" + substance.id() + "' holds nothing");
                     }
                 }
             });
         }
+        Map<String, String> shownBy = new HashMap<>();
+        for (Being being : beings.values()) {
+            if (substances.containsKey(being.id())) {
+                problems.add("'" + being.id() + "' is both a substance and a being");
+            }
+            String other = shownBy.putIfAbsent(being.entity(), being.id());
+            if (other != null) {
+                problems.add("the creature " + being.entity() + " would show both '" + other + "' and '" + being.id()
+                        + "'");
+            }
+        }
         if (!problems.isEmpty()) {
             throw new IllegalStateException("The matter does not hold together: " + String.join("; ", problems));
         }
-        return new MaterialTable(substances);
+        return new MaterialTable(substances, beings);
     }
 
     static String normalize(String id) {

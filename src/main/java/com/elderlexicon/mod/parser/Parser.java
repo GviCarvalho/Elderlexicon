@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.parser;
 
+import com.elderlexicon.mod.magic.lexicon.Flow;
 import com.elderlexicon.mod.magic.lexicon.Rune;
 import com.elderlexicon.mod.magic.lexicon.Template;
 import com.elderlexicon.mod.magic.lexicon.VerbSpec;
@@ -114,7 +115,7 @@ public class Parser {
 
                 String targetElement = translateRune(action.targetRuneId());
                 String phrase = action.subjectMark().isPresent() || action.targetMark().isPresent()
-                        ? renderMarkedFunction(definition, action, targetElement)
+                        ? renderMarkedFunction(definition, action, targetElement, element)
                         : renderFunction(definition, state, targetElement, action.reversed());
                 if (action.place().isPresent()) {
                     phrase = phrase + " at " + action.place().get().describe();
@@ -256,11 +257,19 @@ public class Parser {
     }
 
     /** A verb acting on marked things: {@code Summon 'm1'}, {@code Swap 'm1' with 'm2'}. */
-    private String renderMarkedFunction(RuneDefinition function, SpellAction action, String targetElement) {
+    private String renderMarkedFunction(RuneDefinition function, SpellAction action, String targetElement,
+                                        String element) {
         Optional<Rune> rune = dictionary.lexicon().rune(function.id());
         String caster = dictionary.lexicon().note("transcript.caster").orElse("the caster");
         String subject = action.subjectMark().map(mark -> "'" + mark + "'").orElse(caster);
         String target = action.targetMark().map(mark -> "'" + mark + "'").orElse(targetElement);
+        if (action.subjectMark().isEmpty() && action.targetMark().isPresent()
+                && rune.flatMap(Rune::verb).map(verb -> verb.flow() == Flow.CONVERT).orElse(false)) {
+            // aqua quantum 16 vertere m1: the core of what bears the mark, so many parts of its hundred.
+            String parts = action.quantityAll() ? "all"
+                    : action.quantity().isPresent() ? formatParts(action.quantity().getAsDouble()) : "?";
+            return "Change the core of " + target + ": " + element + ", " + parts + " parts of 100";
+        }
         Optional<String> template = rune.flatMap(found -> found.text("transcript.marked"));
         if (template.isPresent()) {
             Map<String, String> values = new HashMap<>();
@@ -271,6 +280,10 @@ public class Parser {
         }
         String verb = verbOf(function, rune, action.reversed());
         return target == null ? verb + " " + subject : verb + " " + subject + " to " + target;
+    }
+
+    private static String formatParts(double parts) {
+        return parts == Math.rint(parts) ? Long.toString(Math.round(parts)) : String.format(Locale.ROOT, "%.2f", parts);
     }
 
     /** The English verb of the transcript; turned around by a negative quantity, the one the lexicon gives for that. */

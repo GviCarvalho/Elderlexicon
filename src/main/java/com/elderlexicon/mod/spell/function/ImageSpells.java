@@ -77,7 +77,8 @@ public final class ImageSpells {
         }
         double energy = energy(action);
         context.addTotalCost(Illusion.cost(energy, Illusion.seconds(chronos(action))));
-        Invocation.imagine(player, element, context.elementRuneId(), impact, energy / EmissionRecorder.DEFAULT_QUANTITY_UMU,
+        // Shown as big as the vocant would make it: one block for every 16 UMU.
+        Invocation.imagine(player, element, context.elementRuneId(), impact, energy / VocantFunctionHandler.DEFAULT_UMU,
                 ticks);
     }
 

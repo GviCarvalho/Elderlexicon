@@ -29,8 +29,8 @@ public enum VitaElement {
     }
 
     /**
-     * The element a source rune follows the laws of: its own for the four and vis, and for any other source (a fusion,
-     * or one an addon brings) the one the lexicon gives it ({@code fusus} follows fire's). Anything that is no source
+     * The element a source rune follows the laws of: its own for the four and vis, and for any other source (one an
+     * addon brings) the one the lexicon gives it. Anything that is no source
      * is mana, as the book fills the gap.
      */
     public static VitaElement fromRuneId(String runeId) {

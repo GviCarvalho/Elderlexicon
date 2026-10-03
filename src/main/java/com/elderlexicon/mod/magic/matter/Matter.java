@@ -41,6 +41,11 @@ public record Matter(Composition composition, State state, double umu) {
         return substance(table).isEmpty();
     }
 
+    /** Its particles: what it is made of, in the whole particles nearest how much of it there is. */
+    public Particles particles() {
+        return Particles.in(composition, Particles.ofUmu(umu));
+    }
+
     public Matter withUmu(double amount) {
         return new Matter(composition, state, amount);
     }

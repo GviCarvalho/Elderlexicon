@@ -62,14 +62,6 @@ class FociTest {
         assertEquals(0.0D, discount(List.of(), crimson));
     }
 
-    @Test
-    void aShorthandIsFavouredAsTheRunesItStandsFor() {
-        // aqua transiectio igni says aqua vertere igni iactare: a crimson wand bears the conversion into fire.
-        List<String> words = new SpellGrammar(LEXICON).expand(List.of("aqua", "transiectio", "igni"), new ArrayList<>());
-        assertEquals(List.of("aqua", "vertere", "igni", "iactare"), words);
-        assertEquals(1.0D, discount(words, Foci.woods().get("crimson").conversions()));
-    }
-
     private static double discount(List<String> runes, Set<String> targets) {
         return Foci.conversionDiscount(runes, targets, LEXICON::costOf);
     }

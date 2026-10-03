@@ -5,6 +5,8 @@ import com.elderlexicon.mod.magic.matter.Materials;
 import com.elderlexicon.mod.magic.matter.Matter;
 import com.elderlexicon.mod.magic.matter.Substance;
 import com.elderlexicon.mod.spell.SpellCastingService;
+import com.elderlexicon.mod.spell.function.MarkHelper;
+import com.elderlexicon.mod.spell.life.Homunculus;
 import com.elderlexicon.mod.spell.matter.FormlessMatterBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -19,6 +21,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
@@ -188,10 +191,12 @@ public final class SpellGameTests {
         if (holes == 0) {
             helper.fail("no floor was taken");
         }
-        if (!anyIn(helper, Blocks.STONE, 2, 3)) {
-            helper.fail("no stone was put before the wall");
-        }
-        helper.succeed();
+        // What is brought waits for the end of the instant, in case an anchor binds it into a being.
+        helper.succeedWhen(() -> {
+            if (!anyIn(helper, Blocks.STONE, 2, 3)) {
+                helper.fail("no stone was put before the wall");
+            }
+        });
     }
 
     private static boolean anyInFloor(GameTestHelper helper, Block block) {
@@ -301,8 +306,9 @@ public final class SpellGameTests {
      * The chain the plan ends on (docs/plano-materia-e-forca.md, stage 5): stone made by mixing. Earth is melted, and
      * into the molten earth go water, air and fire, a little of each, until the proportion is stone's (eight parts earth,
      * half a part water, half a part air, one part fire): the mixture is molten stone, lava, which cools into stone.
+     * What a vocant brings waits for the end of the instant, so each step is looked at a moment after it.
      */
-    @GameTest(template = EMPTY)
+    @GameTest(template = EMPTY, timeoutTicks = 100)
     public static void stoneIsMadeByMixingThePrimordials(GameTestHelper helper) {
         for (int x = 0; x < 5; x++) {
             for (int z = 0; z < 5; z++) {
@@ -310,8 +316,8 @@ public final class SpellGameTests {
             }
         }
         for (int x = 2; x <= 3; x++) {
-            for (int y = 1; y <= 4; y++) {
-                for (int z = 1; z <= 4; z++) {
+            for (int y = 1; y <= 2; y++) {
+                for (int z = 1; z <= 2; z++) {
                     helper.setBlock(new BlockPos(x, y, z), Blocks.DIRT);
                 }
             }
@@ -319,34 +325,43 @@ public final class SpellGameTests {
         ServerPlayer mage = mage(helper);
         Vec3 stand = helper.absoluteVec(new Vec3(0.5D, 1.0D, 0.5D));
         mage.moveTo(stand.x, stand.y, stand.z, 0.0F, 0.0F);
-
-        // Sixteen UMU of earth (thirty-two blocks of soil) melted where they are: molten earth, formless matter.
-        castOrFail(helper, mage, "firmo quantum 16 " + at(helper, 2, 3, 2) + " tenet vertere aqua");
-        List<Matter> molten = formlessIn(helper);
-        check(helper, molten.size() == 32 && countIn(helper, Blocks.DIRT) == 0,
-                "the soil did not melt: " + molten.size() + " formless, " + countIn(helper, Blocks.DIRT) + " dirt left");
-
         String pool = at(helper, 2, 1, 2);
-        // One UMU of water: sixteen of earth and one of water are deepslate, molten.
-        castOrFail(helper, mage, "aqua quantum 1 " + pool + " ubis vocant");
-        check(helper, formlessIn(helper).stream().allMatch(matter -> named(matter, "deepslate")),
-                "earth and a little water should be molten deepslate");
-        // One of air: near no natural thing's code, formless matter with no name.
-        castOrFail(helper, mage, "aura quantum 1 " + pool + " ubis vocant");
-        check(helper, !formlessIn(helper).isEmpty()
-                && formlessIn(helper).stream().allMatch(matter -> matter.unnamed(Materials.get())),
-                "with air too it should have no name");
-        // Two of fire: now it is stone's proportion. Molten stone is lava.
-        castOrFail(helper, mage, "igni quantum 2 " + pool + " ubis vocant");
-        check(helper, formlessIn(helper).isEmpty(), "no formless matter should be left: " + formlessIn(helper));
-        int lava = countIn(helper, Blocks.LAVA);
-        check(helper, lava == 13, "twenty UMU of molten stone are thirteen sources of lava, were " + lava);
-
-        // Cooled, it is stone.
-        castOrFail(helper, mage, "aqua quantum 19 " + pool + " tenet vertere firmo");
-        int stone = countIn(helper, Blocks.STONE);
-        check(helper, stone == 13, "the lava should cool into thirteen blocks of stone, were " + stone);
-        helper.succeed();
+        helper.startSequence()
+                // 128 UMU of earth, eight blocks of soil, melted where they are: molten earth, formless matter.
+                .thenExecute(() -> {
+                    castOrFail(helper, mage, "firmo quantum 128 " + pool + " tenet vertere aqua");
+                    List<Matter> molten = formlessIn(helper);
+                    check(helper, molten.size() == 8 && countIn(helper, Blocks.DIRT) == 0, "the soil did not melt: "
+                            + molten.size() + " formless, " + countIn(helper, Blocks.DIRT) + " dirt left");
+                })
+                // Eight of water: 128 of earth and 8 of water are deepslate, molten.
+                .thenExecute(() -> castOrFail(helper, mage, "aqua quantum 8 " + pool + " ubis vocant"))
+                .thenIdle(2)
+                .thenExecute(() -> check(helper, !formlessIn(helper).isEmpty()
+                        && formlessIn(helper).stream().allMatch(matter -> named(matter, "deepslate")),
+                        "earth and a little water should be molten deepslate: " + formlessIn(helper)))
+                // Eight of air: near no natural thing's code, formless matter with no name.
+                .thenExecute(() -> castOrFail(helper, mage, "aura quantum 8 " + pool + " ubis vocant"))
+                .thenIdle(2)
+                .thenExecute(() -> check(helper, !formlessIn(helper).isEmpty()
+                        && formlessIn(helper).stream().allMatch(matter -> matter.unnamed(Materials.get())),
+                        "with air too it should have no name"))
+                // Sixteen of fire: now it is stone's proportion, 160 UMU of molten stone, ten sources of lava.
+                .thenExecute(() -> castOrFail(helper, mage, "igni quantum 16 " + pool + " ubis vocant"))
+                .thenIdle(2)
+                .thenExecute(() -> {
+                    check(helper, formlessIn(helper).isEmpty(), "no formless matter should be left: "
+                            + formlessIn(helper));
+                    int lava = countIn(helper, Blocks.LAVA);
+                    check(helper, lava == 10, "160 UMU of molten stone are ten sources of lava, were " + lava);
+                })
+                // Cooled, it is stone.
+                .thenExecute(() -> {
+                    castOrFail(helper, mage, "aqua quantum 160 " + pool + " tenet vertere firmo");
+                    int stone = countIn(helper, Blocks.STONE);
+                    check(helper, stone == 10, "the lava should cool into ten blocks of stone, were " + stone);
+                })
+                .thenSucceed();
     }
 
     @GameTest(template = EMPTY)
@@ -361,17 +376,20 @@ public final class SpellGameTests {
         ServerPlayer mage = mage(helper);
         Vec3 stand = helper.absoluteVec(new Vec3(0.5D, 1.0D, 0.5D));
         mage.moveTo(stand.x, stand.y, stand.z, 0.0F, 0.0F);
-        // The liquids nearest (2, 1, 2), four UMU of them, taken and put at (2, 1, 4): a source of water and one of
-        // lava, brought to one place, mix (L4). Half stone and half water is near no natural thing's code.
-        castOrFail(helper, mage, "aqua quantum 4 " + at(helper, 2, 1, 2) + " tenet " + at(helper, 2, 1, 4) + " ubis vocant");
+        // The liquids nearest (2, 1, 2), 32 UMU of them, taken and put at (2, 1, 4): a source of water and one of lava,
+        // brought to one place, mix (L4). Half stone and half water is near no natural thing's code.
+        castOrFail(helper, mage, "aqua quantum 32 " + at(helper, 2, 1, 2) + " tenet " + at(helper, 2, 1, 4)
+                + " ubis vocant");
         check(helper, countIn(helper, Blocks.WATER) == 0 && countIn(helper, Blocks.LAVA) == 0,
                 "the water and the lava should have been taken");
-        List<Matter> brought = formlessIn(helper);
-        check(helper, !brought.isEmpty() && brought.stream().allMatch(matter -> matter.unnamed(Materials.get())),
-                "they should be one mixture with no name now: " + brought);
-        double held = brought.stream().mapToDouble(Matter::umu).sum();
-        check(helper, Math.abs(held - 4.5D) < 1.0E-6D, "all of both, 4.5 UMU, were " + held);
-        helper.succeed();
+        helper.runAfterDelay(2, () -> {
+            List<Matter> brought = formlessIn(helper);
+            check(helper, !brought.isEmpty() && brought.stream().allMatch(matter -> matter.unnamed(Materials.get())),
+                    "they should be one mixture with no name now: " + brought);
+            double held = brought.stream().mapToDouble(Matter::umu).sum();
+            check(helper, Math.abs(held - 32.0D) < 1.0E-6D, "all of both, 32 UMU, were " + held);
+            helper.succeed();
+        });
     }
 
     @GameTest(template = EMPTY)
@@ -387,12 +405,77 @@ public final class SpellGameTests {
         ServerPlayer mage = mage(helper);
         Vec3 stand = helper.absoluteVec(new Vec3(0.5D, 1.0D, 0.5D));
         mage.moveTo(stand.x, stand.y, stand.z, 0.0F, 0.0F);
-        // Nine UMU of water and six of fire: six of each boil off as vapour, and three of water stay, one source.
-        castOrFail(helper, mage, "igni quantum 6 " + at(helper, 2, 1, 2) + " ubis vocant");
-        int water = countIn(helper, Blocks.WATER);
-        check(helper, water == 1, "the pool should boil down to one source, were " + water);
-        check(helper, formlessIn(helper).isEmpty(), "nothing formless: water is water");
-        helper.succeed();
+        // 48 UMU of water and 32 of fire: 32 of each boil off as vapour, and 16 of water stay, one source.
+        castOrFail(helper, mage, "igni quantum 32 " + at(helper, 2, 1, 2) + " ubis vocant");
+        helper.runAfterDelay(2, () -> {
+            int water = countIn(helper, Blocks.WATER);
+            check(helper, water == 1, "the pool should boil down to one source, were " + water + " at"
+                    + where(helper, Blocks.WATER));
+            check(helper, formlessIn(helper).isEmpty(), "nothing formless: water is water");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A vocant makes whole blocks of what its source is, one for every 16 UMU (docs/particulas-design.md); what makes no
+     * whole block goes back to the body, so ten UMU of earth make none.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 60)
+    public static void aVocantMakesOneBlockForEverySixteenUmu(GameTestHelper helper) {
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < 5; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.GLASS);
+            }
+        }
+        ServerPlayer mage = mage(helper);
+        Vec3 stand = helper.absoluteVec(new Vec3(0.5D, 1.0D, 0.5D));
+        mage.moveTo(stand.x, stand.y, stand.z, 0.0F, 0.0F);
+        helper.startSequence()
+                .thenExecute(() -> castOrFail(helper, mage, "firmo quantum 40 " + at(helper, 2, 1, 2) + " ubis vocant"))
+                .thenIdle(2)
+                .thenExecute(() -> check(helper, countIn(helper, Blocks.DIRT) == 2,
+                        "forty UMU of earth are two blocks, were " + countIn(helper, Blocks.DIRT)))
+                .thenExecute(() -> castOrFail(helper, mage, "firmo quantum 10 " + at(helper, 2, 1, 4) + " ubis vocant"))
+                .thenIdle(2)
+                .thenExecute(() -> check(helper, countIn(helper, Blocks.DIRT) == 2,
+                        "ten UMU make no whole block, yet there are " + countIn(helper, Blocks.DIRT)))
+                .thenSucceed();
+    }
+
+    /**
+     * The ingredients of a body brought beside an anchor in one instant bind into a being (docs/vita-design.md and
+     * docs/particulas-design.md): a quarter of flesh, a little more than a third of air and two fifths of water, with
+     * the hundred of Vis, are a person's proportion, and a homunculus is born of them. The flesh lying loose is taken
+     * with tenet, as the water and the air of a spell come from the body.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 100)
+    public static void ingredientsBroughtBesideAnAnchorBindIntoAHomunculus(GameTestHelper helper) {
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < 5; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.GLASS);
+            }
+        }
+        ServerPlayer mage = mage(helper);
+        Vec3 stand = helper.absoluteVec(new Vec3(0.5D, 1.0D, 0.5D));
+        mage.moveTo(stand.x, stand.y, stand.z, 0.0F, 0.0F);
+        mage.giveExperiencePoints(1000); // the hundred of Vis: ten points of experience for each UMU
+        Vec3 heap = helper.absoluteVec(new Vec3(4.5D, 1.0D, 0.5D));
+        ItemEntity flesh = new ItemEntity(helper.getLevel(), heap.x, heap.y, heap.z,
+                new ItemStack(Items.ROTTEN_FLESH, 25));
+        flesh.setPickUpDelay(32767);
+        helper.getLevel().addFreshEntity(flesh);
+        String there = at(helper, 2, 1, 3);
+        // One instant, one place, as the lines of a page in one column.
+        castOrFail(helper, mage, "firmo quantum 25 " + at(helper, 4, 1, 0) + " tenet " + there + " ubis vocant");
+        castOrFail(helper, mage, "aura quantum 36 " + there + " ubis vocant");
+        castOrFail(helper, mage, "aqua quantum 40 " + there + " ubis vocant");
+        castOrFail(helper, mage, "vis quantum 100 " + there + " ubis vocant");
+        helper.succeedWhen(() -> {
+            List<Homunculus> born = helper.getLevel().getEntitiesOfClass(Homunculus.class,
+                    new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(8.0D));
+            check(helper, !born.isEmpty(), "no homunculus was born of the flesh, the air, the water and the anchor");
+            check(helper, !flesh.isAlive(), "the flesh should have become its body");
+        });
     }
 
     private static boolean named(Matter matter, String substance) {
@@ -433,6 +516,300 @@ public final class SpellGameTests {
             int dense = countIn(helper, Blocks.STONE) + countIn(helper, Blocks.DEEPSLATE)
                     + countIn(helper, Blocks.OBSIDIAN) + countIn(helper, Blocks.CRYING_OBSIDIAN);
             check(helper, dense == 1, "one block as dense as all of it, were " + dense);
+        });
+    }
+
+    // ------------------------------------------------------------------ the core (docs/particulas-design.md, stage 4)
+
+    /** A floor of glass (made, so no matter to change) and a mage at its near corner. */
+    private static ServerPlayer mageOnGlass(GameTestHelper helper) {
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < 5; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.GLASS);
+            }
+        }
+        ServerPlayer mage = mage(helper);
+        Vec3 stand = helper.absoluteVec(new Vec3(0.5D, 1.0D, 0.5D));
+        mage.moveTo(stand.x, stand.y, stand.z, 0.0F, 0.0F);
+        return mage;
+    }
+
+    /**
+     * The marks of this run of the tests. Marks are the world's and are saved with it, and the test server keeps its
+     * world from one run to the next, where the tests may stand somewhere else: a mark left by the last run could name
+     * a block of another test now. Every run marks with names of its own.
+     */
+    private static final String RUN = Long.toString(System.currentTimeMillis(), 36);
+
+    private static String mark(String name) {
+        return name + RUN;
+    }
+
+    /** A block of the test, marked (marks are the world's: every test needs its own). */
+    private static void markBlock(GameTestHelper helper, int x, int y, int z, String mark) {
+        MarkHelper.applyMark(helper.getLevel(), helper.absolutePos(new BlockPos(x, y, z)), mark);
+    }
+
+    private static ItemEntity loose(GameTestHelper helper, ItemStack stack, String mark) {
+        Vec3 at = helper.absoluteVec(new Vec3(2.5D, 1.0D, 2.5D));
+        ItemEntity item = new ItemEntity(helper.getLevel(), at.x, at.y, at.z, stack);
+        item.setPickUpDelay(32767);
+        helper.getLevel().addFreshEntity(item);
+        MarkHelper.applyMark(item, mark);
+        return item;
+    }
+
+    private static List<ItemEntity> itemsIn(GameTestHelper helper) {
+        return helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(6.0D));
+    }
+
+    private static int countOf(List<ItemEntity> items, net.minecraft.world.item.Item item) {
+        return items.stream().filter(entity -> entity.isAlive() && entity.getItem().is(item))
+                .mapToInt(entity -> entity.getItem().getCount()).sum();
+    }
+
+    /**
+     * A block given a new core becomes what the core is, where it was, and keeps its mark: stone all earth is soil, and
+     * the same mark then makes the soil all water, a source of water (soil is solid as nature has it, so the water is
+     * liquid as nature has it).
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 60)
+    public static void aBlockBecomesWhatItsCoreIsAndKeepsItsMark(GameTestHelper helper) {
+        ServerPlayer mage = mageOnGlass(helper);
+        BlockPos block = new BlockPos(2, 1, 2);
+        helper.setBlock(block, Blocks.STONE);
+        markBlock(helper, 2, 1, 2, mark("c4bloco"));
+        helper.startSequence()
+                .thenExecute(() -> castOrFail(helper, mage, "firmo quantum vertere " + mark("c4bloco")))
+                .thenIdle(2)
+                .thenExecute(() -> check(helper, helper.getBlockState(block).is(Blocks.DIRT),
+                        "stone all earth should be soil, was " + helper.getBlockState(block)))
+                .thenExecute(() -> castOrFail(helper, mage, "aqua quantum vertere " + mark("c4bloco")))
+                .thenIdle(2)
+                .thenExecute(() -> check(helper, helper.getBlockState(block).is(Blocks.WATER),
+                        "the soil kept the mark, and all water it is water, was " + helper.getBlockState(block)))
+                .thenSucceed();
+    }
+
+    /**
+     * The lines of a column are weighed together: seventy of earth and thirty of air read in one instant are sand's
+     * code. The same two an instant apart are not: the first leaves water and fire their share of what is left, and the
+     * second takes its air from a mixture that is no longer stone.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 60)
+    public static void theLinesOfACodeInOneInstantMakeThatCode(GameTestHelper helper) {
+        ServerPlayer mage = mageOnGlass(helper);
+        BlockPos together = new BlockPos(1, 1, 3);
+        BlockPos apart = new BlockPos(3, 1, 3);
+        helper.setBlock(together, Blocks.STONE);
+        helper.setBlock(apart, Blocks.STONE);
+        markBlock(helper, 1, 1, 3, mark("c4junto"));
+        markBlock(helper, 3, 1, 3, mark("c4passo"));
+        castOrFail(helper, mage, "firmo quantum 70 vertere " + mark("c4junto"));
+        castOrFail(helper, mage, "aura quantum 30 vertere " + mark("c4junto"));
+        castOrFail(helper, mage, "firmo quantum 70 vertere " + mark("c4passo"));
+        helper.runAfterDelay(2, () -> castOrFail(helper, mage, "aura quantum 30 vertere " + mark("c4passo")));
+        helper.runAfterDelay(5, () -> {
+            check(helper, helper.getBlockState(together).is(Blocks.SAND),
+                    "seventy of earth and thirty of air together are sand, was " + helper.getBlockState(together));
+            check(helper, !helper.getBlockState(apart).is(Blocks.SAND),
+                    "an instant apart they should not be sand");
+            check(helper, formlessIn(helper).size() == 1, "the one apart is a mixture with no name: "
+                    + formlessIn(helper));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * What a thing becomes is in the state its particles make (user, 01/10/2026): stone made all water is water, not
+     * ice, and so is lava made all water; lava given steam's code (nine of water to one of fire) rises as vapour, which
+     * leaves nothing behind.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 60)
+    public static void theStateComesFromWhatAThingBecomes(GameTestHelper helper) {
+        ServerPlayer mage = mageOnGlass(helper);
+        BlockPos stone = new BlockPos(0, 1, 4);
+        BlockPos lava = new BlockPos(4, 1, 4);
+        BlockPos hot = new BlockPos(2, 1, 4);
+        helper.setBlock(stone, Blocks.STONE);
+        helper.setBlock(lava, Blocks.LAVA);
+        helper.setBlock(hot, Blocks.LAVA);
+        markBlock(helper, 0, 1, 4, mark("c4pedra"));
+        markBlock(helper, 4, 1, 4, mark("c4lava"));
+        markBlock(helper, 2, 1, 4, mark("c4vapor"));
+        castOrFail(helper, mage, "aqua quantum vertere " + mark("c4pedra"));
+        castOrFail(helper, mage, "aqua quantum vertere " + mark("c4lava"));
+        castOrFail(helper, mage, "aqua quantum 90 vertere " + mark("c4vapor"));
+        castOrFail(helper, mage, "igni quantum 10 vertere " + mark("c4vapor"));
+        helper.runAfterDelay(2, () -> {
+            check(helper, helper.getBlockState(stone).is(Blocks.WATER),
+                    "stone made water should be water, was " + helper.getBlockState(stone));
+            check(helper, helper.getBlockState(lava).is(Blocks.WATER),
+                    "lava made all water should be water, was " + helper.getBlockState(lava));
+            check(helper, helper.getBlockState(hot).isAir(),
+                    "lava in steam's code should rise as vapour, was " + helper.getBlockState(hot));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Items stay items: sixteen rotten flesh (4096 particles) given bone's code (sixty of earth, twenty of water and
+     * twenty of fire; the air goes to nothing) are three bones of 1365, which carry the mark, and the one particle left
+     * leaves as light.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 60)
+    public static void fleshOnTheGroundGivenBonesCodeIsBones(GameTestHelper helper) {
+        ServerPlayer mage = mageOnGlass(helper);
+        ItemEntity flesh = loose(helper, new ItemStack(Items.ROTTEN_FLESH, 16), mark("c4carne"));
+        castOrFail(helper, mage, "firmo quantum 60 vertere " + mark("c4carne"));
+        castOrFail(helper, mage, "aqua quantum 20 vertere " + mark("c4carne"));
+        castOrFail(helper, mage, "igni quantum 20 vertere " + mark("c4carne"));
+        helper.runAfterDelay(2, () -> {
+            List<ItemEntity> items = itemsIn(helper);
+            check(helper, !flesh.isAlive() && countOf(items, Items.ROTTEN_FLESH) == 0, "the flesh should be gone");
+            check(helper, countOf(items, Items.BONE) == 3, "three bones, were " + countOf(items, Items.BONE));
+            check(helper, items.stream().filter(item -> item.getItem().is(Items.BONE))
+                            .allMatch(item -> MarkHelper.markForEntity(item).filter(mark("c4carne")::equals).isPresent()),
+                    "the bones should carry the flesh's mark");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Lines with no number share the hundred evenly (user, 01/10/2026): water and air written without one make stone
+     * half of each, mist's code, and it rises as mist.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 60)
+    public static void linesWithoutANumberShareTheHundredEvenly(GameTestHelper helper) {
+        ServerPlayer mage = mageOnGlass(helper);
+        BlockPos block = new BlockPos(2, 1, 2);
+        helper.setBlock(block, Blocks.STONE);
+        markBlock(helper, 2, 1, 2, mark("c5metade"));
+        castOrFail(helper, mage, "aqua vertere " + mark("c5metade"));
+        castOrFail(helper, mage, "aura vertere " + mark("c5metade"));
+        helper.runAfterDelay(2, () -> {
+            check(helper, helper.getBlockState(block).isAir(),
+                    "half water and half air should rise as mist, was " + helper.getBlockState(block));
+            helper.succeed();
+        });
+    }
+
+    /** Parts that cannot make a hundred make no core (user, 01/10/2026): eighty of earth and eighty of water. */
+    @GameTest(template = EMPTY, timeoutTicks = 60)
+    public static void partsPastAHundredChangeNothing(GameTestHelper helper) {
+        ServerPlayer mage = mageOnGlass(helper);
+        BlockPos block = new BlockPos(2, 1, 2);
+        helper.setBlock(block, Blocks.STONE);
+        markBlock(helper, 2, 1, 2, mark("c4demais"));
+        castOrFail(helper, mage, "firmo quantum 80 vertere " + mark("c4demais"));
+        castOrFail(helper, mage, "aqua quantum 80 vertere " + mark("c4demais"));
+        helper.runAfterDelay(2, () -> {
+            check(helper, helper.getBlockState(block).is(Blocks.STONE), "a hundred and sixty parts should change nothing");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A creature is the kind its core is nearest (docs/particulas-design.md, stage 5): a chicken given a cow's core (7 of
+     * earth, 60 of water, 30 of air, 3 of fire) is a cow, with the chicken's life (its body, 4 points, 20 UMU, converted)
+     * and its mark.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 60)
+    public static void aChickenGivenACowsCoreIsACowWithTheChickensLife(GameTestHelper helper) {
+        ServerPlayer mage = mageOnGlass(helper);
+        net.minecraft.world.entity.animal.Chicken chicken =
+                helper.spawn(net.minecraft.world.entity.EntityType.CHICKEN, new BlockPos(2, 1, 3));
+        MarkHelper.applyMark(chicken, mark("c5galinha"));
+        castOrFail(helper, mage, "firmo quantum 7 vertere " + mark("c5galinha"));
+        castOrFail(helper, mage, "aqua quantum 60 vertere " + mark("c5galinha"));
+        castOrFail(helper, mage, "aura quantum 30 vertere " + mark("c5galinha"));
+        castOrFail(helper, mage, "igni quantum 3 vertere " + mark("c5galinha"));
+        helper.runAfterDelay(2, () -> {
+            check(helper, !chicken.isAlive(), "the chicken's body should be gone");
+            List<net.minecraft.world.entity.animal.Cow> cows = helper.getLevel().getEntitiesOfClass(
+                    net.minecraft.world.entity.animal.Cow.class, new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(6.0D));
+            check(helper, cows.size() == 1, "one cow, were " + cows.size());
+            net.minecraft.world.entity.animal.Cow cow = cows.get(0);
+            check(helper, Math.abs(cow.getMaxHealth() - 4.0F) < 1.0E-4F && Math.abs(cow.getHealth() - 4.0F) < 1.0E-4F,
+                    "the cow should have the chicken's life, 4, had " + cow.getHealth() + " of " + cow.getMaxHealth());
+            check(helper, MarkHelper.markForEntity(cow).filter(mark("c5galinha")::equals).isPresent(),
+                    "the cow should carry the chicken's mark");
+            helper.succeed();
+        });
+    }
+
+    /** A creature the table has no kind for has no core the spirit knows: an illusioner stays an illusioner. */
+    @GameTest(template = EMPTY, timeoutTicks = 60)
+    public static void aCreatureTheTableDoesNotKnowKeepsItsBody(GameTestHelper helper) {
+        ServerPlayer mage = mageOnGlass(helper);
+        net.minecraft.world.entity.monster.Illusioner illusioner =
+                helper.spawn(net.minecraft.world.entity.EntityType.ILLUSIONER, new BlockPos(2, 1, 3));
+        MarkHelper.applyMark(illusioner, mark("c5ilusionista"));
+        castOrFail(helper, mage, "firmo quantum vertere " + mark("c5ilusionista"));
+        helper.runAfterDelay(2, () -> {
+            check(helper, illusioner.isAlive(), "the illusioner should be left as it was");
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A player is a being too (docs/particulas-design.md, stage 6): the mage given a cow's core has a cow's body, the
+     * size of a cow, and keeps what they carry; given a person's core back, the body is theirs again.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 100)
+    public static void aMageGivenACowsCoreHasACowsBodyUntilTheirOwnCoreComesBack(GameTestHelper helper) {
+        ServerPlayer mage = mageOnGlass(helper);
+        mage.getInventory().add(new ItemStack(Items.DIAMOND));
+        String self = mark("c6eu");
+        MarkHelper.applyMark(mage, self);
+        float person = mage.getBbHeight();
+        helper.startSequence()
+                .thenExecute(() -> {
+                    castOrFail(helper, mage, "firmo quantum 7 vertere " + self);
+                    castOrFail(helper, mage, "aqua quantum 60 vertere " + self);
+                    castOrFail(helper, mage, "aura quantum 30 vertere " + self);
+                    castOrFail(helper, mage, "igni quantum 3 vertere " + self);
+                })
+                .thenIdle(2)
+                .thenExecute(() -> {
+                    check(helper, com.elderlexicon.mod.spell.life.Forms.of(mage).map(kind -> kind.id())
+                            .filter("cow"::equals).isPresent(), "the mage's body should be a cow's");
+                    float cow = net.minecraft.world.entity.EntityType.COW.getDimensions().height;
+                    check(helper, Math.abs(mage.getBbHeight() - cow) < 1.0E-4F,
+                            "the mage should be a cow's size, was " + mage.getBbHeight());
+                    double water = com.elderlexicon.mod.vita.VitaSystem.core(mage)
+                            .get(com.elderlexicon.mod.vita.VitaElement.AQUA);
+                    check(helper, Math.abs(water - 0.60D) < 1.0E-6D, "the Vita's core should be the cow's, water was "
+                            + water);
+                    check(helper, mage.isAlive() && mage.getInventory().contains(new ItemStack(Items.DIAMOND)),
+                            "the mage keeps what they carry");
+                })
+                .thenExecute(() -> {
+                    castOrFail(helper, mage, "firmo quantum 5 vertere " + self);
+                    castOrFail(helper, mage, "aqua quantum 55 vertere " + self);
+                    castOrFail(helper, mage, "aura quantum 38 vertere " + self);
+                    castOrFail(helper, mage, "igni quantum 2 vertere " + self);
+                })
+                .thenIdle(2)
+                .thenExecute(() -> {
+                    check(helper, com.elderlexicon.mod.spell.life.Forms.of(mage).isEmpty(),
+                            "a person's core is the mage's own body again");
+                    check(helper, Math.abs(mage.getBbHeight() - person) < 1.0E-4F,
+                            "the mage should be a person's size again, was " + mage.getBbHeight());
+                })
+                .thenSucceed();
+    }
+
+    /** What is made has no code (docs/particulas-design.md, "Forma"): a sword is left as it is. */
+    @GameTest(template = EMPTY, timeoutTicks = 60)
+    public static void aMadeThingHasNoCoreToChange(GameTestHelper helper) {
+        ServerPlayer mage = mageOnGlass(helper);
+        ItemEntity sword = loose(helper, new ItemStack(Items.IRON_SWORD), mark("c4espada"));
+        castOrFail(helper, mage, "firmo quantum 50 vertere " + mark("c4espada"));
+        helper.runAfterDelay(2, () -> {
+            check(helper, sword.isAlive() && sword.getItem().is(Items.IRON_SWORD), "the sword should be left alone");
+            helper.succeed();
         });
     }
 

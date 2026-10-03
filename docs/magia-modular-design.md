@@ -1,5 +1,10 @@
 # Magia modular: um léxico pequeno, feitiços pela lógica
 
+> **Nota (docs/particulas-design.md, etapa 3, 30/09/2026):** todas as runas fundidas saíram da língua: as fontes
+> (`vita`, `fusus`, `caligo`, `lutum`, `pulvis`, `nebula`, `fulmen`), as formas (`hasta`, `murus`...) e os verbos fundidos
+> (`transiectio`, `aversio`...). Saíram com elas a classe "forma", a origem "fusão", os componentes e os atalhos que se
+> desdobram, e o léxico recusa uma fusão que um addon traga. Onde este documento fala delas, vale só como história.
+
 Este documento descreve como o sistema de magia lê e executa um feitiço depois do rework modular.
 O princípio vem do grimório: **um dicionário de runas não tão extenso, mas com possibilidades infinitas de feitiços somente
 através da lógica.**

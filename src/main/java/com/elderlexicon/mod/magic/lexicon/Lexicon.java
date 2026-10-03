@@ -15,7 +15,8 @@ import java.util.Optional;
  * addons add, and {@link Lexicons} holds the one in force.
  * <p>
  * The language stays small (a handful of sources, verbs and filters) and everything else is composition: sources mix
- * aspects, fusions stand for the runes they fuse, and named runes stand for whole spells.
+ * aspects, and named runes stand for whole spells. There are no fused runes (docs/particulas-design.md, stage 3): what
+ * two runes do together comes from their order and from the instant and place they meet in.
  */
 public final class Lexicon {
 
@@ -170,10 +171,5 @@ public final class Lexicon {
     /** Whether a word is a verb that names what was written before it ({@code reframe}). */
     public boolean isNaming(String word) {
         return verb(word).map(VerbSpec::names).orElse(false);
-    }
-
-    /** Whether a rune is one of the few the language is made of (the grimoire accepts only these). */
-    public boolean isPrimordial(String word) {
-        return rune(word).map(rune -> rune.origin() == Origin.PRIMORDIAL).orElse(false);
     }
 }

@@ -1,6 +1,5 @@
 package com.elderlexicon.mod.spell.block;
 
-import com.elderlexicon.mod.magic.grammar.SpellGrammar;
 import com.elderlexicon.mod.magic.lexicon.FilterSpec;
 import com.elderlexicon.mod.magic.lexicon.Flow;
 import com.elderlexicon.mod.magic.lexicon.Lexicon;
@@ -46,7 +45,7 @@ public final class SpellDescription {
      */
     private record Spell(int release, String source, String mark, boolean capture, String origin, String amount,
                          boolean reversed, List<String> turns, boolean condensed, String seconds, String place,
-                         String function) {
+                         String function, String core) {
 
         String element() {
             return turns.isEmpty() ? source : turns.get(turns.size() - 1);
@@ -115,8 +114,7 @@ public final class SpellDescription {
         if (written.isEmpty()) {
             return null;
         }
-        // A fusion that stands for other runes is read as them.
-        List<String> words = new SpellGrammar(lexicon()).expand(written, new ArrayList<>());
+        List<String> words = written;
         String source = null;
         String mark = null;
         boolean capture = false;
@@ -128,6 +126,8 @@ public final class SpellDescription {
         String time = null;
         String place = null;
         String function = null;
+        // The mark after a conversion of a source: the thing whose core changes (aqua quantum 16 vertere m1).
+        String core = null;
         for (int i = 0; i < words.size(); i++) {
             String word = words.get(i);
             String next = i + 1 < words.size() ? words.get(i + 1) : "";
@@ -172,6 +172,9 @@ public final class SpellDescription {
                 if (lexicon().ofClass(next, WordClass.SOURCE).isPresent()) {
                     turns.add(next);
                     i++;
+                } else if (mark == null && !next.isEmpty() && isMark(next)) {
+                    core = next;
+                    i++;
                 }
             } else if (parameter == Parameter.QUANTITY) {
                 if (next.matches("-?\\d+")) {
@@ -195,7 +198,7 @@ public final class SpellDescription {
             }
         }
         return new Spell(release, source, mark, capture, origin, amount, reversed, turns, condensed, time, place,
-                function);
+                function, core);
     }
 
     private static Parameter parameterOf(Rune rune) {
@@ -210,6 +213,13 @@ public final class SpellDescription {
 
     private String sentence(Spell spell) {
         StringBuilder text = new StringBuilder();
+        if (spell.core() != null) {
+            String element = elementName(spell.source() == null ? lexicon().defaultSource().id() : spell.source());
+            String key = spell.amount() == null ? "describe.core.unmeasured"
+                    : "all".equals(spell.amount()) ? "describe.core.all" : "describe.core";
+            return note(key, Map.of("mark", spell.core(), "element", element,
+                    "parts", spell.amount() == null ? "" : spell.amount())) + ".";
+        }
         if (spell.source() == null && spell.mark() != null) {
             text.append(capitalize(action(spell, note("describe.marked", Map.of("mark", spell.mark())))));
             return text.append('.').toString();
@@ -295,7 +305,8 @@ public final class SpellDescription {
     private Set<VitaElement> elementsOf(List<Spell> spells) {
         Set<VitaElement> elements = EnumSet.noneOf(VitaElement.class);
         for (Spell spell : spells) {
-            if (spell.element() != null) {
+            // A core changed releases nothing: its source only says which part of the core changes.
+            if (spell.element() != null && spell.core() == null) {
                 elements.add(lexicon().elementOf(spell.element()));
             }
         }
@@ -316,6 +327,9 @@ public final class SpellDescription {
         }
         if (!spell.turns().isEmpty() && crossesSteps(spell)) {
             notes.add(note("note.conversion", Map.of()));
+        }
+        if (spell.core() != null) {
+            notes.add(note("note.core", Map.of()));
         }
         return notes;
     }
@@ -357,6 +371,14 @@ public final class SpellDescription {
     }
 
     private String name(Spell spell) {
+        if (spell.core() != null) {
+            Optional<String> title = lexicon().runes().stream()
+                    .filter(rune -> rune.verb().map(verb -> verb.flow() == Flow.CONVERT).orElse(false))
+                    .map(rune -> rune.text("title.core")).flatMap(Optional::stream).findFirst();
+            if (title.isPresent()) {
+                return title.get();
+            }
+        }
         if (spell.function() == null) {
             return note("describe.incomplete", Map.of());
         }

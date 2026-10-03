@@ -18,10 +18,7 @@ public enum ElementPersistence {
     PERMANENT,
     EPHEMERAL;
 
-    /**
-     * By rune id, as the lexicon says of each source ({@code persistent}), so fusions keep their own nature (steam goes,
-     * though it follows water's laws).
-     */
+    /** By rune id, as the lexicon says of each source ({@code persistent}), so each source keeps its own nature. */
     public static ElementPersistence of(String elementRuneId) {
         if (elementRuneId == null) {
             return EPHEMERAL;

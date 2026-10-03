@@ -30,5 +30,6 @@ public final class SpellingClientModBusEvents {
                 com.elderlexicon.mod.spell.function.client.ElementOrbRenderer::new);
         event.registerEntityRenderer(ElderLexicon.BLACK_HOLE.get(),
                 com.elderlexicon.mod.spell.function.client.BlackHoleRenderer::new);
+        event.registerEntityRenderer(ElderLexicon.HOMUNCULUS.get(), HomunculusRenderer::new);
     }
 }

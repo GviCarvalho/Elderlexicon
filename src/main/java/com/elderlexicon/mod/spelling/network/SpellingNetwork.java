@@ -20,7 +20,7 @@ import java.util.List;
 public final class SpellingNetwork {
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final String PROTOCOL = "8";
+    private static final String PROTOCOL = "10";
         private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ElderLexicon.MODID, "spelling"),
             () -> PROTOCOL,
@@ -146,6 +146,27 @@ public final class SpellingNetwork {
                 com.elderlexicon.mod.spelling.inscription.InscribePacket::decode,
                 com.elderlexicon.mod.spelling.inscription.InscribePacket::handle
         );
+        CHANNEL.registerMessage(
+                nextPacketId++,
+                IncorporationPacket.class,
+                IncorporationPacket::encode,
+                IncorporationPacket::decode,
+                IncorporationPacket::handle
+        );
+        CHANNEL.registerMessage(
+                nextPacketId++,
+                IncorporationInputPacket.class,
+                IncorporationInputPacket::encode,
+                IncorporationInputPacket::decode,
+                IncorporationInputPacket::handle
+        );
+        CHANNEL.registerMessage(
+                nextPacketId++,
+                FormPacket.class,
+                FormPacket::encode,
+                FormPacket::decode,
+                FormPacket::handle
+        );
         LOGGER.info("Spelling network channel ready (protocol {}).", PROTOCOL);
     }
 
@@ -199,6 +220,16 @@ public final class SpellingNetwork {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> viewer), packet);
     }
 
+    /** The body a player is in: everyone who sees it, and the player too, draws it as that body. */
+    public static void sendForm(ServerPlayer player, int entityId, String entityType) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player), new FormPacket(entityId, entityType));
+    }
+
+    /** The body a player is in, told to one who has just come to see it. */
+    public static void sendFormTo(ServerPlayer viewer, int entityId, String entityType) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> viewer), new FormPacket(entityId, entityType));
+    }
+
     /** A player was thrown by a spell: everyone who sees it, and the player too, draws it flying. */
     public static void sendLaunch(net.minecraft.world.entity.Entity thrown) {
         CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> thrown), new LaunchPacket(thrown.getId()));
@@ -232,6 +263,16 @@ public final class SpellingNetwork {
     public static void sendInscriptionsTo(ServerPlayer player,
                                           com.elderlexicon.mod.spelling.inscription.InscriptionPacket packet) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
+    }
+
+    /** The mage's kern goes into a body without one, or comes home. */
+    public static void sendIncorporation(ServerPlayer player, IncorporationPacket packet) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
+    }
+
+    /** What the local player does with the body their kern is in. */
+    public static void sendIncorporationInput(IncorporationInputPacket packet) {
+        CHANNEL.sendToServer(packet);
     }
 
     /** The local player wrote on a block face with a quill. */

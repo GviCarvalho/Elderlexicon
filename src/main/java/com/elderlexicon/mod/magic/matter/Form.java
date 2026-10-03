@@ -8,11 +8,13 @@ import java.util.Optional;
  * particles of a gas, or a creature. Blocks and items hold matter and can be read back as it; particles and creatures only
  * show it.
  *
- * @param kind what shows it
- * @param id   its id in the game ({@code minecraft:lava}); for particles, {@code block:<id>} is the particles of a block
- * @param umu  the UMU one of it holds (a block holds its substance's unit); 0 for what only shows it
+ * @param kind      what shows it
+ * @param id        its id in the game ({@code minecraft:lava}); for particles, {@code block:<id>} is the particles of a
+ *                  block
+ * @param particles the particles one of it holds (a block 4096, an item 256 unless the data says otherwise); 0 for
+ *                  what only shows it
  */
-public record Form(Kind kind, String id, double umu) {
+public record Form(Kind kind, String id, long particles) {
 
     /** What shows a substance. */
     public enum Kind {
@@ -39,7 +41,12 @@ public record Form(Kind kind, String id, double umu) {
             throw new IllegalArgumentException("a form needs a kind and an id");
         }
         id = id.trim().toLowerCase(Locale.ROOT);
-        umu = Math.max(0.0D, umu);
+        particles = Math.max(0L, particles);
+    }
+
+    /** The UMU one of it holds. */
+    public double umu() {
+        return (double) particles / Particles.PER_UMU;
     }
 
     /** Whether it holds matter that can be read back as it (a block or an item). */

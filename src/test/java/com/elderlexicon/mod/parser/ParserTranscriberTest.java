@@ -80,26 +80,6 @@ class ParserTranscriberTest {
     }
 
     @Test
-    void transcribesFusionSourceWithOriginalElement() {
-        SpellAction source = SpellAction.builder("caligo", SpellActionType.SOURCE)
-                .element(VitaElement.AQUA)
-                .putMetadata("elementRuneId", "caligo")
-                .build();
-        SpellAction function = SpellAction.builder("iactare", SpellActionType.FUNCTION)
-                .element(VitaElement.AQUA)
-                .putMetadata("elementRuneId", "caligo")
-                .build();
-
-        SpellTranscript transcript = parser.transcribeActions(
-                List.of(source, function),
-                List.of("caligo", "iactare"),
-                Optional.empty());
-
-        assertTrue(transcript.success());
-        assertEquals("Cast steam", transcript.message());
-    }
-
-    @Test
     void usesPronounAfterTransformation() {
         SpellAction source = SpellAction.builder("igni", SpellActionType.SOURCE)
                 .element(VitaElement.IGNI)
