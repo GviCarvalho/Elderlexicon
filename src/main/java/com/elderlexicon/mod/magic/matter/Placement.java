@@ -62,7 +62,7 @@ public record Placement(Matter matter, Substance substance, Form form, int units
         if (form.isPresent()) {
             return of(matter, substance.get(), form.get());
         }
-        return formless(table, matter, substance.orElse(null));
+        return formless(matter, substance.orElse(null));
     }
 
     private static Placement of(Matter matter, Substance substance, Form form) {
@@ -77,14 +77,14 @@ public record Placement(Matter matter, Substance substance, Form form, int units
     }
 
     /**
-     * Formless matter: for a solid or a liquid, as many blocks as it fills (at least one), each holding its share
-     * exactly; what floats goes into the world whole, a show of its own colour.
+     * Formless matter: for a solid or a liquid, as many blocks as it fills (at least one), each block 16 UMU as any block
+     * is, and each holding its share exactly; what floats goes into the world whole, a show of its own colour.
      */
-    private static Placement formless(MaterialTable table, Matter matter, Substance substance) {
+    private static Placement formless(Matter matter, Substance substance) {
         if (MaterialTable.floats(matter.state())) {
             return new Placement(matter, substance, null, 1, matter.umu(), 0.0D, true);
         }
-        int units = (int) Math.max(1L, Math.round(matter.umu() / table.unitOf(matter)));
+        int units = (int) Math.max(1L, Math.round(matter.umu() / Particles.BLOCK_UMU));
         return new Placement(matter, substance, null, units, matter.umu(), 0.0D, true);
     }
 

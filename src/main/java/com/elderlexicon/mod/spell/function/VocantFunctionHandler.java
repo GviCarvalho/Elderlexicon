@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.magic.matter.Particles;
 import com.elderlexicon.mod.spell.Heat;
 import com.elderlexicon.mod.spell.Pressure;
 import com.elderlexicon.mod.spell.SpellContext;
@@ -7,6 +8,7 @@ import com.elderlexicon.mod.spell.SpellFlow;
 import com.elderlexicon.mod.spell.action.SpellAction;
 import com.elderlexicon.mod.spell.mark.SpellPlace;
 import com.elderlexicon.mod.vita.VitaElement;
+import com.elderlexicon.mod.vita.VitaSystem;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
@@ -17,6 +19,11 @@ import java.util.function.Supplier;
 
 public final class VocantFunctionHandler implements SpellFunctionHandler {
 
+    /**
+     * What a vocant brings when no quantity says otherwise: one block of it, 16 UMU (docs/particulas-design.md, decided
+     * 30/09/2026). Its effects are measured against it: a vocant of 16 UMU of fire burns as one of 10 did before.
+     */
+    public static final double DEFAULT_UMU = Particles.BLOCK_UMU;
     /** Vocant acts at once (book 8.4: it "makes the source appear where you point"); chronos stretches it, never delays it. */
     private static final int SUMMON_DELAY_TICKS = 0;
     private static final int LINGER_TICKS = 20;
@@ -64,13 +71,12 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
             MarkSpells.tell(player, "Esse lugar esta em outra dimensao.");
             return;
         }
-        // aqua quantum 20 vocant brings twice the water (book 4.3.2, linear); what goes beyond 10 UMU is paid.
-        double energy = action.map(SpellAction::quantity).orElse(OptionalDouble.empty())
-                .orElse(EmissionRecorder.DEFAULT_QUANTITY_UMU);
+        // aqua quantum 32 vocant brings twice the water (book 4.3.2, linear); what goes beyond one block is paid.
+        double energy = action.map(SpellAction::quantity).orElse(OptionalDouble.empty()).orElse(DEFAULT_UMU);
         // chronos is how long what was summoned stays or keeps acting (book 4.3.2: "igni exsugat chronos firmo vocant"),
         // and a tap held open: it spends that much for every two seconds (SpellFlow).
         int window = action.map(Chronos::window).orElse(0);
-        context.addTotalCost(SpellFlow.total(energy, window) - EmissionRecorder.DEFAULT_QUANTITY_UMU);
+        context.addTotalCost(SpellFlow.total(energy, window) - DEFAULT_UMU);
         int linger = window > 0 ? window : LINGER_TICKS;
         Optional<Supplier<Optional<MarkSpells.Destination>>> follow = place
                 .filter(SpellPlace::followsMarks)
@@ -131,6 +137,14 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
             if (orb != null) {
                 orb.spend();
             }
+            // What is invoked in one instant is weighed together first (docs/vita-design.md): energies that bind into
+            // a being take no other form.
+            SpellEffects.SpellImpact meeting = aimed != null ? aimed : written.map(MarkSpells.Destination::impact)
+                    .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE));
+            Quickening.offer(level, player, meeting.location(), element, energy, () -> {
+            if (!SpellEffects.isPlayerValid(player)) {
+                return;
+            }
             if (condensed) {
                 releaseCondensed(level, player, element, action.get(), aimed, window);
                 return;
@@ -152,6 +166,7 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
             }).orElseGet(() -> Invocation.Where.fixed(impact));
             appear(context, player, element, context.elementRuneId(), impact, where, energy, window, linger);
             hotSpot(level, player, element, action, impact.location());
+            });
         });
     }
 
@@ -214,7 +229,11 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
             return;
         }
         EmissionRecorder.pointAt(context, element, impact.location(), SpellFlow.total(energy, window), linger);
-        Invocation.invoke(player, element, rune, where, energy / EmissionRecorder.DEFAULT_QUANTITY_UMU, window);
+        double left = Invocation.invoke(player, element, rune, where, energy, window);
+        if (left > 1.0E-9D && !context.focusActive()) {
+            // What made no whole block, or found no room, goes back into the body (L1).
+            VitaSystem.restoreElementEnergy(player, element, left);
+        }
     }
 
     /**

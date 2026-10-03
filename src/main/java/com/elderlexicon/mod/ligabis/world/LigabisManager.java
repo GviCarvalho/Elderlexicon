@@ -241,6 +241,18 @@ public final class LigabisManager {
         playerInputs.put(playerId, new float[] {xxa, zza});
     }
 
+    /** Whether {@code owner} holds an aura bond (movement) with what carries {@code mark}. */
+    public boolean auraBound(UUID owner, String mark) {
+        String wanted = MarkHelper.sanitizeMark(mark);
+        for (Link link : graph.links()) {
+            if (link.aspect() == Aspect.AURA && link.owner().equals(owner)
+                    && (wanted.equals(link.first()) || wanted.equals(link.second()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Whether {@code player} is bound to the scrolls carrying {@code scrollMark} by a vis link (see
      * {@link com.elderlexicon.mod.ligabis.ReadingBond}), so the spirit can read them anywhere in the dimension.

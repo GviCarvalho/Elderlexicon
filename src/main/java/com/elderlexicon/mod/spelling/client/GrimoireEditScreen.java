@@ -206,7 +206,9 @@ public class GrimoireEditScreen extends Screen {
             for (int i = 0; i < runes.size(); i++) {
                 CompoundTag rune = runes.getCompound(i);
                 String spell = rune.getString("spell");
-                if (!rune.getString("id").isEmpty() && !spell.isBlank()) {
+                // A name that is a rune of the language (or a number) is no name: it is not read as one.
+                if (com.elderlexicon.mod.spelling.custom.CustomRuneHelper.isNameable(rune.getString("id"))
+                        && !spell.isBlank()) {
                     named.put(rune.getString("id"), List.of(spell.trim().split("\\s+")));
                 }
             }

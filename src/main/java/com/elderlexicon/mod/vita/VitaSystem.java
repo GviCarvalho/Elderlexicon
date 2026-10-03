@@ -219,13 +219,15 @@ public final class VitaSystem {
 
     private static boolean refreshAquaTier(VitaData data) {
         VitaImbalanceTier previous = data.aquaTier();
-        VitaImbalanceTier next = evaluateAquaTier(data.get(VitaElement.AQUA), previous);
+        VitaImbalanceTier next = evaluateTier(data.get(VitaElement.AQUA), previous,
+                AQUA_PROFILE.scaled(data.share(VitaElement.AQUA) / AQUA_RATIO));
         return data.setAquaTier(next);
     }
 
     private static boolean refreshAuraTier(VitaData data) {
         VitaImbalanceTier previous = data.auraTier();
-        VitaImbalanceTier next = evaluateAuraTier(data.get(VitaElement.AURA), previous);
+        VitaImbalanceTier next = evaluateTier(data.get(VitaElement.AURA), previous,
+                AURA_PROFILE.scaled(data.share(VitaElement.AURA) / AURA_RATIO));
         return data.setAuraTier(next);
     }
 
@@ -235,7 +237,8 @@ public final class VitaSystem {
 
     private static boolean refreshFirmoTier(VitaData data) {
         VitaImbalanceTier previous = data.firmoTier();
-        VitaImbalanceTier next = evaluateFirmoTier(data.get(VitaElement.FIRMO), previous);
+        VitaImbalanceTier next = evaluateTier(data.get(VitaElement.FIRMO), previous,
+                FIRMO_PROFILE.scaled(data.share(VitaElement.FIRMO) / FIRMO_RATIO));
         return data.setFirmoTier(next);
     }
 
@@ -273,8 +276,52 @@ public final class VitaSystem {
 
     private static boolean refreshIgniTier(VitaData data) {
         VitaImbalanceTier previous = data.igniTier();
-        VitaImbalanceTier next = evaluateIgniTier(data.get(VitaElement.IGNI), previous);
+        VitaImbalanceTier next = evaluateTier(data.get(VitaElement.IGNI), previous,
+                IGNI_PROFILE.scaled(data.share(VitaElement.IGNI) / IGNI_RATIO));
         return data.setIgniTier(next);
+    }
+
+    // ------------------------------------------------------------------ the core (docs/particulas-design.md, stage 6)
+
+    /** The share of the life each element is in the player's core: a person's 55/38/2/5 until a vertere changes it. */
+    public static java.util.Map<VitaElement, Double> core(ServerPlayer player) {
+        VitaData data = VitaData.get(player);
+        java.util.Map<VitaElement, Double> core = new java.util.EnumMap<>(VitaElement.class);
+        for (VitaElement element : new VitaElement[] {VitaElement.FIRMO, VitaElement.AQUA, VitaElement.AURA,
+                VitaElement.IGNI}) {
+            core.put(element, data.share(element));
+        }
+        return core;
+    }
+
+    /** What the player's body holds of each element now, in UMU. */
+    public static java.util.Map<VitaElement, Double> body(ServerPlayer player) {
+        VitaData data = VitaData.get(player);
+        java.util.Map<VitaElement, Double> body = new java.util.EnumMap<>(VitaElement.class);
+        for (VitaElement element : new VitaElement[] {VitaElement.FIRMO, VitaElement.AQUA, VitaElement.AURA,
+                VitaElement.IGNI}) {
+            body.put(element, data.get(element));
+        }
+        return body;
+    }
+
+    /**
+     * A vertere changed the player's core (docs/particulas-design.md, stage 6): the body is converted into the new
+     * proportion, as much in all as before, and from then on heals, hurts and settles back in it.
+     */
+    public static void reshape(ServerPlayer player, java.util.Map<VitaElement, Double> core) {
+        if (player == null || core == null) {
+            return;
+        }
+        VitaData data = VitaData.get(player);
+        data.reshape(core.getOrDefault(VitaElement.AQUA, 0.0D), core.getOrDefault(VitaElement.AURA, 0.0D),
+                core.getOrDefault(VitaElement.IGNI, 0.0D), core.getOrDefault(VitaElement.FIRMO, 0.0D));
+        refreshAquaTier(data);
+        refreshAuraTier(data);
+        refreshFirmoTier(data);
+        refreshIgniTier(data);
+        data.save(player);
+        VitaScoreboardManager.update(player, data.toProfile());
     }
 
     public static void restoreElementEnergy(ServerPlayer player, VitaElement element, double umuAmount) {
@@ -411,6 +458,13 @@ public static void forceSetElement(ServerPlayer player, VitaElement element, dou
                 return VitaImbalanceTier.SLIGHTLY_HIGH;
             }
             return VitaImbalanceTier.SEVERELY_HIGH;
+        }
+
+        /** The same profile for a body whose core holds {@code factor} times a person's share of the element. */
+        ImbalanceProfile scaled(double factor) {
+            double f = Math.max(0.0D, factor);
+            return new ImbalanceProfile(severeLowThreshold * f, slightLowThreshold * f, slightHighThreshold * f,
+                    severeHighThreshold * f, hysteresis * Math.min(1.0D, f));
         }
 
         double boundary(VitaImbalanceTier from, VitaImbalanceTier to) {

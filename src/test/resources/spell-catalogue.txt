@@ -8,11 +8,8 @@
 #    absorbing and pulling are vocant and iactare turned around by a negative quantity (reversed, R4).
 #    (The complaint of a sight bond with no mark is worded for any sense verb, and a quantity of zero is "diferente".)
 igni iactare => igni | iactare[el=igni]
-igni hasta iactare => igni | iactare[el=igni,form=spear]
-igni hasta 5 chronos iactare => igni | iactare[el=igni,form=spear,seconds=5]
 igni 5 quantum iactare => igni | iactare[el=igni,quantity=5]
 igni vertere aqua iactare => igni | vertere[el=igni,to=aqua] | aqua | iactare[chained=true,el=aqua] | ~IGNI>AQUA:1
-igni hasta iactare reframe flamma => igni | iactare[el=igni,form=spear] | reframe[chained=true,el=igni,form=spear]
 firmo m1 ligabis => firmo | ligabis[el=firmo]
 firmo m1 ligabis m2 => firmo | ligabis[el=firmo]
 firmo m1 ligabis m2 ligabis m3 => firmo | ligabis[el=firmo] | ligabis[chained=true,el=firmo]
@@ -121,10 +118,8 @@ aura chronos 10 vocant => aura | vocant[el=aura,seconds=10]
 igni tenet chronos firmo vocant => igni | firmo | vocant[el=firmo,fromWorld=true] | !'chronos' requer um número logo depois.
 aqua vocant => aqua | vocant[el=aqua]
 r1 chronos 10 surgit => surgit[el=vis,seconds=10,subjectMark=r1]
-hasta vis vocant => vis/spear | vocant[el=vis,form=spear]
 vertere aqua vocant => vertere[el=vis,to=aqua] | aqua | vocant[chained=true,el=aqua] | ~BALANCED>AQUA:1
 igni tenet vertere aqua => igni | vertere[el=igni,fromWorld=true,to=aqua] | aqua | ~IGNI>AQUA:1
-igni vertere murus aqua => igni | aqua/wall | !Função 'vertere' requer uma fonte alvo imediatamente após.
 ??? igni => igni | !Lexema desconhecido: ???
 igni quantum iactare => igni | iactare[el=igni,quantityAll=true]
 igni chronos 5 iactare => igni | iactare[el=igni,seconds=5]
@@ -134,17 +129,10 @@ igni quantum 200 chronos 5 iactare => igni | iactare[el=igni,quantity=200,second
 igni vocant ubis m1 => igni | vocant[el=igni] | !'ubis' requer um lugar: um número, três números ou uma marca. | !Marca 'm1' sem função depois dela.
 igni 1 2 3 4 ubis vocant => igni | vocant[el=igni] | !'ubis' aceita um, dois ou três valores antes dele.
 m1 10 ubis vocant => vocant[el=vis] | !'ubis' com dois valores quer dois números: distância e altura.
-igni vertere m1 => igni | !Função 'vertere' requer uma fonte alvo imediatamente após. | !Marca 'm1' sem função depois dela.
+igni vertere m1 => igni | vertere[el=igni,targetMark=m1]
 m1 igni vocant => igni | vocant[el=igni] | !Marca 'm1' sem uso: escreva 'm1 ubis' para um lugar, ou a marca logo antes da função.
 igni iactare reframe fireball => igni | iactare[el=igni] | reframe[chained=true,el=igni]
 igni 20 iactare => igni | iactare[el=igni] | !Número sem uso: 20.
-fusus iactare => fusus | iactare[el=fusus]
-caligo vocant => caligo | vocant[el=caligo]
-lutum vocant => lutum | vocant[el=lutum]
-pulvis vocant => pulvis | vocant[el=pulvis]
-nebula vocant => nebula | vocant[el=nebula]
-fulmen vocant => fulmen | vocant[el=fulmen]
-vita iactare => vita | iactare[el=vita]
 igni quantum 0 iactare => igni | iactare[el=igni] | !'quantum' precisa de uma quantidade diferente de zero.
 quantum igni iactare => igni | iactare[el=igni,quantityAll=true]
 igni quantum quantum iactare => igni | iactare[el=igni,quantityAll=true] | !'quantum' requer um número logo depois.
@@ -167,11 +155,8 @@ m1 vocant iactare => vocant[el=vis,subjectMark=m1] | iactare[el=vis,subjectMark=
 m1 quantum -10 iactare vocant => iactare[el=vis,quantity=10,reversed=true,subjectMark=m1] | vocant[el=vis,subjectMark=m1]
 m1 vertere m2 vocant => vertere[el=vis,subjectMark=m1,targetMark=m2] | vocant[el=vis,subjectMark=m2]
 m1 vertere aqua iactare => vertere[el=vis,subjectMark=m1,to=aqua] | aqua | iactare[chained=true,el=aqua]
-#    a fusion that the lexicon writes out is read as the runes it fuses (before, these did nothing);
-igni transiectio aqua => igni | vertere[el=igni,to=aqua] | aqua | iactare[chained=true,el=aqua] | ~IGNI>AQUA:1
-igni aversio aqua => igni | vertere[el=igni,to=aqua] | aqua | impediunt[chained=true,el=aqua] | ~IGNI>AQUA:1
-#    a fusion the lexicon does not write out is still a verb of its own, with no operation yet.
-m1 cohaesio m2 => cohaesio[el=vis,subjectMark=m1] | !Marca 'm2' sem função depois dela.
+#    the fused runes left the language (docs/particulas-design.md, stage 3): the spirit says what to write instead.
+igni transiectio aqua => igni | aqua | !A fusão transiectio não existe mais: escreva vertere e iactare (igni vertere aqua iactare).
 
 #
 # -- What the new vocabulary brought (docs/plano-materia-e-forca.md, section 3):
@@ -192,6 +177,13 @@ quantum -3 firmo iactare => firmo | iactare[el=firmo] | !Uma fonte não tem quan
 igni vocant tenet iactare => igni | vocant[el=igni] | iactare[chained=true,el=igni] | !'tenet' diz de onde vem uma fonte, mas o iactare age sobre o que o verbo anterior produziu: foi ignorado.
 firmo tenet m1 iactare => firmo | iactare[el=firmo,subjectMark=m1] | !'tenet' diz de onde vem uma fonte, mas o iactare age sobre o que tem a marca 'm1': foi ignorado.
 igni tenet => igni | !Filtro sem função depois dele.
+#
+# -- The core (docs/particulas-design.md, stage 4): a source converted into a mark changes the marked thing's core,
+#    so many parts of its hundred; nothing of the mage's own energy is converted.
+aqua quantum 16 vertere m1 => aqua | vertere[el=aqua,quantity=16,targetMark=m1]
+firmo quantum vertere m1 => firmo | vertere[el=firmo,quantityAll=true,targetMark=m1]
+igni quantum 1 chronos 2 vertere m1 => igni | vertere[el=igni,quantity=1,seconds=2,targetMark=m1]
+aqua quantum 16 vertere m1 iactare => aqua | vertere[el=aqua,quantity=16,targetMark=m1] | iactare[el=aqua,subjectMark=m1]
 #
 # -- Words the language no longer has: the spirit says what to write instead.
 m1 exsugat => !A runa exsugat não existe mais. Para tirar uma fonte do mundo, escreva tenet antes do verbo (firmo tenet quantum iactare); para absorver, vocant com quantidade negativa (igni quantum -10 vocant); para puxar uma coisa marcada, iactare com quantidade negativa (m1 quantum -10 iactare). | !Marca 'm1' sem função depois dela.

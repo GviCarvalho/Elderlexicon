@@ -1,8 +1,6 @@
 package com.elderlexicon.mod.spell.function;
 
-import com.elderlexicon.mod.magic.lexicon.Fusions;
 import com.elderlexicon.mod.magic.lexicon.Lexicons;
-import com.elderlexicon.mod.magic.lexicon.WordClass;
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spelling.custom.CustomRuneHelper;
 import com.elderlexicon.mod.spelling.data.SpellingRepertoire;
@@ -43,6 +41,11 @@ public final class ReframeFunctionHandler implements SpellFunctionHandler {
             player.sendSystemMessage(Component.literal("Nome da runa personalizada é inválido."));
             return;
         }
+        if (!CustomRuneHelper.isNameable(runeId)) {
+            player.sendSystemMessage(Component.literal("O nome '" + runeId + "' já é uma runa da língua ou um número: "
+                    + "uma runa nomeada precisa de um nome próprio (uma palavra, como uma marca)."));
+            return;
+        }
 
         List<String> captured = new ArrayList<>(lexemes.subList(0, reframeIndex));
         if (captured.isEmpty()) {
@@ -61,7 +64,6 @@ public final class ReframeFunctionHandler implements SpellFunctionHandler {
             }
             return;
         }
-        captured = fuseWithTrailingSourceIfPresent(captured, lexemes.subList(reframeIndex + 2, lexemes.size()));
 
         ItemStack grimoire = findGrimoire(player.getInventory()).orElse(ItemStack.EMPTY);
         if (!(grimoire.getItem() instanceof GrimoireItem)) {
@@ -104,49 +106,6 @@ public final class ReframeFunctionHandler implements SpellFunctionHandler {
         return -1;
     }
 
-    private static List<String> fuseWithTrailingSourceIfPresent(List<String> captured, List<String> tail) {
-        int lastSourceIndex = findLastSource(captured);
-        int trailingSourceIndex = findFirstSource(tail);
-        if (lastSourceIndex < 0 || trailingSourceIndex < 0) {
-            return captured;
-        }
-        String left = captured.get(lastSourceIndex);
-        String right = tail.get(trailingSourceIndex);
-        String fused = fuse(left, right).orElse(null);
-        if (fused == null) {
-            return captured;
-        }
-        List<String> updated = new ArrayList<>(captured);
-        updated.set(lastSourceIndex, fused);
-        return updated;
-    }
-
-    private static int findLastSource(List<String> lexemes) {
-        for (int i = lexemes.size() - 1; i >= 0; i--) {
-            if (isSource(lexemes.get(i))) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private static int findFirstSource(List<String> lexemes) {
-        for (int i = 0; i < lexemes.size(); i++) {
-            if (isSource(lexemes.get(i))) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private static boolean isSource(String runeId) {
-        return runeId != null && Lexicons.get().ofClass(runeId.toLowerCase(Locale.ROOT), WordClass.SOURCE).isPresent();
-    }
-
-    /** The fusion two runes make, by the parts the lexicon gives each fusion. */
-    private static Optional<String> fuse(String a, String b) {
-        return Fusions.fuse(Lexicons.get(), a, b);
-    }
 
     private static Optional<ItemStack> findGrimoire(Inventory inventory) {
         if (inventory == null) {

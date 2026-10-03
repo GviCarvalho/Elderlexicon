@@ -21,7 +21,7 @@ public interface SpellLedger {
 
     void setPrimaryElement(VitaElement element);
 
-    /** The source rune in force right now ({@code fusus}, where the element alone would say only fire). */
+    /** The source rune in force right now: its own name, which an addon's source keeps where its element would not. */
     String elementRuneId();
 
     void setElementRuneId(String runeId);

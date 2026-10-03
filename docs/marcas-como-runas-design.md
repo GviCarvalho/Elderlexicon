@@ -4,6 +4,9 @@
 > os usa, leia: tirar uma fonte do mundo é `tenet` antes do verbo (`igni tenet iactare`); absorver é um `vocant` com
 > quantidade negativa (`igni quantum -10 vocant`); puxar uma coisa marcada é `m1 quantum -10 iactare`; trocar de lugar
 > não existe mais. A tabela completa está na seção 4 do plano.
+>
+> **Nota (docs/particulas-design.md, etapa 3):** as runas fundidas também saíram; onde este documento as usa, escreva as
+> runas que elas juntavam, uma depois da outra.
 
 **Status:** desenho fechado e **primeira versão implementada** (22/09/2026): parser, `ubis`, `vocant`, `iactare`, `exsugat`, `impediunt`, `transvocatio` e `vertere` com marcas. Ainda não foi testado dentro do jogo; ver seção 11. O que falta decidir está na seção 9.
 **Relaciona-se com:** `ligabis-design.md` (vínculos por marca), `marks.md` (como gravar marcas), `alpha-backlog.md` (filtros `ubis`, `chronos`, `quantum`).

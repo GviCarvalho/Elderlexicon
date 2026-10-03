@@ -41,19 +41,14 @@ class SpellActionEngineTest {
     }
 
     @Test
-    void attachesShapesAndIgnoresImplicitFallback() {
-        SpellActionResult result = engine.generateActions(List.of("hasta", "vis", "vocant"));
+    void ignoresImplicitFallback() {
+        SpellActionResult result = engine.generateActions(List.of("vis", "vocant"));
 
         assertFalse(result.hasIssues());
         assertEquals(2, result.actions().size(), "Implicit fallback source must not be emitted");
-
-        SpellAction source = result.actions().get(0);
-        assertEquals("vis", source.runeId());
-        assertEquals(List.of("spear"), source.shapes());
-
-        SpellAction function = result.actions().get(1);
-        assertEquals("vocant", function.runeId());
-        assertEquals(List.of("spear"), function.shapes());
+        assertEquals("vis", result.actions().get(0).runeId());
+        assertEquals("vocant", result.actions().get(1).runeId());
+        assertTrue(result.actions().get(1).shapes().isEmpty(), "no rune gives a shape: the forms left the language");
     }
 
     @Test
@@ -101,7 +96,8 @@ class SpellActionEngineTest {
 
     @Test
     void vertereRequiresImmediateTarget() {
-        SpellActionResult result = engine.generateActions(List.of("igni", "vertere", "murus", "aqua"));
+        // The quantity comes before the verb (book 4.3.2): written between vertere and its target, it is in the way.
+        SpellActionResult result = engine.generateActions(List.of("igni", "vertere", "quantum", "aqua"));
 
         assertTrue(result.hasIssues());
         assertTrue(result.issues().stream().anyMatch(issue -> issue.contains("fonte alvo imediatamente após")));

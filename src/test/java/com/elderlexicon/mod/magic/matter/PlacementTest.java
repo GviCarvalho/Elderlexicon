@@ -18,21 +18,21 @@ class PlacementTest {
 
     @Test
     void wholeBlocksArePlacedAndTheRestIsLeftOver() {
-        List<Placement> lava = Placement.plan(TABLE, Matter.of(substance("stone"), State.LIQUID, 4.0D));
+        List<Placement> lava = Placement.plan(TABLE, Matter.of(substance("stone"), State.LIQUID, 40.0D));
         assertEquals(1, lava.size());
         assertEquals("minecraft:lava", lava.get(0).form().id());
-        assertEquals(2, lava.get(0).units(), "four UMU of molten stone are two blocks of lava");
-        assertEquals(3.0D, lava.get(0).placed(), 1.0E-9);
-        assertEquals(1.0D, lava.get(0).leftover(), 1.0E-9, "and one UMU left, not lost");
+        assertEquals(2, lava.get(0).units(), "forty UMU of molten stone are two blocks of lava, sixteen each");
+        assertEquals(32.0D, lava.get(0).placed(), 1.0E-9);
+        assertEquals(8.0D, lava.get(0).leftover(), 1.0E-9, "and eight UMU left, not lost");
     }
 
     @Test
     void whatShowsAsAnItemIsPlacedAsItems() {
         Substance flesh = substance("flesh");
-        List<Placement> plan = Placement.plan(TABLE, Matter.natural(flesh, 1.2D));
+        List<Placement> plan = Placement.plan(TABLE, Matter.natural(flesh, 2.25D));
         assertEquals(Form.Kind.ITEM, plan.get(0).form().kind());
-        assertEquals(2, plan.get(0).units());
-        assertEquals(0.2D, plan.get(0).leftover(), 1.0E-9);
+        assertEquals(2, plan.get(0).units(), "an item is one UMU");
+        assertEquals(0.25D, plan.get(0).leftover(), 1.0E-9);
     }
 
     @Test
@@ -47,8 +47,8 @@ class PlacementTest {
     @Test
     void aMixtureWithNoNameIsFormlessMatterThatHolds() {
         Matter mixed = MatterLaws.mix(List.of(
-                Matter.of(TABLE.primordial(VitaElement.FIRMO), State.LIQUID, 1.0D),
-                Matter.of(TABLE.primordial(VitaElement.AQUA), State.LIQUID, 9.0D))).orElseThrow();
+                Matter.of(TABLE.primordial(VitaElement.FIRMO), State.LIQUID, 16.0D),
+                Matter.of(TABLE.primordial(VitaElement.AQUA), State.LIQUID, 64.0D))).orElseThrow();
         assertTrue(mixed.unnamed(TABLE));
         List<Placement> plan = Placement.plan(TABLE, mixed);
         assertEquals(1, plan.size());
@@ -56,20 +56,20 @@ class PlacementTest {
         assertTrue(formless.formless());
         assertTrue(formless.unnamed());
         assertNull(formless.form());
-        assertEquals(10.0D, formless.placed(), 1.0E-9, "formless matter holds it all, exactly");
+        assertEquals(80.0D, formless.placed(), 1.0E-9, "formless matter holds it all, exactly");
         assertEquals(0.0D, formless.leftover(), 1.0E-9);
-        // Two blocks of molten earth and three of water fill five blocks together.
+        // Eighty UMU fill five blocks, sixteen each, as any block holds.
         assertEquals(5, formless.units());
     }
 
     @Test
     void aSubstanceInAStateWithNoLookIsFormless() {
-        Placement molten = Placement.plan(TABLE, Matter.of(TABLE.primordial(VitaElement.FIRMO), State.LIQUID, 4.0D))
+        Placement molten = Placement.plan(TABLE, Matter.of(TABLE.primordial(VitaElement.FIRMO), State.LIQUID, 128.0D))
                 .get(0);
         assertTrue(molten.formless());
         assertFalse(molten.unnamed(), "molten earth is still earth");
-        assertEquals(8, molten.units(), "four UMU of earth fill eight blocks, liquid or not");
-        assertEquals(4.0D, molten.placed(), 1.0E-9);
+        assertEquals(8, molten.units(), "128 UMU of earth fill eight blocks, liquid or not");
+        assertEquals(128.0D, molten.placed(), 1.0E-9);
         Placement small = Placement.plan(TABLE, Matter.of(TABLE.primordial(VitaElement.FIRMO), State.LIQUID, 0.1D))
                 .get(0);
         assertEquals(1, small.units(), "however little there is, it takes a block");
@@ -79,18 +79,21 @@ class PlacementTest {
     @Test
     void whatOppositesLetOutGoesAsAGasOfItsOwn() {
         Matter hot = MatterLaws.mix(List.of(
-                Matter.of(TABLE.primordial(VitaElement.AQUA), State.LIQUID, 6.0D),
-                Matter.of(TABLE.primordial(VitaElement.IGNI), State.PLASMA, 3.0D))).orElseThrow();
+                Matter.of(TABLE.primordial(VitaElement.AQUA), State.LIQUID, 32.0D),
+                Matter.of(TABLE.primordial(VitaElement.IGNI), State.PLASMA, 16.0D))).orElseThrow();
         List<Placement> plan = Placement.plan(TABLE, hot);
         assertEquals(2, plan.size(), "the vapour, and the water that stays");
         Placement vapour = plan.get(0);
         assertTrue(vapour.floats());
-        assertEquals("steam", vapour.substance().id(), "half water and half fire is the code of steam");
+        // This older law lets out as much fire as water; the drives (magic/physics) boil water into steam, nine of
+        // water to one of fire, and take its place in stage 9.
+        assertEquals(0.5D, vapour.matter().composition().share(VitaElement.AQUA), 1.0E-9, "half water");
+        assertEquals(0.5D, vapour.matter().composition().share(VitaElement.IGNI), 1.0E-9, "half fire");
         Placement water = plan.get(1);
         assertEquals("minecraft:water", water.form().id());
         assertEquals(1, water.units());
         double total = plan.stream().mapToDouble(p -> p.placed() + p.leftover()).sum();
-        assertEquals(9.0D, total, 1.0E-9, "nothing is lost (L1)");
+        assertEquals(48.0D, total, 1.0E-9, "nothing is lost (L1)");
     }
 
     @Test

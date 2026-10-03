@@ -2,7 +2,7 @@ package com.elderlexicon.mod.magic.lexicon;
 
 /**
  * How a source shows itself when a spell makes it appear, as data: the world code asks these instead of the rune's name,
- * so a new source (a fusion, or one an addon brings) behaves by what it declares.
+ * so a new source (one an addon brings) behaves by what it declares.
  *
  * @param persistent  its matter appears and stays (water, earth, mud, magma); otherwise it acts and goes
  *                    (docs/marcas-como-runas-design.md, "Elementos permanentes e efêmeros")

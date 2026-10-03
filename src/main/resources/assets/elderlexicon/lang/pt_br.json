@@ -116,5 +116,6 @@
   "screen.elderlexicon.spelling_repertoire.title": "Repertório de runas",
   "screen.elderlexicon.spelling_repertoire.requires_target": "Requer um alvo",
   "block.elderlexicon.formless_solid": "Matéria informe",
-  "block.elderlexicon.formless_liquid": "Matéria informe líquida"
+  "block.elderlexicon.formless_liquid": "Matéria informe líquida",
+  "entity.elderlexicon.homunculus": "Homúnculo"
 }

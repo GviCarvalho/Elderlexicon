@@ -1,5 +1,9 @@
 # Plano: força, transferência e matéria
 
+> **Nota (docs/particulas-design.md, etapa 3, 30/09/2026):** as runas fundidas saíram da língua (as fontes `lutum`,
+> `fusus` e as outras, as formas e os verbos fundidos). A lama, o magma e os demais continuam como coisas naturais, com o
+> seu código; o que sumiu foi a runa que os nomeava.
+
 Plano aprovado para a segunda fase do rework da magia. Ele continua o `magia-modular-design.md`.
 
 **Pilares:**
@@ -162,6 +166,10 @@ Cada etapa é um commit no PR, com os testes passando.
    exemplo, inclusive a criação de pedra por mistura.
 
 ## 6.1 Como a etapa 2 ficou
+
+> **Nota (docs/particulas-design.md, etapa 2):** a `unit` por substância saiu. Tudo é contado em partículas, e 256
+> fazem uma UMU: um bloco de qualquer coisa vale 4096 (16 UMU) em qualquer estado, e um item 256 (1 UMU), salvo os que o
+> jogo junta num bloco. Os números de UMU por bloco abaixo (terra 0,5, pedra 1,5, água 3) são os de antes.
 
 O modelo da matéria fica em `magic/matter`, sem nada de Minecraft, e os dados em
 `src/main/resources/data/elderlexicon/lexicon/materials.json`.

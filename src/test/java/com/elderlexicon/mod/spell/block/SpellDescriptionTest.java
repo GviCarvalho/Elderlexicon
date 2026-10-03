@@ -48,6 +48,28 @@ class SpellDescriptionTest {
     }
 
     @Test
+    void aCoreChangedIsDescribedAndNamed() {
+        SpellDescription.Text text = new SpellDescription(DICTIONARY, Map.of())
+                .describe(page("aqua quantum 16 vertere m1"));
+        assertEquals("Transformação", text.name());
+        assertTrue(text.paragraphs().get(0).startsWith("Muda o cerne do que tem a marca “m1”: água, 16 das cem partes."),
+                text.paragraphs().toString());
+        assertTrue(text.notes().stream().anyMatch(note -> note.startsWith("O cerne são cem partes")),
+                text.notes().toString());
+    }
+
+    @Test
+    void theFourPartsOfACodeInOneColumnAreOneTransformation() {
+        SpellDescription.Text text = new SpellDescription(DICTIONARY, Map.of()).describe(page(
+                "igni quantum 1 vertere m1", "aqua quantum 2 vertere m1", "aura quantum 5 vertere m1",
+                "firmo quantum 7 vertere m1"));
+        assertEquals("Transformação", text.name(), "nothing is released, so the elements do not meet");
+        assertTrue(text.paragraphs().contains("• Muda o cerne do que tem a marca “m1”: terra, 7 das cem partes."),
+                text.paragraphs().toString());
+        assertEquals(1, text.notes().size(), text.notes().toString());
+    }
+
+    @Test
     void linesWithoutASourceAreDescribedToo() {
         SpellDescription.Text text = new SpellDescription(DICTIONARY, Map.of()).describe(page("L", "I", "N UQ"));
         assertTrue(text.paragraphs().contains("• Faz o espírito ler e revelar."), text.paragraphs().toString());

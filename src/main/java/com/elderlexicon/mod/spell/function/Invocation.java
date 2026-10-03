@@ -2,6 +2,12 @@ package com.elderlexicon.mod.spell.function;
 
 import com.elderlexicon.mod.ligabis.world.LigabisManager;
 import com.elderlexicon.mod.magic.lexicon.Traits;
+import com.elderlexicon.mod.magic.matter.Form;
+import com.elderlexicon.mod.magic.matter.MaterialTable;
+import com.elderlexicon.mod.magic.matter.Materials;
+import com.elderlexicon.mod.magic.matter.Matter;
+import com.elderlexicon.mod.magic.matter.Particles;
+import com.elderlexicon.mod.spell.matter.WorldMatter;
 import com.elderlexicon.mod.spell.ElementPersistence;
 import com.elderlexicon.mod.spell.SpellFlow;
 import com.elderlexicon.mod.spell.mark.MarkCost;
@@ -32,10 +38,13 @@ import java.util.Optional;
 /**
  * What Vocant makes appear where it lands, by the nature of the element ({@link ElementPersistence}).
  * <ul>
- *   <li><b>Permanent</b> (water, earth, mud, magma): the matter is laid and stays. With chronos it stays for that
- *       window, stands back up if broken meanwhile, and is gone when the window ends.</li>
- *   <li><b>Ephemeral</b> (fire, air, Vis, lightning, steam, mist, dust): it acts and goes. With chronos it keeps
- *       acting on that spot for the whole window, the same energy spread over it (book 4.3.2), then goes.</li>
+ *   <li><b>Permanent</b> (water, earth, mud, magma): the matter is laid and stays. It is what the table says the
+ *       source's essence is (docs/particulas-design.md): whole blocks of it, one for every 16 UMU, and what makes no
+ *       whole block goes back to the body. With chronos it stays for that window, stands back up if broken meanwhile,
+ *       and is gone when the window ends.</li>
+ *   <li><b>Ephemeral</b> (fire, air, Vis, lightning, steam, mist, dust): it acts and goes, as strongly as its UMU
+ *       against a vocant's own 16. With chronos it keeps acting on that spot for the whole window, the same energy
+ *       spread over it (book 4.3.2), then goes.</li>
  * </ul>
  */
 final class Invocation {
@@ -73,19 +82,24 @@ final class Invocation {
         }
     }
 
-    /** @param windowTicks the chronos window; zero or less is the element's own timing */
-    static void invoke(ServerPlayer player, VitaElement element, String elementRuneId, Where where,
-                       double power, int windowTicks) {
+    /**
+     * Makes {@code energy} UMU of the source appear, and says how much of it found no form: what made no whole block or
+     * found no room, for whoever invoked it to take back (L1).
+     *
+     * @param windowTicks the chronos window; zero or less is the element's own timing
+     */
+    static double invoke(ServerPlayer player, VitaElement element, String elementRuneId, Where where,
+                         double energy, int windowTicks) {
         String rune = elementRuneId == null ? element.runeId() : elementRuneId.toLowerCase(Locale.ROOT);
         Optional<SpellEffects.SpellImpact> first = where.now();
         if (first.isEmpty()) {
-            return;
+            return energy;
         }
         if (ElementPersistence.of(rune) == ElementPersistence.PERMANENT) {
-            permanent(player, element, rune, where, first.get(), power, windowTicks);
-        } else {
-            ephemeral(player, element, rune, where, first.get(), power, windowTicks);
+            return permanent(player, element, rune, where, first.get(), energy, windowTicks);
         }
+        ephemeral(player, element, rune, where, first.get(), energy / VocantFunctionHandler.DEFAULT_UMU, windowTicks);
+        return 0.0D;
     }
 
     // ------------------------------------------------------------------ image
@@ -152,22 +166,40 @@ final class Invocation {
 
     // ------------------------------------------------------------------ permanent
 
-    private static void permanent(ServerPlayer player, VitaElement element, String rune, Where where,
-                                  SpellEffects.SpellImpact impact, double power, int windowTicks) {
+    private static double permanent(ServerPlayer player, VitaElement element, String rune, Where where,
+                                    SpellEffects.SpellImpact impact, double energy, int windowTicks) {
         ServerLevel level = player.serverLevel();
+        double power = energy / VocantFunctionHandler.DEFAULT_UMU;
         // Thrown at a creature, matter strikes it; called at its feet, it only appears under it.
         if (impact.entity() != null && !where.atFeet()) {
             SpellEffects.applyToEntity(player, element, rune, impact.entity(), power, false);
         }
         if (SourceLooks.traits(rune).quenches() && impact.entity() == null && impact.blockPos() != null
                 && SpellEffects.applyAquaBlockEffect(level, impact.blockPos())) {
-            return; // it filled a cauldron or put out a fire: the water went there
+            return 0.0D; // it filled a cauldron or put out a fire: the water went there
         }
-        BlockState matter = matterOf(rune);
+        // What comes out of the body is what the table says the source's essence is (L3): firmo is earth, aqua water.
+        Optional<Matter> summoned = Pouring.summoned(rune, energy);
+        Optional<BlockState> block = summoned.flatMap(Invocation::blockOf);
+        if (summoned.isPresent() && block.isEmpty()) {
+            // Matter with no block of its own in the state it comes out in (a thing shown as items): the table lays it
+            // as it lays anything, and what finds no room comes back.
+            BlockPos ground = groundOf(impact, Blocks.DIRT.defaultBlockState(), where.atFeet());
+            return WorldMatter.place(level, ground, summoned.get()).leftover();
+        }
+        BlockState matter = block.orElseGet(() -> matterOf(rune));
+        // One whole block for every 16 UMU. A source the table cannot read keeps the lexicon's block and count.
+        int count = block.isPresent() ? (int) Math.floor(energy / Particles.BLOCK_UMU + 1.0E-9D)
+                : SpellEffects.blocksFor(power);
+        if (count <= 0) {
+            MarkSpells.tell(player, "Menos de 16 UMU nao fazem um bloco inteiro: a energia voltou ao corpo.");
+            return energy;
+        }
         List<BlockPos> laid = new ArrayList<>(lay(level, element, groundOf(impact, matter, where.atFeet()), matter,
-                SpellEffects.blocksFor(power)));
+                count));
+        double left = block.isPresent() ? Math.max(0.0D, energy - laid.size() * Particles.BLOCK_UMU) : 0.0D;
         if (windowTicks <= 0) {
-            return;
+            return left;
         }
         // While the window lasts it follows what it was called on (laying more under its feet as it moves) and stands
         // back up where it was broken; when the window ends, all of it is gone.
@@ -199,6 +231,16 @@ final class Invocation {
                 }
             }
         });
+        return left;
+    }
+
+    /** The block the table shows matter as, in the state it is in; empty when it shows as anything else. */
+    private static Optional<BlockState> blockOf(Matter matter) {
+        MaterialTable table = Materials.get();
+        return matter.substance(table)
+                .flatMap(substance -> table.form(substance, matter.state()))
+                .filter(form -> form.kind() == Form.Kind.BLOCK)
+                .flatMap(form -> SourceLooks.block(form.id()));
     }
 
     /** The block a permanent source lays, as the lexicon says of it (loose soil when it names none). */

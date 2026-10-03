@@ -7,9 +7,9 @@ import java.util.EnumMap;
 import java.util.Map;
 
 /**
- * What a source is (book 3): energy showing some of the four aspects. Vis is the four in balance, a fusion is a mixture
- * of its parts ({@code fusus} is half fire, half earth). The element is the aspect whose laws the energy follows in the
- * world; it is written in the lexicon or, if not, the one the essence shows most.
+ * What a source is (book 3): energy showing some of the four aspects. Vis is the four in balance. The element is the
+ * aspect whose laws the energy follows in the world; it is written in the lexicon or, if not, the one the essence shows
+ * most.
  *
  * @param element the element whose laws it follows
  * @param essence how much of each aspect it holds, summing to 1

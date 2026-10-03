@@ -53,7 +53,8 @@ Cada aspecto dá uma qualidade à matéria, na proporção em que está nela:
 
 - Saem o tempo de vida do amálgama (`amalgam.seconds`), o bloco instável e o desfazer por tempo.
 - A mistura (L4) continua igual. Depois dela, valem as reações e depois a aparência.
-- As fusões ensinadas (lama, poeira, névoa, vapor, magma, relâmpago) continuam como códigos de coisas do jogo, sem nada
+- As fusões ensinadas (lama, poeira, névoa, vapor, magma, relâmpago) continuam como códigos de coisas do jogo (as runas
+  que os nomeavam saíram da língua depois, na etapa 3 de `particulas-design.md`), sem nada
   de especial.
 - A condensação não muda.
 

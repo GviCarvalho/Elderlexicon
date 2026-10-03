@@ -32,7 +32,7 @@ import java.util.function.Predicate;
 
 /**
  * The grammar of the Old Tongue, written for no rune in particular: it reads a sentence by what each word is (a source,
- * a verb, a filter, a form, a number, a mark, a name) and by the frames the lexicon gives each rune, and turns it into
+ * a verb, a filter, a number, a mark, a name) and by the frames the lexicon gives each rune, and turns it into
  * the steps of a spell ({@link SpellAction}). Any rune the lexicon holds, the mod's or an addon's, is read by the same
  * rules.
  * <p>
@@ -51,11 +51,12 @@ import java.util.function.Predicate;
  *   <li>A <b>negative quantity</b> turns the verb after it the other way round, when the lexicon says the verb has a
  *       sense to turn ({@code m1 quantum -20 iactare} pulls m1); its size is what it costs (R4).</li>
  *   <li>A verb may <b>take a word after it</b>: a target ({@code vertere aqua}), its subject ({@code surgit r2}) or a
- *       name ({@code reframe fireball}), as its frame says.</li>
+ *       name ({@code reframe fireball}), as its frame says. A conversion of a source taking a mark changes the marked
+ *       thing's core ({@code aqua quantum 16 vertere m1}: sixteen parts of its hundred are water).</li>
  *   <li>A <b>bond</b> verb ({@code ligabis}) reads its own aspect and marks; written with a sense verb as its aspect
  *       ({@code surgit m1 ligabis}) it binds that sense.</li>
- *   <li>A <b>fusion</b> that the lexicon writes out as other runes is read as those runes
- *       ({@code igni transiectio aqua} is {@code igni vertere aqua iactare}).</li>
+ *   <li>There are no fused runes (docs/particulas-design.md, stage 3): one the language no longer has is answered with
+ *       what to write in its place ({@code transiectio} is {@code vertere} and {@code iactare}).</li>
  * </ul>
  */
 public final class SpellGrammar {
@@ -76,7 +77,7 @@ public final class SpellGrammar {
         }
         List<String> sanitized = sanitize(rawLexemes);
         List<String> issues = new ArrayList<>();
-        List<String> words = expand(sanitized, issues);
+        List<String> words = sanitized;
         Optional<SpellActionResult> bond = boundSense(sanitized, words, issues);
         if (bond.isPresent()) {
             return bond.get();
@@ -120,46 +121,6 @@ public final class SpellGrammar {
         List<VertereRequest> vertereRequests = new ArrayList<>();
         List<SpellAction> actions = buildActions(tokens, issues, vertereRequests);
         return SpellActionResult.of(sanitized, actions, primarySource, issues, vertereRequests);
-    }
-
-    // ------------------------------------------------------------------ fusions written out
-
-    /**
-     * Writes out every fusion that stands for other runes, the word after it going where its expansion says
-     * ({@link Rune#NEXT_WORD}). A shorthand may stand for others, up to {@link LexiconBuilder#MAX_EXPANSION_DEPTH}.
-     */
-    public List<String> expand(List<String> words, List<String> issues) {
-        List<String> current = words;
-        for (int depth = 0; depth <= LexiconBuilder.MAX_EXPANSION_DEPTH; depth++) {
-            boolean changed = false;
-            List<String> next = new ArrayList<>(current.size());
-            for (int index = 0; index < current.size(); index++) {
-                Optional<Rune> rune = lexicon.rune(current.get(index)).filter(Rune::isShorthand);
-                if (rune.isEmpty()) {
-                    next.add(current.get(index));
-                    continue;
-                }
-                changed = true;
-                boolean takesNext = rune.get().expansion().contains(Rune.NEXT_WORD);
-                String following = takesNext && index + 1 < current.size() ? current.get(index + 1) : null;
-                for (String word : rune.get().expansion()) {
-                    if (!Rune.NEXT_WORD.equals(word)) {
-                        next.add(word);
-                    } else if (following != null) {
-                        next.add(following);
-                    }
-                }
-                if (following != null) {
-                    index++;
-                }
-            }
-            current = next;
-            if (!changed) {
-                return current;
-            }
-        }
-        issues.add("As fusões deste feitiço se desdobram sem fim.");
-        return current;
     }
 
     // ------------------------------------------------------------------ a sense bound (surgit m1 ligabis)
@@ -332,7 +293,6 @@ public final class SpellGrammar {
 
             Rune rune = token.rune();
             switch (rune.wordClass()) {
-                case FORM -> form.addShape(rune.form());
                 case FILTER -> {
                     FilterSpec filter = token.filter();
                     if (filter.argument() == FilterSpec.Argument.VALUE) {
@@ -443,7 +403,6 @@ public final class SpellGrammar {
                     if (!token.implicit()) {
                         SpellAction sourceAction = SpellAction.builder(rune.id(), SpellActionType.SOURCE)
                                 .element(element)
-                                .shapes(form.snapshotShapes())
                                 .putMetadata("elementRuneId", rune.id())
                                 .build();
                         actions.add(sourceAction);
@@ -525,7 +484,6 @@ public final class SpellGrammar {
                     }
                     SpellAction.Builder builder = SpellAction.builder(rune.id(), SpellActionType.FUNCTION)
                             .element(form.element())
-                            .shapes(form.snapshotShapes())
                             .putMetadata("elementRuneId", form.elementRuneId())
                             .putMetadata(SpellAction.SUBJECT_MARK, mark)
                             .putMetadata(SpellAction.PLACE, place)
@@ -730,23 +688,11 @@ public final class SpellGrammar {
     private static final class SpellForm {
         private VitaElement element;
         private String elementRuneId;
-        private final List<String> shapes = new ArrayList<>();
 
         SpellForm(Lexicon lexicon) {
             Rune fallback = lexicon.defaultSource();
             this.elementRuneId = fallback == null ? VitaElement.BALANCED.runeId() : fallback.id();
             this.element = lexicon.elementOf(elementRuneId);
-        }
-
-        void addShape(String shape) {
-            if (shape == null || shape.isBlank()) {
-                return;
-            }
-            shapes.add(shape);
-        }
-
-        List<String> snapshotShapes() {
-            return Collections.unmodifiableList(new ArrayList<>(shapes));
         }
 
         void setElement(VitaElement element, String runeId) {

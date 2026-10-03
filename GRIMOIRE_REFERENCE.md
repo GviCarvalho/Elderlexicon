@@ -38,14 +38,15 @@ All magical energy originates from four primordial elements:
 | `aqua`  | Water   | Flow, dissolution, humidity              |
 | `aura`  | Air     | Pressure, breath, sound waves            |
 
-These elements combine to form all other sources.
+These elements make up every other thing: what something is comes from how much of each it holds (§5.3.1).
 
 ---
 
-## 3. Mana (Vis) and Life (Vita)
+## 3. Mana (Vis) and Life
 
-- **`vis` (Mana):** The perfect equilibrium of all four elements — 25% `igni`, 25% `aura`, 25% `aqua`, 25% `firmo`. It is neutral energy, ideal for fusions and realignments.
-- **`vita` (Life):** The specific elemental blend that composes living beings:
+- **`vis` (Mana):** The perfect equilibrium of all four elements — 25% `igni`, 25% `aura`, 25% `aqua`, 25% `firmo`. It is neutral energy, ideal for realignments.
+- **Life:** The specific elemental blend that composes living beings. It has no rune of its own (the `vita` rune left
+  the language with the fused runes): a being is the four in its proportion, held by an anchor of 100 UMU of Vis.
 
 | Element | Proportion |
 |---------|------------|
@@ -54,7 +55,7 @@ These elements combine to form all other sources.
 | `firmo` | 5% (later refined to 4%)  |
 | `igni`  | 2%  |
 
-Manipulating `vita` allows precise healing or harm. The elemental balance is maintained by a cycle:
+Manipulating life allows precise healing or harm. The elemental balance is maintained by a cycle:
 
 - **+**`igni` ⇒ **–**`aura`
 - **+**`aura` ⇒ **–**`firmo`
@@ -67,7 +68,7 @@ Disturbing one element without compensating the others causes nausea, fever, int
 
 ## 4. The Universal Magical Unit (UMU)
 
-Every spell consumes energy. The **UMU** is an abstract, universal measure of that cost — independent of the manifestation (heat, mass, vapor, etc.). A simple `igni iactare` costs few UMU; a long fusion chain may cost hundreds.
+Every spell consumes energy. The **UMU** is an abstract, universal measure of that cost — independent of the manifestation (heat, mass, vapor, etc.). A simple `igni iactare` costs few UMU; a long chain of conversions may cost hundreds.
 
 The UMU is the accounting system. How a given platform translates it into tangible resources (XP, health, saturation, etc.) is an implementation decision.
 
@@ -77,29 +78,31 @@ The UMU is the accounting system. How a given platform translates it into tangib
 
 ### 5.1 Rune Categories
 
-1. **Sources (Fontes):** The energy to mobilize (`igni`, `aqua`, `vis`, `vita`, `fusus`, `nebula`, etc.).
+1. **Sources (Fontes):** The energy to mobilize (`igni`, `aqua`, `aura`, `firmo`, `vis`).
 2. **Functions (Funções):** What to do with the energy (`iactare`, `impediunt`, `vocant`, `vertere`, `ligabis`, `surgit`, `reframe`).
-3. **Forms (Formas):** How to shape the manifestation (`hasta`, `murus`, `vortex`, `sigillum`, `catena`).
-4. **Filters (Filtros):** Adjustments to time, quantity, place, or origin (`chronos`, `quantum`, `ubis`, `tenet`).
+3. **Filters (Filtros):** Adjustments to time, quantity, place, or origin (`chronos`, `quantum`, `ubis`, `tenet`).
 
 Some words the language once had are gone: `exsugat` (its work is now done by `tenet` and by a turned-around verb),
-`transvocatio` (move each thing with `vocant`), and the forms and fusions built on them (`orbis`, `exhaustio`,
-`exsuctio`, `extractio`, `exinanitio`). The Dreaming Mind still recognizes them, and says what to write instead.
+`transvocatio` (move each thing with `vocant`), and every fused rune: the sources `vita`, `fusus`, `caligo`, `lutum`,
+`pulvis`, `nebula` and `fulmen`; the forms (`hasta`, `murus`, `vortex`, `sigillum`, `catena` and their kin, `orbis`
+among them); and the fused functions (`transiectio`, `aversio`, `cohaesio`, `evocatio` and the rest, `exhaustio`,
+`exsuctio`, `extractio` and `exinanitio` among them). What two runes do together comes from their order and from the
+instant and place they meet in, never from a rune that stands for both. The Dreaming Mind still recognizes the old
+words, and says what to write instead.
 
 ### 5.2 Canonical Syntax
 
 The Dreaming Mind expects short, well-formed orders:
 
 Expr ::= source → function
-| source → form → function
-| source → form → value → filter → function
+| source → value → filter → function
 
 
 Examples:
 
 - `igni iactare` — Push a wave of heat toward where the caster aims.
 - `igni vocant iactare` — Bring fire out at the hand and hurl it: a lance of fire.
-- `igni hasta 5 chronos iactare` — Evoke a lance of fire that persists for 5 seconds.
+- `igni chronos 5 iactare` — Push the heat for 5 seconds.
 
 A filter governs the function written right after it. A value may be written before or after its filter:
 
@@ -149,6 +152,23 @@ Dreaming Mind spends on the work; returning anything to `vis` costs the whole la
   water.
 - On matter of the world (`firmo tenet vertere aqua`, or a marked thing), it changes only the state: stone melts and
   is still stone, molten; water freezes and is still water. What a thing *is* does not change.
+- On a thing's core (a source before it, a mark after it: `aqua quantum 16 vertere m1`), it changes what the thing
+  *is*.
+  - Everything has a core of a hundred parts shared among the four elements, and the quantum says exactly how many
+    of them the source written takes. Written with no number, the elements share the hundred evenly:
+    `aqua vertere m1` makes m1 all water, and `aqua` and `igni` together make it half of each.
+  - What the thing holds is converted, as much in all as before: nothing is brought and nothing is lost. The parts not
+    written keep their mix.
+  - The lines of one column are weighed together, so the lines of a code make that code. A core is always a hundred:
+    parts past it, or all four written short of it, change nothing.
+  - What it becomes is in its own natural state: stone or lava made all water is water; lava that keeps its fire, in
+    steam's proportion, is vapour.
+  - What makes no whole block or item leaves as light. Each line pays, when it is cast, the Dreaming Mind's work of what
+    it converts, as any conversion does: by the rungs of the ladder each particle crosses.
+  - A being's body is its life, 5 UMU for each point, held by its anchor of 100 Vis (a person is 200 UMU). It becomes
+    the kind its core is nearest, with the life it had: a chicken given a cow's core is a cow with a chicken's life.
+  - A player changes the same way: their body becomes that kind's, its size and its look, and they keep what they
+    carry, their life and their experience. Their own core, written back, brings their own body back.
 
 The final source does not leak; its purpose is fulfilled. A function can be appended:
 
@@ -160,8 +180,8 @@ All matter is a proportion of the four elements, and any proportion is matter. T
 mixture does comes from what it holds.
 
 - **Codes.** Every natural thing has a code, the proportion it is made of: stone is mostly earth, with a little water,
-  air and fire. Earth, water, air and fire are the four primordials; mud, dust, mist, vapor, magma and lightning are the
-  codes the book teaches. Every other code — stone, iron, wood, bone — is found by trying.
+  air and fire. Earth, water, air and fire are the four primordials, and §6 says what two of them make together. Every
+  other code — stone, iron, wood, bone — is found by trying.
 - **Qualities.** Each element gives matter a quality in the proportion it is in it: earth weight, water cohesion, air
   lightness, fire heat. Hot matter burns what touches it and kindles what is around; wet matter puts fire out; heavy
   liquid is thick to wade through. A quality acts only once it is a real part of the matter: a little fire in stone does
@@ -174,6 +194,14 @@ mixture does comes from what it holds.
   with air scatters as dust. A solid holds its parts still and does not react.
 - **The body keeps energy, not matter.** What the body absorbs loses what it was and enters it as the element of the
   state it was in; what leaves it with no code known is the primordial of its state (`firmo vocant` brings earth).
+- **Particles.** Matter is counted in particles, all worth the same: 256 make one UMU. A block of anything holds 4096
+  of them, 16 UMU, in any state; an item holds 256 unless the game joins several into a block (nine raw irons, four
+  clay balls, three bones). A `vocant` brings one block, 16 UMU, when no quantity is written, and makes whole blocks
+  only: what makes no whole block goes back to the body (`firmo quantum 40 vocant` makes two blocks and gives eight
+  back).
+- **Beings.** Matter held by an anchor of 100 UMU of Vis is a being: the kind whose proportion is nearest. The
+  ingredients of a body can be brought from the world in the same instant: flesh lying on the ground, taken with
+  `firmo quantum 25 … tenet … ubis vocant`, with air, water and the anchor released at the same place, is a homunculus.
 
 ### 5.4 Custom Runes with `reframe`
 
@@ -184,7 +212,7 @@ Any complete spell can be compressed into a single new rune:
 3. Name the new rune with the final word.
 
 Example:  
-`igni hasta iactare reframe FLAMMA`  
+`igni vocant iactare reframe FLAMMA`  
 Now `FLAMMA` means "lance of fire."
 
 The new rune must be physically recorded, or the Dreaming Mind will forget it after the next sleep.
@@ -201,38 +229,21 @@ Marks can be custom runes (e.g., `SIGMA`) or sigillic symbols. Active links cons
 
 ---
 
-## 6. Compound Sources (Fusions)
+## 6. Compounds Are Matter, Not Runes
 
-Elemental pairs fuse into compound sources:
-
-| Fusion   | Components    | Essence                              |
-|----------|---------------|--------------------------------------|
-| `fusus`  | `igni`+`firmo` | Magma — molten earth                |
-| `caligo` | `aqua`+`igni`  | Vapor — hot mist, latent heat       |
-| `lutum`  | `aqua`+`firmo` | Mud — binding, entrapping           |
-| `pulvis` | `aura`+`firmo` | Dust — choking, visibility reduction|
-| `nebula` | `aura`+`aqua`  | Nebula — cold mist, obscuring       |
-| `fulmen` | `aura`+`igni`  | Lightning — shared fury, dangerous  |
-
-These compound sources behave exactly like primordial sources in syntax.
+Two elements together make things, but no rune stands for them: magma is earth and fire, vapor water and fire, mud
+earth and water, dust earth and air, mist water and air, lightning air and fire. Each is a natural thing with its code
+(§5.3.1), made by bringing its elements together in one place: fire poured into water boils it into vapor, water poured
+into molten earth makes mud. The fused runes that once named them (`fusus`, `caligo`, `lutum`, `pulvis`, `nebula`,
+`fulmen`) left the language.
 
 ---
 
-## 7. Forms and Functions — Narrative Essence
+## 7. Functions — Narrative Essence
 
 Every rune carries ancestral memory. The Dreaming Mind feels its meaning, not just its translation.
 
-### 7.1 Forms
-
-| Form       | Narrative                                          |
-|------------|----------------------------------------------------|
-| `hasta`    | A sudden column, lance, or linear jet.           |
-| `murus`    | A wall rising from the ground, holding the source in its surface. |
-| `catena`   | A chain or curved trajectory, linking or dragging. |
-| `sigillum` | A glyph that fixes the order to a point.         |
-| `vortex`   | A whirlpool that mixes sources actively.         |
-
-### 7.2 Core Functions
+### 7.1 Core Functions
 
 | Function     | Action                              |
 |--------------|-------------------------------------|
@@ -244,38 +255,24 @@ Every rune carries ancestral memory. The Dreaming Mind feels its meaning, not ju
 | `reframe`    | Compress a spell into a new rune.  |
 | `surgit`     | Raise senses; make the Dreaming Mind read what the caster sees. |
 
-### 7.3 Compound Functions
-
-These are fusions of two core functions, forming more specific actions:
-
-| Compound        | Fusion                | Action                                    |
-|-----------------|-----------------------|-------------------------------------------|
-| `transiectio`   | `vertere`+`iactare`   | Convert and hurl (teleport).              |
-| `aversio`       | `vertere`+`impediunt` | Convert and repel.                        |
-| `cohaesio`      | `vertere`+`ligabis`   | Fuse targets (alchemy).                   |
-| `deflectio`     | `iactare`+`impediunt` | Deflect flows and projectiles.            |
-| `vinculatio`    | `iactare`+`ligabis`   | Link targets via launching.               |
-| `evocatio`      | `iactare`+`vocant`    | Conjure stably.                           |
-| `compeditio`    | `impediunt`+`ligabis` | Shackle and immobilize.                   |
-| `coniuratio`    | `ligabis`+`vocant`    | Conspire, gather targets.                 |
+Two functions never fuse into one: to convert and then hurl, write `vertere` and then `iactare`
+(`igni vertere aqua iactare`). The fused functions (`transiectio`, `aversio`, `cohaesio` and their kin) left the language.
 
 ---
 
 ## 8. Advanced Composition
 
-### 8.1 Column Realignment
+### 8.1 The Page and Its Columns
 
-When runes are written in superimposed lines, they share an index `P = column + line`. Runes with identical `P` fuse.
+On a page, each line is a spell of its own, and all are read together. The column is the clock: runes written in the
+same column act in the same instant. Runes never fuse: when the processes of two lines meet in one place and one
+instant, what happens between them is the physics of the world (water and fire boil; a body and an anchor bind).
 
 ### 8.2 Circle Magic
 
-Concentric circles are resolved from the innermost ring outward. Each ring applies its rune to the result of the previous ring. Rectangles inside rings preserve standard linear order.
-
-Example: four concentric rings — inner ring fuses `igni` and `aqua`; second ring applies `vertere`; third applies `firmo`; fourth applies `vocant`. The Dreaming Mind rewrites this as `caligo vertere firmo vocant` before execution.
-
-### 8.3 Compound Fusions via Intersection
-
-Overlapping circles create shared regions. Each intersection fuses the runes of the overlapping areas before the outer ring applies the final function.
+Concentric circles are resolved from the innermost ring outward, each ring acting on what the ring inside it left.
+What sits together in one ring acts in the same instant, as a column of a page does, and nothing in it is rewritten
+as a single rune: `igni` and `aqua` in one ring are fire and water released together, which boil.
 
 ---
 

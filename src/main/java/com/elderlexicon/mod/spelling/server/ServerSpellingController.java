@@ -62,8 +62,6 @@ public final class ServerSpellingController {
     private static final long MAX_LATENCY_MS = 2_500L;
     private static final long SUCCESS_COOLDOWN_MS = 600L;
     private static final long FAILURE_COOLDOWN_MS = 350L;
-    private static final FusionResolver FUSIONS = FusionResolver.load();
-    private static final Component FUSION_RUNE_DENIED = Component.literal("Grimorio aceita apenas runas originais.");
 
     private static final ServerSpellingController INSTANCE = new ServerSpellingController();
 
@@ -235,9 +233,6 @@ public final class ServerSpellingController {
             return applyFailure(player, Component.literal("Nenhum grimorio em maos."), now, true, reading());
         }
         GrimoireExtractionResult extraction = extractRunesFromGrimoire(grimoire);
-        if (extraction.hasForbiddenRune()) {
-            return applyFailure(player, FUSION_RUNE_DENIED, now, true, reading());
-        }
         if (extraction.block().isEmpty()) {
             return applyFailure(player, Component.literal("Pagina do grimorio sem feitico."), now, true, reading());
         }
@@ -317,9 +312,6 @@ public final class ServerSpellingController {
             return castCircle(player, circle.get(), now, 1.0D, "");
         }
         GrimoireExtractionResult extraction = extractRunesFromText(written.get().text());
-        if (extraction.hasForbiddenRune()) {
-            return applyFailure(player, FUSION_RUNE_DENIED, now, true, reading());
-        }
         if (extraction.block().isEmpty()) {
             return applyFailure(player, Component.literal("Inscricao sem feitico."), now, true, reading());
         }
@@ -340,7 +332,7 @@ public final class ServerSpellingController {
             List<List<Integer>> ringReleases = new ArrayList<>();
             for (int index : ring) {
                 GrimoireExtractionResult extraction = extractRunesFromText(circle.pieces().get(index).text());
-                SpellBlock block = extraction.hasForbiddenRune() ? SpellBlock.empty() : extraction.block();
+                SpellBlock block = extraction.block();
                 ringBlocks.add(block);
                 ringReleases.add(block.lines().stream().map(SpellBlock.Line::releasePosition).toList());
             }
@@ -471,9 +463,6 @@ public final class ServerSpellingController {
             pageText = "";
         }
         GrimoireExtractionResult extraction = extractRunesFromText(pageText);
-        if (extraction.hasForbiddenRune()) {
-            return applyFailure(player, FUSION_RUNE_DENIED, now, true, reading());
-        }
         if (extraction.block().isEmpty()) {
             return applyFailure(player, Component.literal("Pagina destacada sem feitico."), now, true, reading());
         }
@@ -543,9 +532,6 @@ public final class ServerSpellingController {
             pageText = "";
         }
         GrimoireExtractionResult extraction = extractRunesFromText(pageText);
-        if (extraction.hasForbiddenRune()) {
-            return applyFailure(player, FUSION_RUNE_DENIED, now, true, reading());
-        }
         if (extraction.block().isEmpty()) {
             return applyFailure(player, Component.literal("Pagina destacada sem feitico."), now, true, reading());
         }
@@ -610,10 +596,7 @@ public final class ServerSpellingController {
      * Reads a page as a block: every line is an independent spell, timed by rune position.
      */
     private GrimoireExtractionResult extractRunesFromText(String pageText) {
-        SpellBlock block = SpellBlock.parse(pageText, this::normalizeRune);
-        boolean forbidden = block.allRuneIds().stream()
-                .anyMatch(rune -> FUSIONS.isKnownRune(rune) && !FUSIONS.isOriginalRune(rune));
-        return new GrimoireExtractionResult(block, forbidden);
+        return new GrimoireExtractionResult(SpellBlock.parse(pageText, this::normalizeRune));
     }
 
     /**
@@ -746,10 +729,6 @@ public final class ServerSpellingController {
         }
         CompoundTag tag = displayed.getTag();
         GrimoireExtractionResult extraction = extractRunesFromText(tag == null ? "" : tag.getString("DetachedPageText"));
-        if (extraction.hasForbiddenRune()) {
-            caster.displayClientMessage(FUSION_RUNE_DENIED, true);
-            return;
-        }
         if (extraction.block().isEmpty()) {
             return;
         }
@@ -892,8 +871,8 @@ public final class ServerSpellingController {
         return normalized;
     }
 
-    private record GrimoireExtractionResult(SpellBlock block, boolean hasForbiddenRune) {
-        private static final GrimoireExtractionResult EMPTY = new GrimoireExtractionResult(SpellBlock.empty(), false);
+    private record GrimoireExtractionResult(SpellBlock block) {
+        private static final GrimoireExtractionResult EMPTY = new GrimoireExtractionResult(SpellBlock.empty());
     }
 
     /**

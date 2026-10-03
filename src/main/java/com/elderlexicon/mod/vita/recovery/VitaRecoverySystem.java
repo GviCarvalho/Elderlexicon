@@ -73,7 +73,7 @@ public final class VitaRecoverySystem {
             return;
         }
         VitaRecoveryConfig.RecoverySettings cfg = VitaRecoveryConfig.settings();
-        double baseline = baseline(VitaElement.FIRMO);
+        double baseline = baseline(player, VitaElement.FIRMO);
         double current = VitaSystem.getLifeEnergy(player, VitaElement.FIRMO);
         double target = baseline - ((baseline - current) * (1.0D - cfg.firmoSleepPercentage()));
         double delta = target - current;
@@ -321,24 +321,22 @@ public final class VitaRecoverySystem {
         return base * multiplier;
     }
 
-    private static double baseline(VitaElement element) {
-        return switch (element) {
-            case AQUA -> VitaSystem.DEFAULT_AQUA;
-            case AURA -> VitaSystem.DEFAULT_AURA;
-            case IGNI -> VitaSystem.DEFAULT_IGNI;
-            case FIRMO -> VitaSystem.DEFAULT_FIRMO;
-            case BALANCED -> VitaSystem.DEFAULT_TOTAL;
-        };
+    /** What a full body holds of an element: its share in the player's core (a person's 55/38/2/5) of the hundred. */
+    private static double baseline(ServerPlayer player, VitaElement element) {
+        if (element == VitaElement.BALANCED) {
+            return VitaSystem.DEFAULT_TOTAL;
+        }
+        return VitaSystem.DEFAULT_TOTAL * VitaSystem.core(player).getOrDefault(element, 0.0D);
     }
 
     private static double deficit(ServerPlayer player, VitaElement element) {
-        double baseline = baseline(element);
+        double baseline = baseline(player, element);
         double current = VitaSystem.getLifeEnergy(player, element);
         return Math.max(0.0D, baseline - current);
     }
 
     private static double excess(ServerPlayer player, VitaElement element) {
-        double baseline = baseline(element);
+        double baseline = baseline(player, element);
         double current = VitaSystem.getLifeEnergy(player, element);
         return Math.max(0.0D, current - baseline);
     }
@@ -393,7 +391,7 @@ public final class VitaRecoverySystem {
     }
 
     private static void snapToBaselineIfClose(ServerPlayer player, VitaElement element) {
-        double baseline = baseline(element);
+        double baseline = baseline(player, element);
         double current = VitaSystem.getLifeEnergy(player, element);
         if (Math.abs(current - baseline) <= SNAP_THRESHOLD) {
             VitaSystem.forceSetElement(player, element, baseline);

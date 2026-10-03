@@ -5,7 +5,9 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * Persistent Vita storage per player, allowing imbalances across elemental components.
+ * Persistent Vita storage per player, allowing imbalances across elemental components. The body's balance is its core
+ * (docs/particulas-design.md, section 6): the share of each element in its life, a person's 55/38/2/5 until a vertere
+ * changes it; the body heals, hurts and settles back in that proportion.
  */
 final class VitaData {
 
@@ -20,6 +22,7 @@ final class VitaData {
     private static final String TAG_AURA_TIER = "auraTier";
     private static final String TAG_FIRMO_TIER = "firmoTier";
     private static final String TAG_IGNI_TIER = "igniTier";
+    private static final String TAG_CORE = "core";
 
     private static final double EPSILON = 1.0E-4D;
     /** Smallest step of the return to balance, so the last bit of an imbalance does not linger forever. */
@@ -30,6 +33,11 @@ final class VitaData {
     private double igni;
     private double firmo;
     private float lastHealth;
+    /** The core: the share of the life each element is, a person's until a vertere changes it. */
+    private double coreAqua = VitaSystem.AQUA_RATIO;
+    private double coreAura = VitaSystem.AURA_RATIO;
+    private double coreIgni = VitaSystem.IGNI_RATIO;
+    private double coreFirmo = VitaSystem.FIRMO_RATIO;
     private VitaImbalanceTier aquaTier = VitaImbalanceTier.BALANCED;
     private VitaImbalanceTier auraTier = VitaImbalanceTier.BALANCED;
     private VitaImbalanceTier firmoTier = VitaImbalanceTier.BALANCED;
@@ -113,18 +121,46 @@ final class VitaData {
         };
     }
 
+    /** The share of the life {@code element} is in this body's core. */
+    double share(VitaElement element) {
+        return switch (sanitize(element)) {
+            case AQUA -> coreAqua;
+            case AURA -> coreAura;
+            case IGNI -> coreIgni;
+            case FIRMO -> coreFirmo;
+            case BALANCED -> 1.0D;
+        };
+    }
+
     /**
-     * Life lost takes each element in its share of life (55/38/2/5), the same way healing gives it back, so being
-     * hurt and healed never unbalances the body by itself.
+     * A new core (docs/particulas-design.md, stage 6): the shares are kept, normalized to the whole life, and what the
+     * body holds is converted into them, as much in all as before.
+     */
+    void reshape(double aquaShare, double auraShare, double igniShare, double firmoShare) {
+        double total = Math.max(0.0D, aquaShare) + Math.max(0.0D, auraShare) + Math.max(0.0D, igniShare)
+                + Math.max(0.0D, firmoShare);
+        if (total <= EPSILON) {
+            return;
+        }
+        coreAqua = Math.max(0.0D, aquaShare) / total;
+        coreAura = Math.max(0.0D, auraShare) / total;
+        coreIgni = Math.max(0.0D, igniShare) / total;
+        coreFirmo = Math.max(0.0D, firmoShare) / total;
+        setBalancedValues(totalUmu());
+    }
+
+    /**
+     * Life lost takes each element in its share of life (the core), the same way healing gives it back, so being hurt and
+     * healed never unbalances the body by itself.
      */
     void consume(double umuAmount) {
         if (umuAmount <= EPSILON) {
             return;
         }
-        aqua = Math.max(0.0D, aqua - umuAmount * VitaSystem.AQUA_RATIO);
-        aura = Math.max(0.0D, aura - umuAmount * VitaSystem.AURA_RATIO);
-        igni = Math.max(0.0D, igni - umuAmount * VitaSystem.IGNI_RATIO);
-        firmo = Math.max(0.0D, firmo - umuAmount * VitaSystem.FIRMO_RATIO);
+        aqua = Math.max(0.0D, aqua - umuAmount * coreAqua);
+        aura = Math.max(0.0D, aura - umuAmount * coreAura);
+        igni = Math.max(0.0D, igni - umuAmount * coreIgni);
+        firmo = Math.max(0.0D, firmo - umuAmount * coreFirmo);
     }
 
     void consumeElement(VitaElement element, double umuAmount) {
@@ -145,17 +181,17 @@ final class VitaData {
         if (umuAmount <= EPSILON) {
             return;
         }
-        aqua += umuAmount * VitaSystem.AQUA_RATIO;
-        aura += umuAmount * VitaSystem.AURA_RATIO;
-        igni += umuAmount * VitaSystem.IGNI_RATIO;
-        firmo += umuAmount * VitaSystem.FIRMO_RATIO;
+        aqua += umuAmount * coreAqua;
+        aura += umuAmount * coreAura;
+        igni += umuAmount * coreIgni;
+        firmo += umuAmount * coreFirmo;
     }
 
     void setBalancedValues(double totalUmu) {
-        aqua = totalUmu * VitaSystem.AQUA_RATIO;
-        aura = totalUmu * VitaSystem.AURA_RATIO;
-        igni = totalUmu * VitaSystem.IGNI_RATIO;
-        firmo = totalUmu * VitaSystem.FIRMO_RATIO;
+        aqua = totalUmu * coreAqua;
+        aura = totalUmu * coreAura;
+        igni = totalUmu * coreIgni;
+        firmo = totalUmu * coreFirmo;
     }
 
     void adjustElement(VitaElement element, double delta) {
@@ -242,14 +278,7 @@ final class VitaData {
         if (element == null) {
             return baselineTotal();
         }
-        double baselineTotal = baselineTotal();
-        return switch (element) {
-            case AQUA -> baselineTotal * VitaSystem.AQUA_RATIO;
-            case AURA -> baselineTotal * VitaSystem.AURA_RATIO;
-            case IGNI -> baselineTotal * VitaSystem.IGNI_RATIO;
-            case FIRMO -> baselineTotal * VitaSystem.FIRMO_RATIO;
-            case BALANCED -> baselineTotal;
-        };
+        return baselineTotal() * share(element);
     }
 
     private double baselineTotal() {
@@ -327,6 +356,12 @@ final class VitaData {
         root.putString(TAG_AURA_TIER, auraTier.name());
         root.putString(TAG_FIRMO_TIER, firmoTier.name());
         root.putString(TAG_IGNI_TIER, igniTier.name());
+        CompoundTag core = new CompoundTag();
+        core.putDouble(TAG_AQUA, coreAqua);
+        core.putDouble(TAG_AURA, coreAura);
+        core.putDouble(TAG_IGNI, coreIgni);
+        core.putDouble(TAG_FIRMO, coreFirmo);
+        root.put(TAG_CORE, core);
         root.remove(TAG_HOMEOSTASIS); // the old cascade queue: dropped from older saves
         persistent.put(STORAGE_KEY, root);
     }
@@ -341,6 +376,17 @@ final class VitaData {
         double firmo = tag.getDouble(TAG_FIRMO);
         float lastHealth = tag.contains(TAG_LAST_HEALTH) ? tag.getFloat(TAG_LAST_HEALTH) : fallbackHealth;
         VitaData data = new VitaData(aqua, aura, igni, firmo, lastHealth);
+        if (tag.contains(TAG_CORE)) {
+            CompoundTag core = tag.getCompound(TAG_CORE);
+            double total = core.getDouble(TAG_AQUA) + core.getDouble(TAG_AURA) + core.getDouble(TAG_IGNI)
+                    + core.getDouble(TAG_FIRMO);
+            if (total > EPSILON) {
+                data.coreAqua = core.getDouble(TAG_AQUA) / total;
+                data.coreAura = core.getDouble(TAG_AURA) / total;
+                data.coreIgni = core.getDouble(TAG_IGNI) / total;
+                data.coreFirmo = core.getDouble(TAG_FIRMO) / total;
+            }
+        }
         if (tag.contains(TAG_AQUA_TIER)) {
             try {
                 data.aquaTier = VitaImbalanceTier.valueOf(tag.getString(TAG_AQUA_TIER));

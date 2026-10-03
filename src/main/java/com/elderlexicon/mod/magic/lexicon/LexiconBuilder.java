@@ -5,23 +5,16 @@ import com.elderlexicon.mod.spell.mark.NumberGlyphs;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Builds a {@link Lexicon}: from the mod's data, and then from whatever an addon brings (more runes, other meanings for
- * the old ones, new fusions). Building checks that the language holds together: the default source exists, every
- * shorthand stands for words the language has, and no two runes share a glyph.
+ * the old ones). Building checks that the language holds together: the default source exists and no two runes share a
+ * glyph. No fused rune can be brought: they left the language (docs/particulas-design.md, stage 3).
  */
 public final class LexiconBuilder {
-
-    /** How deep shorthands may stand for other shorthands before the spirit gives up. */
-    public static final int MAX_EXPANSION_DEPTH = 8;
-    /** In a fusion's parts, any source at all (the forms: {@code hasta} is iactare and a source). */
-    public static final String ANY_SOURCE = "source";
 
     private final Map<String, Rune> runes = new LinkedHashMap<>();
     private String defaultSource;
@@ -135,40 +128,10 @@ public final class LexiconBuilder {
                     problems.add("runes '" + other + "' and '" + rune.id() + "' share the glyph '" + glyph + "'");
                 }
             });
-            for (String part : rune.components()) {
-                if (!ANY_SOURCE.equals(part) && !runes.containsKey(part)) {
-                    problems.add("fusion '" + rune.id() + "' is made of '" + part + "', which is no rune");
-                }
-            }
-            for (String word : rune.expansion()) {
-                if (!Rune.NEXT_WORD.equals(word) && !runes.containsKey(word)) {
-                    problems.add("'" + rune.id() + "' stands for '" + word + "', which is no rune");
-                }
-            }
-            if (rune.isShorthand() && expandsForever(rune.id(), new HashSet<>(), 0)) {
-                problems.add("'" + rune.id() + "' stands for itself, through its own words");
-            }
         }
         if (!problems.isEmpty()) {
             throw new IllegalStateException("The lexicon does not hold together: " + String.join("; ", problems));
         }
         return new Lexicon(runes, defaultSource, repertoire, meetings, notes, retired);
-    }
-
-    private boolean expandsForever(String id, Set<String> path, int depth) {
-        if (depth > MAX_EXPANSION_DEPTH || !path.add(id)) {
-            return true;
-        }
-        Rune rune = runes.get(id);
-        if (rune != null) {
-            for (String word : rune.expansion()) {
-                Rune inner = runes.get(word);
-                if (inner != null && inner.isShorthand() && expandsForever(word, path, depth + 1)) {
-                    return true;
-                }
-            }
-        }
-        path.remove(id);
-        return false;
     }
 }

@@ -144,6 +144,14 @@ public class ElderLexicon {
                             .updateInterval(4)
                             .build("black_hole"));
 
+    public static final RegistryObject<EntityType<com.elderlexicon.mod.spell.life.Homunculus>> HOMUNCULUS =
+            ENTITY_TYPES.register("homunculus",
+                    () -> EntityType.Builder.<com.elderlexicon.mod.spell.life.Homunculus>of(
+                                    com.elderlexicon.mod.spell.life.Homunculus::new, MobCategory.MISC)
+                            .sized(0.6F, 1.8F)
+                            .clientTrackingRange(10)
+                            .build("homunculus"));
+
     public static final RegistryObject<EntityType<GolemEntity>> LIGABIS_GOLEM = ENTITY_TYPES.register("ligabis_golem",
             () -> EntityType.Builder.<GolemEntity>of(GolemEntity::new, MobCategory.MISC)
                     .sized(1.4F, 2.7F)
@@ -214,6 +222,7 @@ public class ElderLexicon {
         @SubscribeEvent
         public static void onAttributeCreation(EntityAttributeCreationEvent event) {
             event.put(LIGABIS_GOLEM.get(), IronGolem.createAttributes().build());
+            event.put(HOMUNCULUS.get(), com.elderlexicon.mod.spell.life.Homunculus.createAttributes().build());
         }
     }
 }

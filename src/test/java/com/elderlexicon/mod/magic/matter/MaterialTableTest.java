@@ -41,16 +41,11 @@ class MaterialTableTest {
     @Test
     void theRunesOfTheBookNameTheSubstancesItTeaches() {
         Lexicon lexicon = Lexicons.builtIn();
-        Map<String, String> taught = Map.of(
-                "firmo", "earth", "aqua", "water", "aura", "air", "igni", "fire",
-                "lutum", "mud", "pulvis", "dust", "nebula", "mist", "caligo", "steam", "fusus", "magma",
-                "fulmen", "lightning");
+        Map<String, String> taught = Map.of("firmo", "earth", "aqua", "water", "aura", "air", "igni", "fire");
         taught.forEach((rune, substance) -> assertEquals(Optional.of(substance),
                 TABLE.identify(compositionOf(lexicon.source(rune).orElseThrow())).map(Substance::id), rune));
-        for (String energy : List.of("vis", "vita")) {
-            assertTrue(TABLE.identify(compositionOf(lexicon.source(energy).orElseThrow())).isEmpty(),
-                    energy + " is energy, no substance");
-        }
+        assertTrue(TABLE.identify(compositionOf(lexicon.source("vis").orElseThrow())).isEmpty(),
+                "vis is energy, no substance");
     }
 
     @Test
@@ -104,14 +99,18 @@ class MaterialTableTest {
     }
 
     @Test
-    void aMixtureWithNoNameFillsTheRoomItsPartsFill() {
-        // A block of molten earth (half a UMU) and a source of water (three) mixed fill two blocks, as they did apart.
-        Matter mixed = MatterLaws.mix(List.of(Matter.of(TABLE.primordial(VitaElement.FIRMO), State.LIQUID, 0.5D),
-                Matter.of(TABLE.primordial(VitaElement.AQUA), State.LIQUID, 3.0D))).orElseThrow();
-        assertTrue(mixed.unnamed(TABLE));
-        assertEquals(2.0D, mixed.umu() / TABLE.unitOf(mixed), 1.0E-9);
-        assertEquals(1.5D, TABLE.unitOf(Matter.natural(TABLE.substance("stone").orElseThrow(), 3.0D)), 1.0E-9,
-                "a substance holds its own unit");
+    void aBlockOfAnythingHoldsAsMuchAsAnyOther() {
+        // docs/particulas-design.md: 4096 particles, 16 UMU, whatever it is and whatever state it is in.
+        for (Substance substance : TABLE.substances()) {
+            substance.forms().values().forEach(forms -> forms.stream()
+                    .filter(form -> form.kind() == Form.Kind.BLOCK)
+                    .forEach(form -> assertEquals(Particles.BLOCK, form.particles(), form.id())));
+        }
+        assertEquals(16.0D, TABLE.read(Form.Kind.BLOCK, "minecraft:dirt").orElseThrow().umu(), 1.0E-9);
+        assertEquals(16.0D, TABLE.read(Form.Kind.BLOCK, "minecraft:obsidian").orElseThrow().umu(), 1.0E-9,
+                "obsidian no more than dirt: what is denser is what is compressed");
+        assertEquals(1.0D, TABLE.read(Form.Kind.ITEM, "minecraft:rotten_flesh").orElseThrow().umu(), 1.0E-9,
+                "an item is one layer, one UMU");
     }
 
     @Test
@@ -119,13 +118,14 @@ class MaterialTableTest {
         MaterialTable.Reading lava = TABLE.read(Form.Kind.BLOCK, "minecraft:lava").orElseThrow();
         assertEquals("stone", lava.substance().id());
         assertEquals(State.LIQUID, lava.state());
-        assertEquals(1.5D, lava.umu(), 1.0E-9, "a block of stone melts into a block of lava");
+        assertEquals(16.0D, lava.umu(), 1.0E-9, "a block of stone melts into a block of lava");
         MaterialTable.Reading ice = TABLE.read(Form.Kind.BLOCK, "minecraft:ice").orElseThrow();
         assertEquals(State.SOLID, ice.state());
-        assertEquals(3.0D, ice.umu(), 1.0E-9, "a source of water freezes into a block of ice");
-        assertEquals(5.0D / 9.0D, TABLE.read(Form.Kind.ITEM, "minecraft:raw_iron").orElseThrow().umu(), 1.0E-9,
-                "nine raw irons are a block");
-        assertEquals(0.15D, TABLE.read(Form.Kind.ITEM, "minecraft:clay_ball").orElseThrow().umu(), 1.0E-9);
+        assertEquals(16.0D, ice.umu(), 1.0E-9, "a source of water freezes into a block of ice");
+        assertEquals(455.0D / 256.0D, TABLE.read(Form.Kind.ITEM, "minecraft:raw_iron").orElseThrow().umu(), 1.0E-9,
+                "nine raw irons are a block, but for a particle");
+        assertEquals(4.0D, TABLE.read(Form.Kind.ITEM, "minecraft:clay_ball").orElseThrow().umu(), 1.0E-9,
+                "four clay balls are a block");
         assertTrue(TABLE.read(Form.Kind.BLOCK, "minecraft:chest").isEmpty(), "what is made is no natural matter");
     }
 
@@ -133,7 +133,7 @@ class MaterialTableTest {
     void anAddonBringsItsSubstancesInTheSameShape() {
         Materials.extend(table -> table.read(new StringReader("""
                 {"substances": {"salt": {"name": "sal", "recipe": {"firmo": 0.5, "aqua": 0.3, "aura": 0.2},
-                                         "state": "solid", "unit": 1,
+                                         "state": "solid",
                                          "forms": {"solid": [{"block": "addon:salt_block"}]}}}}
                 """)));
         MaterialTable table = Materials.get();
@@ -146,16 +146,44 @@ class MaterialTableTest {
     void matterThatDoesNotHoldTogetherIsRefused() {
         int before = Materials.get().substances().size();
         assertThrows(IllegalStateException.class, () -> Materials.extend(table -> table.read(new StringReader("""
-                {"substances": {"pebble": {"recipe": {"firmo": 0.82, "aqua": 0.04, "aura": 0.04, "igni": 0.10},
-                                           "unit": 1}}}
+                {"substances": {"pebble": {"recipe": {"firmo": 0.82, "aqua": 0.04, "aura": 0.04, "igni": 0.10}}}}
                 """))), "a recipe inside stone's own");
         assertThrows(IllegalStateException.class, () -> Materials.extend(table -> table.read(new StringReader("""
-                {"substances": {"brine": {"recipe": {"aqua": 0.5, "firmo": 0.2, "aura": 0.3}, "unit": 1,
+                {"substances": {"brine": {"recipe": {"aqua": 0.5, "firmo": 0.2, "aura": 0.3},
                                           "forms": {"liquid": [{"block": "minecraft:lava"}]}}}}
                 """))), "lava already reads as stone");
         assertThrows(IllegalStateException.class, () -> Materials.extend(table -> table.remove("fire")),
                 "fire is a primordial");
         assertEquals(before, Materials.get().substances().size(), "what was refused left no trace");
+    }
+
+    @Test
+    void anAddonBringsItsBeingsInTheSameShape() {
+        int before = Materials.get().beings().size();
+        Materials.extend(table -> table.read(new StringReader("""
+                {"beings": {"unicorn": {"name": "unicórnio", "recipe": {"firmo": 0.08, "aqua": 0.52, "aura": 0.36, "igni": 0.04},
+                                        "entity": "addon:unicorn"}}}
+                """)));
+        MaterialTable table = Materials.get();
+        assertEquals(before + 1, table.beings().size());
+        assertEquals("unicórnio", table.being("unicorn").orElseThrow().name());
+        assertEquals("unicorn", table.beingShownBy("addon:unicorn").orElseThrow().id());
+    }
+
+    @Test
+    void beingsThatDoNotHoldTogetherAreRefused() {
+        int before = Materials.get().beings().size();
+        assertThrows(IllegalStateException.class, () -> Materials.extend(table -> table.read(new StringReader("""
+                {"beings": {"calf": {"recipe": {"firmo": 0.07, "aqua": 0.60, "aura": 0.30, "igni": 0.03},
+                                     "entity": "minecraft:cow"}}}
+                """))), "the cow already shows the cow");
+        assertThrows(IllegalStateException.class, () -> Materials.extend(table -> table.read(new StringReader("""
+                {"beings": {"snow": {"recipe": {"aqua": 0.70, "aura": 0.30}, "entity": "addon:snowman"}}}
+                """))), "snow is a substance");
+        assertThrows(IllegalArgumentException.class, () -> Materials.extend(table -> table.read(new StringReader("""
+                {"beings": {"ghost": {"recipe": {"aura": 1}}}}
+                """))), "a being with no creature to show it");
+        assertEquals(before, Materials.get().beings().size(), "what was refused left no trace");
     }
 
     private static Composition compositionOf(SourceSpec source) {

@@ -2,7 +2,7 @@
   "_license": "© GviCarvalho – Part of Elderlexicon. The rune structure, nomenclature and texts in this file fall under LICENSE-DOCS.txt (CC BY-NC-ND 4.0).",
   "_about": "The words of the Old Tongue. The engine knows no rune by name: every rune says here what it is, and a spell means what its words compose. See docs/magia-modular-design.md.",
   "defaultSource": "vis",
-  "repertoire": ["igni", "aqua", "aura", "firmo", "impediunt", "vertere", "vocant", "murus", "iactare"],
+  "repertoire": ["igni", "aqua", "aura", "firmo", "impediunt", "vertere", "vocant", "iactare"],
   "notes": {
     "reading.empty": "Um passo de tempo em que nada é lido (0,25 s): atrasa o que vem depois.",
     "reading.named": "Lê, neste ponto, o feitiço que ela guarda: {spell}.",
@@ -11,7 +11,7 @@
     "reading.mark.object": "O objeto do {verb}: o que tem a marca “{mark}”.",
     "reading.source": "A fonte do {verb}: {from}.",
     "reading.source.unused": "Uma fonte sem função que a use: {from}.",
-    "reading.fusion": "Runa de fusão.",
+    "reading.nolore": "Runa sem descrição no léxico.",
     "reading.subject.mark": "o que tem a marca “{mark}”",
     "reading.subject.energy": "a energia",
     "reading.subject.result": "o que resultou do {verb}",
@@ -43,14 +43,36 @@
     "describe.and": " e ",
     "describe.marked": "o que tem a marca “{mark}”",
     "describe.unformed": "e {verb}",
+    "describe.core": "Muda o cerne do que tem a marca “{mark}”: {element}, {parts} das cem partes",
+    "describe.core.all": "Muda o cerne do que tem a marca “{mark}”: {element}, com o resto das cem partes, por igual com as outras linhas sem número",
+    "describe.core.unmeasured": "Muda o cerne do que tem a marca “{mark}”: {element}, com o resto das cem partes, por igual com as outras linhas sem número",
     "note.condensed": "Condensar é trabalho do espírito: parte da energia se perde nele, e juntar leva tempo antes da soltura.",
     "note.conversion": "Converter um elemento em outro custa ao espírito 5% da energia por degrau da escada (firmo sólido, aqua líquido, aura gás, igni plasma); voltar a vis custa a escada inteira.",
+    "note.core": "O cerne são cem partes, e cada quantum diz quantas delas: mudá-lo converte o que a coisa já tem, e nada vem de fora. As linhas sem número dividem por igual o que os números deixam (aqua vertere m1 sozinha faz m1 toda água); sem elas, as partes que não se escrevem dividem o resto como estavam. As mudanças da mesma coluna valem juntas, e partes que não fazem cem não mudam nada. Cada linha paga o trabalho do que converte, como todo vertere: 5% por degrau da escada, para cada partícula. Um ser é a sua vida, 5 UMU por ponto, presa pela âncora de 100 de vis.",
     "note.mixture.substance": "A mistura virou {substance}.",
     "note.mixture.formless": "A mistura ficou {description}.",
     "note.mixture.released": "{umu} UMU se separaram e subiram como gás ({description}).",
+    "note.core.became": "“{mark}”: {was} virou {becomes}.",
+    "note.core.formless": "“{mark}”: {was} virou matéria sem nome, {description}.",
+    "note.core.light": "{umu} UMU que não fecharam um inteiro saíram como luz.",
+    "note.core.same": "“{mark}” continua {was}: a mudança não basta para fazer outra coisa.",
+    "note.core.made": "“{mark}” não é matéria natural: o que é feito não tem cerne que o vertere mude.",
+    "note.core.person": "“{mark}” tem corpo de gente.",
+    "note.core.people": "gente",
+    "note.core.unknown": "A tabela não diz de que “{mark}” é feito: o cerne dele não se conhece.",
+    "note.core.small": "O corpo de “{mark}” é pequeno demais para o espírito o reler.",
+    "note.core.still": "“{mark}” continua {kind}.",
+    "note.core.nobody": "Não há criatura no mundo para ser {kind}: “{mark}” ficou como estava.",
+    "note.core.impossible": "As partes pedidas para “{mark}” somam {sum}: o cerne tem cem partes, e nada mudou.",
+    "note.core.vis": "A vis não é parte de cerne nenhum: escreva terra, água, ar ou fogo antes do vertere.",
+    "note.core.twice": "{aspect} pedido duas vezes para “{mark}” no mesmo instante: vale o último.",
+    "note.core.unnamed": "matéria sem nome",
+    "note.core.state.solid": "em estado sólido",
+    "note.core.state.liquid": "em estado líquido",
+    "note.core.state.gas": "em estado gasoso",
+    "note.core.state.plasma": "em plasma",
     "transcript.caster": "the caster",
     "transcript.done": "Feitico interpretado com sucesso.",
-    "issue.unformed": "A fusão '{rune}' ainda não tem composição no léxico: escreva as runas que ela funde.",
     "issue.nooperation": "O espírito não sabe o que '{rune}' faz: nenhuma operação responde por ela."
   },
   "meetings": [
@@ -68,7 +90,31 @@
     "exsuctio": "A fusão exsuctio não existe mais: escreva tenet iactare (igni tenet iactare).",
     "extractio": "A fusão extractio não existe mais: escreva tenet vocant (igni tenet vocant).",
     "exinanitio": "A fusão exinanitio não existe mais.",
-    "orbis": "A forma orbis não existe mais: era a forma do exsugat."
+    "orbis": "A forma orbis não existe mais: era a forma do exsugat.",
+    "vita": "A runa vita não existe mais: as runas fundidas saíram da língua. A vida é a mistura dos quatro, presa a uma âncora de 100 de vis.",
+    "fusus": "A fusão fusus não existe mais: as runas fundidas saíram da língua. O magma é terra e fogo.",
+    "caligo": "A fusão caligo não existe mais: as runas fundidas saíram da língua. O vapor é água e fogo: fogo na água ferve.",
+    "lutum": "A fusão lutum não existe mais: as runas fundidas saíram da língua. A lama é terra e água.",
+    "pulvis": "A fusão pulvis não existe mais: as runas fundidas saíram da língua. A poeira é terra e ar.",
+    "nebula": "A fusão nebula não existe mais: as runas fundidas saíram da língua. A névoa é água e ar.",
+    "fulmen": "A fusão fulmen não existe mais: as runas fundidas saíram da língua. O raio é ar e fogo.",
+    "transiectio": "A fusão transiectio não existe mais: escreva vertere e iactare (igni vertere aqua iactare).",
+    "aversio": "A fusão aversio não existe mais: escreva vertere e impediunt (igni vertere aqua impediunt).",
+    "cohaesio": "A fusão cohaesio não existe mais: as runas fundidas saíram da língua.",
+    "deflectio": "A fusão deflectio não existe mais: as runas fundidas saíram da língua.",
+    "vinculatio": "A fusão vinculatio não existe mais: as runas fundidas saíram da língua.",
+    "evocatio": "A fusão evocatio não existe mais: escreva vocant e iactare (igni vocant iactare).",
+    "compeditio": "A fusão compeditio não existe mais: as runas fundidas saíram da língua.",
+    "coniuratio": "A fusão coniuratio não existe mais: as runas fundidas saíram da língua.",
+    "vortex": "A forma vortex não existe mais: as runas fundidas saíram da língua.",
+    "turbio": "A forma turbio não existe mais: as runas fundidas saíram da língua.",
+    "hasta": "A forma hasta não existe mais: as runas fundidas saíram da língua.",
+    "cuspis": "A forma cuspis não existe mais: as runas fundidas saíram da língua.",
+    "murus": "A forma murus não existe mais: as runas fundidas saíram da língua.",
+    "murum": "A forma murum não existe mais: as runas fundidas saíram da língua.",
+    "catena": "A forma catena não existe mais: as runas fundidas saíram da língua.",
+    "vinculum": "A forma vinculum não existe mais: as runas fundidas saíram da língua.",
+    "sigillum": "A forma sigillum não existe mais: as runas fundidas saíram da língua."
   },
   "runes": {
     "firmo": {
@@ -125,69 +171,12 @@
         "condensedNote": "A vis condensada mostra os quatro aspectos de uma vez: calor, água, ar e massa no mesmo ponto."
       }
     },
-    "vita": {
-      "class": "source", "origin": "fusion", "translation": "life", "name": "vida", "noun": "a vida",
-      "lore": "Fonte: a vida, a mistura dos quatro de que os seres vivos são feitos.",
-      "essence": {"aqua": 0.56, "aura": 0.38, "firmo": 0.04, "igni": 0.02}, "element": "vis"
-    },
-    "fusus": {
-      "class": "source", "origin": "fusion", "components": ["igni", "firmo"],
-      "translation": "magma", "name": "magma", "noun": "o magma",
-      "lore": "Fonte de fusão: o magma, a terra derretida pelo fogo.",
-      "essence": {"igni": 0.5, "firmo": 0.5}, "element": "igni",
-      "traits": {"persistent": true, "matter": "minecraft:magma_block", "particle": "minecraft:lava", "burnTicks": 400}
-    },
-    "caligo": {
-      "class": "source", "origin": "fusion", "components": ["aqua", "igni"],
-      "translation": "steam", "name": "vapor", "noun": "o vapor",
-      "lore": "Fonte de fusão: o vapor, a água aquecida.",
-      "essence": {"aqua": 0.5, "igni": 0.5}, "element": "aqua",
-      "traits": {"particle": "minecraft:campfire_cosy_smoke", "glow": "minecraft:cloud"}
-    },
-    "lutum": {
-      "class": "source", "origin": "fusion", "components": ["aqua", "firmo"],
-      "translation": "mud", "name": "lama", "noun": "a lama",
-      "lore": "Fonte de fusão: a lama, a terra que prende.",
-      "essence": {"aqua": 0.5, "firmo": 0.5}, "element": "firmo",
-      "traits": {"persistent": true, "matter": "minecraft:mud", "particle": "block:minecraft:mud"}
-    },
-    "pulvis": {
-      "class": "source", "origin": "fusion", "components": ["aura", "firmo"],
-      "translation": "dust", "name": "poeira", "noun": "a poeira",
-      "lore": "Fonte de fusão: a poeira, a terra levada pelo ar.",
-      "essence": {"aura": 0.5, "firmo": 0.5}, "element": "firmo",
-      "traits": {"wind": true, "particle": "minecraft:ash", "glow": "minecraft:white_ash"}
-    },
-    "nebula": {
-      "class": "source", "origin": "fusion", "components": ["aura", "aqua"],
-      "translation": "mist", "name": "névoa", "noun": "a névoa",
-      "lore": "Fonte de fusão: a névoa, a água suspensa no ar.",
-      "essence": {"aura": 0.5, "aqua": 0.5}, "element": "aura",
-      "traits": {"wind": true, "particle": "minecraft:snowflake", "glow": "minecraft:cloud"}
-    },
-    "fulmen": {
-      "class": "source", "origin": "fusion", "components": ["aura", "igni"],
-      "translation": "lightning", "name": "relâmpago", "noun": "o relâmpago",
-      "lore": "Fonte de fusão: o relâmpago, a fúria partilhada do ar e do fogo.",
-      "essence": {"aura": 0.5, "igni": 0.5}, "element": "igni",
-      "traits": {"strikes": true, "particle": "minecraft:electric_spark", "burnTicks": 100}
-    },
-
-    "vortex": {"class": "form", "origin": "fusion", "components": ["vertere", "source"], "translation": "vortex", "form": "vortex"},
-    "hasta": {"class": "form", "origin": "fusion", "components": ["iactare", "source"], "translation": "spear", "form": "spear"},
-    "murus": {"class": "form", "origin": "fusion", "components": ["impediunt", "source"], "translation": "wall", "form": "wall"},
-    "catena": {"class": "form", "origin": "fusion", "components": ["ligabis", "source"], "translation": "chain", "form": "chain"},
-    "sigillum": {"class": "form", "origin": "fusion", "components": ["vocant", "source"], "translation": "sigil", "form": "sigil"},
-    "turbio": {"class": "form", "origin": "fusion", "components": ["vertere", "source"], "translation": "vortex", "form": "vortex"},
-    "cuspis": {"class": "form", "origin": "fusion", "components": ["iactare", "source"], "translation": "spear", "form": "spear"},
-    "murum": {"class": "form", "origin": "fusion", "components": ["impediunt", "source"], "translation": "wall", "form": "wall"},
-    "vinculum": {"class": "form", "origin": "fusion", "components": ["ligabis", "source"], "translation": "chain", "form": "chain"},
 
     "vertere": {
       "class": "verb", "glyph": "H", "translation": "convert", "name": "converter",
-      "lore": "Função: converte. No corpo, um aspecto em outro; na matéria do mundo, o estado (sólido, líquido, gás, plasma), e ela continua o que é.",
+      "lore": "Função: converte. No corpo, um aspecto em outro; na matéria do mundo, o estado (sólido, líquido, gás, plasma), e ela continua o que é. Com uma marca depois, o cerne: aqua quantum 16 vertere m1 faz a água ser 16 das cem partes de m1, e m1 vira o que o cerne novo for.",
       "operation": "convert", "flow": "convert", "cost": 1,
-      "object": {"takes": ["source", "mark"], "as": "target", "immediate": true, "markNeedsMarkedSubject": true},
+      "object": {"takes": ["source", "mark"], "as": "target", "immediate": true},
       "joiner": "to",
       "texts": {
         "target": "O alvo do {verb}: a energia vira {element}.",
@@ -199,7 +188,8 @@
         "role.step": "degrau",
         "role.steps": "degraus",
         "role.inplace": "; sem função depois, converte no lugar.",
-        "role.end": "."
+        "role.end": ".",
+        "title.core": "Transformação"
       }
     },
     "iactare": {
@@ -280,23 +270,6 @@
         "title": "Revelação"
       }
     },
-
-    "transiectio": {"class": "verb", "origin": "fusion", "components": ["vertere", "iactare"], "translation": "transition",
-                    "lore": "Fusão: converte e lança.", "expands": ["vertere", "@", "iactare"]},
-    "aversio": {"class": "verb", "origin": "fusion", "components": ["vertere", "impediunt"], "translation": "repulsion",
-                "lore": "Fusão: converte e repele.", "expands": ["vertere", "@", "impediunt"]},
-    "cohaesio": {"class": "verb", "origin": "fusion", "components": ["vertere", "ligabis"], "translation": "fuse",
-                 "lore": "Fusão: funde alvos (alquimia)."},
-    "deflectio": {"class": "verb", "origin": "fusion", "components": ["iactare", "impediunt"], "translation": "deflect",
-                  "lore": "Fusão: desvia fluxos e projéteis."},
-    "vinculatio": {"class": "verb", "origin": "fusion", "components": ["iactare", "ligabis"], "translation": "spellbind",
-                   "lore": "Fusão: liga alvos por arremesso."},
-    "evocatio": {"class": "verb", "origin": "fusion", "components": ["iactare", "vocant"], "translation": "conjure",
-                 "lore": "Fusão: conjura de forma estável."},
-    "compeditio": {"class": "verb", "origin": "fusion", "components": ["impediunt", "ligabis"], "translation": "tether",
-                   "lore": "Fusão: acorrenta e imobiliza."},
-    "coniuratio": {"class": "verb", "origin": "fusion", "components": ["ligabis", "vocant"], "translation": "conspire",
-                   "lore": "Fusão: conspira, reúne alvos."},
 
     "quantum": {
       "class": "filter", "glyph": "N", "translation": "quantity", "name": "quanto",

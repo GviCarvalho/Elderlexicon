@@ -10,12 +10,12 @@ import java.util.function.Consumer;
 
 /**
  * The material table in force: the mod's own ({@value #RESOURCE}) with every extension an addon registered applied on
- * top, in order. An addon brings its substances with a file of the same shape:
+ * top, in order. An addon brings its substances and beings with a file of the same shape:
  * {@code Materials.extend(table -> table.read(reader))}; an extension that breaks the table is refused at once.
  */
 public final class Materials {
 
-    /** Where the mod's own substances are kept. */
+    /** Where the mod's own substances and beings are kept. */
     public static final String RESOURCE = "/data/elderlexicon/lexicon/materials.json";
 
     private static final List<Consumer<MaterialTableBuilder>> EXTENSIONS = new CopyOnWriteArrayList<>();
