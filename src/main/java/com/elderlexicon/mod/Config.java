@@ -5,7 +5,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.config.ModConfigEvent;
 
-/** Common config: Life Compass and Vita imbalance warnings. */
+/** Common config: Life Compass, Vita imbalance warnings and how much magic may break. */
 @Mod.EventBusSubscriber(modid = ElderLexicon.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class Config
 {
@@ -47,7 +47,24 @@ public class Config
             .comment("If true, play ambience cues when Igni enters severe tiers")
             .define("igni.audioWarnings", true);
 
+    /** How much the blows and blasts of magic may break (docs/plano-rosa-dos-elementos.md). */
+    public enum MagicBreaks {
+        /** Blocks break by the energy of the blow, whatever the world's rules. */
+        ALWAYS,
+        /** No block ever breaks: blows only hurt, push and are heard. */
+        NEVER,
+        /** Blocks break only where the world's mobGriefing rule lets mobs break them. */
+        MOB_GRIEFING
+    }
+
+    private static final ForgeConfigSpec.EnumValue<MagicBreaks> MAGIC_BREAKS_BLOCKS = BUILDER
+            .comment("Whether the impacts and blasts of spells break blocks: ALWAYS, NEVER, or MOB_GRIEFING (follow the"
+                    + " world's mobGriefing rule)")
+            .defineEnum("magic.breaksBlocks", MagicBreaks.MOB_GRIEFING);
+
     static final ForgeConfigSpec SPEC = BUILDER.build();
+
+    public static MagicBreaks magicBreaksBlocks = MagicBreaks.MOB_GRIEFING;
 
     public static boolean lifeCompassOverflowRing;
     public static boolean aquaVisualWarnings;
@@ -75,5 +92,6 @@ public class Config
         firmoAudioWarnings = FIRMO_AUDIO_WARNINGS.get();
         igniVisualWarnings = IGNI_VISUAL_WARNINGS.get();
         igniAudioWarnings = IGNI_AUDIO_WARNINGS.get();
+        magicBreaksBlocks = MAGIC_BREAKS_BLOCKS.get();
     }
 }

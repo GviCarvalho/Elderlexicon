@@ -91,8 +91,10 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
         boolean condensedVis = element == VitaElement.BALANCED && action.isPresent() && action.get().atOnce()
                 && action.get().metadata().get(SpellAction.INTENSITY) != null;
         // The verb after acts on what this makes (igni vocant iactare): it is handed on, to be made where it starts from.
+        // A condensation is handed on too (igni quantum chronos 0 vocant iactare): gathered before the hand, it flies as
+        // its orb and is released where it strikes.
         boolean condensed = condensedEarth || condensedWater || condensedAir || condensedVis;
-        Product product = action.isPresent() && action.get().handsOn() && !condensed
+        Product product = action.isPresent() && action.get().handsOn()
                 ? new Product(element, SpellFlow.total(energy, window)) : null;
         context.handOn(product); // nothing, when no verb after takes it: what an earlier verb left is not handed on
         String rune = context.elementRuneId();
@@ -104,13 +106,36 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
         // What is handed on waits a tick, for the verbs after it to be read and the one acting on it to take it.
         int delay = Math.max(product != null ? 1 : SUMMON_DELAY_TICKS, charge);
         SpellEffects.schedule(level, delay, () -> {
-            // The orb the condensation grew into becomes what it held.
-            if (action.isPresent() && action.get().orb() >= 0
-                    && level.getEntity(action.get().orb()) instanceof ElementOrb orb) {
-                orb.spend();
-            }
+            ElementOrb orb = action.isPresent() && action.get().orb() >= 0
+                    && level.getEntity(action.get().orb()) instanceof ElementOrb gathered ? gathered : null;
             if (!SpellEffects.isPlayerValid(player)) {
+                if (orb != null) {
+                    orb.spend();
+                }
                 return;
+            }
+            if (product != null && product.taken()) {
+                // Taken by the verb after: it is made where it leaves from (the ubis place, or the mage's hand; a
+                // condensation, where its orb is) and does what it does where that verb carries it.
+                Vec3 from = orb != null ? orb.position()
+                        : written.map(MarkSpells.Destination::point).orElseGet(() -> WorldSources.handOf(player));
+                if (orb != null) {
+                    product.carriedBy(orb);
+                }
+                product.ready(level, from, landed -> {
+                    if (condensed) {
+                        releaseCondensed(level, player, element, action.get(), landed, window);
+                        return;
+                    }
+                    appear(context, player, element, rune, landed, Invocation.Where.fixed(landed), energy, window,
+                            linger);
+                    hotSpot(level, player, element, action, landed.location());
+                });
+                return;
+            }
+            // The orb the condensation grew into becomes what it held.
+            if (orb != null) {
+                orb.spend();
             }
             // What is invoked in one instant is weighed together first (docs/vita-design.md): energies that bind into
             // a being take no other form.
@@ -120,48 +145,8 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
             if (!SpellEffects.isPlayerValid(player)) {
                 return;
             }
-            if (condensedVis) {
-                // All that Vis released at the point: its four aspects at once.
-                SpellEffects.SpellImpact at = aimed;
-                VisSpots.release(level, player, at.location(), action.get().intensity());
-                return;
-            }
-            if (condensedAir) {
-                // All the air captured, released at the point: it bursts out all around, or goes off as a bomb.
-                SpellEffects.SpellImpact at = aimed;
-                AirSpots.burst(level, player, at.location(), action.get().intensity());
-                return;
-            }
-            if (condensedWater) {
-                // All the water captured, pressed into one point: ice VII held while chronos lasts (two seconds
-                // without it), then it bursts; not pressed hard enough to freeze, it bursts at once.
-                SpellEffects.SpellImpact at = aimed;
-                net.minecraft.core.BlockPos spot = at.entity() != null ? at.entity().blockPosition()
-                        : java.util.Objects.requireNonNullElse(SpellEffects.firePlacementPos(at),
-                        net.minecraft.core.BlockPos.containing(at.location()));
-                double pressure = action.get().intensity();
-                if (Pressure.band(pressure) == Pressure.Band.ICE) {
-                    WaterSpots.ice(level, spot, pressure, window > 0 ? window : LINGER_TICKS * 2);
-                } else {
-                    WaterSpots.burst(level, net.minecraft.world.phys.Vec3.atCenterOf(spot), pressure);
-                }
-                return;
-            }
-            if (condensedEarth) {
-                // All the earth captured, in one block as dense as all of it (docs/condensacao-design.md).
-                SpellEffects.SpellImpact at = aimed;
-                net.minecraft.core.BlockPos spot = at.entity() != null ? at.entity().blockPosition()
-                        : java.util.Objects.requireNonNullElse(SpellEffects.firePlacementPos(at),
-                        net.minecraft.core.BlockPos.containing(at.location()));
-                EarthSpots.place(level, player, spot, action.get().intensity(), action.get().carbon());
-                return;
-            }
-            if (product != null && product.taken()) {
-                // Taken by the verb after: it is made where it leaves from (the ubis place, or the mage's hand) and
-                // does what it does where that verb carries it.
-                Vec3 from = written.map(MarkSpells.Destination::point).orElseGet(() -> WorldSources.handOf(player));
-                product.ready(level, from, landed -> appear(context, player, element, rune, landed,
-                        Invocation.Where.fixed(landed), energy, window, linger));
+            if (condensed) {
+                releaseCondensed(level, player, element, action.get(), aimed, window);
                 return;
             }
             SpellEffects.SpellImpact impact = aimed != null ? aimed : written
@@ -180,13 +165,54 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                 }
             }).orElseGet(() -> Invocation.Where.fixed(impact));
             appear(context, player, element, context.elementRuneId(), impact, where, energy, window, linger);
-            double heat = action.map(SpellAction::intensity).orElse(Heat.COMMON);
-            if (heat > Heat.COMMON && element == VitaElement.IGNI) {
-                // Condensed fire invoked in place: a hot spot that cools little by little.
-                HeatSpots.strike(level, player, impact.location(), heat);
-            }
+            hotSpot(level, player, element, action, impact.location());
             });
         });
+    }
+
+    /** Condensed fire where it appears: a hot spot that cools little by little. */
+    private static void hotSpot(ServerLevel level, ServerPlayer player, VitaElement element,
+                                Optional<SpellAction> action, Vec3 at) {
+        double heat = action.map(SpellAction::intensity).orElse(Heat.COMMON);
+        if (heat > Heat.COMMON && element == VitaElement.IGNI) {
+            HeatSpots.strike(level, player, at, heat);
+        }
+    }
+
+    /**
+     * All that was condensed, released at {@code at}: vis shows its four aspects at once; air bursts out all around, or
+     * goes off as a bomb; water is pressed into ice VII held while chronos lasts (two seconds without it) and then
+     * bursts, or bursts at once when it was not pressed hard enough to freeze; earth is one block as dense as all of
+     * it (docs/condensacao-design.md).
+     */
+    private static void releaseCondensed(ServerLevel level, ServerPlayer player, VitaElement element,
+                                         SpellAction action, SpellEffects.SpellImpact at, int window) {
+        if (!SpellEffects.isPlayerValid(player)) {
+            return;
+        }
+        double intensity = action.intensity();
+        switch (element) {
+            case BALANCED -> VisSpots.release(level, player, at.location(), intensity);
+            case AURA -> AirSpots.burst(level, player, at.location(), intensity);
+            case AQUA -> {
+                net.minecraft.core.BlockPos spot = spotOf(at);
+                if (Pressure.band(intensity) == Pressure.Band.ICE) {
+                    WaterSpots.ice(level, spot, intensity, window > 0 ? window : LINGER_TICKS * 2);
+                } else {
+                    WaterSpots.burst(level, Vec3.atCenterOf(spot), intensity);
+                }
+            }
+            case FIRMO -> EarthSpots.place(level, player, spotOf(at), intensity, action.carbon());
+            default -> {
+            }
+        }
+    }
+
+    /** The block a condensation is released into: where the creature stands, or before the face that was struck. */
+    private static net.minecraft.core.BlockPos spotOf(SpellEffects.SpellImpact at) {
+        return at.entity() != null ? at.entity().blockPosition()
+                : java.util.Objects.requireNonNullElse(SpellEffects.firePlacementPos(at),
+                net.minecraft.core.BlockPos.containing(at.location()));
     }
 
     /** What is summoned appears at {@code impact} and does there what it does. */

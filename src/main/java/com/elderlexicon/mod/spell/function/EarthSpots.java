@@ -137,7 +137,7 @@ public final class EarthSpots {
     /** Where condensed earth strikes: a crater as strong as it is heavy (carbon turns to diamond there instead). */
     static void meteor(ServerLevel level, ServerPlayer caster, Vec3 at, double density, int coal) {
         float strength = Density.meteor(density);
-        level.explode(caster, at.x, at.y, at.z, strength, false, Level.ExplosionInteraction.BLOCK);
+        level.explode(caster, at.x, at.y, at.z, strength, false, Impacts.explosions());
         // The weight of it: a heavy thud and a cloud of its own dust thrown up around the crater.
         level.playSound(null, at.x, at.y, at.z, SoundEvents.ANVIL_LAND, SoundSource.BLOCKS, 2.0F, 0.5F);
         level.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE, SoundSource.BLOCKS, 3.0F, 0.6F);

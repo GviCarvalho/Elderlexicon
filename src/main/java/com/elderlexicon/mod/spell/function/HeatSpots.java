@@ -111,8 +111,7 @@ public final class HeatSpots {
                 flash.setVisualOnly(true);
                 level.addFreshEntity(flash);
             }
-            level.explode(caster, at.x, at.y, at.z, Heat.burst(heat), true,
-                    Level.ExplosionInteraction.BLOCK);
+            level.explode(caster, at.x, at.y, at.z, Heat.burst(heat), true, Impacts.explosions());
         }
         Spot spot = new Spot(level, caster, at, heat, level.getGameTime());
         touch(level, at, heat);

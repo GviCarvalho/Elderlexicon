@@ -813,6 +813,95 @@ public final class SpellGameTests {
         });
     }
 
+    /**
+     * A condensation handed to the force (docs/plano-rosa-dos-elementos.md, section 4): the vocant gathers all the earth
+     * in reach before the hand and the iactare throws that very orb; it is released as one dense block where it strikes,
+     * breaking the glass it hits. Before, the vocant made the block at the aim and the iactare threw something else.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 200)
+    public static void condensedEarthIsThrownAsItsOrbAndReleasedWhereItStrikes(GameTestHelper helper) {
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < 5; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.GLASS);
+            }
+            for (int y = 1; y < 5; y++) {
+                helper.setBlock(new BlockPos(x, y, 4), Blocks.GLASS);
+            }
+        }
+        for (int z = 1; z <= 2; z++) {
+            for (int y = 1; y <= 2; y++) {
+                helper.setBlock(new BlockPos(0, y, z), Blocks.DIRT);
+                helper.setBlock(new BlockPos(4, y, z), Blocks.DIRT);
+            }
+        }
+        ServerPlayer mage = mage(helper);
+        Vec3 stand = helper.absoluteVec(new Vec3(2.5D, 1.0D, 0.5D));
+        mage.moveTo(stand.x, stand.y, stand.z, facingWall(helper), 0.0F);
+        int glass = countIn(helper, Blocks.GLASS);
+        castOrFail(helper, mage, "firmo tenet quantum chronos 0 vocant iactare");
+        boolean[] flew = {false};
+        net.minecraft.world.phys.AABB room = new net.minecraft.world.phys.AABB(helper.absolutePos(BlockPos.ZERO))
+                .inflate(8.0D);
+        String[] last = {""};
+        helper.onEachTick(() -> helper.getLevel()
+                .getEntitiesOfClass(com.elderlexicon.mod.spell.function.ElementOrb.class, room)
+                .stream().filter(com.elderlexicon.mod.spell.function.ElementOrb::flying).forEach(orb -> {
+                    flew[0] = true;
+                    last[0] = String.valueOf(helper.relativeVec(orb.position()));
+                }));
+        helper.succeedWhen(() -> {
+            check(helper, countIn(helper, Blocks.DIRT) == 0, "the earth in reach should all be taken");
+            // Whatever it gathered (the world around the room holds earth too), all of it is one dense block, found
+            // wherever the blow left it: it breaks the floor it lands on, and falls.
+            int dense = 0;
+            for (BlockPos pos : BlockPos.betweenClosed(helper.absolutePos(new BlockPos(-3, -6, -3)),
+                    helper.absolutePos(new BlockPos(7, 6, 7)))) {
+                BlockState state = helper.getLevel().getBlockState(pos);
+                if (state.is(Blocks.OBSIDIAN) || state.is(Blocks.CRYING_OBSIDIAN)) {
+                    dense++;
+                }
+            }
+            check(helper, dense == 1, "one block as dense as all of it, were " + dense + "; the orb was last at "
+                    + last[0]);
+            check(helper, flew[0], "the condensation should have flown as its orb");
+            check(helper, countIn(helper, Blocks.GLASS) < glass, "the blow should break the glass it struck");
+        });
+    }
+
+    /**
+     * The law of impact in the world: earth thrown hard breaks what it strikes and hurts the creature it hits; with
+     * the configuration saying magic never breaks blocks, it only hurts.
+     */
+    @GameTest(template = EMPTY)
+    public static void aBlowBreaksByItsEnergyAndTheConfigurationCanForbidIt(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        helper.setBlock(new BlockPos(1, 1, 2), Blocks.STONE);
+        helper.setBlock(new BlockPos(3, 1, 2), Blocks.STONE);
+        BlockPos first = helper.absolutePos(new BlockPos(1, 1, 2));
+        BlockPos second = helper.absolutePos(new BlockPos(3, 1, 2));
+        com.elderlexicon.mod.magic.matter.Qualities earth =
+                com.elderlexicon.mod.magic.matter.Qualities.of(com.elderlexicon.mod.vita.VitaElement.FIRMO);
+        Vec3 fast = new Vec3(0.0D, 0.0D, 2.0D);
+        com.elderlexicon.mod.spell.function.Impacts.strike(level, null, Vec3.atCenterOf(first), null, first, earth,
+                10.0D, fast);
+        com.elderlexicon.mod.Config.MagicBreaks was = com.elderlexicon.mod.Config.magicBreaksBlocks;
+        com.elderlexicon.mod.Config.magicBreaksBlocks = com.elderlexicon.mod.Config.MagicBreaks.NEVER;
+        try {
+            com.elderlexicon.mod.spell.function.Impacts.strike(level, null, Vec3.atCenterOf(second), null, second,
+                    earth, 10.0D, fast);
+        } finally {
+            com.elderlexicon.mod.Config.magicBreaksBlocks = was;
+        }
+        net.minecraft.world.entity.animal.Pig pig = helper.spawn(net.minecraft.world.entity.EntityType.PIG,
+                new BlockPos(2, 1, 0));
+        float health = pig.getHealth();
+        com.elderlexicon.mod.spell.function.Impacts.strike(level, null, pig.position(), pig, null, earth, 4.0D, fast);
+        check(helper, level.getBlockState(first).isAir(), "ten UMU of earth thrown fast should break stone");
+        check(helper, level.getBlockState(second).is(Blocks.STONE), "the configuration forbade breaking");
+        check(helper, !pig.isAlive() || pig.getHealth() < health, "the blow should hurt the pig");
+        helper.succeed();
+    }
+
     @GameTest(template = EMPTY)
     public static void aNegativeQuantityOnAVerbThatCannotTurnIsRefused(GameTestHelper helper) {
         ServerPlayer mage = mageBeforeAWall(helper);

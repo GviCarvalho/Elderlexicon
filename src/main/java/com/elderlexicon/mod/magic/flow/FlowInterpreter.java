@@ -95,6 +95,12 @@ public final class FlowInterpreter {
             ledger.setCurrentAction(action);
             Flow flow = lexicon.flowOf(action.runeId());
             boolean marked = action.subjectMark().isPresent();
+            if (flow != Flow.CONVERT && nextTakesResult(actions, index)) {
+                // The verb after acts on what this one produces (R2): it is made to be handed on. Known before anything
+                // is captured, so a condensation for it is gathered where it leaves from, not where it would have gone.
+                action = action.toBuilder().putMetadata(SpellAction.HANDS_ON, Boolean.TRUE).build();
+                ledger.setCurrentAction(action);
+            }
             // The image converted (igni surgit vertere aqua) changes only the look of the source nearby: nothing is taken
             // from the Vita.
             if (flow == Flow.CONVERT && action.image()) {
@@ -255,11 +261,6 @@ public final class FlowInterpreter {
                         .putMetadata(SpellAction.CHARGE, charge > 0 ? charge : null)
                         .putMetadata(SpellAction.ORB, orb)
                         .build();
-                ledger.setCurrentAction(action);
-            }
-            if (nextTakesResult(actions, index)) {
-                // The verb after acts on what this one produces (R2): it is made to be handed on.
-                action = action.toBuilder().putMetadata(SpellAction.HANDS_ON, Boolean.TRUE).build();
                 ledger.setCurrentAction(action);
             }
             world.perform(action, currentElement);

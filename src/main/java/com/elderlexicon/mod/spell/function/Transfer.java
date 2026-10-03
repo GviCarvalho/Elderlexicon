@@ -2,6 +2,7 @@ package com.elderlexicon.mod.spell.function;
 
 import com.elderlexicon.mod.magic.matter.Matter;
 import com.elderlexicon.mod.magic.matter.MatterLaws;
+import com.elderlexicon.mod.magic.matter.Qualities;
 import com.elderlexicon.mod.magic.matter.State;
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.action.SpellAction;
@@ -89,7 +90,7 @@ final class Transfer {
         if (action.handsOn()) {
             // The verb after acts on it (firmo tenet vocant iactare): it is brought to the ubis place or the hand, for
             // that verb to carry, and put down where it lands.
-            Product product = new Product(element, moved);
+            Product product = new Product(element, moved, qualitiesOf(taken));
             context.handOn(product);
             SpellEffects.schedule(level, 1, () -> {
                 if (!SpellEffects.isPlayerValid(player)) {
@@ -109,6 +110,14 @@ final class Transfer {
         SpellEffects.SpellImpact landing = destination(player, written);
         Quickening.offer(level, player, landing.location(), taken,
                 () -> put(context, player, element, rune, landing, taken));
+    }
+
+    /** What all the matter taken is like together, each portion counting by its UMU. */
+    private static Qualities qualitiesOf(List<Matter> taken) {
+        Map<VitaElement, Double> amounts = new java.util.EnumMap<>(VitaElement.class);
+        taken.forEach(matter -> matter.composition().split(matter.umu())
+                .forEach((aspect, umu) -> amounts.merge(aspect, umu, Double::sum)));
+        return Qualities.of(amounts);
     }
 
     /** Where the vocant puts things: the place written, or where the mage aims. */
