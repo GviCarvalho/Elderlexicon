@@ -169,6 +169,10 @@ public final class SpellReading {
             return text(filter, originFor(ids, at).isPresent() ? "role.bare.world" : "role.bare.body", values);
         }
         if (spec.parameter() == Parameter.TIME) {
+            if (number == null && filter.text("role.while").isPresent()
+                    && LineConditions.whileAt(lexicon(), ids) == at) {
+                return text(filter, "role.while", values);
+            }
             return number == null ? text(filter, "role.bare", values)
                     : text(filter, "0".equals(number) ? "role.zero" : "role", values);
         }

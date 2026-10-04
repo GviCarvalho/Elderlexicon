@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.spelling.inscription;
 
+import com.elderlexicon.mod.spelling.client.SgaFont;
 import com.elderlexicon.mod.spelling.network.SpellingNetwork;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.GuiGraphics;
@@ -26,7 +27,7 @@ import java.util.List;
 @OnlyIn(Dist.CLIENT)
 public class InscriptionScreen extends Screen {
 
-    private static final Style SGA = Style.EMPTY.withFont(new ResourceLocation("minecraft", "alt"));
+    private static final Style SGA = SgaFont.STYLE;
     private static final int WIDTH = 200;
 
     private final BlockPos pos;

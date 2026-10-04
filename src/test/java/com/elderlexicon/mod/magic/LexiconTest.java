@@ -10,6 +10,7 @@ import com.elderlexicon.mod.magic.lexicon.Parameter;
 import com.elderlexicon.mod.magic.lexicon.Rune;
 import com.elderlexicon.mod.magic.lexicon.WordClass;
 import com.elderlexicon.mod.spell.ElementPersistence;
+import com.elderlexicon.mod.spell.mark.NumberGlyphs;
 import com.elderlexicon.mod.spell.sight.Revelation;
 import com.elderlexicon.mod.vita.VitaElement;
 import org.junit.jupiter.api.Test;
@@ -28,8 +29,9 @@ class LexiconTest {
 
     @Test
     void theLanguageIsSmall() {
-        assertEquals(28, LEXICON.runes().size(),
-                "five sources, seven verbs, four filters and twelve conditions: the rest is composition");
+        assertEquals(30, LEXICON.runes().size(),
+                "five sources, seven verbs, four filters, twelve conditions and two words joining them: the rest is "
+                        + "composition");
     }
 
     @Test
@@ -70,13 +72,31 @@ class LexiconTest {
             assertEquals(glyph, Glyphs.glyphForRune(rune).orElseThrow(), rune);
             assertEquals(rune, Glyphs.runeForGlyph(glyph).orElseThrow());
         });
-        assertEquals('Q', Glyphs.glyphForRune("0").orElseThrow());
-        assertEquals("9", Glyphs.runeForGlyph('Z').orElseThrow());
+        // The digits have glyphs of their own, and the letters Q to Z went to the conditions (docs/fluxo-design.md).
+        assertEquals(NumberGlyphs.glyph(0), Glyphs.glyphForRune("0").orElseThrow());
+        assertEquals("9", Glyphs.runeForGlyph(NumberGlyphs.glyph(9)).orElseThrow());
+        Map<String, Character> conditions = new LinkedHashMap<>();
+        conditions.put("ferit", 'Q');
+        conditions.put("patitur", 'R');
+        conditions.put("necat", 'S');
+        conditions.put("salit", 'T');
+        conditions.put("cadit", 'U');
+        conditions.put("frangit", 'V');
+        conditions.put("utitur", 'W');
+        conditions.put("latet", 'X');
+        conditions.put("currit", 'Y');
+        conditions.put("ardet", 'Z');
+        conditions.forEach((rune, glyph) -> {
+            assertEquals(glyph, Glyphs.glyphForRune(rune).orElseThrow(), rune);
+            assertEquals(rune, Glyphs.runeForGlyph(glyph).orElseThrow());
+        });
+        // Past Z, the mod draws its own glyphs (docs/glifos-design.md).
+        assertEquals((char) 0xE010, Glyphs.glyphForRune("languet").orElseThrow());
+        assertEquals("mergitur", Glyphs.runeForGlyph((char) 0xE011).orElseThrow());
+        assertEquals((char) 0xE012, Glyphs.glyphForRune("aut").orElseThrow());
+        assertEquals("non", Glyphs.runeForGlyph((char) 0xE013).orElseThrow());
         for (Rune rune : LEXICON.runes()) {
-            // The conditions wait for the numbers to leave Q to Z before they get a letter (docs/fluxo-design.md).
-            if (!rune.is(WordClass.CONDITION)) {
-                assertTrue(rune.glyph().isPresent(), rune.id() + ": every rune of the language has its glyph");
-            }
+            assertTrue(rune.glyph().isPresent(), rune.id() + ": every rune of the language has its glyph");
         }
     }
 

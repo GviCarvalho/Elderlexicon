@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.spelling.server;
 
+import com.elderlexicon.mod.spell.block.WrittenTexts;
 import com.elderlexicon.mod.spell.circle.CircleShape;
 import com.elderlexicon.mod.spelling.entity.PlacedScrollEntity;
 import com.elderlexicon.mod.spelling.inscription.Inscription;
@@ -100,6 +101,7 @@ final class CirclePieces {
 
     private static String pageOf(ItemStack scroll) {
         CompoundTag tag = scroll.getTag();
+        WrittenTexts.upgrade(tag);
         return tag == null ? "" : tag.getString("DetachedPageText");
     }
 

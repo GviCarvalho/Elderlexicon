@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.galdraria.client;
 
+import com.elderlexicon.mod.spelling.client.SgaFont;
 import com.elderlexicon.mod.galdraria.EngravePacket;
 import com.elderlexicon.mod.galdraria.Engravings;
 import com.elderlexicon.mod.galdraria.GaldrariaMenu;
@@ -27,7 +28,7 @@ import java.util.List;
 @OnlyIn(Dist.CLIENT)
 public final class GaldrariaScreen extends AbstractContainerScreen<GaldrariaMenu> {
 
-    private static final Style SGA = Style.EMPTY.withFont(new ResourceLocation("minecraft", "alt"));
+    private static final Style SGA = SgaFont.STYLE;
     private static final int PANEL = 0xFFC6C6C6;
     private static final int LIGHT = 0xFFFFFFFF;
     private static final int SHADOW = 0xFF555555;

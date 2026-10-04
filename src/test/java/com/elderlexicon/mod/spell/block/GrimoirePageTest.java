@@ -1,6 +1,7 @@
 package com.elderlexicon.mod.spell.block;
 
 import com.elderlexicon.mod.parser.ParserDictionary;
+import com.elderlexicon.mod.spell.mark.NumberGlyphs;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -11,18 +12,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GrimoirePageTest {
 
+    /** {@code vis quantum 40 vertere aqua chronos 0 iactare}, written as an older page wrote it and then anew. */
+    private static final String LINE = NumberGlyphs.upgrade("E N UQ H A O Q I");
+    private static final String FORTY = NumberGlyphs.toGlyphs("40");
+
     @Test
     void aPageAlwaysHasTenRowsAndKeepsItsWords() {
-        List<List<String>> rows = GrimoirePage.read("E N UQ H A O Q I\n\nC . . J");
+        List<List<String>> rows = GrimoirePage.read(LINE + "\n\nC . . J");
         assertEquals(GrimoirePage.ROWS, rows.size());
-        assertEquals(List.of("E", "N", "UQ", "H", "A", "O", "Q", "I"), rows.get(0));
+        assertEquals(List.of("E", "N", FORTY, "H", "A", "O", NumberGlyphs.toGlyphs("0"), "I"), rows.get(0));
         assertTrue(rows.get(1).isEmpty());
         assertEquals(List.of("C", "", "", "J"), rows.get(2), "an empty cell is a pause");
     }
 
     @Test
     void writingAPageGivesBackTheTextTheSpiritReads() {
-        String text = "E N UQ H A O Q I\n\nC . . J";
+        String text = LINE + "\n\nC . . J";
         assertEquals(text, GrimoirePage.write(GrimoirePage.read(text)));
     }
 
@@ -43,11 +48,14 @@ class GrimoirePageTest {
     void wordsAreReadAsTheSpiritReadsThem() {
         assertEquals("igni", RuneTokens.normalize("C"));
         assertEquals("igni", RuneTokens.normalize("igni"));
-        assertEquals("40", RuneTokens.normalize("UQ"));
+        assertEquals("40", RuneTokens.normalize(FORTY));
+        assertEquals("ferit", RuneTokens.normalize("Q"), "Q is a condition now, no longer zero");
+        assertEquals("languet", RuneTokens.normalize(String.valueOf((char) 0xE010)), "a glyph the mod draws");
+        assertEquals(String.valueOf((char) 0xE011), RuneTokens.written("mergitur"));
         assertEquals("pg2", RuneTokens.normalize("pg2"));
         assertEquals("", RuneTokens.normalize("."));
         assertEquals("C", RuneTokens.written("igni"));
-        assertEquals("UQ", RuneTokens.written("40"));
+        assertEquals(FORTY, RuneTokens.written("40"));
         assertEquals("pg2", RuneTokens.written("pg2"));
     }
 
@@ -55,7 +63,7 @@ class GrimoirePageTest {
     void eachRuneSaysWhatItDoesInItsSpell() {
         SpellReading reading = new SpellReading(ParserDictionary.load());
         List<String> ids = new ArrayList<>();
-        for (String word : "E N UQ H A O Q I".split(" ")) {
+        for (String word : LINE.split(" ")) {
             ids.add(RuneTokens.normalize(word));
         }
         List<SpellReading.Word> words = reading.read(ids);

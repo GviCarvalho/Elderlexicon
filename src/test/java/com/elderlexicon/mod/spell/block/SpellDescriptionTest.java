@@ -1,6 +1,7 @@
 package com.elderlexicon.mod.spell.block;
 
 import com.elderlexicon.mod.parser.ParserDictionary;
+import com.elderlexicon.mod.spell.mark.NumberGlyphs;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -14,11 +15,12 @@ class SpellDescriptionTest {
 
     private static final ParserDictionary DICTIONARY = ParserDictionary.load();
 
+    /** A page written as the older pages wrote numbers (Q to Z), read in the new writing. */
     private static List<List<String>> page(String... lines) {
         List<List<String>> rows = new ArrayList<>();
         for (String line : lines) {
             List<String> ids = new ArrayList<>();
-            for (String word : line.split(" ")) {
+            for (String word : NumberGlyphs.upgrade(line).split(" ")) {
                 ids.add(RuneTokens.normalize(word));
             }
             rows.add(ids);
@@ -44,6 +46,18 @@ class SpellDescriptionTest {
         assertTrue(text.paragraphs().get(0).startsWith(
                         "Se quem conjura acabou de golpear algo e quem conjura acabou de ser ferido: Usa 10 UMU de fogo"),
                 text.paragraphs().toString());
+    }
+
+    @Test
+    void orNotAndWhileAreWrittenOut() {
+        SpellDescription.Text either = new SpellDescription(DICTIONARY, Map.of())
+                .describe(page("ferit non latet aut patitur igni iactare"));
+        assertTrue(either.paragraphs().get(0).startsWith("Se quem conjura acabou de golpear algo e quem conjura não está "
+                + "agachado ou quem conjura acabou de ser ferido: "), either.paragraphs().toString());
+        SpellDescription.Text lasting = new SpellDescription(DICTIONARY, Map.of())
+                .describe(page("latet chronos aura impediunt"));
+        assertTrue(lasting.paragraphs().get(0).startsWith("Enquanto quem conjura está agachado, a cada segundo: "),
+                lasting.paragraphs().toString());
     }
 
     @Test

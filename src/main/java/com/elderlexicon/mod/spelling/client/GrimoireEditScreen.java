@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.spelling.client;
 
+import com.elderlexicon.mod.spell.block.WrittenTexts;
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.parser.ParserDictionary;
 import com.elderlexicon.mod.spell.action.SpellActionEngine;
@@ -64,7 +65,7 @@ public class GrimoireEditScreen extends Screen {
             new ResourceLocation(ElderLexicon.MODID, "textures/gui/grimoire_book.png");
     private static final ResourceLocation COVER_TEXTURE =
             new ResourceLocation(ElderLexicon.MODID, "textures/gui/grimoire_cover.png");
-    private static final Style SGA_STYLE = Style.EMPTY.withFont(new ResourceLocation("minecraft", "alt"));
+    private static final Style SGA_STYLE = SgaFont.STYLE;
     private static final Component DETACH_LABEL = Component.translatable("gui.elderlexicon.grimoire.detach");
 
     private static final int BOOK_W = 400;
@@ -177,6 +178,7 @@ public class GrimoireEditScreen extends Screen {
         this.book = book;
         this.hand = hand;
         CompoundTag tag = book.getTag();
+        WrittenTexts.upgrade(tag);
         String viewer = owner == null ? "" : owner.getGameProfile().getName();
         UUID viewerId = owner == null ? null : owner.getUUID();
         if (tag != null && tag.hasUUID(GrimoireItem.AUTHOR_ID_TAG)) {
@@ -433,6 +435,7 @@ public class GrimoireEditScreen extends Screen {
         ListTag list = new ListTag();
         pages.stream().map(StringTag::valueOf).forEach(list::add);
         book.addTagElement("pages", list);
+        WrittenTexts.mark(book);
         GrimoireItem.storeLastPage(book, currentPage);
         ListTag nameList = new ListTag();
         names.stream().map(StringTag::valueOf).forEach(nameList::add);

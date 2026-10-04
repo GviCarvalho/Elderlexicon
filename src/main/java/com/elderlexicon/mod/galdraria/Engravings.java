@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.galdraria;
 
+import com.elderlexicon.mod.spell.block.WrittenTexts;
 import com.elderlexicon.mod.spell.block.RuneTokens;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
@@ -31,6 +32,7 @@ public final class Engravings {
             return Optional.empty();
         }
         CompoundTag tag = stack.getTag();
+        WrittenTexts.upgrade(tag);
         if (tag == null || !tag.contains(TAG, 8) || tag.getString(TAG).isBlank()) {
             return Optional.empty();
         }
@@ -44,6 +46,7 @@ public final class Engravings {
     /** Engraves {@code written} (already as {@link #written} keeps it) in {@code stack}, over what was there. */
     public static void engrave(ItemStack stack, String written) {
         stack.getOrCreateTag().putString(TAG, written);
+        WrittenTexts.mark(stack);
     }
 
     /** Scrapes the engraving off {@code stack}. */

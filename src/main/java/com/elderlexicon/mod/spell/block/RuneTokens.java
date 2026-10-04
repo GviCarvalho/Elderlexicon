@@ -14,13 +14,14 @@ import java.util.regex.Pattern;
  */
 public final class RuneTokens {
 
-    private static final Pattern RUNE_TOKEN = Pattern.compile("(-?\\b[A-Za-z0-9_]+)\\b");
+    /** Letters, digits and the private-use glyphs the mod and its addons draw (docs/glifos-design.md). */
+    private static final Pattern RUNE_TOKEN = Pattern.compile("(-?[A-Za-z0-9_\\x{E000}-\\x{F8FF}]+)");
 
     private RuneTokens() {
     }
 
     /**
-     * The rune id a written word stands for: a number's digits ({@code SQ} or {@code 20} is {@code "20"}), a rune for
+     * The rune id a written word stands for: a number's digits (its glyphs or {@code 20} is {@code "20"}), a rune for
      * its glyph ({@code C} is {@code igni}) or its name, a mark in lower case; empty for anything the spirit does not
      * read (it still takes its column).
      */
@@ -36,7 +37,7 @@ public final class RuneTokens {
         if (cleaned == null || cleaned.isBlank()) {
             return "";
         }
-        // Numbers are written one glyph per digit ("SQ" is 20); older pages may still mix glyphs and digits ("S0").
+        // Numbers are written one glyph per digit; a page may still mix glyphs and digits while one is typed.
         Optional<String> number = NumberGlyphs.read(cleaned);
         if (number.isPresent()) {
             return number.get();
@@ -49,7 +50,7 @@ public final class RuneTokens {
 
     /**
      * How a typed word is kept on the page: a rune's name becomes its glyph ({@code igni} is {@code C}), a number's
-     * digits their glyphs ({@code 40} is {@code UQ}); marks and anything else stay as typed.
+     * digits their glyphs ({@link NumberGlyphs}); marks and anything else stay as typed.
      */
     public static String written(String typed) {
         if (typed == null || typed.isEmpty()) {

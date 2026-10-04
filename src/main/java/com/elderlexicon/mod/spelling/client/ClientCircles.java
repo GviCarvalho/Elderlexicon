@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.spelling.client;
 
+import com.elderlexicon.mod.spell.block.WrittenTexts;
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spell.circle.CircleShape;
 import com.elderlexicon.mod.spelling.entity.PlacedScrollEntity;
@@ -54,7 +55,7 @@ import java.util.Map;
 @Mod.EventBusSubscriber(modid = ElderLexicon.MODID, value = Dist.CLIENT)
 public final class ClientCircles {
 
-    private static final Style SGA = Style.EMPTY.withFont(new ResourceLocation("minecraft", "alt"));
+    private static final Style SGA = SgaFont.STYLE;
     /** How far around the player circles are looked for, in blocks. */
     private static final double RANGE = 24.0D;
     /** Near a piece this close, its circle shows even with nothing in hand. */
@@ -178,6 +179,7 @@ public final class ClientCircles {
         for (PlacedScrollEntity scroll : level.getEntitiesOfClass(PlacedScrollEntity.class,
                 player.getBoundingBox().inflate(RANGE), PlacedScrollEntity::isAlive)) {
             CompoundTag tag = scroll.getScroll().getTag();
+            WrittenTexts.upgrade(tag);
             String text = tag == null ? "" : tag.getString("DetachedPageText");
             if (text.isBlank()) {
                 continue;

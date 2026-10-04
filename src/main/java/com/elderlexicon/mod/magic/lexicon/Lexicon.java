@@ -168,9 +168,14 @@ public final class Lexicon {
         return rune(word).flatMap(Rune::condition).map(ConditionSpec::trigger);
     }
 
-    /** Whether a word is a condition rune, an "if" on its line that is no part of the spell itself. */
+    /** What a condition word does among the others (waits, "or", "not"), or empty for any other word. */
+    public Optional<ConditionSpec.Logic> logicOf(String word) {
+        return rune(word).flatMap(Rune::condition).map(ConditionSpec::logic);
+    }
+
+    /** Whether a word is a condition rune, an "if" on its line (or a word joining them) that is no part of the spell. */
     public boolean isCondition(String word) {
-        return triggerOf(word).isPresent();
+        return logicOf(word).isPresent();
     }
 
     /** Whether a word is a verb that binds ({@code ligabis}), reading its own aspect and marks. */
