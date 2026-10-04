@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.galdraria.client;
 
+import com.elderlexicon.mod.spelling.client.SgaFont;
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.galdraria.Engravings;
 import com.elderlexicon.mod.galdraria.Galdraria;
@@ -19,7 +20,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 @Mod.EventBusSubscriber(modid = ElderLexicon.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class GaldrariaClient {
 
-    private static final Style SGA = Style.EMPTY.withFont(new ResourceLocation("minecraft", "alt"));
+    private static final Style SGA = SgaFont.STYLE;
 
     private GaldrariaClient() {
     }

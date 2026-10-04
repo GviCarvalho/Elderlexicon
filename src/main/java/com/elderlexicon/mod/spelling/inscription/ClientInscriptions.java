@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.spelling.inscription;
 
+import com.elderlexicon.mod.spelling.client.SgaFont;
 import com.elderlexicon.mod.ElderLexicon;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -36,7 +37,7 @@ import java.util.Map;
 @Mod.EventBusSubscriber(modid = ElderLexicon.MODID, value = Dist.CLIENT)
 public final class ClientInscriptions {
 
-    private static final Style SGA = Style.EMPTY.withFont(new ResourceLocation("minecraft", "alt"));
+    private static final Style SGA = SgaFont.STYLE;
     private static final Map<Long, Inscription> WRITTEN = new HashMap<>();
     /** How far written faces are drawn, in blocks. */
     private static final double SEEN = 48.0D;

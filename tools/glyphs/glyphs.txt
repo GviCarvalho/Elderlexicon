@@ -1,0 +1,130 @@
+# The mod's own glyphs (docs/glifos-design.md), one block each: the code point and what it writes, then 7 rows of 5.
+# '#' is ink, '.' is paper. Run `python tools/glyphs/build.py` after any change.
+# A place given to a rune is never given to another. Digits: E000-E009. Runes of the mod: E010-E0FF.
+
+E000 digit-0
+.##..
+#....
+#....
+.....
+....#
+....#
+..##.
+
+E001 digit-1
+##...
+.....
+.....
+..#..
+..#..
+..#..
+...##
+
+E002 digit-2
+....#
+....#
+....#
+.....
+.....
+.....
+#####
+
+E003 digit-3
+#####
+.....
+.###.
+....#
+....#
+....#
+.....
+
+E004 digit-4
+#...#
+...#.
+.....
+.....
+....#
+....#
+....#
+
+E005 digit-5
+..###
+.....
+####.
+....#
+....#
+....#
+..###
+
+E006 digit-6
+#####
+.....
+..##.
+....#
+#....
+#....
+.##..
+
+E007 digit-7
+###..
+.....
+.....
+.....
+....#
+....#
+....#
+
+E008 digit-8
+..#..
+...#.
+#....
+#....
+....#
+...#.
+..#..
+
+E009 digit-9
+.##..
+#....
+.###.
+.....
+....#
+....#
+.###.
+
+# Runes of the mod. Family mark (docs/glifos-design.md): condition = lone dot at the bottom left.
+E010 languet
+###..
+...#.
+.....
+....#
+.....
+..#..
+#....
+
+E011 mergitur
+#####
+.....
+..#..
+.#.#.
+..#..
+.....
+#....
+
+E012 aut
+#...#
+.#.#.
+..#..
+.....
+..#..
+..#..
+#....
+
+E013 non
+....#
+...#.
+#####
+.#...
+.....
+.....
+#....

@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.spelling.network;
 
+import com.elderlexicon.mod.spell.block.WrittenTexts;
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spelling.custom.CustomRuneHelper;
 import com.elderlexicon.mod.spelling.item.GrimoireItem;
@@ -93,6 +94,7 @@ public record ClientGrimoireUpdatePacket(InteractionHand hand,
             sanitizedPages.stream().map(StringTag::valueOf).forEach(listtag::add);
             CompoundTag tag = stack.getOrCreateTag();
             tag.put("pages", listtag);
+            WrittenTexts.mark(tag);
             GrimoireItem.storeLastPage(stack, safePage);
             CustomRuneHelper.pruneAbsentCustomRunes(stack, sanitizedPages);
             GrimoireItem.recordWriting(stack, sender, sanitizedPages);
@@ -137,6 +139,7 @@ public record ClientGrimoireUpdatePacket(InteractionHand hand,
         map.setHoverName(Component.translatable("item.elderlexicon.detached_page", index + 1));
         CompoundTag custom = map.getOrCreateTag();
         custom.putString("DetachedPageText", text);
+        WrittenTexts.mark(custom);
         custom.putInt("DetachedPageIndex", index);
         if (!sender.addItem(map)) {
             sender.drop(map, false);

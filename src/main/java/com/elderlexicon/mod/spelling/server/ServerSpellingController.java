@@ -1,10 +1,12 @@
 package com.elderlexicon.mod.spelling.server;
 
+import com.elderlexicon.mod.spell.block.WrittenTexts;
 import com.elderlexicon.mod.command.SpellCostCalculator;
 import com.elderlexicon.mod.ligabis.world.LigabisData;
 import com.elderlexicon.mod.ligabis.world.LigabisManager;
 import com.elderlexicon.mod.magic.lexicon.Lexicons;
 import com.elderlexicon.mod.spelling.flow.Happenings;
+import com.elderlexicon.mod.spell.block.LineConditions;
 import net.minecraft.world.entity.EquipmentSlot;
 import com.elderlexicon.mod.magic.lexicon.Rune;
 import com.elderlexicon.mod.spell.SpellCastingService;
@@ -81,6 +83,8 @@ public final class ServerSpellingController {
      * speak of it are cast, and the reading leaves no cooldown. Null in any other reading.
      */
     private String wakingTrigger;
+    /** The lines being sustained while their conditions hold, by mage and words. */
+    private final Set<String> sustained = java.util.concurrent.ConcurrentHashMap.newKeySet();
     /** A rune, mark or number; a number may carry a minus sign ({@code -30 ubis}). */
 
     private ServerSpellingController() {
@@ -170,6 +174,12 @@ public final class ServerSpellingController {
         }
         if (!awake(player, expandedRunes)) {
             return applyFailure(player, Component.literal(UNMET), now, true, expandedRunes);
+        }
+        if (LineConditions.whileAt(Lexicons.get(), expandedRunes) >= 0) {
+            // Said in trance, a line that lasts while its conditions hold goes on by itself.
+            sustain(player, expandedRunes, "");
+            long appliedCooldown = applyCooldown(player, now, SUCCESS_COOLDOWN_MS);
+            return new SpellCastResponse(true, Component.empty(), List.of(), appliedCooldown, List.copyOf(expandedRunes));
         }
 
 
@@ -289,6 +299,7 @@ public final class ServerSpellingController {
 
     private static String pageText(ItemStack grimoire) {
         CompoundTag tag = grimoire.getTag();
+        WrittenTexts.upgrade(tag);
         if (tag == null || !tag.contains("pages", 9)) {
             return "";
         }
@@ -394,11 +405,14 @@ public final class ServerSpellingController {
                     if (!passes(player, lines.get(l))) {
                         continue;
                     }
-                    List<String> lineRunes = CustomRuneHelper.expandRunes(player, lines.get(l).runeIds());
-                    spells.add(new SpellCastingService.TimedSpell(lineRunes, steps.get(r).get(p).get(l)));
-                    expanded.addAll(lineRunes);
+                    schedule(player, lines.get(l).runeIds(), steps.get(r).get(p).get(l), spells, expanded, prefix);
                 }
             }
+        }
+        if (spells.isEmpty() && !expanded.isEmpty()) {
+            // Every line read lasts while its conditions hold: each goes on by itself.
+            long appliedCooldown = applyCooldown(player, now, SUCCESS_COOLDOWN_MS);
+            return new SpellCastResponse(true, Component.empty(), List.of(), appliedCooldown, List.copyOf(expanded));
         }
         if (spells.isEmpty()) {
             return applyFailure(player, Component.literal(blocks.stream().flatMap(List::stream)
@@ -507,6 +521,7 @@ public final class ServerSpellingController {
             return applyFailure(player, Component.literal("Suporte sem pergaminho destacado."), now, true, reading());
         }
         CompoundTag tag = displayed.getTag();
+        WrittenTexts.upgrade(tag);
         String pageText = tag == null ? "" : tag.getString("DetachedPageText");
         if (pageText == null) {
             pageText = "";
@@ -576,6 +591,7 @@ public final class ServerSpellingController {
             return null;
         }
         CompoundTag tag = page.getTag();
+        WrittenTexts.upgrade(tag);
         String pageText = tag == null ? "" : tag.getString("DetachedPageText");
         if (pageText == null) {
             pageText = "";
@@ -648,6 +664,7 @@ public final class ServerSpellingController {
             return GrimoireExtractionResult.EMPTY;
         }
         CompoundTag tag = stack.getTag();
+        WrittenTexts.upgrade(tag);
         if (tag == null || !tag.contains("pages", 9)) {
             return GrimoireExtractionResult.EMPTY;
         }
@@ -792,8 +809,7 @@ public final class ServerSpellingController {
      */
     private boolean passes(ServerPlayer player, SpellBlock.Line line) {
         List<String> words = line.runeIds();
-        if (wakingTrigger != null && words.stream()
-                .noneMatch(word -> Lexicons.get().triggerOf(word).filter(wakingTrigger::equals).isPresent())) {
+        if (wakingTrigger != null && !LineConditions.wakesFor(Lexicons.get(), words, wakingTrigger)) {
             return false;
         }
         return awake(player, words);
@@ -801,8 +817,56 @@ public final class ServerSpellingController {
 
     /** Whether every condition among {@code words} holds now for {@code player}. */
     private static boolean awake(ServerPlayer player, List<String> words) {
-        return words.stream().allMatch(word -> Lexicons.get().triggerOf(word)
-                .map(trigger -> Happenings.recent(player, trigger)).orElse(true));
+        return LineConditions.holds(Lexicons.get(), words, trigger -> Happenings.recent(player, trigger));
+    }
+
+    /**
+     * Adds a line to the spells cast together, or, if it lasts while its conditions hold ({@code latet chronos aura
+     * impediunt}), sustains it on its own from its instant on.
+     */
+    private void schedule(ServerPlayer player, List<String> words, int delaySteps,
+                          List<SpellCastingService.TimedSpell> spells, List<String> shown, String prefix) {
+        if (LineConditions.whileAt(Lexicons.get(), words) >= 0) {
+            SpellTicks.schedule(player.server, delaySteps * SpellCastingService.STEP_TICKS,
+                    () -> sustain(player, words, prefix));
+            shown.addAll(words);
+            return;
+        }
+        List<String> lineRunes = CustomRuneHelper.expandRunes(player, words);
+        spells.add(new SpellCastingService.TimedSpell(lineRunes, delaySteps));
+        shown.addAll(lineRunes);
+    }
+
+    /**
+     * A line that lasts while its conditions hold (docs/fluxo-design.md, book 4.3.2): cast one window at a time, each
+     * paid as it comes (an open tap), and cast again as long as the conditions still hold, the mage lives and the
+     * window did not fail. The same line is not sustained twice at once.
+     */
+    private void sustain(ServerPlayer player, List<String> words, String prefix) {
+        String key = player.getUUID() + " " + String.join(" ", words);
+        if (!sustained.add(key)) {
+            return;
+        }
+        sustainWindow(player, words, prefix, key);
+    }
+
+    private void sustainWindow(ServerPlayer player, List<String> words, String prefix, String key) {
+        if (!player.isAlive() || player.hasDisconnected() || !awake(player, words)) {
+            sustained.remove(key);
+            return;
+        }
+        List<String> runes = CustomRuneHelper.expandRunes(player, LineConditions.window(Lexicons.get(), words));
+        SpellCastingService.Result result = castingService.castBlock(player,
+                List.of(new SpellCastingService.TimedSpell(runes, 0)),
+                delayed -> SpellFeedback.later(player, delayed, finishCast(player, delayed, runes), prefix));
+        SpellFeedback.later(player, result, result.failed() ? result.warnings() : finishCast(player, result, runes),
+                prefix);
+        if (result.failed()) {
+            sustained.remove(key);
+            return;
+        }
+        SpellTicks.schedule(player.server, LineConditions.WINDOW_SECONDS * 20,
+                () -> sustainWindow(player, words, prefix, key));
     }
 
     /**
@@ -870,6 +934,7 @@ public final class ServerSpellingController {
             return;
         }
         CompoundTag tag = displayed.getTag();
+        WrittenTexts.upgrade(tag);
         castRitualText(caster, tag == null ? "" : tag.getString("DetachedPageText"), "Ritual: ");
     }
 
@@ -886,9 +951,10 @@ public final class ServerSpellingController {
         List<SpellCastingService.TimedSpell> spells = new ArrayList<>();
         List<String> expanded = new ArrayList<>();
         for (SpellBlock.Line line : block.lines()) {
-            List<String> lineRunes = CustomRuneHelper.expandRunes(caster, line.runeIds());
-            spells.add(new SpellCastingService.TimedSpell(lineRunes, block.delaySteps(line)));
-            expanded.addAll(lineRunes);
+            schedule(caster, line.runeIds(), block.delaySteps(line), spells, expanded, prefix);
+        }
+        if (spells.isEmpty()) {
+            return;
         }
         List<String> shown = List.copyOf(expanded);
         SpellCastingService.Result result = castingService.castBlock(caster, spells,
@@ -911,11 +977,14 @@ public final class ServerSpellingController {
         List<SpellCastingService.TimedSpell> spells = new ArrayList<>();
         List<String> expanded = new ArrayList<>();
         for (SpellBlock.Line line : block.lines()) {
-            List<String> lineRunes = CustomRuneHelper.expandRunes(player, line.runeIds());
-            spells.add(new SpellCastingService.TimedSpell(lineRunes, block.delaySteps(line)));
-            expanded.addAll(lineRunes);
+            schedule(player, line.runeIds(), block.delaySteps(line), spells, expanded, "");
         }
         List<String> shown = List.copyOf(expanded);
+        if (spells.isEmpty()) {
+            // Every line lasts while its conditions hold: each goes on by itself.
+            long appliedCooldown = applyCooldown(player, now, SUCCESS_COOLDOWN_MS);
+            return new SpellCastResponse(true, Component.empty(), List.of(), appliedCooldown, shown);
+        }
 
         SpellCastingService.Result result = castingService.castBlock(player, spells, delayed -> {
             if (reading != null && delayed.success()) {

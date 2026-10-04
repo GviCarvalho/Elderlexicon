@@ -57,12 +57,23 @@ Há dois tipos de condição:
   `latet aura iactare` lança o ar; em pé, nada.
 - Escreve-se **abrindo a linha**: `ferit igni iactare`. A gramática ignora a condição em qualquer posição, então
   `igni ferit iactare` também funciona.
-- Várias condições na mesma linha valem **todas juntas**: `ferit patitur igni iactare` só vale se o mago acabou de
-  golpear *e* de ser ferido.
+- **"Se" e "e" são implícitos.** Uma condição já é um "se", e várias lado a lado valem **todas juntas**:
+  `ferit patitur igni iactare` só vale se o mago acabou de golpear *e* de ser ferido.
+- **`aut` ("ou")** separa as condições em grupos; a linha vale se qualquer grupo valer. `ferit latet aut patitur` é
+  "(golpeou e está agachado) ou (foi ferido)".
+- **`non` ("não")** vira ao contrário a condição logo depois dele: `non latet igni iactare` só lança em pé. Em fluxo,
+  uma condição negada só filtra; quem desperta a linha é uma condição afirmativa (`wakesFor`).
+- **"Enquanto" é o `chronos` sem número logo depois de uma condição**, como no livro (cap. 4.3.2: a barreira
+  "permanece ativa e se regenera enquanto a chama escolhida estiver acesa"). `latet chronos aura impediunt` conjura a
+  linha em janelas de 1 segundo (`chronos 1`), de novo a cada segundo enquanto as condições valerem: cada janela custa
+  o seu (uma torneira aberta). Para quando as condições deixam de valer, quando o mago morre ou sai, ou quando uma
+  janela falha. A mesma linha não roda duas vezes ao mesmo tempo.
 - As linhas sem condição de uma página continuam valendo sempre.
 - A condição ocupa uma coluna, como toda runa: a coluna é o relógio (`SpellBlock`), então ela atrasa a linha em um passo.
-- **Ainda não têm glifo.** As letras A–P são as runas e Q–Z são os dígitos; as condições são escritas pelo nome até os
-  números virarem blocos e liberarem Q–Z (ver §7).
+- **Glifos:** os números ganharam glifos próprios e deixaram as letras Q–Z para as condições
+  (docs/marcas-como-runas-design.md). Q `ferit`, R `patitur`, S `necat`, T `salit`, U `cadit`, V `frangit`,
+  W `utitur`, X `latet`, Y `currit`, Z `ardet`. Depois do Z, os glifos são do mod (docs/glifos-design.md):
+  `languet` U+E010, `mergitur` U+E011, `aut` U+E012 e `non` U+E013.
 
 ## 4. Em fluxo: o espírito escuta
 
@@ -102,13 +113,15 @@ nenhuma linha vale, o espírito responde que a condição não se cumpre agora.
   pulo (`LivingJumpEvent`), aterrissagem (`LivingFallEvent`), bloco quebrado (`BlockEvent.BreakEvent`), uso
   (`RightClickItem`, `RightClickBlock`) e o começo de cada estado (o tick do jogador).
 - `FlowTogglePacket` (tecla → servidor), `FlowStatePacket` (servidor → HUD), `client/ClientFlow`.
+- `spell/block/LineConditions`: a expressão de condições da linha (lado a lado, `aut`, `non`) e o `chronos` de
+  "enquanto". `ConditionSpec.Logic`: o que cada palavra de condição faz (`TRIGGER`, `OR`, `NOT`).
 - `ServerSpellingController.passes`: a regra única de toda leitura (as condições valem agora; em fluxo, a linha fala do
   acontecimento). Vale em `castPage`, `castRitualText`, `castCircle` e no transe. `wake`: a leitura do fluxo.
+  `sustain`: as linhas de "enquanto".
 
 ## 7. Perguntas abertas
 
-1. **Glifos das condições.** Depende de refazer os números como blocos (0 a 9999), o que libera Q–Z.
-2. O feitiço desperto por `ferit` deveria mirar quem foi golpeado, em vez da direção do olhar?
+1. O feitiço desperto por `ferit` deveria mirar quem foi golpeado, em vez da direção do olhar?
 
 ## 8. Decisões tomadas
 
@@ -121,3 +134,7 @@ nenhuma linha vale, o espírito responde que a condição não se cumpre agora.
 7. Em fluxo, o espírito escuta tudo o que o `surgit` lê, e mais a armadura vestida. (04/10/2026)
 8. Segunda leva: movimento, trabalho e estado do corpo. Os estados valem enquanto duram e, em fluxo, despertam ao
    começar. (04/10/2026)
+9. Os números ganham glifos próprios (da fonte "SGA Number Characters", redesenhados em 5×7) e Q–Z vão para as
+   condições; os textos antigos são convertidos na primeira leitura. (04/10/2026)
+10. Sem runas de "se" e "e" (implícitos); "enquanto" é o `chronos` sem número depois de uma condição, como no livro;
+   runas novas `aut` ("ou") e `non` ("não"). (04/10/2026)

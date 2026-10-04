@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.spelling.render;
 
+import com.elderlexicon.mod.spell.mark.NumberGlyphs;
 import com.elderlexicon.mod.spelling.client.RuneSgaMapper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
@@ -22,7 +23,6 @@ public final class SpellMapHelper {
     private static final byte INK = MapColor.COLOR_BLACK.getPackedId(MapColor.Brightness.HIGH);
 
     private static final Map<Character, byte[]> FONT = buildFont();
-    private static final Map<Character, byte[]> SGA_FONT = buildSgaFont();
 
     private SpellMapHelper() {
     }
@@ -77,7 +77,7 @@ public final class SpellMapHelper {
         int cursorX = 6; // left aligned with small margin
         for (int i = 0; i < maxChars; i++) {
             char ch = glyphLine.charAt(i);
-            byte[] glyph = SGA_FONT.getOrDefault(ch, FONT.getOrDefault(ch, FONT.get('?')));
+            byte[] glyph = GlyphBitmaps.of(ch).orElseGet(() -> FONT.getOrDefault(ch, FONT.get('?')));
             blitChar(data, glyph, cursorX, y);
             cursorX += 6;
         }
@@ -113,7 +113,7 @@ public final class SpellMapHelper {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < upper.length(); i++) {
             char c = upper.charAt(i);
-            if (FONT.containsKey(c)) {
+            if (FONT.containsKey(c) || GlyphBitmaps.of(c).isPresent()) {
                 builder.append(c);
             } else {
                 builder.append('?');
@@ -132,7 +132,13 @@ public final class SpellMapHelper {
             if (token == null || token.isBlank()) {
                 continue;
             }
-            String cleaned = token.replaceAll("[^A-Za-z0-9_]", "");
+            StringBuilder kept = new StringBuilder();
+            for (char c : token.toCharArray()) {
+                if (Character.isLetterOrDigit(c) && c < 128 || c == '_' || GlyphBitmaps.of(c).isPresent()) {
+                    kept.append(c);
+                }
+            }
+            String cleaned = kept.toString();
             if (cleaned.isEmpty()) {
                 continue;
             }
@@ -140,7 +146,8 @@ public final class SpellMapHelper {
             if (glyph.isPresent()) {
                 joiner.add(String.valueOf(glyph.get()));
             } else {
-                joiner.add(cleaned.toUpperCase());
+                // A number in plain digits is drawn in the digits' own glyphs, as the page writes it.
+                joiner.add(NumberGlyphs.toGlyphs(cleaned).toUpperCase());
             }
         }
         return joiner.toString();
@@ -186,50 +193,6 @@ public final class SpellMapHelper {
         map.put('8', new byte[]{0b01110, 0b10001, 0b10001, 0b01110, 0b10001, 0b10001, 0b01110});
         map.put('9', new byte[]{0b01110, 0b10001, 0b10001, 0b01111, 0b00001, 0b00010, 0b01100});
         map.put('?', new byte[]{0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b00000, 0b00100});
-        map.put(' ', new byte[]{0, 0, 0, 0, 0, 0, 0});
-        return map;
-    }
-
-    private static Map<Character, byte[]> buildSgaFont() {
-        Map<Character, byte[]> map = new HashMap<>();
-        // 5x7 glyphs derived from minecraft's ascii_sga.png (alt font) to match the in-game runes.
-        map.put('A', new byte[]{0b00110, 0b01001, 0b01000, 0b01000, 0b01000, 0b01000, 0b11000});
-        map.put('B', new byte[]{0b00100, 0b00100, 0b00100, 0b00100, 0b00010, 0b00001, 0b11111});
-        map.put('C', new byte[]{0b11000, 0b00000, 0b11000, 0b11000, 0b11111, 0b00111, 0b00111});
-        map.put('D', new byte[]{0b11111, 0b00000, 0b00000, 0b11000, 0b00100, 0b00100, 0b00011});
-        map.put('E', new byte[]{0b10001, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b11111});
-        map.put('F', new byte[]{0b11111, 0b11111, 0b00000, 0b00000, 0b00000, 0b10101, 0b10101});
-        map.put('G', new byte[]{0b00011, 0b00011, 0b00011, 0b11111, 0b00011, 0b00011, 0b00011});
-        map.put('H', new byte[]{0b11111, 0b00000, 0b11111, 0b00100, 0b00100, 0b00100, 0b00100});
-        map.put('I', new byte[]{0b11111, 0b11111, 0b11111, 0b00000, 0b11111, 0b11111, 0b11111});
-        map.put('J', new byte[]{0b11111, 0b11111, 0b00000, 0b11111, 0b00000, 0b11111, 0b11111});
-        map.put('K', new byte[]{0b00100, 0b00100, 0b00100, 0b10101, 0b00100, 0b00100, 0b00100});
-        map.put('L', new byte[]{0b11000, 0b11011, 0b11000, 0b11000, 0b11000, 0b11011, 0b11000});
-        map.put('M', new byte[]{0b10001, 0b00001, 0b00001, 0b00001, 0b00001, 0b00001, 0b11111});
-        map.put('N', new byte[]{0b10001, 0b10001, 0b00001, 0b00110, 0b00110, 0b01000, 0b10000});
-        map.put('O', new byte[]{0b11111, 0b00001, 0b00001, 0b00110, 0b00110, 0b01000, 0b10000});
-        map.put('P', new byte[]{0b11011, 0b00011, 0b11011, 0b11011, 0b11011, 0b11000, 0b11011});
-        map.put('Q', new byte[]{0b00100, 0b00000, 0b11111, 0b00001, 0b00001, 0b00001, 0b11111});
-        map.put('R', new byte[]{0b10001, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b10001});
-        map.put('S', new byte[]{0b11000, 0b11000, 0b11000, 0b11111, 0b00111, 0b00111, 0b00111});
-        map.put('T', new byte[]{0b11111, 0b00001, 0b00001, 0b00001, 0b00001, 0b00000, 0b00001});
-        map.put('U', new byte[]{0b01010, 0b01010, 0b00000, 0b00000, 0b00000, 0b11111, 0b11111});
-        map.put('V', new byte[]{0b00100, 0b00100, 0b00100, 0b00100, 0b11111, 0b00000, 0b11111});
-        map.put('W', new byte[]{0b00100, 0b00100, 0b00000, 0b00000, 0b00000, 0b10001, 0b10001});
-        map.put('X', new byte[]{0b10001, 0b00010, 0b00010, 0b00100, 0b01000, 0b01000, 0b10000});
-        map.put('Y', new byte[]{0b11011, 0b11011, 0b11011, 0b11011, 0b11011, 0b11011, 0b11011});
-        map.put('Z', new byte[]{0b00100, 0b01010, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001});
-        map.put('0', new byte[]{0b01110, 0b10001, 0b10111, 0b10101, 0b11101, 0b10001, 0b01110});
-        map.put('1', new byte[]{0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b11111});
-        map.put('2', new byte[]{0b01110, 0b10001, 0b00011, 0b00110, 0b01100, 0b11000, 0b11111});
-        map.put('3', new byte[]{0b11111, 0b00010, 0b00100, 0b00010, 0b00001, 0b10001, 0b01110});
-        map.put('4', new byte[]{0b00010, 0b00110, 0b01010, 0b10010, 0b11111, 0b00010, 0b00010});
-        map.put('5', new byte[]{0b11111, 0b10000, 0b11110, 0b00001, 0b00001, 0b10001, 0b01110});
-        map.put('6', new byte[]{0b00110, 0b01000, 0b10000, 0b11110, 0b10001, 0b10001, 0b01110});
-        map.put('7', new byte[]{0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b01000, 0b01000});
-        map.put('8', new byte[]{0b01110, 0b10001, 0b10001, 0b01110, 0b10001, 0b10001, 0b01110});
-        map.put('9', new byte[]{0b01110, 0b10001, 0b10001, 0b01111, 0b00001, 0b00010, 0b01100});
-        map.put('?', new byte[]{0b01110, 0b10001, 0b00001, 0b00110, 0b00100, 0b00000, 0b00100});
         map.put(' ', new byte[]{0, 0, 0, 0, 0, 0, 0});
         return map;
     }

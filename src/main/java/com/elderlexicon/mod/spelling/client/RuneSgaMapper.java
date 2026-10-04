@@ -16,7 +16,7 @@ import java.util.Objects;
 @SuppressWarnings("null")
 public final class RuneSgaMapper {
 
-    private static final ResourceLocation SGA_FONT = ResourceLocation.fromNamespaceAndPath("minecraft", "alt");
+    private static final ResourceLocation SGA_FONT = SgaFont.ID;
     private static final Style SGA_STYLE = Style.EMPTY.withFont(SGA_FONT);
 
     private RuneSgaMapper() {

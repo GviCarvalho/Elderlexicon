@@ -6,7 +6,7 @@
 
 O grimório era o livro e pena do Minecraft com outro nome: texto livre na textura do livro vanilla, com as letras
 trocadas por glifos SGA. Isso não mostrava o que importa desde que **a coluna virou o tempo** (ver
-`interacoes-design.md`): o leitor conta palavras, não posição na tela. Um número (`UQ`) ou uma marca (`pg2`) ocupa uma
+`interacoes-design.md`): o leitor conta palavras, não posição na tela. Um número (`40`, em glifos) ou uma marca (`pg2`) ocupa uma
 coluna só, mas vários glifos de largura, então duas linhas que pareciam alinhadas podiam não estar.
 
 ## O livro
@@ -29,7 +29,7 @@ nomeadas continuam valendo só com o grimório no inventário (o espírito as pr
 
 Os cantos dobrados embaixo das páginas viram a página (para trás à esquerda, para a frente à direita); virar tem som e
 uma folha que varre de um lado da lombada para o outro. O número da página de feitiço é escrito nos dígitos antigos
-(glifos Q a Z).
+(os glifos próprios dos dígitos, ver `marcas-como-runas-design.md`).
 
 ## A página do feitiço (esquerda)
 
@@ -82,7 +82,7 @@ dessa linha acende. Serve para ver quando cada feitiço sai e onde eles se cruza
 ## O tooltip de cada palavra
 
 O glifo, o nome (e o elemento), o que a runa é, **o que ela faz naquele feitiço** e em que coluna/tempo ela está.
-Exemplos em `E N UQ H A O Q I`:
+Exemplos em `E N 40 H A O 0 I` (os números em glifos):
 
 - `E`: "A fonte do iactare: a mana do corpo (a experiência)."
 - `H`: "Converte vis em água (sem custo)."
@@ -102,7 +102,7 @@ extenso) e a página. A margem valida a linha já com a runa aberta no feitiço 
 ## Como se escreve
 
 - **Teclado**, como antes: letras e dígitos vão para a célula do cursor, com o som da pena. Ao sair da célula, o nome
-  de uma runa vira o glifo (`igni` → `C`) e os dígitos viram glifos (`40` → `UQ`).
+  de uma runa vira o glifo (`igni` → `C`) e os dígitos viram os glifos dos dígitos.
 - **Espaço**: próxima célula; no fim da linha, cria uma pausa. **Shift+Espaço** ou **Insert**: insere uma pausa.
 - **Enter**: quebra a linha no cursor; o que vem depois vai para uma linha nova abaixo.
 - **Backspace** apaga letra a letra; numa célula vazia, remove a célula; numa linha vazia, remove a linha.

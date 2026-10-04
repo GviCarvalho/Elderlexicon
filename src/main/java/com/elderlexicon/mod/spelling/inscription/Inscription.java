@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spelling.inscription;
 
+import com.elderlexicon.mod.spell.block.WrittenTexts;
+import com.elderlexicon.mod.spell.mark.NumberGlyphs;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -29,6 +31,7 @@ public record Inscription(BlockPos pos, Direction face, String text, int color, 
         tag.putLong("Pos", pos.asLong());
         tag.putInt("Face", face.get3DDataValue());
         tag.putString("Text", text);
+        WrittenTexts.mark(tag);
         tag.putInt("Color", color);
         tag.putBoolean("Glow", glow);
         return tag;
@@ -36,7 +39,9 @@ public record Inscription(BlockPos pos, Direction face, String text, int color, 
 
     public static Inscription load(CompoundTag tag) {
         return new Inscription(BlockPos.of(tag.getLong("Pos")), Direction.from3DDataValue(tag.getInt("Face")),
-                tag.getString("Text"), tag.getInt("Color"), tag.getBoolean("Glow"));
+                tag.getInt(WrittenTexts.KEY) >= WrittenTexts.CURRENT ? tag.getString("Text")
+                        : NumberGlyphs.upgrade(tag.getString("Text")),
+                tag.getInt("Color"), tag.getBoolean("Glow"));
     }
 
     public void write(FriendlyByteBuf buffer) {

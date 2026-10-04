@@ -49,6 +49,8 @@ class GrammarRulesTest {
         assertEquals(plain.runeId(), woken.runeId());
         assertEquals(plain.element(), woken.element());
         assertEquals(plain.element(), onlyVerb("igni patitur iactare").element(), "written anywhere, it is skipped");
+        assertEquals(plain.element(), onlyVerb("ferit non latet aut patitur igni iactare").element(),
+                "and so are the words that join conditions");
     }
 
     // ------------------------------------------------------------------ R2: the subject

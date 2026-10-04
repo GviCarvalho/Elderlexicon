@@ -7,6 +7,7 @@ import com.elderlexicon.mod.magic.lexicon.Meeting;
 import com.elderlexicon.mod.magic.lexicon.Parameter;
 import com.elderlexicon.mod.magic.lexicon.Rune;
 import com.elderlexicon.mod.magic.lexicon.Template;
+import com.elderlexicon.mod.magic.lexicon.ConditionSpec;
 import com.elderlexicon.mod.magic.lexicon.WordClass;
 import com.elderlexicon.mod.parser.ParserDictionary;
 import com.elderlexicon.mod.spell.Conversion;
@@ -45,7 +46,7 @@ public final class SpellDescription {
      */
     private record Spell(int release, String source, String mark, boolean capture, String origin, String amount,
                          boolean reversed, List<String> turns, boolean condensed, String seconds, String place,
-                         String function, String core, List<String> when) {
+                         String function, String core, List<String> when, boolean lasting) {
 
         String element() {
             return turns.isEmpty() ? source : turns.get(turns.size() - 1);
@@ -200,7 +201,7 @@ public final class SpellDescription {
             }
         }
         return new Spell(release, source, mark, capture, origin, amount, reversed, turns, condensed, time, place,
-                function, core, when);
+                function, core, when, LineConditions.whileAt(lexicon(), written) >= 0);
     }
 
     private static Parameter parameterOf(Rune rune) {
@@ -217,11 +218,35 @@ public final class SpellDescription {
         if (spell.when().isEmpty()) {
             return deed(spell);
         }
-        List<String> happenings = spell.when().stream()
-                .map(word -> lexicon().rune(word).flatMap(rune -> rune.text("describe")).orElse(word))
-                .toList();
-        return note("describe.when", Map.of("when", String.join(note("describe.and", Map.of()), happenings)))
+        return note(spell.lasting() ? "describe.while" : "describe.when", Map.of("when", conditions(spell.when())))
                 + " " + deed(spell);
+    }
+
+    /** The conditions of a line in words: side by side they hold together, aut splits them, non turns one around. */
+    private String conditions(List<String> words) {
+        List<String> groups = new ArrayList<>();
+        List<String> group = new ArrayList<>();
+        boolean negate = false;
+        for (String word : words) {
+            ConditionSpec.Logic logic = lexicon().logicOf(word).orElse(null);
+            if (logic == ConditionSpec.Logic.OR) {
+                if (!group.isEmpty()) {
+                    groups.add(String.join(note("describe.and", Map.of()), group));
+                }
+                group = new ArrayList<>();
+                negate = false;
+            } else if (logic == ConditionSpec.Logic.NOT) {
+                negate = !negate;
+            } else if (logic == ConditionSpec.Logic.TRIGGER) {
+                boolean not = negate;
+                group.add(lexicon().rune(word).flatMap(rune -> rune.text(not ? "describe.not" : "describe")).orElse(word));
+                negate = false;
+            }
+        }
+        if (!group.isEmpty()) {
+            groups.add(String.join(note("describe.and", Map.of()), group));
+        }
+        return String.join(note("describe.or", Map.of()), groups);
     }
 
     private String deed(Spell spell) {

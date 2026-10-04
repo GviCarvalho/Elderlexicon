@@ -25,3 +25,7 @@ logs
 
 # Files from Forge MDK
 forge*changelog.txt
+
+# Glyph tool output (tools/glyphs/build.py)
+tools/glyphs/preview.png
+__pycache__/
