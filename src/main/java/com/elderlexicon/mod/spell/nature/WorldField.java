@@ -6,7 +6,6 @@ import com.elderlexicon.mod.magic.matter.Matter;
 import com.elderlexicon.mod.magic.matter.Particles;
 import com.elderlexicon.mod.magic.matter.State;
 import com.elderlexicon.mod.magic.physics.Field;
-import com.elderlexicon.mod.spell.matter.FormlessMatterBlock;
 import com.elderlexicon.mod.spell.matter.MatterBlocks;
 import com.elderlexicon.mod.spell.matter.WorldMatter;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
@@ -46,10 +45,11 @@ import java.util.function.Supplier;
  *   <li>Around a block that is not at rest the blocks beside it wake, so what it gives has somewhere to go. What is hot
  *       by its nature (a lava lake) is the world as it always is, and only wakes when something wakes it on purpose.</li>
  *   <li>Each step the drives act, and the world shows what came of each block: the block its matter is in its state,
- *       formless matter when the table has none, a flame where air glows, lightning where it is plasma.</li>
- *   <li>A block back at its nature for a while sleeps again, and what little it held besides goes to the world at rest
- *       (the open air takes the smoke and the warmth, the ground the ash): the world is far bigger than what is
- *       awake.</li>
+ *       formless matter holding its particles exactly when the table has none, a flame where air glows, lightning
+ *       where it is plasma. What someone else changed in the world meanwhile is taken as it is, never written over.</li>
+ *   <li>A block back at its nature for a while sleeps again. Formless matter keeps what it holds to the last particle;
+ *       a block of the table is its code again, and what little it held besides goes to the world at rest (the open
+ *       air takes the smoke and the warmth, the ground the ash): the world is far bigger than what is awake.</li>
  * </ul>
  */
 final class WorldField {
@@ -60,11 +60,13 @@ final class WorldField {
     static final int REST_STEPS = 20;
     /** An agitation this close to a block's nature is at rest (about 6 K). */
     static final double REST = 0.02D;
-    /** Held matter the world at rest takes when a block that shows matter sleeps. */
-    static final long STRAY = Particles.BLOCK / 100L;
     /** Gas beyond its nature the open air takes when a block sleeps. */
     static final long LOOSE = Particles.BLOCK / 20L;
-    /** Held matter shows as a block once it is at least half of one; less, it is scattered in the air of its block. */
+    /**
+     * Held matter shows as a block once it is at least half of one; less, it is scattered in the air of its block. A
+     * block of the table that has gained or lost less than this, and is still what it was, is its code again when it
+     * sleeps: near the code, it is the code.
+     */
     static final long SHOWN = Particles.BLOCK / 2L;
     /** Steps between two looks at the world under a block, which someone may have changed. */
     static final int REFRESH = 10;
@@ -82,12 +84,23 @@ final class WorldField {
     record Nature(BlockState block, Field.Cell cell, double temperature) {
     }
 
-    /** What a block shows: the block, and the matter it holds when that is formless. */
-    private record Shown(BlockState block, Matter formless) {
+    /**
+     * What a block shows: the block, and the particles it holds when that is formless matter, whose block glows as
+     * agitated as it is.
+     */
+    private record Shown(BlockState block, Particles formless) {
 
+        /** The same block: of the same kind (water flowing to another level is still water), formless glowing alike. */
         boolean same(Shown other) {
-            return other != null && block.getBlock() == other.block.getBlock()
-                    && (formless == null) == (other.formless == null);
+            if (other == null || (formless == null) != (other.formless == null)) {
+                return false;
+            }
+            return formless != null ? block.equals(other.block) : block.getBlock() == other.block.getBlock();
+        }
+
+        /** The state of the formless matter it shows. */
+        State state() {
+            return block.is(MatterBlocks.FORMLESS_LIQUID.get()) ? State.LIQUID : State.SOLID;
         }
     }
 
@@ -134,25 +147,49 @@ final class WorldField {
 
     // ------------------------------------------------------------------ what spells put in
 
-    /** Puts gas into the block at {@code pos}: dust, water, air, and fire as agitation. Says whether it went in. */
+    /** Puts gas into the block at {@code pos}: dust, vapour, air, and fire as agitation. Says whether it went in. */
     boolean blow(BlockPos pos, Particles gas) {
-        int i = wake(pos, false);
+        int i = stir(pos);
         if (i < 0) {
             return false;
         }
         field.blow(i, gas);
-        quiet[i] = 0;
+        return true;
+    }
+
+    /**
+     * Matter nothing holds together any more into the air of the block at {@code pos}: dust carrying its fire, mist,
+     * air. Says whether it went in.
+     */
+    boolean scatter(BlockPos pos, Particles matter) {
+        int i = stir(pos);
+        if (i < 0) {
+            return false;
+        }
+        field.scatter(i, matter);
         return true;
     }
 
     /** Agitation into the block at {@code pos}; negative, taken out of it. Says whether it went in. */
     boolean heat(BlockPos pos, long igni) {
-        int i = wake(pos, false);
+        int i = stir(pos);
         if (i < 0) {
             return false;
         }
         field.heat(i, igni);
-        quiet[i] = 0;
+        return true;
+    }
+
+    /**
+     * Brings the block at {@code pos}, as the world has it now, to {@code temperature}: what was put there came that
+     * agitated. Says whether it could.
+     */
+    boolean settle(BlockPos pos, double temperature) {
+        int i = stir(pos);
+        if (i < 0) {
+            return false;
+        }
+        field.heat(i, field.agitationFor(i, temperature) - field.heat(i));
         return true;
     }
 
@@ -166,10 +203,26 @@ final class WorldField {
 
     /** Wakes the block at {@code pos}, even one hot by nature. */
     void wake(BlockPos pos) {
-        int i = wake(pos, false);
+        stir(pos);
+    }
+
+    /**
+     * Wakes the block at {@code pos} as the world has it now (what someone changed under an awake block is taken as it
+     * is), and it is stirring; returns its number, or -1 when it cannot wake.
+     */
+    private int stir(BlockPos pos) {
+        int i = awake.get(pos.asLong());
+        if (i >= 0) {
+            changedUnder(i);
+            i = awake.get(pos.asLong());
+        }
+        if (i < 0) {
+            i = wake(pos, false);
+        }
         if (i >= 0) {
             quiet[i] = 0;
         }
+        return i;
     }
 
     /** Whether the block at {@code pos} is awake and its air glows: a flame the drives keep. */
@@ -227,7 +280,12 @@ final class WorldField {
             }
             Shown showing = quiet[i] > 0 ? shown[i] : display(i);
             if (!showing.same(shown[i])) {
+                if (changedUnder(i)) {
+                    continue; // someone changed it since: theirs stands, and the drives go on from it
+                }
                 show(i, showing);
+            } else if (shown[i].formless() != null) {
+                WorldMatter.keep(level, BlockPos.of(where[i]), field.held(i));
             }
             if (field.state(i) == State.PLASMA && now - struck[i] >= STRIKE_TICKS) {
                 strike(i);
@@ -320,6 +378,13 @@ final class WorldField {
     }
 
     private void sleep(int i) {
+        BlockPos pos = BlockPos.of(where[i]);
+        if (shown[i] != null && shown[i].formless() != null
+                && level.getBlockState(pos).getBlock() == expected[i].getBlock()) {
+            // Formless matter keeps what the drives left it, to the last particle, and is seen in its colour.
+            WorldMatter.showFormless(level, pos, WorldMatter.formless(shown[i].state(), field.temperature(i)),
+                    field.held(i));
+        }
         awake.remove(where[i]);
         field.remove(i);
         nature[i] = null;
@@ -343,17 +408,19 @@ final class WorldField {
 
     /**
      * Whether a block is back at its nature: as agitated as it is by nature, holding what it does, and with little gas
-     * besides its own. A block showing air may hold a little scattered matter, which the world at rest takes with it.
+     * besides its own. Formless matter's nature is what it holds now, which it keeps. A block of the table, or of air,
+     * may have gained or lost a little matter and still show as it did; the world at rest takes that difference with it.
      */
     private boolean atRest(int i) {
         Nature found = nature[i];
-        if (Math.abs(field.temperature(i) - found.temperature()) > REST) {
+        Field.Cell now = field.cell(i);
+        Shown showing = shown[i];
+        double natural = showing.formless() != null ? Field.natural(now.held(), showing.state()) : found.temperature();
+        if (Math.abs(field.temperature(i) - natural) > REST) {
             return false;
         }
-        Field.Cell now = field.cell(i);
         Field.Cell was = found.cell();
-        long held = distance(now.held(), was.held());
-        if (held > (shown[i].formless() == null && shown[i].block().isAir() ? SHOWN : STRAY)) {
+        if (showing.formless() == null && distance(now.held(), was.held()) > SHOWN) {
             return false;
         }
         long air = Math.abs(now.airborne().aura() + now.smoke() - was.airborne().aura() - was.smoke());
@@ -426,7 +493,7 @@ final class WorldField {
             long heat = Math.max(0L, particles.igni()) + Field.agitation(Particles.NONE, gas, 1.0D);
             return new Nature(state, new Field.Cell(Particles.NONE, 0L, gas, 0L, 0L, 0L, heat), 1.0D);
         }
-        double temperature = natural(particles, matter.get().state());
+        double temperature = Field.natural(particles, matter.get().state());
         long heat = Field.agitation(particles, Particles.NONE, temperature);
         return new Nature(state, new Field.Cell(particles, 0L, Particles.NONE, 0L, 0L, 0L, heat), temperature);
     }
@@ -436,34 +503,11 @@ final class WorldField {
         return new Nature(state, new Field.Cell(Particles.NONE, 0L, AIR, 0L, 0L, 0L, heat), temperature);
     }
 
-    /**
-     * How agitated matter is by its nature: as the world at rest, unless that would not leave it in the state it is
-     * found in. Then it is just past its melting (lava, molten stone), or just short of it (ice and snow), or short of
-     * its boiling.
-     */
-    static double natural(Particles held, State state) {
-        double melting = Field.melting(held);
-        double boiling = Field.boiling(held);
-        double rest = 1.0D;
-        if (state == State.SOLID && rest >= melting) {
-            return melting * 0.97D;
-        }
-        if (state == State.LIQUID) {
-            if (rest < melting) {
-                return melting * 1.03D;
-            }
-            if (rest >= boiling) {
-                return boiling * 0.97D;
-            }
-        }
-        return rest;
-    }
-
     // ------------------------------------------------------------------ showing the world
 
     /**
-     * What a block shows now: the block its held matter is in its state, or formless matter, while it holds at least
-     * half a block; otherwise its air, glowing as a flame where it is hot enough.
+     * What a block shows now: the block its held matter is in its state, or formless matter holding exactly its
+     * particles, while it holds at least half a block; otherwise its air, glowing as a flame where it is hot enough.
      */
     private Shown display(int i) {
         Particles held = field.held(i);
@@ -471,14 +515,11 @@ final class WorldField {
         if (held.total() >= SHOWN && state != State.GAS && state != State.PLASMA) {
             Optional<Composition> composition = held.composition();
             if (composition.isPresent()) {
-                Matter matter = new Matter(composition.get(), state, held.umu());
-                Optional<BlockState> block = WorldMatter.blockOf(matter);
+                Optional<BlockState> block = WorldMatter.blockOf(new Matter(composition.get(), state, held.umu()));
                 if (block.isPresent()) {
                     return new Shown(block.get(), null);
                 }
-                Block formless = state == State.SOLID ? MatterBlocks.FORMLESS_SOLID.get()
-                        : MatterBlocks.FORMLESS_LIQUID.get();
-                return new Shown(formless.defaultBlockState(), matter);
+                return new Shown(WorldMatter.formless(state, field.temperature(i)), held);
             }
         }
         if (field.temperature(i) >= Field.glow()) {
@@ -491,7 +532,7 @@ final class WorldField {
     private void show(int i, Shown showing) {
         BlockPos pos = BlockPos.of(where[i]);
         if (showing.formless() != null) {
-            WorldMatter.show(level, pos, showing.formless());
+            WorldMatter.showFormless(level, pos, showing.block(), showing.formless());
         } else {
             level.setBlock(pos, showing.block(), Block.UPDATE_ALL);
         }

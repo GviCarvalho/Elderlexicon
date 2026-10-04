@@ -62,6 +62,30 @@ public final class NatureWorld {
     }
 
     /**
+     * Gas let into the air of the block at {@code pos}: its earth as dust, its water as vapour, its air, its fire as
+     * agitation. Says whether it went in (not into a wall).
+     */
+    public static boolean blow(ServerLevel level, BlockPos pos, Particles gas) {
+        return fieldOf(level).blow(pos, gas);
+    }
+
+    /**
+     * Matter nothing holds together any more (formless matter broken) let into the air of the block at {@code pos}:
+     * earth as dust carrying its fire, water as mist, air.
+     */
+    public static boolean scatter(ServerLevel level, BlockPos pos, Particles matter) {
+        return fieldOf(level).scatter(pos, matter);
+    }
+
+    /**
+     * The block at {@code pos}, as the world has it now, is as agitated as {@code temperature}: what was put there came
+     * so (a quenched melt still hot), and the drives carry it on.
+     */
+    public static boolean settle(ServerLevel level, BlockPos pos, double temperature) {
+        return fieldOf(level).settle(pos, temperature);
+    }
+
+    /**
      * What holding one flame for a vocant's moment takes, in UMU: what {@code igni vocant} brings by itself (user,
      * 03/10/2026). The drives say how much: worked out once in a box of still air, the fire it takes to make a block of
      * air a flame and to keep it one for {@link #FLAME_TICKS} steps as its heat goes into the air around.

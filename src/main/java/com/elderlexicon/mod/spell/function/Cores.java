@@ -12,7 +12,6 @@ import com.elderlexicon.mod.magic.matter.MaterialTable;
 import com.elderlexicon.mod.magic.matter.Materials;
 import com.elderlexicon.mod.magic.matter.Matter;
 import com.elderlexicon.mod.magic.matter.Particles;
-import com.elderlexicon.mod.magic.matter.Qualities;
 import com.elderlexicon.mod.magic.matter.State;
 import com.elderlexicon.mod.magic.matter.Substance;
 import com.elderlexicon.mod.spell.SpellContext;
@@ -448,7 +447,7 @@ public final class Cores {
                         "was", what(change.was()), "becomes", what(change.becomes())))
                 : note("note.core.formless", "'{mark}': {was} virou materia sem nome, {description}.",
                         Map.of("mark", thing.mark, "was", what(change.was()),
-                                "description", Qualities.describe(change.becomes())));
+                                "description", change.becomes().describe()));
         if (light > EPSILON) {
             text += " " + note("note.core.light", "{umu} UMU que nao fecharam um inteiro sairam como luz.",
                     Map.of("umu", number(light)));

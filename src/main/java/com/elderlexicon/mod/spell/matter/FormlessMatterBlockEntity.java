@@ -2,6 +2,7 @@ package com.elderlexicon.mod.spell.matter;
 
 import com.elderlexicon.mod.magic.matter.Composition;
 import com.elderlexicon.mod.magic.matter.Matter;
+import com.elderlexicon.mod.magic.matter.Particles;
 import com.elderlexicon.mod.magic.matter.State;
 import com.elderlexicon.mod.vita.VitaElement;
 import net.minecraft.core.BlockPos;
@@ -15,35 +16,57 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.EnumMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * What a block of formless matter holds, exactly as it is: its composition, its state and its UMU
- * (docs/plano-materia-e-forca.md, stage 5, and docs/plano-materia-emergente.md).
+ * What a block of formless matter holds, to the last particle (docs/particulas-design.md, stage 9): how many of each
+ * primordial. Its state is its block, solid or liquid; how agitated it is, the drives say. A world saved before kept
+ * a proportion and an amount instead, and is read into particles as it loads.
  */
 public final class FormlessMatterBlockEntity extends BlockEntity {
 
+    private static final String PARTICLES = "particles";
+    /** What worlds saved before the particles kept: the proportion and the UMU. */
     private static final String SHARES = "shares";
-    private static final String STATE = "state";
     private static final String UMU = "umu";
 
-    private Matter matter;
+    private Particles held;
 
     public FormlessMatterBlockEntity(BlockPos pos, BlockState state) {
         super(MatterBlocks.FORMLESS_MATTER.get(), pos, state);
     }
 
-    public Optional<Matter> matter() {
-        return Optional.ofNullable(matter);
+    /** The particles it holds; empty while it holds nothing. */
+    public Optional<Particles> particles() {
+        return Optional.ofNullable(held);
     }
 
-    /** Holds {@code matter}, exactly as it is. */
-    void hold(Matter matter) {
-        this.matter = matter;
+    /** What it holds, as matter in the state of its block. */
+    public Optional<Matter> matter() {
+        return held == null || held.present().total() <= 0L ? Optional.empty()
+                : Optional.of(Matter.of(held, state()));
+    }
+
+    /** The state of what it holds: the block's, solid or liquid. */
+    public State state() {
+        return getBlockState().getBlock() instanceof FormlessMatterBlock block && block.liquid()
+                ? State.LIQUID : State.SOLID;
+    }
+
+    /** Holds exactly {@code particles}, and those who see it are told. */
+    void hold(Particles particles) {
+        hold(particles, true);
+    }
+
+    /**
+     * Holds exactly {@code particles}; those who see it are told only when {@code seen}, as when its colour may have
+     * changed: what the drives move a little each tick is kept without a word.
+     */
+    void hold(Particles particles, boolean seen) {
+        this.held = particles.present();
         setChanged();
-        if (level != null && !level.isClientSide) {
+        if (seen && level != null && !level.isClientSide) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
         }
     }
@@ -55,35 +78,40 @@ public final class FormlessMatterBlockEntity extends BlockEntity {
     }
 
     private void write(CompoundTag tag) {
-        if (matter == null) {
+        if (held == null) {
             return;
         }
-        CompoundTag shares = new CompoundTag();
-        matter.composition().shares().forEach((aspect, share) -> shares.putDouble(aspect.runeId(), share));
-        tag.put(SHARES, shares);
-        tag.putString(STATE, matter.state().name().toLowerCase(Locale.ROOT));
-        tag.putDouble(UMU, matter.umu());
+        CompoundTag counts = new CompoundTag();
+        for (VitaElement aspect : Particles.ASPECTS) {
+            counts.putLong(aspect.runeId(), held.count(aspect));
+        }
+        tag.put(PARTICLES, counts);
     }
 
     @Override
     public void load(CompoundTag tag) {
         super.load(tag);
-        matter = null;
-        if (!tag.contains(SHARES)) {
-            return;
-        }
-        CompoundTag shares = tag.getCompound(SHARES);
-        Map<VitaElement, Double> amounts = new EnumMap<>(VitaElement.class);
-        for (VitaElement aspect : VitaElement.values()) {
-            if (aspect != VitaElement.BALANCED && shares.contains(aspect.runeId())) {
-                amounts.put(aspect, shares.getDouble(aspect.runeId()));
+        held = null;
+        if (tag.contains(PARTICLES)) {
+            CompoundTag counts = tag.getCompound(PARTICLES);
+            long[] each = new long[Particles.ASPECTS.size()];
+            for (int a = 0; a < each.length; a++) {
+                each[a] = Math.max(0L, counts.getLong(Particles.ASPECTS.get(a).runeId()));
+            }
+            held = new Particles(each[0], each[1], each[2], each[3]);
+        } else if (tag.contains(SHARES)) {
+            // Saved before the particles: its proportion and its UMU, read into the whole particles nearest them.
+            CompoundTag shares = tag.getCompound(SHARES);
+            Map<VitaElement, Double> amounts = new EnumMap<>(VitaElement.class);
+            for (VitaElement aspect : Particles.ASPECTS) {
+                if (shares.contains(aspect.runeId())) {
+                    amounts.put(aspect, shares.getDouble(aspect.runeId()));
+                }
+            }
+            if (amounts.values().stream().anyMatch(share -> share > 0.0D)) {
+                held = Particles.in(Composition.of(amounts), Particles.ofUmu(tag.getDouble(UMU)));
             }
         }
-        Optional<State> state = State.parse(tag.getString(STATE));
-        if (amounts.isEmpty() || state.isEmpty()) {
-            return;
-        }
-        matter = new Matter(Composition.of(amounts), state.get(), tag.getDouble(UMU));
     }
 
     // ------------------------------------------------------------------ what the client sees: its colour
@@ -124,15 +152,24 @@ public final class FormlessMatterBlockEntity extends BlockEntity {
 
     /** The colour of what it holds: the colours of its four aspects, blended in its proportion. */
     public int color() {
-        return matter == null ? 0x9A9A9A : colorOf(matter);
+        return held == null ? 0x9A9A9A : colorOf(held);
     }
 
     /** The colour of any matter: the colours of its four aspects, blended in its proportion. */
     public static int colorOf(Matter matter) {
+        return colorOf(matter.composition());
+    }
+
+    /** The colour of some particles: the colours of the four aspects they hold, blended in their proportion. */
+    public static int colorOf(Particles particles) {
+        return particles.composition().map(FormlessMatterBlockEntity::colorOf).orElse(0x9A9A9A);
+    }
+
+    private static int colorOf(Composition composition) {
         double red = 0.0D;
         double green = 0.0D;
         double blue = 0.0D;
-        for (Map.Entry<VitaElement, Double> share : matter.composition().shares().entrySet()) {
+        for (Map.Entry<VitaElement, Double> share : composition.shares().entrySet()) {
             int rgb = aspectColor(share.getKey());
             red += share.getValue() * ((rgb >> 16) & 0xFF);
             green += share.getValue() * ((rgb >> 8) & 0xFF);

@@ -5,8 +5,6 @@ import com.elderlexicon.mod.magic.lexicon.Template;
 import com.elderlexicon.mod.magic.matter.Composition;
 import com.elderlexicon.mod.magic.matter.Materials;
 import com.elderlexicon.mod.magic.matter.Matter;
-import com.elderlexicon.mod.magic.matter.MatterLaws;
-import com.elderlexicon.mod.magic.matter.Qualities;
 import com.elderlexicon.mod.magic.matter.Substance;
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.matter.WorldMatter;
@@ -21,8 +19,10 @@ import java.util.Optional;
 
 /**
  * Matter a spell brings where fluid matter is is poured into it and mixes with it (L4, docs/plano-materia-e-forca.md,
- * stage 5): water summoned into a pool of molten earth, fire thrown into lava. The spirit says what the mixture became,
- * which is how a mage finds the recipes out.
+ * stage 5), with the agitation each has (docs/particulas-design.md, stage 9): water summoned into a pool of molten earth
+ * quenches it. What floats does not mix: fire summoned into a pool is agitation that warms it, air bubbles through it.
+ * The spirit says what the mixture became, which is how a mage finds the recipes out; what it does after is the
+ * drives'.
  */
 final class Pouring {
 
@@ -91,8 +91,8 @@ final class Pouring {
     }
 
     /**
-     * The spirit says what the mixture became, when it became something else than what was poured: a natural thing,
-     * by its name, or what it is like; and what of it separated out as a gas.
+     * The spirit says what the mixture became, when it became something else than what was poured: a natural thing, by
+     * its name, or what it is.
      */
     static void tell(ServerPlayer player, Matter poured, WorldMatter.Placed placed) {
         Optional<Matter> mixture = placed.mixed();
@@ -101,29 +101,18 @@ final class Pouring {
         }
         Optional<Substance> becomes = mixture.get().substance(Materials.get());
         if (becomes.isPresent() && becomes.equals(poured.substance(Materials.get()))
-                && !MatterLaws.react(mixture.get()).reacted()) {
+                && mixture.get().state() == poured.state()) {
             return;
         }
         tell(player, mixture.get());
     }
 
-    /**
-     * The spirit says what a mixture is, after its opposites react (docs/plano-materia-emergente.md): what stays, a
-     * natural thing by its name or else what it is like, and what separated out as a gas.
-     */
+    /** The spirit says what a mixture is: a natural thing by its name, or else its state and what it is made of. */
     static void tell(ServerPlayer player, Matter mixture) {
-        MatterLaws.Reaction reaction = MatterLaws.react(mixture);
-        StringBuilder text = new StringBuilder();
-        reaction.remains().ifPresent(stays -> text.append(stays.substance(Materials.get())
+        MarkSpells.tell(player, mixture.substance(Materials.get())
                 .map(substance -> Template.fill(Lexicons.get().note("note.mixture.substance")
                         .orElse("A mistura virou {substance}."), Map.of("substance", substance.name())))
                 .orElseGet(() -> Template.fill(Lexicons.get().note("note.mixture.formless")
-                        .orElse("A mistura ficou {description}."), Map.of("description", Qualities.describe(stays))))));
-        reaction.released().ifPresent(gas -> text.append(text.isEmpty() ? "" : " ").append(Template.fill(
-                Lexicons.get().note("note.mixture.released")
-                        .orElse("{umu} UMU se separaram e subiram como gas ({description})."),
-                Map.of("umu", String.format(java.util.Locale.ROOT, "%.1f", gas.umu()),
-                        "description", Qualities.describe(gas)))));
-        MarkSpells.tell(player, text.toString());
+                        .orElse("A mistura ficou {description}."), Map.of("description", mixture.describe()))));
     }
 }
