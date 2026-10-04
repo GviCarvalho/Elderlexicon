@@ -39,6 +39,7 @@ public final class SpellContext implements SpellLedger {
     private final List<VertereRequest> vertereRequests;
     private double totalCost;
     private double environmentalContribution;
+    private double reserveContribution;
     private double payableCost;
     private boolean focusActive;
     private SpellScene scene = new SpellScene();
@@ -232,8 +233,22 @@ public final class SpellContext implements SpellLedger {
         recalculatePayable();
     }
 
+    /** What a wand's setting paid of the spell, out of the reserve it holds (docs/varinhas-design.md). */
+    public double reserveContribution() {
+        return reserveContribution;
+    }
+
+    /** The setting of a wand pays {@code amount} of the spell, so the mage pays that much less. */
+    public void addReserveContribution(double amount) {
+        if (amount <= EPSILON) {
+            return;
+        }
+        reserveContribution += amount;
+        recalculatePayable();
+    }
+
     private void recalculatePayable() {
-        this.payableCost = Math.max(0.0D, totalCost - environmentalContribution);
+        this.payableCost = Math.max(0.0D, totalCost - environmentalContribution - reserveContribution);
     }
 
     /** Energy pulled from the world into the mage's body (a verb turned around, or what a capture brought beyond the cost). */

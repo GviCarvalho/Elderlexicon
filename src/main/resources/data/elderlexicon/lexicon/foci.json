@@ -1,6 +1,6 @@
 {
   "_license": "© GviCarvalho – This data is part of Elderlexicon. See LICENSE.txt.",
-  "_about": "Foci (book 9.3): what each focus favours. 'discounts' is the share of a rune's base cost the focus bears; a wand's wood adds its own, and 'conversions' makes it bear the cost of every conversion into those sources.",
+  "_about": "Foci (book 9.3; docs/varinhas-design.md). A wand is a haste (shaft), maybe a grip (empunhadura) and maybe a setting (engaste). 'items' is what each haste favours. 'grips' are what a wand is held by: the capacity they add and what they favour ('discounts': the share of a rune's base cost the grip bears; 'conversions': it bears the cost of every conversion into those sources); 'tag' or 'item' says what makes it. 'settings' are the gems: 'reserves' is how much of each kind (vis or a source) the gem holds; 'echo' repeats every spell its bearer says. 'color' tints the part on the wand's sprite.",
   "items": {
     "improvised_wand": {},
     "improvised_wand_bone": {"discounts": {"firmo": 0.20}},
@@ -11,15 +11,32 @@
     "wand_bamboo": {"discounts": {"aura": 0.10, "aqua": 0.10}},
     "wand_blaze": {"discounts": {"igni": 0.20}}
   },
-  "woods": {
-    "oak": {"translation": "material.elderlexicon.wand.oak", "capacity": 30},
-    "birch": {"translation": "material.elderlexicon.wand.birch", "capacity": 22, "discounts": {"iactare": 0.10}},
-    "mangrove": {"translation": "material.elderlexicon.wand.mangrove", "capacity": 24, "discounts": {"vertere": 0.10}},
-    "acacia": {"translation": "material.elderlexicon.wand.acacia", "capacity": 26, "discounts": {"impediunt": 0.10}},
-    "dark_oak": {"translation": "material.elderlexicon.wand.dark_oak", "capacity": 27, "discounts": {"impediunt": 0.05}},
-    "cherry": {"translation": "material.elderlexicon.wand.cherry", "capacity": 25, "discounts": {"vocant": 0.10}},
-    "spruce": {"translation": "material.elderlexicon.wand.spruce", "capacity": 23, "discounts": {"vocant": 0.10}},
-    "crimson": {"translation": "material.elderlexicon.wand.crimson", "capacity": 40, "conversions": ["igni", "aura"]},
-    "warped": {"translation": "material.elderlexicon.wand.warped", "capacity": 40, "conversions": ["firmo", "aqua"]}
+  "grips": {
+    "oak": {"translation": "material.elderlexicon.wand.oak", "color": "#B8945F", "tag": "minecraft:oak_logs", "capacity": 30},
+    "birch": {"translation": "material.elderlexicon.wand.birch", "color": "#D7CB8D", "tag": "minecraft:birch_logs", "capacity": 22, "discounts": {"iactare": 0.10}},
+    "mangrove": {"translation": "material.elderlexicon.wand.mangrove", "color": "#773936", "tag": "minecraft:mangrove_logs", "capacity": 24, "discounts": {"vertere": 0.10}},
+    "acacia": {"translation": "material.elderlexicon.wand.acacia", "color": "#A85A32", "tag": "minecraft:acacia_logs", "capacity": 26, "discounts": {"impediunt": 0.10}},
+    "dark_oak": {"translation": "material.elderlexicon.wand.dark_oak", "color": "#4F3218", "tag": "minecraft:dark_oak_logs", "capacity": 27, "discounts": {"impediunt": 0.05}},
+    "cherry": {"translation": "material.elderlexicon.wand.cherry", "color": "#E2B2AB", "tag": "minecraft:cherry_logs", "capacity": 25, "discounts": {"vocant": 0.10}},
+    "spruce": {"translation": "material.elderlexicon.wand.spruce", "color": "#73552F", "tag": "minecraft:spruce_logs", "capacity": 23, "discounts": {"vocant": 0.10}},
+    "crimson": {"translation": "material.elderlexicon.wand.crimson", "color": "#7E3A56", "tag": "minecraft:crimson_stems", "capacity": 40, "conversions": ["igni", "aura"]},
+    "warped": {"translation": "material.elderlexicon.wand.warped", "color": "#3A8E8C", "tag": "minecraft:warped_stems", "capacity": 40, "conversions": ["firmo", "aqua"]},
+    "copper": {"translation": "material.elderlexicon.wand.copper", "color": "#E5865C", "item": "minecraft:copper_ingot", "capacity": 30, "discounts": {"igni": 0.20}},
+    "iron": {"translation": "material.elderlexicon.wand.iron", "color": "#E8E8E8", "item": "minecraft:iron_ingot", "capacity": 35, "discounts": {"firmo": 0.20}},
+    "gold": {"translation": "material.elderlexicon.wand.gold", "color": "#F5CF3F", "item": "minecraft:gold_ingot", "capacity": 25, "discounts": {"aura": 0.20}},
+    "netherite": {"translation": "material.elderlexicon.wand.netherite", "color": "#5A4A4E", "item": "minecraft:netherite_ingot", "capacity": 60, "discounts": {"igni": 0.20, "firmo": 0.20}}
+  },
+  "settings": {
+    "quartz": {"translation": "setting.elderlexicon.quartz", "color": "#EDE6DC", "item": "minecraft:quartz", "reserves": {"vis": 10}},
+    "lapis": {"translation": "setting.elderlexicon.lapis", "color": "#2E5BC9", "item": "minecraft:lapis_lazuli", "reserves": {"vis": 20}},
+    "amethyst": {"translation": "setting.elderlexicon.amethyst", "color": "#A77BDB", "item": "minecraft:amethyst_shard", "reserves": {"vis": 30}},
+    "emerald": {"translation": "setting.elderlexicon.emerald", "color": "#2FD15A", "item": "minecraft:emerald", "reserves": {"vis": 40}},
+    "diamond": {"translation": "setting.elderlexicon.diamond", "color": "#4FE3D6", "item": "minecraft:diamond", "reserves": {"vis": 60}},
+    "ender_pearl": {"translation": "setting.elderlexicon.ender_pearl", "color": "#258474", "item": "minecraft:ender_pearl", "reserves": {"vis": 100}},
+    "nether_star": {"translation": "setting.elderlexicon.nether_star", "color": "#F2F2FF", "item": "minecraft:nether_star", "reserves": {"vis": 200}},
+    "heart_of_the_sea": {"translation": "setting.elderlexicon.heart_of_the_sea", "color": "#2B8FB8", "item": "minecraft:heart_of_the_sea", "reserves": {"aqua": 80}},
+    "flint": {"translation": "setting.elderlexicon.flint", "color": "#5A5A5A", "item": "minecraft:flint", "reserves": {"firmo": 40}},
+    "fire_charge": {"translation": "setting.elderlexicon.fire_charge", "color": "#E8641A", "item": "minecraft:fire_charge", "reserves": {"igni": 40}},
+    "echo_shard": {"translation": "setting.elderlexicon.echo_shard", "color": "#1E7A86", "item": "minecraft:echo_shard", "echo": true}
   }
 }

@@ -1,6 +1,7 @@
 package com.elderlexicon.mod.spell.registry;
 
 import com.elderlexicon.mod.spell.SpellModule;
+import com.elderlexicon.mod.spell.module.SettingReserveModule;
 import com.elderlexicon.mod.spell.module.SpellCostModule;
 import com.elderlexicon.mod.spell.module.ConduitMitigationModule;
 
@@ -17,6 +18,7 @@ public final class SpellModuleRegistry {
 
     static {
         register(new ConduitMitigationModule());
+        register(new SettingReserveModule());
         register(new SpellCostModule());
     }
 

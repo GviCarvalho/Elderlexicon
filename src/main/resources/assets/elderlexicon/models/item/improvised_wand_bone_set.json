@@ -1,8 +1,9 @@
 {
   "parent": "minecraft:item/handheld",
   "textures": {
-    "layer0": "minecraft:item/bamboo",
-    "layer1": "elderlexicon:item/wand_grip"
+    "layer0": "minecraft:item/bone",
+    "layer1": "elderlexicon:item/wand_setting_mount",
+    "layer2": "elderlexicon:item/wand_setting"
   },
   "display": {
     "firstperson_righthand": {
@@ -39,13 +40,5 @@
         1
       ]
     }
-  },
-  "overrides": [
-    {
-      "predicate": {
-        "elderlexicon:setting": 1
-      },
-      "model": "elderlexicon:item/wand_bamboo_set"
-    }
-  ]
+  }
 }

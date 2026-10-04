@@ -61,8 +61,12 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
             Transfer.fromWorld(context, element, action.get());
             return;
         }
+        // A source invoked into a marked wand goes into its gem; what the gem does not take appears where the wand is.
+        Optional<SettingCharge.Bearer> gem = SettingCharge.find(level.getServer(), place);
         // The ubis place is fixed when the spell is cast; without one, the aim is read when it lands.
-        Optional<MarkSpells.Destination> written = place.isPresent()
+        Optional<MarkSpells.Destination> written = gem.isPresent()
+                ? gem.map(SettingCharge.Bearer::destination)
+                : place.isPresent()
                 ? MarkSpells.destination(context, place, MarkSpells.SUMMON_RANGE)
                 : Optional.empty();
         if (place.isPresent() && written.isEmpty()) {
@@ -75,11 +79,18 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
         // aqua quantum 32 vocant brings twice the water (book 4.3.2, linear); what goes beyond one block is paid. Fire is
         // the exception: by itself, igni vocant brings what makes a flame of a block of air (user, 03/10/2026).
         double usual = element == VitaElement.IGNI ? NatureWorld.flame() : DEFAULT_UMU;
-        double energy = action.map(SpellAction::quantity).orElse(OptionalDouble.empty()).orElse(usual);
+        double asked = action.map(SpellAction::quantity).orElse(OptionalDouble.empty()).orElse(usual);
         // chronos is how long what was summoned stays or keeps acting (book 4.3.2: "igni exsugat chronos firmo vocant"),
         // and a tap held open: it spends that much for every two seconds (SpellFlow).
         int window = action.map(Chronos::window).orElse(0);
-        context.addTotalCost(SpellFlow.total(energy, window) - usual);
+        context.addTotalCost(SpellFlow.total(asked, window) - usual);
+        // The gem takes what is invoked into it in one instant; what it does not take is invoked as usual.
+        boolean intoGem = gem.isPresent() && window == 0
+                && action.map(spell -> !spell.handsOn() && !spell.atOnce()).orElse(true);
+        double energy = intoGem ? SettingCharge.charge(player, gem.get(), element, asked) : asked;
+        if (energy <= 1.0E-4D) {
+            return;
+        }
         int linger = window > 0 ? window : LINGER_TICKS;
         Optional<Supplier<Optional<MarkSpells.Destination>>> follow = place
                 .filter(SpellPlace::followsMarks)
