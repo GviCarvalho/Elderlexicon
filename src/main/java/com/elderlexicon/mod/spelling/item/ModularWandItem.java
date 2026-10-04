@@ -1,26 +1,26 @@
 package com.elderlexicon.mod.spelling.item;
 
 import com.elderlexicon.mod.magic.lexicon.Foci;
-import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
- * Configurable wand that stores a wood module to augment capacity and discounts.
+ * A wand held by a grip (a wood or a metal, docs/varinhas-design.md): the grip adds its capacity and what it favours.
+ * The grip is chosen when the wand is made and stays until the wand breaks.
  */
-public final class ModularWandItem extends SpellConduitItem {
+public final class ModularWandItem extends WandItem {
 
-    private static final String TAG_MATERIAL = "WandMaterial";
-    private static final String DEFAULT_MATERIAL_ID = "oak";
+    /** Where the grip is kept; the name is from when only woods held a wand. */
+    private static final String TAG_GRIP = "WandMaterial";
+    private static final String DEFAULT_GRIP_ID = "oak";
     private final String tooltipKey;
     private final Map<String, Double> baseDiscounts;
 
@@ -39,63 +39,58 @@ public final class ModularWandItem extends SpellConduitItem {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
-        super.appendHoverText(stack, level, tooltip, flag);
-        Foci.Wood module = resolveModule(stack);
-        tooltip.add(Component.translatable(
-                        "tooltip.elderlexicon.wand.material",
-                        Component.translatable(module.translationKey()))
-                .withStyle(ChatFormatting.GRAY));
+    public Optional<Foci.Grip> grip(ItemStack stack) {
+        return Optional.of(resolveGrip(stack));
     }
 
     @Override
     protected double initialCapacity(ItemStack stack) {
-        return super.initialCapacity(stack) + resolveModule(stack).capacityBonus();
+        return super.initialCapacity(stack) + resolveGrip(stack).capacityBonus();
     }
 
     @Override
     public double maxCapacity(ItemStack stack) {
-        return super.maxCapacity(stack) + resolveModule(stack).capacityBonus();
+        return super.maxCapacity(stack) + resolveGrip(stack).capacityBonus();
     }
 
     @Override
     protected double adjustEffectiveCost(ItemStack stack, double requested, @Nullable List<String> runes) {
         double adjusted = requested;
         adjusted -= computeRuneDiscount(runes, baseDiscounts);
-        Foci.Wood module = resolveModule(stack);
-        adjusted -= computeRuneDiscount(runes, module.discounts());
-        adjusted -= Foci.conversionDiscount(runes, module.conversions(), this::runeCost);
+        Foci.Grip grip = resolveGrip(stack);
+        adjusted -= computeRuneDiscount(runes, grip.discounts());
+        adjusted -= Foci.conversionDiscount(runes, grip.conversions(), this::runeCost);
         return Math.max(EPSILON, adjusted);
     }
 
-    public void applyMaterial(ItemStack stack, String materialId) {
-        stack.getOrCreateTag().putString(TAG_MATERIAL, sanitizeMaterial(materialId));
+    public void applyGrip(ItemStack stack, String gripId) {
+        stack.getOrCreateTag().putString(TAG_GRIP, sanitizeGrip(gripId));
         resetCapacity(stack);
     }
 
-    public String materialId(ItemStack stack) {
+    public String gripId(ItemStack stack) {
         CompoundTag tag = stack.getTag();
-        if (tag == null || !tag.contains(TAG_MATERIAL)) {
-            return DEFAULT_MATERIAL_ID;
+        if (tag == null || !tag.contains(TAG_GRIP)) {
+            return DEFAULT_GRIP_ID;
         }
-        return sanitizeMaterial(tag.getString(TAG_MATERIAL));
+        return sanitizeGrip(tag.getString(TAG_GRIP));
     }
 
-    /** The wood the wand is made of, as the foci data says of it (foci.json). */
-    private Foci.Wood resolveModule(ItemStack stack) {
-        Map<String, Foci.Wood> woods = Foci.woods();
-        Foci.Wood wood = woods.get(materialId(stack));
-        return wood != null ? wood : woods.getOrDefault(DEFAULT_MATERIAL_ID, NO_WOOD);
+    /** The grip the wand is held by, as the foci data says of it (foci.json). */
+    private Foci.Grip resolveGrip(ItemStack stack) {
+        Map<String, Foci.Grip> grips = Foci.grips();
+        Foci.Grip grip = grips.get(gripId(stack));
+        return grip != null ? grip : grips.getOrDefault(DEFAULT_GRIP_ID, NO_GRIP);
     }
 
-    private static String sanitizeMaterial(String value) {
+    private static String sanitizeGrip(String value) {
         if (value == null || value.isBlank()) {
-            return DEFAULT_MATERIAL_ID;
+            return DEFAULT_GRIP_ID;
         }
         return value.trim().toLowerCase(Locale.ROOT);
     }
 
-    /** What a wand is when its wood is not in the data: a plain wand, with nothing favoured. */
-    private static final Foci.Wood NO_WOOD = new Foci.Wood(DEFAULT_MATERIAL_ID, "material.elderlexicon.wand.oak", 0.0D,
-            Map.of(), Set.of());
+    /** What a wand is when its grip is not in the data: a plain wand, with nothing favoured. */
+    private static final Foci.Grip NO_GRIP = new Foci.Grip(DEFAULT_GRIP_ID, "material.elderlexicon.wand.oak", 0.0D,
+            Map.of(), Set.of(), "", "", Foci.NO_COLOR);
 }

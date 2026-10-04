@@ -8,9 +8,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Simple stick-based conduit that can absorb up to six UMU.
+ * A wand that is only a haste (a stick, bone, bamboo or blaze rod): it conducts up to its capacity and may have a gem
+ * set in it, but is held by nothing.
  */
-public class ImprovisedWandItem extends SpellConduitItem {
+public class ImprovisedWandItem extends WandItem {
 
     private final String tooltipKey;
     private final Map<String, Double> runeDiscounts;

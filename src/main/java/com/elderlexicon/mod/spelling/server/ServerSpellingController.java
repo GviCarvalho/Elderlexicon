@@ -15,6 +15,7 @@ import com.elderlexicon.mod.spelling.data.SpellingRepertoireHelper;
 import com.elderlexicon.mod.spelling.entity.PlacedScrollEntity;
 import com.elderlexicon.mod.spelling.item.GrimoireItem;
 import com.elderlexicon.mod.spelling.item.SpellConduitItem;
+import com.elderlexicon.mod.spelling.item.WandItem;
 import com.elderlexicon.mod.spelling.network.SpellingNetwork;
 import com.elderlexicon.mod.vita.VitaElement;
 import com.elderlexicon.mod.vita.VitaSystem;
@@ -62,6 +63,8 @@ public final class ServerSpellingController {
     private static final long MAX_LATENCY_MS = 2_500L;
     private static final long SUCCESS_COOLDOWN_MS = 600L;
     private static final long FAILURE_COOLDOWN_MS = 350L;
+    /** How long after the mage's voice the echo shard of a held wand repeats it: half a second. */
+    private static final int ECHO_DELAY_TICKS = 10;
 
     private static final ServerSpellingController INSTANCE = new ServerSpellingController();
 
@@ -81,14 +84,35 @@ public final class ServerSpellingController {
             return;
         }
         long now = Util.getMillis();
-        SpellCastResponse response = process(player, sanitize(runes), activationTimestampMs, now);
+        List<String> said = sanitize(runes);
+        // A spell said while the spelling still recovers is not heard, and so not echoed either.
+        boolean heard = remainingCooldown(player, now) <= 0L;
+        SpellCastResponse response = process(player, said, activationTimestampMs, now, false);
+        SpellingNetwork.sendSpellCastResult(player, SpellFeedback.forPlayer(player, response));
+        if (heard && !said.isEmpty() && WandItem.holdsEcho(player)) {
+            SpellTicks.schedule(player.server, ECHO_DELAY_TICKS, () -> echo(player, said));
+        }
+    }
+
+    /**
+     * The echo shard set in a held wand repeats what its bearer just said (docs/varinhas-design.md), word for word:
+     * {@code igni vocant iactare} as itself, a lone {@code surgit} as a lone surgit. The echo is cast as the mage's own
+     * spell, through the same wand, but it does not wait for the spelling to recover and is not echoed again.
+     */
+    private void echo(ServerPlayer player, List<String> said) {
+        if (!player.isAlive() || player.hasDisconnected() || !WandItem.holdsEcho(player)) {
+            return;
+        }
+        long now = Util.getMillis();
+        SpellCastResponse response = process(player, said, now, now, true);
         SpellingNetwork.sendSpellCastResult(player, SpellFeedback.forPlayer(player, response));
     }
 
     private SpellCastResponse process(ServerPlayer player,
                                       List<String> runes,
                                       long activationTimestampMs,
-                                      long now) {
+                                      long now,
+                                      boolean echoing) {
         if (runes.isEmpty()) {
             return applyFailure(player, Component.literal("Spell requer ao menos um termo."), now, false, runes);
         }
@@ -113,7 +137,7 @@ public final class ServerSpellingController {
         if (elapsed > MAX_LATENCY_MS) {
             return applyFailure(player, Component.literal("Entrada expirou devido a latencia."), now, true, runes);
         }
-        long cooldownRemaining = remainingCooldown(player, now);
+        long cooldownRemaining = echoing ? 0L : remainingCooldown(player, now);
         if (cooldownRemaining > 0L) {
             return SpellCastResponse.cooldown(Component.literal("Spelling recarregando."), cooldownRemaining);
         }

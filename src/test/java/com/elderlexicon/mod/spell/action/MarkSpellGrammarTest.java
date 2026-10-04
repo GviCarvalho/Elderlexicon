@@ -64,6 +64,17 @@ class MarkSpellGrammarTest {
     }
 
     @Test
+    void aSourceInvokedIntoAMarkedWandKeepsItsQuantity() {
+        // docs/varinhas-design.md 3.1: the gem of the wand marked v1 is filled by invoking the source into it.
+        SpellActionResult result = parse("vis quantum 20 v1 ubis vocant");
+        assertFalse(result.hasIssues(), "Unexpected issues: " + result.issues());
+        SpellAction vocant = onlyFunction(result);
+        assertEquals(Optional.of(SpellPlace.mark("v1")), vocant.place());
+        assertEquals(20.0D, vocant.quantity().orElseThrow());
+        assertEquals(Optional.empty(), vocant.subjectMark());
+    }
+
+    @Test
     void oneNumberIsADistanceAndTheSourceStaysTheSubject() {
         SpellActionResult result = parse("igni 10 ubis vocant");
 

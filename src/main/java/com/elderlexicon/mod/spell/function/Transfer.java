@@ -69,21 +69,36 @@ final class Transfer {
             around = origin.get().point();
         }
         Optional<SpellPlace> place = action.place();
-        Optional<MarkSpells.Destination> written = place.isPresent()
+        // Matter taken into a marked wand goes into its gem (docs/varinhas-design.md, 3.1); what the gem does not take
+        // is put down where the wand is.
+        Optional<SettingCharge.Bearer> gem = SettingCharge.find(level.getServer(), place);
+        Optional<MarkSpells.Destination> written = gem.isPresent()
+                ? gem.map(SettingCharge.Bearer::destination)
+                : place.isPresent()
                 ? MarkSpells.destination(context, place, MarkSpells.SUMMON_RANGE)
                 : Optional.empty();
         if (place.isPresent() && written.isEmpty()) {
             return;
         }
-        List<Matter> taken = take(level, player, BlockPos.containing(around), state.get(),
+        if (gem.isPresent() && gem.get().holder().level() != level) {
+            MarkSpells.tell(player, "Esse lugar esta em outra dimensao.");
+            return;
+        }
+        List<Matter> all = take(level, player, BlockPos.containing(around), state.get(),
                 action.quantity().orElse(DEFAULT_UMU));
-        double moved = taken.stream().mapToDouble(Matter::umu).sum();
+        double moved = all.stream().mapToDouble(Matter::umu).sum();
         if (moved <= 0.0D) {
             MarkSpells.tell(player, "Nao ha " + element.runeId() + " ao alcance para trazer.");
             return;
         }
         // The matter is moved, not made: the world gives it, and the mage pays only the spirit's work of moving it.
         context.addAmbientEnergy(element, Math.min(moved, context.payableCost()));
+        List<Matter> taken = gem.isPresent() && !action.handsOn()
+                ? leftOver(all, moved, SettingCharge.charge(player, gem.get(), element, moved))
+                : all;
+        if (taken.isEmpty()) {
+            return;
+        }
         String rune = context.elementRuneId();
         context.handOn(null); // what an earlier verb left is not handed on past this one
         if (action.handsOn()) {
@@ -109,6 +124,15 @@ final class Transfer {
         SpellEffects.SpellImpact landing = destination(player, written);
         Quickening.offer(level, player, landing.location(), taken,
                 () -> put(context, player, element, rune, landing, taken));
+    }
+
+    /** What is left of the matter taken once a gem took its share: every portion, in the same proportion. */
+    private static List<Matter> leftOver(List<Matter> taken, double moved, double left) {
+        if (left <= 1.0E-4D || moved <= 0.0D) {
+            return List.of();
+        }
+        double share = Math.min(1.0D, left / moved);
+        return taken.stream().map(matter -> matter.withUmu(matter.umu() * share)).toList();
     }
 
     /** What all the matter taken is like together, each portion counting by its UMU. */

@@ -157,6 +157,11 @@ public final class SpellCastingService {
                         .append(SpellCostCalculator.formatCost(environmentalContribution))
                         .append(" UMU");
             }
+            if (context.reserveContribution() > EPSILON) {
+                descriptor.append(" | Engaste: ")
+                        .append(SpellCostCalculator.formatCost(context.reserveContribution()))
+                        .append(" UMU");
+            }
             if (absorbed > EPSILON) {
                 descriptor.append(" | Absorvido: ")
                         .append(SpellCostCalculator.formatCost(absorbed))

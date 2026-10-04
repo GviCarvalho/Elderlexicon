@@ -1,18 +1,51 @@
 {
   "parent": "minecraft:item/handheld",
   "textures": {
-    "layer0": "minecraft:item/stick"
+    "layer0": "minecraft:item/stick",
+    "layer1": "elderlexicon:item/wand_grip"
   },
   "display": {
     "firstperson_righthand": {
-      "rotation": [0, 90, -55],
-      "translation": [0, 4, 0],
-      "scale": [1, 1, 1]
+      "rotation": [
+        0,
+        90,
+        -55
+      ],
+      "translation": [
+        0,
+        4,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
     },
     "firstperson_lefthand": {
-      "rotation": [0, -90, 55],
-      "translation": [0, 4, 0],
-      "scale": [1, 1, 1]
+      "rotation": [
+        0,
+        -90,
+        55
+      ],
+      "translation": [
+        0,
+        4,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
     }
-  }
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "elderlexicon:setting": 1
+      },
+      "model": "elderlexicon:item/wand_set"
+    }
+  ]
 }

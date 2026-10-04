@@ -1,70 +1,72 @@
 package com.elderlexicon.mod.spelling.recipe;
 
 import com.elderlexicon.mod.ElderLexicon;
+import com.elderlexicon.mod.magic.lexicon.Foci;
 import com.elderlexicon.mod.spelling.item.ModularWandItem;
+import com.elderlexicon.mod.spelling.item.WandItem;
+import com.elderlexicon.mod.spelling.item.WandParts;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CustomRecipe;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
+import net.minecraft.world.item.crafting.CustomRecipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.level.Level;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Assembles a wand at the crafting table (docs/varinhas-design.md): a wand with the parts it still lacks. A haste takes a
+ * grip, a gem, or both; a wand with a grip takes a gem; a haste with a gem takes a grip. A part already there is never
+ * changed here: a wand with a grip takes no other grip, nor a wand with a gem another gem.
+ */
 public final class WandUpgradeRecipe extends CustomRecipe {
 
-    private static final Map<Item, Item> RESULT_MAP = Map.of(
+    private static final Map<Item, Item> HELD_WAND_OF = Map.of(
             ElderLexicon.IMPROVISED_WAND.get(), ElderLexicon.WAND.get(),
             ElderLexicon.IMPROVISED_WAND_BONE.get(), ElderLexicon.WAND_BONE.get(),
             ElderLexicon.IMPROVISED_WAND_BAMBOO.get(), ElderLexicon.WAND_BAMBOO.get(),
             ElderLexicon.IMPROVISED_WAND_BLAZE.get(), ElderLexicon.WAND_BLAZE.get()
     );
 
-    private static final List<WoodMapping> WOOD_MAPPINGS = List.of(
-            new WoodMapping(ItemTags.OAK_LOGS, "oak"),
-            new WoodMapping(ItemTags.BIRCH_LOGS, "birch"),
-            new WoodMapping(ItemTags.MANGROVE_LOGS, "mangrove"),
-            new WoodMapping(ItemTags.ACACIA_LOGS, "acacia"),
-            new WoodMapping(ItemTags.DARK_OAK_LOGS, "dark_oak"),
-            new WoodMapping(ItemTags.CHERRY_LOGS, "cherry"),
-            new WoodMapping(ItemTags.SPRUCE_LOGS, "spruce"),
-            new WoodMapping(ItemTags.CRIMSON_STEMS, "crimson"),
-            new WoodMapping(ItemTags.WARPED_STEMS, "warped")
-    );
-
-    public WandUpgradeRecipe(ResourceLocation id, net.minecraft.world.item.crafting.CraftingBookCategory category) {
+    public WandUpgradeRecipe(ResourceLocation id, CraftingBookCategory category) {
         super(id, category);
     }
 
     @Override
     public boolean matches(CraftingContainer container, Level level) {
-        return findUpgrade(container).isPresent();
+        return findAssembly(container).isPresent();
     }
 
     @Override
     public ItemStack assemble(CraftingContainer container, RegistryAccess registryAccess) {
-        return createResult(container);
-    }
-
-    private ItemStack createResult(CraftingContainer container) {
-        Optional<Result> upgrade = findUpgrade(container);
-        if (upgrade.isEmpty()) {
+        Optional<Assembly> found = findAssembly(container);
+        if (found.isEmpty()) {
             return ItemStack.EMPTY;
         }
-        Result result = upgrade.get();
-        ItemStack stack = new ItemStack(result.output());
-        if (stack.getItem() instanceof ModularWandItem wandItem) {
-            wandItem.applyMaterial(stack, result.materialId());
+        Assembly assembly = found.get();
+        ItemStack given = assembly.wand();
+        ItemStack result;
+        if (assembly.grip() != null) {
+            result = new ItemStack(HELD_WAND_OF.get(given.getItem()));
+            WandItem.carrySetting(given, result);
+            if (given.hasCustomHoverName()) {
+                result.setHoverName(given.getHoverName());
+            }
+            if (result.getItem() instanceof ModularWandItem wand) {
+                wand.applyGrip(result, assembly.grip().id());
+            }
+        } else {
+            result = given.copyWithCount(1);
         }
-        return stack;
+        if (assembly.setting() != null && result.getItem() instanceof WandItem wand) {
+            wand.applySetting(result, assembly.setting());
+        }
+        return result;
     }
 
     @Override
@@ -82,60 +84,54 @@ public final class WandUpgradeRecipe extends CustomRecipe {
         return ElderLexicon.WAND_UPGRADE_SERIALIZER.get();
     }
 
-    private Optional<Result> findUpgrade(CraftingContainer container) {
+    private Optional<Assembly> findAssembly(CraftingContainer container) {
         ItemStack wand = ItemStack.EMPTY;
-        ItemStack log = ItemStack.EMPTY;
+        Foci.Grip grip = null;
+        Foci.Setting setting = null;
         for (int i = 0; i < container.getContainerSize(); i++) {
             ItemStack stack = container.getItem(i);
             if (stack.isEmpty()) {
                 continue;
             }
-            if (RESULT_MAP.containsKey(stack.getItem())) {
+            if (stack.getItem() instanceof WandItem) {
                 if (!wand.isEmpty()) {
                     return Optional.empty();
                 }
                 wand = stack;
                 continue;
             }
-            if (isLog(stack)) {
-                if (!log.isEmpty()) {
+            Optional<Foci.Grip> asGrip = WandParts.gripOf(stack);
+            if (asGrip.isPresent()) {
+                if (grip != null) {
                     return Optional.empty();
                 }
-                log = stack;
+                grip = asGrip.get();
+                continue;
+            }
+            Optional<Foci.Setting> asSetting = WandParts.settingOf(stack);
+            if (asSetting.isPresent()) {
+                if (setting != null) {
+                    return Optional.empty();
+                }
+                setting = asSetting.get();
                 continue;
             }
             return Optional.empty();
         }
-        if (wand.isEmpty() || log.isEmpty()) {
+        if (wand.isEmpty() || (grip == null && setting == null)) {
             return Optional.empty();
         }
-        Item resultItem = RESULT_MAP.get(wand.getItem());
-        if (resultItem == null) {
+        // Only a haste with no grip yet takes one: a wand with a grip keeps it until it breaks.
+        if (grip != null && !HELD_WAND_OF.containsKey(wand.getItem())) {
             return Optional.empty();
         }
-        String materialId = woodMaterial(log);
-        if (materialId.isEmpty()) {
+        // Nor does a wand with a gem take another here.
+        if (setting != null && ((WandItem) wand.getItem()).hasSetting(wand)) {
             return Optional.empty();
         }
-        return Optional.of(new Result(resultItem, materialId));
+        return Optional.of(new Assembly(wand, grip, setting));
     }
 
-    private static boolean isLog(ItemStack stack) {
-        return !woodMaterial(stack).isEmpty();
-    }
-
-    private static String woodMaterial(ItemStack stack) {
-        for (WoodMapping mapping : WOOD_MAPPINGS) {
-            if (stack.is(mapping.tag())) {
-                return mapping.materialId();
-            }
-        }
-        return "";
-    }
-
-    private record WoodMapping(TagKey<Item> tag, String materialId) {
-    }
-
-    private record Result(Item output, String materialId) {
+    private record Assembly(ItemStack wand, Foci.Grip grip, Foci.Setting setting) {
     }
 }
