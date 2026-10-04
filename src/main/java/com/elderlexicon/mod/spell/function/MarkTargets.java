@@ -24,6 +24,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -71,6 +72,11 @@ final class MarkTargets {
             return new Marked(mark, level, null, pos.immutable(), massOf(state), null, Vec3.atCenterOf(pos));
         }
 
+        /** Only a point where something was (a creature that died, a block broken): a place, and nothing to act on. */
+        static Marked point(String mark, ServerLevel level, Vec3 at) {
+            return new Marked(mark, level, null, null, 1.0D, null, at);
+        }
+
         boolean isBlock() {
             return blockPos != null;
         }
@@ -93,6 +99,11 @@ final class MarkTargets {
 
     /** Everything that carries {@code mark}; empty when nothing does (or Ligabis is not running). */
     static List<Marked> find(MinecraftServer server, String mark) {
+        // What a referent rune was bound to when its line was cast (ego, ille) answers before any mark of the world.
+        Optional<List<Marked>> scene = SceneMarks.find(server, mark);
+        if (scene.isPresent()) {
+            return new ArrayList<>(scene.get());
+        }
         LigabisManager manager = LigabisManager.get();
         List<Marked> found = new ArrayList<>();
         if (manager == null || server == null) {
@@ -163,7 +174,7 @@ final class MarkTargets {
         for (Marked thing : things) {
             ChunkPos chunk = new ChunkPos(BlockPos.containing(thing.position));
             thing.level.getChunkSource().addRegionTicket(TICKET, chunk, 2, chunk);
-            if (!thing.isBlock() && thing.entity == null) {
+            if (!thing.isBlock() && thing.entity == null && thing.entityId != null) {
                 waiting.add(thing);
             }
         }

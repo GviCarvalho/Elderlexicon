@@ -1,7 +1,10 @@
 package com.elderlexicon.mod.spelling.flow;
 
 import com.elderlexicon.mod.ElderLexicon;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
@@ -42,14 +45,15 @@ public final class FlowEvents {
     @SubscribeEvent
     public static void onAttack(AttackEntityEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            happen(player, Happenings.ATTACK);
+            happen(player, Happenings.ATTACK, new Happenings.OtherEntity(event.getTarget()));
         }
     }
 
     @SubscribeEvent
     public static void onHurt(LivingHurtEvent event) {
         if (event.getEntity() instanceof ServerPlayer player && event.getAmount() > 0.0F) {
-            happen(player, Happenings.HURT);
+            Entity hurter = event.getSource().getEntity();
+            happen(player, Happenings.HURT, hurter == null || hurter == player ? null : new Happenings.OtherEntity(hurter));
         }
     }
 
@@ -59,7 +63,9 @@ public final class FlowEvents {
             FlowState.leave(dead, null);
         }
         if (event.getSource().getEntity() instanceof ServerPlayer killer && killer != event.getEntity()) {
-            happen(killer, Happenings.KILL);
+            // The creature is dying: what is left of it is where it fell.
+            happen(killer, Happenings.KILL,
+                    new Happenings.OtherPoint((ServerLevel) event.getEntity().level(), event.getEntity().position()));
         }
     }
 
@@ -79,8 +85,10 @@ public final class FlowEvents {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onBreak(BlockEvent.BreakEvent event) {
-        if (!event.isCanceled() && event.getPlayer() instanceof ServerPlayer player) {
-            happen(player, Happenings.BREAK);
+        if (!event.isCanceled() && event.getPlayer() instanceof ServerPlayer player
+                && event.getLevel() instanceof ServerLevel level) {
+            // The block is going: what is left of it is where it was.
+            happen(player, Happenings.BREAK, new Happenings.OtherPoint(level, Vec3.atCenterOf(event.getPos())));
         }
     }
 
@@ -93,8 +101,15 @@ public final class FlowEvents {
 
     @SubscribeEvent
     public static void onUseOnBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getEntity() instanceof ServerPlayer player && event.getLevel() instanceof ServerLevel level) {
+            happen(player, Happenings.USE, new Happenings.OtherBlock(level, event.getPos()));
+        }
+    }
+
+    @SubscribeEvent
+    public static void onUseOnEntity(PlayerInteractEvent.EntityInteract event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            happen(player, Happenings.USE);
+            happen(player, Happenings.USE, new Happenings.OtherEntity(event.getTarget()));
         }
     }
 
@@ -107,7 +122,11 @@ public final class FlowEvents {
     }
 
     private static void happen(ServerPlayer player, String trigger) {
-        Happenings.mark(player, trigger);
+        happen(player, trigger, null);
+    }
+
+    private static void happen(ServerPlayer player, String trigger, Happenings.Other other) {
+        Happenings.mark(player, trigger, other);
         FlowState.happen(player, trigger);
     }
 }

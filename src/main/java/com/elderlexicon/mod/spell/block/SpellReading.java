@@ -65,7 +65,9 @@ public final class SpellReading {
         return switch (kind) {
             case EMPTY -> note("reading.title.empty", Map.of());
             case NUMBER -> note("reading.title.number", Map.of("n", rune));
-            case MARK -> note("reading.title.mark", Map.of("mark", rune));
+            case MARK -> lexicon().isReferent(rune)
+                    ? note("reading.title.rune", Map.of("rune", rune, "name", lexicon().rune(rune).orElseThrow().name()))
+                    : note("reading.title.mark", Map.of("mark", rune));
             case NAMED -> note("reading.title.named", Map.of("name", rune));
             case SOURCE -> note("reading.title.rune", Map.of("rune", rune, "name", nameOf(lexicon().rune(rune).orElseThrow())));
             case CONDITION -> note("reading.title.rune", Map.of("rune", rune, "name", lexicon().rune(rune).orElseThrow().name()));
@@ -85,7 +87,11 @@ public final class SpellReading {
 
     private String role(List<String> ids, int at) {
         String rune = ids.get(at);
-        return switch (kindOf(rune)) {
+        if (lexicon().isReferent(rune)) {
+            String what = lexicon().rune(rune).flatMap(found -> found.text("role")).orElseGet(() -> lore(rune));
+            return Referents.speak(lexicon(), what + " " + markRole(ids, at));
+        }
+        return Referents.speak(lexicon(), switch (kindOf(rune)) {
             case EMPTY -> note("reading.empty", Map.of());
             case NUMBER -> numberRole(ids, at);
             case MARK -> markRole(ids, at);
@@ -94,7 +100,7 @@ public final class SpellReading {
             case FILTER -> filterRole(ids, at);
             case FUNCTION -> functionRole(ids, at);
             case CONDITION -> lexicon().rune(rune).flatMap(found -> found.text("role")).orElseGet(() -> lore(rune));
-        };
+        });
     }
 
     private String numberRole(List<String> ids, int at) {
@@ -245,6 +251,8 @@ public final class SpellReading {
             case FILTER -> Kind.FILTER;
             case VERB -> Kind.FUNCTION;
             case CONDITION -> Kind.CONDITION;
+            // Something of the scene stands where a mark would, and is read as one by the words around it.
+            case REFERENT -> Kind.MARK;
         }).orElse(Kind.MARK);
     }
 

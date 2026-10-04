@@ -111,6 +111,9 @@ public final class LexiconReader {
                             null))
                     .orElseGet(() -> ConditionSpec.of(string(json, "trigger").orElseThrow(
                             () -> new IllegalArgumentException("condition '" + id + "' has no trigger nor logic")))));
+            case REFERENT -> builder.referent(new ReferentSpec(string(json, "refers")
+                    .flatMap(ReferentSpec.Refers::parse)
+                    .orElseThrow(() -> new IllegalArgumentException("referent '" + id + "' says not what it refers to"))));
         }
         return builder.build();
     }

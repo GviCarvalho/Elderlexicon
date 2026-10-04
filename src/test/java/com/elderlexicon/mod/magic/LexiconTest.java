@@ -29,9 +29,9 @@ class LexiconTest {
 
     @Test
     void theLanguageIsSmall() {
-        assertEquals(30, LEXICON.runes().size(),
-                "five sources, seven verbs, four filters, twelve conditions and two words joining them: the rest is "
-                        + "composition");
+        assertEquals(32, LEXICON.runes().size(),
+                "five sources, seven verbs, four filters, twelve conditions, two words joining them and two of the "
+                        + "scene: the rest is composition");
     }
 
     @Test
@@ -46,6 +46,8 @@ class LexiconTest {
         more.forEach((rune, trigger) -> assertEquals(trigger, LEXICON.triggerOf(rune).orElseThrow(), rune));
         assertTrue(LEXICON.rune("ferit").orElseThrow().is(WordClass.CONDITION));
         assertFalse(LEXICON.isCondition("igni"));
+        assertEquals(com.elderlexicon.mod.magic.lexicon.ReferentSpec.Refers.CASTER, LEXICON.referentOf("ego").orElseThrow());
+        assertEquals(com.elderlexicon.mod.magic.lexicon.ReferentSpec.Refers.SCENE, LEXICON.referentOf("ille").orElseThrow());
     }
 
     @Test
@@ -95,6 +97,8 @@ class LexiconTest {
         assertEquals("mergitur", Glyphs.runeForGlyph((char) 0xE011).orElseThrow());
         assertEquals((char) 0xE012, Glyphs.glyphForRune("aut").orElseThrow());
         assertEquals("non", Glyphs.runeForGlyph((char) 0xE013).orElseThrow());
+        assertEquals((char) 0xE014, Glyphs.glyphForRune("ego").orElseThrow());
+        assertEquals("ille", Glyphs.runeForGlyph((char) 0xE015).orElseThrow());
         for (Rune rune : LEXICON.runes()) {
             assertTrue(rune.glyph().isPresent(), rune.id() + ": every rune of the language has its glyph");
         }

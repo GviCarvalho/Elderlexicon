@@ -63,7 +63,8 @@ public final class SpellCastingService {
     /** @param costFactor what the spell costs as a share of its own cost (a circle read from afar costs more) */
     public Result cast(ServerPlayer player, List<String> rawLexemes, double costFactor) {
         Objects.requireNonNull(player, "player");
-        List<String> lexemes = sanitizeLexemes(rawLexemes);
+        // ego and ille point at the scene of this very casting: they are bound now, as the line is cast.
+        List<String> lexemes = com.elderlexicon.mod.spelling.flow.SceneWords.bind(player, sanitizeLexemes(rawLexemes));
         if (lexemes.isEmpty()) {
             return Result.failure(Component.literal("Spell requer ao menos um termo."));
         }

@@ -1,8 +1,15 @@
 package com.elderlexicon.mod.spelling.flow;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Optional;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -53,15 +60,70 @@ public final class Happenings {
     }
 
     private static final Map<UUID, Map<String, Long>> LAST = new ConcurrentHashMap<>();
+    private static final Map<UUID, Map<String, Other>> OTHERS = new ConcurrentHashMap<>();
     private static final Map<UUID, Set<String>> HOLDING = new ConcurrentHashMap<>();
 
     private Happenings() {
     }
 
+    /**
+     * The other one of a happening, what {@code ille} points at: whom the mage struck, who hurt the mage, the creature
+     * that died (where it died), the block broken (where it was), what the mage used the item on.
+     */
+    public sealed interface Other permits OtherEntity, OtherBlock, OtherPoint {
+    }
+
+    public record OtherEntity(Entity entity) implements Other {
+    }
+
+    public record OtherBlock(ServerLevel level, BlockPos pos) implements Other {
+    }
+
+    public record OtherPoint(ServerLevel level, Vec3 at) implements Other {
+    }
+
     /** {@code trigger} happens to {@code player} now. */
     public static void mark(ServerPlayer player, String trigger) {
+        mark(player, trigger, null);
+    }
+
+    /** {@code trigger} happens to {@code player} now, with {@code other} as the other one of it (null: no one). */
+    public static void mark(ServerPlayer player, String trigger, @Nullable Other other) {
         LAST.computeIfAbsent(player.getUUID(), id -> new ConcurrentHashMap<>())
                 .put(trigger, player.serverLevel().getGameTime());
+        Map<String, Other> others = OTHERS.computeIfAbsent(player.getUUID(), id -> new ConcurrentHashMap<>());
+        if (other == null) {
+            others.remove(trigger);
+        } else {
+            others.put(trigger, other);
+        }
+    }
+
+    /**
+     * The other one of the most recent happening among {@code triggers} (any happening, when empty) that came within
+     * the last second and had one.
+     */
+    public static Optional<Other> recentOther(ServerPlayer player, Collection<String> triggers) {
+        Map<String, Long> last = LAST.get(player.getUUID());
+        Map<String, Other> others = OTHERS.get(player.getUUID());
+        if (last == null || others == null) {
+            return Optional.empty();
+        }
+        long now = player.serverLevel().getGameTime();
+        String best = null;
+        long bestAt = Long.MIN_VALUE;
+        for (Map.Entry<String, Other> entry : others.entrySet()) {
+            Long when = last.get(entry.getKey());
+            if (when == null || now - when > RECENT_TICKS
+                    || !triggers.isEmpty() && !triggers.contains(entry.getKey())) {
+                continue;
+            }
+            if (when > bestAt) {
+                best = entry.getKey();
+                bestAt = when;
+            }
+        }
+        return best == null ? Optional.empty() : Optional.of(others.get(best));
     }
 
     /** Whether {@code trigger} holds for {@code player} now: a state that lasts, or a happening of the last second. */
@@ -93,6 +155,7 @@ public final class Happenings {
 
     public static void forget(ServerPlayer player) {
         LAST.remove(player.getUUID());
+        OTHERS.remove(player.getUUID());
         HOLDING.remove(player.getUUID());
     }
 }

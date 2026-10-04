@@ -1,7 +1,7 @@
 # Glifos: como o alfabeto do mod cresce
 
 **Status:** implementado (04/10/2026). Glifos do mod até agora: `languet` (U+E010), `mergitur` (U+E011), `aut`
-(U+E012) e `non` (U+E013).
+(U+E012), `non` (U+E013), `ego` (U+E014) e `ille` (U+E015).
 
 O alfabeto SGA tem 26 letras, e elas acabaram: A–P são as runas do livro, Q–Z as condições. `languet` e `mergitur`
 já nasceram sem glifo, e mais runas virão. Este plano diz onde os glifos novos moram, como se desenham, como entram no
@@ -63,6 +63,7 @@ em cima à direita, o `T` embaixo à direita, o `C` em cima à esquerda e o `R` 
 | Verbo | em cima, à direita (4,0) |
 | Filtro | em cima, à esquerda (0,0) |
 | Condição | embaixo, à esquerda (0,6) |
+| Cena (`ego`, `ille`) | no meio da base (2,6), como no `P` |
 
 Os três pixels vizinhos do ponto ficam vazios, para que ele se leia como ponto e não como parte do traço. O corpo do
 glifo ocupa o resto da caixa.
@@ -148,3 +149,5 @@ Nenhuma por enquanto.
    uma bolha). (04/10/2026)
 6. `aut` (U+E012, uma forquilha: dois ramos que se juntam, e a haste segue depois de uma pausa) e `non` (U+E013, uma
    barra cortada por uma diagonal), ambos com a marca de condição. (04/10/2026)
+7. Quinta família, a das runas de cena: o ponto no meio da base (2,6), como no `P`. `ego` (U+E014, um anel aberto
+   dos lados) e `ille` (U+E015, uma mira com o centro vazio). (04/10/2026)

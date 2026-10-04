@@ -93,6 +93,13 @@ public final class SpellGrammar {
                 // Whether the line holds is no part of what it does (docs/fluxo-design.md).
                 continue;
             }
+            if (rune.isPresent() && rune.get().is(WordClass.REFERENT)) {
+                // Something of the scene stands where a mark would; it is bound when the line is cast.
+                if (!binding) {
+                    tokens.add(new Token(lexeme, null, false, SpellWords.Kind.MARK));
+                }
+                continue;
+            }
             if (rune.isPresent()) {
                 tokens.add(Token.rune(lexeme, rune.get(), false));
                 continue;

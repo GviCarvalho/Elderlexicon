@@ -20,7 +20,12 @@ public enum WordClass {
      * A condition: an "if" read with the line ({@code ferit}: if the mage just struck). It is no part of the spell
      * itself; the line is cast only while it holds, and in flow its happening wakes the line (docs/fluxo-design.md).
      */
-    CONDITION;
+    CONDITION,
+    /**
+     * A referent: something of the scene, standing where a mark would ({@code ego}: the one who casts; {@code ille}:
+     * whom the mage just struck). It is read as a mark bound to that thing when the line is cast.
+     */
+    REFERENT;
 
     /** Reads a class as the lexicon writes it; the older name {@code function} still counts. */
     public static Optional<WordClass> parse(String raw) {
@@ -32,6 +37,7 @@ public enum WordClass {
             case "verb", "function" -> Optional.of(VERB);
             case "filter" -> Optional.of(FILTER);
             case "condition" -> Optional.of(CONDITION);
+            case "referent" -> Optional.of(REFERENT);
             default -> Optional.empty();
         };
     }
