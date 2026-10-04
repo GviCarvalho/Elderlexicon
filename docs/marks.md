@@ -14,3 +14,9 @@ Ou use o **Elder Brush**: segure o item, clique com botao direito em um bloco/en
 ### Uso com Ligabis
 - Ao lancar `ligabis` sem especificar Mark apos a runa, o feitiço tentara usar a Mark persistente do alvo (entidade, item dropado ou bloco-entidade). Se nao encontrar, a criacao falha.
 - Marcas definidas pelo comando nao expiram; use `/data remove ... elderlexicon:mark` para limpar.
+
+## Nome na bigorna
+
+Renomear um item na bigorna dá a ele a marca do nome (docs/varinhas-design.md): minúsculas, espaços como `_`, só
+letras, números e `_` ("Varinha do Gui" vira `varinha_do_gui`). Um nome que não pode ser escrito como marca (uma letra
+só, só números, ou uma runa) não marca. Tirar o nome tira a marca que ele deu; uma marca escrita de outro jeito fica.

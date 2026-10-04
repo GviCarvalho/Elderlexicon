@@ -182,6 +182,9 @@ public class ElderLexicon {
                         output.accept(WAND_BAMBOO.get());
                         output.accept(WAND_BLAZE.get());
                         output.accept(CREATIVE_WAND.get());
+
+                        output.accept(com.elderlexicon.mod.galdraria.Galdraria.TABLE_ITEM.get());
+                        output.accept(com.elderlexicon.mod.galdraria.Galdraria.BURIN.get());
                     })
                     .build());
 
@@ -192,6 +195,7 @@ public class ElderLexicon {
         ITEMS.register(modEventBus);
         ENTITY_TYPES.register(modEventBus);
         MatterBlocks.register(modEventBus);
+        com.elderlexicon.mod.galdraria.Galdraria.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
         RECIPE_SERIALIZERS.register(modEventBus);
 

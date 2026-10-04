@@ -64,13 +64,15 @@ public final class ParserDictionary {
         SOURCE,
         FUNCTION,
         SHAPE,
-        FILTER;
+        FILTER,
+        CONDITION;
 
         static RuneType of(WordClass wordClass) {
             return switch (wordClass) {
                 case SOURCE -> SOURCE;
                 case VERB -> FUNCTION;
                 case FILTER -> FILTER;
+                case CONDITION -> CONDITION;
             };
         }
     }

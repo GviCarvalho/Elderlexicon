@@ -4,7 +4,7 @@
 > itself is the final living focus." (Grimório de EVL, 9.3)
 
 **Status:** etapas 1, 2 e 3 implementadas (04/10/2026): as partes, a reserva, a bigorna, a recarga por marca e o eco.
-A galdraria é a próxima. A seção 8 diz como ficou.
+A gravação está em docs/galdraria-design.md. A seção 8 diz como ficou.
 
 ## Termos
 
@@ -149,6 +149,7 @@ recarga usa a gramática que já existe: invocar a fonte **no lugar da marca**, 
     o próprio spell, sempre; não há botão. (04/10/2026)
 12. A netherita é **empunhadura** (igni e firmo), não engaste. (04/10/2026)
 13. Na bancada, a varinha recebe a peça que ainda não tem, em qualquer ordem; a que já tem não muda. (04/10/2026)
+14. Renomear um item na bigorna dá a ele a marca do nome (`AnvilNaming`; docs/marks.md). (04/10/2026)
 
 ## 8. Como as etapas 1, 2 e 3 ficaram
 

@@ -28,7 +28,18 @@ class LexiconTest {
 
     @Test
     void theLanguageIsSmall() {
-        assertEquals(16, LEXICON.runes().size(), "five sources, seven verbs and four filters: the rest is composition");
+        assertEquals(19, LEXICON.runes().size(),
+                "five sources, seven verbs, four filters and three conditions: the rest is composition");
+    }
+
+    @Test
+    void theConditionsWaitForTheBody() {
+        // docs/fluxo-design.md: a condition says when a line wakes in flow, and is no part of the spell.
+        assertEquals("attack", LEXICON.triggerOf("ferit").orElseThrow());
+        assertEquals("hurt", LEXICON.triggerOf("patitur").orElseThrow());
+        assertEquals("kill", LEXICON.triggerOf("necat").orElseThrow());
+        assertTrue(LEXICON.rune("ferit").orElseThrow().is(WordClass.CONDITION));
+        assertFalse(LEXICON.isCondition("igni"));
     }
 
     @Test
@@ -58,7 +69,10 @@ class LexiconTest {
         assertEquals('Q', Glyphs.glyphForRune("0").orElseThrow());
         assertEquals("9", Glyphs.runeForGlyph('Z').orElseThrow());
         for (Rune rune : LEXICON.runes()) {
-            assertTrue(rune.glyph().isPresent(), rune.id() + ": every rune of the language has its glyph");
+            // The conditions wait for the numbers to leave Q to Z before they get a letter (docs/fluxo-design.md).
+            if (!rune.is(WordClass.CONDITION)) {
+                assertTrue(rune.glyph().isPresent(), rune.id() + ": every rune of the language has its glyph");
+            }
         }
     }
 

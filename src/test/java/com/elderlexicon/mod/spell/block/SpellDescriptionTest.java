@@ -38,6 +38,15 @@ class SpellDescriptionTest {
     }
 
     @Test
+    void aConditionSaysWhenTheLineHolds() {
+        SpellDescription.Text text = new SpellDescription(DICTIONARY, Map.of())
+                .describe(page("ferit patitur igni iactare"));
+        assertTrue(text.paragraphs().get(0).startsWith(
+                        "Se quem conjura acabou de golpear algo e quem conjura acabou de ser ferido: Usa 10 UMU de fogo"),
+                text.paragraphs().toString());
+    }
+
+    @Test
     void aCondensedCaptureIsDescribedAndNamed() {
         SpellDescription.Text text = new SpellDescription(DICTIONARY, Map.of())
                 .describe(page("C F N O Q I"));

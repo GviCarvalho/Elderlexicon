@@ -27,11 +27,20 @@ public final class SpellingKeyMappings {
 			CATEGORY
 	);
 
+	/** Enters the state of flow, or leaves it (docs/fluxo-design.md). */
+	public static final KeyMapping FLOW_KEY = new KeyMapping(
+			"key.elderlexicon.flow",
+			InputConstants.Type.KEYSYM,
+			GLFW.GLFW_KEY_G,
+			CATEGORY
+	);
+
 	private SpellingKeyMappings() {
 	}
 
 	public static void register(RegisterKeyMappingsEvent event) {
 		event.register(SPELLING_KEY);
 		event.register(REPERTOIRE_KEY);
+		event.register(FLOW_KEY);
 	}
 }

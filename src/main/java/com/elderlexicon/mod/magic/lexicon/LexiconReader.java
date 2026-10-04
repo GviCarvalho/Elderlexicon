@@ -105,6 +105,8 @@ public final class LexiconReader {
             case SOURCE -> builder.source(source(id, json));
             case VERB -> builder.verb(verb(id, json));
             case FILTER -> builder.filter(filter(id, json));
+            case CONDITION -> builder.condition(new ConditionSpec(string(json, "trigger")
+                    .orElseThrow(() -> new IllegalArgumentException("condition '" + id + "' has no trigger"))));
         }
         return builder.build();
     }

@@ -2,6 +2,7 @@ package com.elderlexicon.mod.spelling.client;
 
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spelling.item.SpellScrollItem;
+import com.elderlexicon.mod.spelling.network.SpellingNetwork;
 import com.elderlexicon.mod.spelling.render.SpellMapHelper;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.math.Axis;
@@ -37,6 +38,9 @@ public final class SpellingClientForgeEvents {
         }
         Minecraft minecraft = Minecraft.getInstance();
         ClientSpellingController.getInstance().tick(minecraft);
+        if (minecraft.player == null) {
+            ClientFlow.set(false);
+        }
     }
 
     @SubscribeEvent
@@ -55,6 +59,13 @@ public final class SpellingClientForgeEvents {
             } else if (event.getAction() == GLFW.GLFW_RELEASE) {
                 controller.handleSpellingKeyReleased(minecraft);
             }
+            cancel(event);
+            return;
+        }
+
+        if (SpellingKeyMappings.FLOW_KEY.isActiveAndMatches(key) && event.getAction() == GLFW.GLFW_PRESS
+                && minecraft.screen == null) {
+            SpellingNetwork.sendFlowToggle();
             cancel(event);
             return;
         }

@@ -13,6 +13,9 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
+import com.elderlexicon.mod.spell.mark.SpellWords;
+
 import java.util.Locale;
 import java.util.Optional;
 
@@ -107,6 +110,32 @@ public final class MarkHelper {
         LigabisManager manager = LigabisManager.get();
         boolean kept = manager != null && manager.blockMarkChanged(level, pos, mark);
         return blockEntity != null || kept;
+    }
+
+    /**
+     * The mark a name given at the anvil makes: lower case, spaces as {@code _}, and only letters, digits and {@code _}
+     * kept ("Varinha do Gui" is {@code varinha_do_gui}). Empty when what is left cannot be written as a mark: fewer than
+     * two characters, no letter, or a word of the language.
+     */
+    public static Optional<String> markFromName(String name) {
+        if (name == null) {
+            return Optional.empty();
+        }
+        String mark = name.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", "_").replaceAll("[^\\p{L}\\p{N}_]", "");
+        boolean written = SpellWords.classify(mark, word -> Lexicons.get().isRune(word)) == SpellWords.Kind.MARK;
+        return written ? Optional.of(mark) : Optional.empty();
+    }
+
+    /** Puts {@code mark} on an item (or takes its mark away, with {@code null}). */
+    public static void applyMark(ItemStack stack, String mark) {
+        if (stack == null || stack.isEmpty()) {
+            return;
+        }
+        String sanitized = sanitize(mark);
+        if (sanitized == null && stack.getTag() == null) {
+            return;
+        }
+        writeMark(stack.getOrCreateTag(), sanitized);
     }
 
     public static String sanitizeMark(String raw) {

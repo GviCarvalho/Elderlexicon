@@ -163,6 +163,16 @@ public final class Lexicon {
         return Optional.empty();
     }
 
+    /** The happening a condition rune waits for ({@code ferit}: {@code attack}), or empty for any other word. */
+    public Optional<String> triggerOf(String word) {
+        return rune(word).flatMap(Rune::condition).map(ConditionSpec::trigger);
+    }
+
+    /** Whether a word is a condition rune, an "if" on its line that is no part of the spell itself. */
+    public boolean isCondition(String word) {
+        return triggerOf(word).isPresent();
+    }
+
     /** Whether a word is a verb that binds ({@code ligabis}), reading its own aspect and marks. */
     public boolean isBinding(String word) {
         return verb(word).map(VerbSpec::binds).orElse(false);

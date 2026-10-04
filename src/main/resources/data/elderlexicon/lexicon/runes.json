@@ -21,6 +21,7 @@
     "reading.title.named": "Runa nomeada “{name}”",
     "reading.title.rune": "{rune} · {name}",
     "describe.blank": "Página em branco",
+    "describe.when": "Se {when}:",
     "describe.together": "Ao mesmo tempo, em {when} s:",
     "describe.released": "Solto em {when} s.",
     "describe.all": "toda a energia de {element}",
@@ -323,6 +324,31 @@
         "role.bare": "Do mundo: a fonte vem do que está ao alcance de quem conjura, e não do corpo.",
         "place.distance": "a {n} blocos na direção mirada",
         "place.mark": "perto do que tem a marca “{mark}”"
+      }
+    },
+
+    "ferit": {
+      "class": "condition", "translation": "strikes", "name": "golpear", "trigger": "attack",
+      "lore": "Condição: a linha só vale se quem conjura acabou de golpear algo. Em fluxo, o golpe desperta a linha.",
+      "texts": {
+        "role": "Esta linha só vale se quem conjura acabou de golpear algo (no último segundo); em fluxo, o golpe a desperta.",
+        "describe": "quem conjura acabou de golpear algo"
+      }
+    },
+    "patitur": {
+      "class": "condition", "translation": "suffers", "name": "sofrer", "trigger": "hurt",
+      "lore": "Condição: a linha só vale se quem conjura acabou de ser ferido. Em fluxo, o ferimento desperta a linha.",
+      "texts": {
+        "role": "Esta linha só vale se quem conjura acabou de ser ferido (no último segundo); em fluxo, o ferimento a desperta.",
+        "describe": "quem conjura acabou de ser ferido"
+      }
+    },
+    "necat": {
+      "class": "condition", "translation": "kills", "name": "matar", "trigger": "kill",
+      "lore": "Condição: a linha só vale se quem conjura acabou de matar uma criatura. Em fluxo, a morte desperta a linha.",
+      "texts": {
+        "role": "Esta linha só vale se quem conjura acabou de matar uma criatura (no último segundo); em fluxo, a morte a desperta.",
+        "describe": "quem conjura acabou de matar uma criatura"
       }
     }
   }

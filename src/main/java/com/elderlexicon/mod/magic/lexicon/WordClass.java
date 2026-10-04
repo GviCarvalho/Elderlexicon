@@ -15,7 +15,12 @@ public enum WordClass {
     /** A verb (the book's "function"): what the spirit does with what came before it ({@code iactare}). */
     VERB,
     /** A filter: how much, when or where ({@code quantum}, {@code chronos}, {@code ubis}). */
-    FILTER;
+    FILTER,
+    /**
+     * A condition: an "if" read with the line ({@code ferit}: if the mage just struck). It is no part of the spell
+     * itself; the line is cast only while it holds, and in flow its happening wakes the line (docs/fluxo-design.md).
+     */
+    CONDITION;
 
     /** Reads a class as the lexicon writes it; the older name {@code function} still counts. */
     public static Optional<WordClass> parse(String raw) {
@@ -26,6 +31,7 @@ public enum WordClass {
             case "source" -> Optional.of(SOURCE);
             case "verb", "function" -> Optional.of(VERB);
             case "filter" -> Optional.of(FILTER);
+            case "condition" -> Optional.of(CONDITION);
             default -> Optional.empty();
         };
     }
