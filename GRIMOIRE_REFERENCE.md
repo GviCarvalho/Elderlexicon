@@ -182,16 +182,18 @@ mixture does comes from what it holds.
 - **Codes.** Every natural thing has a code, the proportion it is made of: stone is mostly earth, with a little water,
   air and fire. Earth, water, air and fire are the four primordials, and §6 says what two of them make together. Every
   other code — stone, iron, wood, bone — is found by trying.
-- **Qualities.** Each element gives matter a quality in the proportion it is in it: earth weight, water cohesion, air
-  lightness, fire heat. Hot matter burns what touches it and kindles what is around; wet matter puts fire out; heavy
-  liquid is thick to wade through. A quality acts only once it is a real part of the matter: a little fire in stone does
-  not burn.
-- **Mixing.** Fluid matter (anything but a solid) poured where fluid matter is mixes with it. A mixture near a natural
-  thing's code *becomes* that thing; any other mixture is formless matter, which holds and acts by its qualities. Solids
-  do not mix; they are joined by `ligabis`.
-- **Opposites.** In a fluid, fire and water, and earth and air, react when each is a real part of it: as much of one as of
-  the other separates out as a gas, and the side that won stays. Fire poured into a pool boils it away; earth stirred
-  with air scatters as dust. A solid holds its parts still and does not react.
+- **Agitation, not names.** What matter does comes from its particles and how agitated they are (§6). The fire in a
+  thing's code is fuel, not heat: molten earth glows though it holds no fire, and burns what touches it, as lava does.
+  A liquid that does not burn puts out what burns in it, cutting its air; a liquid is as thick to wade through as its
+  particles hold together.
+- **Mixing.** Liquid poured where liquid is mixes with it, with the agitation each brought, and is then in the state
+  that agitation leaves it: water poured on lava quenches it into a solid that steams. A mixture near a natural thing's
+  code *becomes* that thing; any other mixture is formless matter, which holds its particles exactly. Solids do not
+  mix; they are joined by `ligabis`. What floats does not mix: fire poured into water is agitation that boils it, and
+  air bubbles out.
+- **Nothing reacts by rule.** Fire with no mass to hold it is agitation, and water with it boils; earth with more air
+  than it can hold flies as dust; a melt lets its water go as vapour. Matter that cannot stay as it is stirs the
+  drives where it is; matter that can rests, as a lake of lava does.
 - **The body keeps energy, not matter.** What the body absorbs loses what it was and enters it as the element of the
   state it was in; what leaves it with no code known is the primordial of its state (`firmo vocant` brings earth).
 - **Particles.** Matter is counted in particles, all worth the same: 256 make one UMU. A block of anything holds 4096
@@ -233,14 +235,15 @@ Marks can be custom runes (e.g., `SIGMA`) or sigillic symbols. Active links cons
 
 Two elements together make things, but no rune stands for them: magma is earth and fire, vapor water and fire, mud
 earth and water, dust earth and air, mist water and air, lightning air and fire. Each is a natural thing with its code
-(§5.3.1), made by bringing its elements together in one place: fire poured into water boils it into vapor, water poured
-into molten earth makes mud. The fused runes that once named them (`fusus`, `caligo`, `lutum`, `pulvis`, `nebula`,
-`fulmen`) left the language.
+(§5.3.1). Whether bringing them together makes one is the drives' to say: fire poured into water boils it into vapor,
+water poured on molten earth quenches it. The fused runes that once named them (`fusus`, `caligo`, `lutum`, `pulvis`,
+`nebula`, `fulmen`) left the language.
 
 Fire is agitation (docs/particulas-design.md, section 2). By itself, `igni vocant` holds one flame where it lands for
 a moment, with what the drives say a flame takes (about a third of a UMU). More fire holds more flames, `chronos` holds
 them longer, and what they do not spend returns to the body. What burns catches and burns away, water boils off, stone
-melts into lava and sets again, and air agitated past the face of the sun becomes lightning.
+melts into lava and sets again, and air agitated past the face of the sun becomes lightning: a block made all fire is
+lightning, not a fire.
 
 ---
 

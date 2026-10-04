@@ -3,6 +3,7 @@ package com.elderlexicon.mod.gametest;
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.magic.matter.Materials;
 import com.elderlexicon.mod.magic.matter.Matter;
+import com.elderlexicon.mod.magic.matter.State;
 import com.elderlexicon.mod.magic.matter.Substance;
 import com.elderlexicon.mod.spell.SpellCastingService;
 import com.elderlexicon.mod.spell.function.MarkHelper;
@@ -303,13 +304,14 @@ public final class SpellGameTests {
     }
 
     /**
-     * The chain the plan ends on (docs/plano-materia-e-forca.md, stage 5): stone made by mixing. Earth is melted, and
-     * into the molten earth go water, air and fire, a little of each, until the proportion is stone's (eight parts earth,
-     * half a part water, half a part air, one part fire): the mixture is molten stone, lava, which cools into stone.
-     * What a vocant brings waits for the end of the instant, so each step is looked at a moment after it.
+     * Water poured into molten earth quenches it (docs/particulas-design.md, stage 9): mixing keeps the agitation each
+     * brought, and earth just past its melting with a little cold water in it is solid. A hundred and twenty-eight of
+     * earth and eight of water are deepslate's code, so the melt sets into deepslate, still hot; and hot, it lets its
+     * water go as vapour at once, and what is left is earth. (Stone can no longer be mixed out of the primordials this
+     * way: the air poured in would bubble out, and the fire would only heat it.)
      */
     @GameTest(template = EMPTY, timeoutTicks = 100)
-    public static void stoneIsMadeByMixingThePrimordials(GameTestHelper helper) {
+    public static void waterPouredIntoMoltenEarthQuenchesIt(GameTestHelper helper) {
         for (int x = 0; x < 5; x++) {
             for (int z = 0; z < 5; z++) {
                 helper.setBlock(new BlockPos(x, 0, z), Blocks.GLASS); // glass is made: no matter to melt
@@ -334,32 +336,18 @@ public final class SpellGameTests {
                     check(helper, molten.size() == 8 && countIn(helper, Blocks.DIRT) == 0, "the soil did not melt: "
                             + molten.size() + " formless, " + countIn(helper, Blocks.DIRT) + " dirt left");
                 })
-                // Eight of water: 128 of earth and 8 of water are deepslate, molten.
+                // It can stay as it is: a moment later it is still molten.
+                .thenIdle(3)
+                .thenExecute(() -> check(helper, formlessIn(helper).size() == 8
+                        && formlessIn(helper).stream().allMatch(matter -> matter.state() == State.LIQUID),
+                        "the molten earth should stay molten: " + formlessIn(helper)))
+                // Eight of water: quenched into eight solid blocks (the half block more goes back to the mage), which
+                // lose their water as they cool.
                 .thenExecute(() -> castOrFail(helper, mage, "aqua quantum 8 " + pool + " ubis vocant"))
-                .thenIdle(2)
-                .thenExecute(() -> check(helper, !formlessIn(helper).isEmpty()
-                        && formlessIn(helper).stream().allMatch(matter -> named(matter, "deepslate")),
-                        "earth and a little water should be molten deepslate: " + formlessIn(helper)))
-                // Eight of air: near no natural thing's code, formless matter with no name.
-                .thenExecute(() -> castOrFail(helper, mage, "aura quantum 8 " + pool + " ubis vocant"))
-                .thenIdle(2)
-                .thenExecute(() -> check(helper, !formlessIn(helper).isEmpty()
-                        && formlessIn(helper).stream().allMatch(matter -> matter.unnamed(Materials.get())),
-                        "with air too it should have no name"))
-                // Sixteen of fire: now it is stone's proportion, 160 UMU of molten stone, ten sources of lava.
-                .thenExecute(() -> castOrFail(helper, mage, "igni quantum 16 " + pool + " ubis vocant"))
-                .thenIdle(2)
-                .thenExecute(() -> {
-                    check(helper, formlessIn(helper).isEmpty(), "no formless matter should be left: "
-                            + formlessIn(helper));
-                    int lava = countIn(helper, Blocks.LAVA);
-                    check(helper, lava == 10, "160 UMU of molten stone are ten sources of lava, were " + lava);
-                })
-                // Cooled, it is stone.
-                .thenExecute(() -> {
-                    castOrFail(helper, mage, "aqua quantum 160 " + pool + " tenet vertere firmo");
-                    int stone = countIn(helper, Blocks.STONE);
-                    check(helper, stone == 10, "the lava should cool into ten blocks of stone, were " + stone);
+                .thenWaitUntil(() -> {
+                    check(helper, formlessIn(helper).isEmpty(), "the melt should have set: " + formlessIn(helper));
+                    int set = countIn(helper, Blocks.DEEPSLATE) + countIn(helper, Blocks.DIRT);
+                    check(helper, set == 8, "eight blocks of deepslate or earth, were " + set);
                 })
                 .thenSucceed();
     }
@@ -377,17 +365,19 @@ public final class SpellGameTests {
         Vec3 stand = helper.absoluteVec(new Vec3(0.5D, 1.0D, 0.5D));
         mage.moveTo(stand.x, stand.y, stand.z, 0.0F, 0.0F);
         // The liquids nearest (2, 1, 2), 32 UMU of them, taken and put at (2, 1, 4): a source of water and one of lava,
-        // brought to one place, mix (L4). Half stone and half water is near no natural thing's code.
+        // brought to one place, mix (L4) with the agitation each brought. Half stone and half water is near no natural
+        // thing's code, and the water quenches the stone: a solid with no name, warm, whose water boils off as it cools.
         castOrFail(helper, mage, "aqua quantum 32 " + at(helper, 2, 1, 2) + " tenet " + at(helper, 2, 1, 4)
                 + " ubis vocant");
         check(helper, countIn(helper, Blocks.WATER) == 0 && countIn(helper, Blocks.LAVA) == 0,
                 "the water and the lava should have been taken");
         helper.runAfterDelay(2, () -> {
             List<Matter> brought = formlessIn(helper);
-            check(helper, !brought.isEmpty() && brought.stream().allMatch(matter -> matter.unnamed(Materials.get())),
-                    "they should be one mixture with no name now: " + brought);
+            check(helper, !brought.isEmpty() && brought.stream().allMatch(matter -> matter.unnamed(Materials.get())
+                    && matter.state() == State.SOLID), "they should be one solid with no name now: " + brought);
             double held = brought.stream().mapToDouble(Matter::umu).sum();
-            check(helper, Math.abs(held - 32.0D) < 1.0E-6D, "all of both, 32 UMU, were " + held);
+            check(helper, held > 24.0D && held <= 32.0D + 1.0E-6D,
+                    "both, 32 UMU, but for the water that boils off, were " + held);
             helper.succeed();
         });
     }
@@ -405,11 +395,12 @@ public final class SpellGameTests {
         ServerPlayer mage = mage(helper);
         Vec3 stand = helper.absoluteVec(new Vec3(0.5D, 1.0D, 0.5D));
         mage.moveTo(stand.x, stand.y, stand.z, 0.0F, 0.0F);
-        // 48 UMU of water and 32 of fire: 32 of each boil off as vapour, and 16 of water stay, one source.
-        castOrFail(helper, mage, "igni quantum 32 " + at(helper, 2, 1, 2) + " ubis vocant");
-        helper.runAfterDelay(2, () -> {
+        // Fire poured into water does not mix with it: it is agitation, and four UMU of it (1024 particles) boil the
+        // block of water it went into (docs/particulas-design.md, stage 9).
+        castOrFail(helper, mage, "igni quantum 4 " + at(helper, 2, 1, 2) + " ubis vocant");
+        helper.runAfterDelay(5, () -> {
             int water = countIn(helper, Blocks.WATER);
-            check(helper, water == 1, "the pool should boil down to one source, were " + water + " at"
+            check(helper, water <= 2, "the block the fire went into should boil away, " + water + " sources left at"
                     + where(helper, Blocks.WATER));
             check(helper, formlessIn(helper).isEmpty(), "nothing formless: water is water");
             helper.succeed();

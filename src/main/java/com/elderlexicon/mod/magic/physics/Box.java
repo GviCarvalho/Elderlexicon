@@ -67,6 +67,11 @@ public final class Box {
         field.blow(index(x, y, z), gas);
     }
 
+    /** Matter nothing holds together any more, let into the air of a block: dust carrying its fire, mist, air. */
+    public void scatter(int x, int y, int z, Particles matter) {
+        field.scatter(index(x, y, z), matter);
+    }
+
     /** Agitation brought into a block from outside (a spell); negative, taken out of it, down to absolute zero. */
     public void heat(int x, int y, int z, long igni) {
         field.heat(index(x, y, z), igni);

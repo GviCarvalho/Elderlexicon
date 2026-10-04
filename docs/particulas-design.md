@@ -2,7 +2,7 @@
 
 **Status:** desenho aprovado (30/09/2026). Etapas 1 a 6 implementadas: a parte pura, criar pelo código, a retirada
 das runas fundidas e a transformação de blocos, itens, seres e jogadores. Etapa 9 começada: o laboratório dos impulsos
-ligado ao mundo (§8.8). Continua
+ligado ao mundo (§8.8) e a matéria informe em partículas (§8.9). Continua
 `plano-materia-emergente.md` e
 `interacoes-design.md`, e junta as duas físicas que existem hoje com a lei do corpo (`vita-design.md`).
 
@@ -305,11 +305,11 @@ nunca a ensina. Transformar em coisa feita fica para ela.
 | Hoje | Com partículas |
 |---|---|
 | `Composition`: partes em `double` | continua como a proporção (o código); as contagens ficam em `Particles` |
-| `Qualities` e o limiar de um quarto | os verbos, agindo pelas faces |
-| `MatterLaws.react` | sai dos verbos: agitação contra umidade, dispersão contra massa |
+| `Qualities` e o limiar de um quarto | os verbos, agindo pelas faces *(feito na matéria do mundo, §8.9; ficam no que voa)* |
+| `MatterLaws.react` | sai dos verbos: agitação contra umidade, dispersão contra massa *(feito: saiu, §8.9)* |
 | `NatureField`: temperatura, pressão, gotículas | o igni, o aura e o aqua dos blocos; a tabela `Material` sai |
 | `NatureField`: carga e relâmpago | continuam como estão, até serem revistos |
-| `FormlessMatterBlockEntity` | guarda as contagens |
+| `FormlessMatterBlockEntity` | guarda as contagens *(feito, §8.9)* |
 | `materials.json` | códigos em partículas, sem `unit` por coisa, e com os seres *(feito)*; entram as coisas naturais que faltam |
 | `Animation.Kind` | vai para a tabela *(feito)* |
 | `WorldSources` e a condensação: UMU por bloco = dureza | 16 UMU por bloco, e a intensidade é compressão (quantos blocos cabem num) |
@@ -347,8 +347,8 @@ Cada etapa é um commit, com os testes passando.
    - as faixas do fogo ficam iguais (uma chama valia 1 UMU, e 44 chamas num ponto continuam calor 44); as da água, do ar
      e da terra são refeitas.
 9. **Os verbos no mundo:** matéria informe com partículas, trocas pelas faces. O laboratório está feito (§8.7) e
-   ligado ao mundo (§8.8): o calor, o fogo, a água fervendo, a lava e o raio já vêm dos impulsos. Falta a matéria
-   informe em partículas e o fim das leis antigas da matéria misturada.
+   ligado ao mundo (§8.8): o calor, o fogo, a água fervendo, a lava e o raio já vêm dos impulsos. A matéria informe
+   guarda partículas e age pelos impulsos, e as leis antigas da matéria misturada saíram (§8.9).
 10. **Calor e frio:** o igni e a dívida de igni no lugar da temperatura do `NatureField`.
 11. **Pressão e umidade:** aura e aqua; sai a tabela `Material`.
 12. **O desenho dos voxels.**
@@ -776,13 +776,104 @@ O que o fogo fez de outra coisa (vidro, tijolo, terracota, concreto) ainda é pa
 Os 43 testes do jogo passam, e os 530 de unidade também.
 
 **O que falta da etapa 9:**
-- **A matéria informe em partículas.** A `FormlessMatterBlockEntity` ainda guarda proporção e UMU. Também continuam
-  as qualidades e as reações antigas da matéria misturada (`Qualities`, `MatterLaws.react`, `Placement`).
+- **A matéria informe em partículas** *(feito, §8.9)*.
 - **Os seres no campo:** o corpo trocando calor com o ar e o chão (§4: o frio que congela, a lava que queima), e as
   chamas e o raio queimando pelo corpo, não só pelo bloco.
 - **O vento** que o ar solto faz nos seres, pelo próprio campo.
 - **A água e a areia que escorrem e caem**, e a chuva.
 - **O desenho** dos blocos acordados (etapa 12).
+
+## 8.9 A matéria informe em partículas
+
+Pedido do usuário (03/10/2026): "pode seguir com a matéria informe em partículas".
+
+**O bloco guarda partículas** (`FormlessMatterBlockEntity`): quantas de cada primordial, até a última.
+- O estado é o do bloco, sólido ou líquido. Quão agitado ele está, os impulsos dizem.
+- Um mundo salvo antes guardava proporção e UMU, e é lido nas partículas inteiras mais próximas quando carrega.
+- O campo mostra a matéria informe com as partículas exatas que tem, e a mantém em dia a cada passo.
+
+**Age pelos impulsos, não pelas qualidades** (`FormlessMatterBlock`):
+- **A agitação** é a da natureza dele enquanto descansa, e a dos impulsos enquanto está acordado.
+- **Brilha** passando do brilho (uns 525 °C), cada vez mais, até a luz cheia no dobro dele, como a lava.
+- **Queima quem encosta** quando passa da agitação que solta o fogo (uns 270 °C); quanto mais quente, mais queima.
+- **Um líquido que não queima apaga** o fogo de quem está dentro dele: corta o ar.
+- **Segura quem anda dentro dele** como as partículas dele se seguram: a terra derretida muito, a água pouco.
+- **O fogo do código é combustível, não calor.** A terra derretida brilha sem fogo nenhum no código. Uma mistura de um
+  quarto de terra e o resto de fogo, derretida, fica a uns 220 °C e não queima ninguém.
+- **O que não consegue ficar como está acorda os impulsos** onde está, quando é posto e de vez em quando:
+  - o fogo que nenhuma massa segura;
+  - o ar que um líquido solta;
+  - a água que ferve de uma rocha derretida;
+  - a terra com mais ar do que segura.
+
+  O que consegue fica como o mundo fica, como um lago de lava: a terra derretida continua derretida.
+- **Quebrado ou explodido**, nada mais o segura: as partículas vão para o ar ali, a terra como pó levando o fogo dela,
+  a água como névoa.
+
+**O que saiu:**
+- **As qualidades na matéria** (`Qualities`: peso, coesão, leveza e calor a partir de um quarto). Ficam só no que voa,
+  pela lei do impacto (#16), até o que voa levar a própria agitação.
+- **A reação dos opostos** (`MatterLaws.react`). Nada reage no caminho; o que reagia agora é o que as partículas fazem
+  no mundo:
+  - o fogo sem massa na água é agitação, e ela ferve;
+  - terra e ar meio a meio voam como pó;
+  - a rocha derretida solta a água como vapor.
+- **O estado da maioria** na mistura.
+
+**A mistura guarda a agitação** (L4, proposta a confirmar). Os líquidos que se encontram viram um, com todas as
+partículas, tão agitados quanto o que cada um trouxe faz o todo (nada se cria nem se perde), e no estado que os
+impulsos dão ali:
+- água em água continua água, como estava;
+- a terra derretida em muita água esfria de vez: fica sólida e morna;
+- a água jogada na lava a apaga: fica um sólido sem nome, morno, que solta a água como vapor enquanto esfria;
+- a água jogada na terra derretida (128 de terra, 8 de água) a tempera em ardósia, ainda quente. Quente, a ardósia
+  solta a água na hora, e sobra terra.
+
+Com isso, a pedra não se faz mais juntando os primordiais na terra derretida, como no teste da etapa 5: a água tempera
+a terra, o ar sai e o fogo só aquece. Misturar assim pode virar trabalho do caldeirão (etapa 7).
+
+**O que flutua vai para o ar** (`Placement`, `WorldMatter`, proposta a confirmar). Um gás ou um plasma posto no mundo
+entra inteiro no ar do campo:
+- a terra como pó, a água como vapor (com o fogo que a fervura guarda, 1 para 9), o ar como ar, e o fogo como
+  agitação;
+- o que flutua não se mistura com o líquido em que cai: o fogo jogado na água é agitação que a ferve (4 UMU fervem um
+  bloco de água), e o ar borbulha e sai;
+- um bloco feito todo fogo vira raio, não o fogo do jogo; o vapor de uma lava transformada esfria e condensa;
+- a forma da tabela (a fumaça do vapor, a nuvem da névoa) é só como ele é visto.
+
+**O campo** (`WorldField`):
+- **Não escreve por cima do que outro mudou no mundo:** antes de mostrar, olha se o bloco ainda é o que ele pôs.
+- **Um bloco da tabela que mudou pouco dorme como o código dele.** Antes, uma pedra que perdeu o ar dos poros ficava
+  acordada para sempre. Agora, se ganhou ou perdeu menos de meio bloco e continua sendo o que era, dorme como o código:
+  perto do código, é o código.
+- **A matéria informe dorme guardando exatamente** o que os impulsos deixaram nela.
+
+**Os testes:**
+- de unidade:
+  - a natureza, o estado pela agitação e o que segura;
+  - o que fica como está e o que se mexe;
+  - a mistura que não cria nem perde agitação nem partícula;
+  - o espalhar levando o fogo no pó, e o vapor que guarda o fogo;
+  - a matéria dada em partículas, que volta a elas até a última;
+  - a colocação sem reação;
+- no jogo:
+  - a terra derretida brilha, guarda as 4096 partículas de cada bloco e continua derretida;
+  - um mundo salvo antes carrega as partículas;
+  - a terra derretida em muita água fica sólida;
+  - o fogo e a água num líquido fervem;
+  - um líquido que não queima apaga o porco que pega fogo;
+  - a água na lava a tempera num sólido sem nome;
+  - o fogo jogado na água ferve o bloco em que cai;
+  - o gás posto vai para o ar do campo;
+  - a água na terra derretida a tempera, e a ardósia quente vira terra.
+
+Os 538 testes de unidade e os 44 do jogo passam.
+
+**Sabido e deixado para depois:**
+- **Um bloco da tabela é o código dele.** A ardósia temperada tem 256 de água por bloco e volta como ardósia com 410; o
+  que muda dentro da tolerância some ou aparece. Só a matéria informe é exata.
+- **A lava e a terra derretida que um feitiço faz** ficam como estão, como o mundo; só esfriam se algo as acorda.
+- **Os seres ainda não trocam calor com o campo.** Quem encosta num bloco informe só queima ou se apaga pelo bloco.
 
 ## Os seres propostos
 
@@ -956,6 +1047,8 @@ Ficaram de fora os chefes (dragão do End e wither) e os que o jogo não faz nas
 34. O `igni vocant` sem número invoca uma chama, com a quantidade certa de UMU para isso (usuário, 03/10).
 35. Os blocos feitos entram na física como a matéria de que são feitos (usuário, 03/10).
 36. O laboratório liga-se ao mundo no lugar das camadas antigas (usuário, 03/10).
+37. A matéria informe guarda partículas e age pelos impulsos, e as leis antigas da matéria misturada saem (usuário,
+    03/10).
 
 ## Decisões em aberto
 
@@ -970,3 +1063,10 @@ Ficaram de fora os chefes (dragão do End e wither) e os que o jogo não faz nas
 6. **A Forma:** se e como ensinar, agora sem as formas fundidas.
 7. **Os códigos que mudam de nome quando aquecidos:** cobre, areia, pedra infernal, osso (§8.7).
 8. **O que o fogo fez de outra coisa:** vidro, tijolo, terracota e concreto ainda são parede. Precisam de código.
+9. **A mistura guarda a agitação** (§8.9): os líquidos viram um no estado que os impulsos dão ali. A água tempera a
+   lava e a terra derretida, e a pedra deixa de se fazer juntando os primordiais. Fica assim, ou a mistura à mão vai
+   para o caldeirão?
+10. **O que flutua vai para o ar do campo** (§8.9): o fogo posto é agitação (um bloco de fogo é raio) e não o fogo do
+    jogo; o ar e o fogo jogados num líquido não se misturam a ele.
+11. **Quem encosta num bloco informe**, até os seres entrarem no campo: queima passando da ignição (uns 270 °C), o
+    líquido que não queima apaga, e o líquido segura pelo que as partículas seguram.

@@ -4,6 +4,7 @@ import com.elderlexicon.mod.magic.matter.Particles;
 import com.elderlexicon.mod.magic.matter.State;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.SplittableRandom;
 
 import static com.elderlexicon.mod.magic.physics.Drives.AQUA;
@@ -173,13 +174,38 @@ public final class Field {
         held[IGNI][i] += Math.max(0L, matter.igni());
     }
 
-    /** Puts gas in a block: the earth as dust, the water as mist, the air, and the fire as free agitation. */
+    /**
+     * Puts gas in a block: the earth as dust, the water as vapour, the air, and the fire. As much fire as the water keeps
+     * boiled (one to {@link Drives#VAPOUR} of it) is the vapour's, given back when it condenses; the rest is free
+     * agitation.
+     */
     public void blow(int i, Particles gas) {
         check(i);
+        long water = Math.max(0L, gas.aqua());
+        long fire = Math.max(0L, gas.igni());
+        long vapour = Math.min(fire, ceilDiv(water, Drives.VAPOUR));
         airborne[FIRMO][i] += Math.max(0L, gas.firmo());
-        airborne[AQUA][i] += Math.max(0L, gas.aqua());
+        airborne[AQUA][i] += water;
         airborne[AURA][i] += Math.max(0L, gas.aura());
-        heat[i] += Math.max(0L, gas.igni());
+        bound[i] += vapour;
+        heat[i] += fire - vapour;
+    }
+
+    /**
+     * Matter nothing holds together any more, let into the air of a block: its earth as dust, carrying its fire aloft,
+     * still fuel; its water as mist; its air. Fire with no dust to carry it is free agitation.
+     */
+    public void scatter(int i, Particles matter) {
+        check(i);
+        long earth = Math.max(0L, matter.firmo());
+        airborne[FIRMO][i] += earth;
+        airborne[AQUA][i] += Math.max(0L, matter.aqua());
+        airborne[AURA][i] += Math.max(0L, matter.aura());
+        if (earth > 0L) {
+            aloft[i] += Math.max(0L, matter.igni());
+        } else {
+            heat[i] += Math.max(0L, matter.igni());
+        }
     }
 
     /** Agitation brought into a block from outside (a spell); negative, taken out of it, down to absolute zero. */
@@ -286,6 +312,109 @@ public final class Field {
     /** The agitation past which air comes apart into plasma: lightning. */
     public static double plasma() {
         return Drives.PLASMA;
+    }
+
+    /** The agitation past which fire held in matter is let go where nothing crowds it (about 270 °C). */
+    public static double ignition() {
+        return Drives.IGNITION;
+    }
+
+    /**
+     * How agitated held matter in {@code state} is by its nature, as the world has it: at rest, unless that would not
+     * leave it in that state. Then it is just past its melting (lava, molten earth), just short of it (ice and snow), or
+     * short of its boiling.
+     */
+    public static double natural(Particles held, State state) {
+        double melting = melting(held);
+        double boiling = boiling(held);
+        double rest = Drives.AT_REST;
+        if (state == State.SOLID && rest >= melting) {
+            return melting * 0.97D;
+        }
+        if (state == State.LIQUID) {
+            if (rest < melting) {
+                return melting * 1.03D;
+            }
+            if (rest >= boiling) {
+                return boiling * 0.97D;
+            }
+        }
+        return rest;
+    }
+
+    /**
+     * The state held matter is in at {@code temperature}, as a block of it would be: solid short of its melting, liquid
+     * short of its boiling, gas past it, plasma past where air comes apart.
+     */
+    public static State state(Particles held, double temperature) {
+        double hold = holdOf(held);
+        if (temperature < Drives.MELT * hold) {
+            return State.SOLID;
+        }
+        if (temperature < Drives.BOIL * hold) {
+            return State.LIQUID;
+        }
+        return temperature >= Drives.PLASMA ? State.PLASMA : State.GAS;
+    }
+
+    /**
+     * How hard held matter holds back what moves through it, against how hard earth would: all of it for earth, a
+     * seventh for water, which holds by cohesion alone, nothing for air and fire. A liquid of it is that thick.
+     */
+    public static double holding(Particles held) {
+        Particles present = held.present();
+        long all = present.total();
+        if (all <= 0L) {
+            return 0.0D;
+        }
+        return (Drives.HOLD[FIRMO] * present.firmo() + Drives.HOLD[AQUA] * present.aqua())
+                / (Drives.HOLD[FIRMO] * all);
+    }
+
+    /**
+     * Whether held matter in {@code state} changes by itself at its nature, with nothing around it: fire with no mass to
+     * hold it is agitation, a liquid lets go of the air its mass does not keep, water boils out of a melt, a solid with
+     * more air than it can keep crumbles. What does not change rests as the world does.
+     */
+    public static boolean restless(Particles held, State state) {
+        Particles present = held.present();
+        if (present.total() <= 0L) {
+            return false;
+        }
+        Field alone = new Field(0L);
+        int i = alone.add();
+        alone.put(i, present);
+        alone.heat(i, agitation(present, Particles.NONE, natural(present, state)));
+        alone.step();
+        return !alone.held(i).equals(present);
+    }
+
+    /** Held matter, and how agitated it is. */
+    public record Portion(Particles held, double temperature) {
+    }
+
+    /** Portions mixed into one: what they hold together, how agitated it is and the state that leaves it in. */
+    public record Mixture(Particles held, double temperature, State state) {
+    }
+
+    /**
+     * Portions of held matter brought together into one (L4): all their particles, as agitated as the agitation each
+     * brought makes the whole, none made or lost, and in the state the drives give it there. Molten earth poured into
+     * much water is quenched; water poured into water is water as it was.
+     */
+    public static Mixture mix(List<Portion> portions) {
+        Particles all = Particles.NONE;
+        long agitation = 0L;
+        for (Portion portion : portions) {
+            Particles held = portion.held().present();
+            all = all.plus(held);
+            agitation += agitation(held, Particles.NONE, portion.temperature());
+        }
+        double capacity = Drives.CAPACITY[FIRMO] * all.firmo() + Drives.CAPACITY[AQUA] * all.aqua()
+                + Drives.CAPACITY[AURA] * all.aura() + Drives.CAPACITY[IGNI] * all.igni();
+        double temperature = capacity <= 0.0D ? Drives.AT_REST : Math.max(0.0D,
+                Drives.AT_REST + agitation / (capacity + Drives.CAPACITY[IGNI] * Math.max(0L, agitation)));
+        return new Mixture(all, temperature, state(all, temperature));
     }
 
     private static double holdOf(Particles held) {

@@ -7,28 +7,25 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** What matter is like comes from what it holds, whatever it is called (docs/plano-materia-emergente.md). */
+/** What something that flies is like comes from what it holds, whatever it is called (the law of impact). */
 class QualitiesTest {
 
     private static final MaterialTable TABLE = Materials.builtIn();
 
     @Test
-    void aMixtureIsLikeWhatItHolds() {
+    void whatFliesIsLikeWhatItHolds() {
         Matter molten = new Matter(Composition.of(Map.of(VitaElement.FIRMO, 0.7D, VitaElement.IGNI, 0.3D)),
                 State.LIQUID, 5.0D);
         Qualities qualities = Qualities.of(molten);
         assertTrue(qualities.heavy());
-        assertTrue(qualities.hot(), "no one wrote magma: it burns because it is a third fire");
+        assertTrue(qualities.hot(), "thrown, a third of fire burns what it strikes");
         assertFalse(qualities.wet());
-        assertTrue(qualities.glow() > 0);
-        assertEquals("líquida, pesada e quente (terra 70%, fogo 30%)", Qualities.describe(molten));
     }
 
     @Test
     void aLittleOfAQualityDoesNotAct() {
         Qualities stone = Qualities.of(Matter.natural(TABLE.substance("stone").orElseThrow(), 1.5D));
-        assertFalse(stone.hot(), "a tenth of fire in stone does not burn");
-        assertEquals(0, stone.glow());
+        assertFalse(stone.hot(), "a tenth of fire in a stone thrown does not burn");
         assertTrue(stone.heavy());
     }
 

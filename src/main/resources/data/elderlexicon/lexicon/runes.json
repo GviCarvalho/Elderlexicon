@@ -51,7 +51,6 @@
     "note.core": "O cerne são cem partes, e cada quantum diz quantas delas: mudá-lo converte o que a coisa já tem, e nada vem de fora. As linhas sem número dividem por igual o que os números deixam (aqua vertere m1 sozinha faz m1 toda água); sem elas, as partes que não se escrevem dividem o resto como estavam. As mudanças da mesma coluna valem juntas, e partes que não fazem cem não mudam nada. Cada linha paga o trabalho do que converte, como todo vertere: 5% por degrau da escada, para cada partícula. Um ser é a sua vida, 5 UMU por ponto, presa pela âncora de 100 de vis.",
     "note.mixture.substance": "A mistura virou {substance}.",
     "note.mixture.formless": "A mistura ficou {description}.",
-    "note.mixture.released": "{umu} UMU se separaram e subiram como gás ({description}).",
     "note.core.became": "“{mark}”: {was} virou {becomes}.",
     "note.core.formless": "“{mark}”: {was} virou matéria sem nome, {description}.",
     "note.core.light": "{umu} UMU que não fecharam um inteiro saíram como luz.",

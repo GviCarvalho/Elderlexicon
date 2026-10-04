@@ -3,13 +3,15 @@ package com.elderlexicon.mod.magic.matter;
 import com.elderlexicon.mod.vita.VitaElement;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** The laws of matter (docs/plano-materia-e-forca.md, section 1), for any substance. */
+/**
+ * The laws of matter (docs/plano-materia-e-forca.md, section 1), for any substance. Mixing and what mixed matter does
+ * are the drives' now (magic/physics, {@code FieldTest}).
+ */
 class MatterLawsTest {
 
     private static final MaterialTable TABLE = Materials.builtIn();
@@ -66,105 +68,17 @@ class MatterLawsTest {
         assertEquals(2.0D, drawn.get(VitaElement.AQUA), 1.0E-9);
     }
 
-    // ------------------------------------------------------------------ L4: mixing
-
-    @Test
-    void fluidsInOnePlaceBecomeWhatTheirProportionMatches() {
-        Matter mud = MatterLaws.mix(List.of(primordial(VitaElement.FIRMO, State.LIQUID, 5.0D),
-                primordial(VitaElement.AQUA, State.LIQUID, 5.0D))).orElseThrow();
-        assertEquals(Optional.of(substance("mud")), mud.substance(TABLE));
-        assertEquals(10.0D, mud.umu(), 1.0E-9);
-        assertEquals(State.LIQUID, mud.state());
-    }
-
-    @Test
-    void theRightProportionOfThePrimordialsMakesStone() {
-        Matter made = MatterLaws.mix(List.of(
-                primordial(VitaElement.FIRMO, State.LIQUID, 16.0D),
-                primordial(VitaElement.AQUA, State.LIQUID, 1.0D),
-                primordial(VitaElement.AURA, State.GAS, 1.0D),
-                primordial(VitaElement.IGNI, State.PLASMA, 2.0D))).orElseThrow();
-        assertEquals(Optional.of(substance("stone")), made.substance(TABLE));
-        assertEquals(State.LIQUID, made.state(), "most of it was liquid: it is molten stone");
-        assertEquals("minecraft:lava", TABLE.form(substance("stone"), made.state()).orElseThrow().id());
-        assertEquals(20.0D, made.umu(), 1.0E-9);
-    }
-
-    @Test
-    void solidsDoNotMix() {
-        assertTrue(MatterLaws.mix(List.of(primordial(VitaElement.FIRMO, State.SOLID, 5.0D),
-                primordial(VitaElement.AQUA, State.LIQUID, 5.0D))).isEmpty(), "a bond joins solids, not a mixture");
-        assertTrue(MatterLaws.mix(List.of()).isEmpty());
-    }
-
-    @Test
-    void substancesMixByWhatTheyAreMadeOf() {
-        // Mud is half earth: with as much water again it is a quarter earth, near no natural thing's code.
-        Matter wet = MatterLaws.mix(List.of(Matter.of(substance("mud"), State.LIQUID, 10.0D),
-                primordial(VitaElement.AQUA, State.LIQUID, 10.0D))).orElseThrow();
-        assertEquals(0.25D, wet.composition().share(VitaElement.FIRMO), 1.0E-9);
-        assertTrue(wet.unnamed(TABLE));
-    }
-
-    // ------------------------------------------------------------------ L5: opposites react
-
-    @Test
-    void fireAndWaterInALiquidBoilAway() {
-        // Six of water and three of fire: three of each boil off as a gas, and three of water stay.
-        Matter hot = MatterLaws.mix(List.of(primordial(VitaElement.AQUA, State.LIQUID, 6.0D),
-                primordial(VitaElement.IGNI, State.PLASMA, 3.0D))).orElseThrow();
-        MatterLaws.Reaction reaction = MatterLaws.react(hot);
-        assertTrue(reaction.reacted());
-        Matter vapour = reaction.released().orElseThrow();
-        assertEquals(State.GAS, vapour.state());
-        assertEquals(6.0D, vapour.umu(), 1.0E-9);
-        assertEquals(0.5D, vapour.composition().share(VitaElement.IGNI), 1.0E-9, "as much of one as of the other");
-        Matter left = reaction.remains().orElseThrow();
-        assertEquals(3.0D, left.umu(), 1.0E-9);
-        assertEquals(1.0D, left.composition().share(VitaElement.AQUA), 1.0E-9, "the side that won stays");
-        assertFalse(MatterLaws.react(left).reacted(), "what stays reacts no more");
-    }
-
-    @Test
-    void earthAndAirScatterAsDust() {
-        Matter stirred = new Matter(Composition.of(Map.of(VitaElement.FIRMO, 0.6D, VitaElement.AURA, 0.4D)),
-                State.LIQUID, 10.0D);
-        MatterLaws.Reaction reaction = MatterLaws.react(stirred);
-        assertEquals(8.0D, reaction.released().orElseThrow().umu(), 1.0E-9);
-        assertEquals(2.0D, reaction.remains().orElseThrow().umu(), 1.0E-9);
-    }
-
-    @Test
-    void aLittleOfAnOppositeDoesNotReactNorDoesASolid() {
-        Matter lava = Matter.of(substance("stone"), State.LIQUID, 3.0D);
-        assertFalse(MatterLaws.react(lava).reacted(), "the water and fire in stone are too little to meet");
-        Matter wood = Matter.natural(substance("wood"), 2.0D);
-        assertFalse(MatterLaws.react(wood).reacted(), "a solid holds its parts still");
-        MatterLaws.Reaction molten = MatterLaws.react(wood.inState(State.LIQUID));
-        assertTrue(molten.reacted(), "molten wood boils");
-        Matter steam = Matter.natural(substance("steam"), 4.0D);
-        assertFalse(MatterLaws.react(steam).reacted(), "a gas is what a reaction lets out");
-    }
-
     // ------------------------------------------------------------------ L1: conservation
 
     @Test
     void noLawMakesOrDestroysMatter() {
         double[][] portions = {{3, 0, 0, 1}, {1, 1, 1, 1}, {0.5, 7, 0, 2.5}, {10, 0.1, 0.1, 0}};
         for (double[] amounts : portions) {
-            List<Matter> fluids = List.of(
-                    primordial(VitaElement.FIRMO, State.LIQUID, amounts[0]),
-                    primordial(VitaElement.AQUA, State.LIQUID, amounts[1]),
-                    primordial(VitaElement.AURA, State.GAS, amounts[2]),
-                    primordial(VitaElement.IGNI, State.PLASMA, amounts[3]));
-            double total = amounts[0] + amounts[1] + amounts[2] + amounts[3];
-            Matter mixed = MatterLaws.mix(fluids).orElseThrow();
-            assertEquals(total, mixed.umu(), 1.0E-9);
-            MatterLaws.Reaction reaction = MatterLaws.react(mixed);
-            assertEquals(total, reaction.remains().map(Matter::umu).orElse(0.0D)
-                    + reaction.released().map(Matter::umu).orElse(0.0D), 1.0E-9);
+            Matter mixed = new Matter(Composition.of(Map.of(VitaElement.FIRMO, amounts[0] + 1.0E-3D,
+                    VitaElement.AQUA, amounts[1], VitaElement.AURA, amounts[2], VitaElement.IGNI, amounts[3])),
+                    State.LIQUID, amounts[0] + amounts[1] + amounts[2] + amounts[3]);
             for (State state : State.values()) {
-                assertEquals(total, MatterLaws.changeState(mixed, state).matter().umu(), 1.0E-9);
+                assertEquals(mixed.umu(), MatterLaws.changeState(mixed, state).matter().umu(), 1.0E-9);
             }
         }
     }

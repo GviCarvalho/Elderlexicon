@@ -4,10 +4,12 @@ import com.elderlexicon.mod.magic.matter.Form;
 import com.elderlexicon.mod.magic.matter.MaterialTable;
 import com.elderlexicon.mod.magic.matter.Materials;
 import com.elderlexicon.mod.magic.matter.Matter;
-import com.elderlexicon.mod.magic.matter.MatterLaws;
+import com.elderlexicon.mod.magic.matter.Particles;
 import com.elderlexicon.mod.magic.matter.Placement;
-import com.elderlexicon.mod.magic.matter.Qualities;
+import com.elderlexicon.mod.magic.matter.State;
 import com.elderlexicon.mod.magic.matter.Substance;
+import com.elderlexicon.mod.magic.physics.Field;
+import com.elderlexicon.mod.spell.nature.NatureWorld;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.BlockParticleOption;
@@ -20,7 +22,6 @@ import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -41,10 +42,12 @@ import java.util.Set;
 
 /**
  * The world read as matter, and matter put into the world, by the material table in force
- * (docs/plano-materia-e-forca.md, stages 3 and 5). Nothing here knows one substance from another: a block is what the
- * table reads it as, and matter shows as the form the table gives its substance in its state, or as formless matter
- * ({@link FormlessMatterBlock}) when it has none there. Fluid matter put where fluid matter is mixes with it (L4), and
- * the opposites in a fluid react (L5, docs/plano-materia-emergente.md).
+ * (docs/plano-materia-e-forca.md, stages 3 and 5, and docs/particulas-design.md, stage 9). Nothing here knows one
+ * substance from another: a block is what the table reads it as, and matter shows as the form the table gives its
+ * substance in its state, or as formless matter ({@link FormlessMatterBlock}) holding its particles exactly when it has
+ * none there. What floats goes into the air, where the drives take it. A liquid put where liquid is mixes with it (L4)
+ * with the agitation each brought; and whatever matter does once it is in the world (boil, burn, set, fly as dust) is
+ * the drives' to do, never a law of the way in.
  */
 public final class WorldMatter {
 
@@ -56,6 +59,8 @@ public final class WorldMatter {
      */
     public static final int MAX_BODY = 64;
     private static final double EPSILON = 1.0E-9D;
+    /** An agitation this close to what matter has by its nature is its nature (about 6 K). */
+    private static final double REST = 0.02D;
 
     private WorldMatter() {
     }
@@ -144,16 +149,29 @@ public final class WorldMatter {
     }
 
     /**
-     * Puts matter into the world at {@code at}. Fluid matter put where fluid matter is (not the open air) is poured into
-     * it and mixes with it (L4, {@link #pour}); otherwise it is laid down: whole blocks from there into the free room
-     * nearest it, items dropped there, a gas shown there, formless matter where it has no look. What finds no room, or
+     * Puts matter into the world at {@code at}, as agitated as it is by its nature: what floats into the air there, a
+     * liquid put where liquid is poured into it (L4, {@link #pour}), anything else laid down: whole blocks from there
+     * into the free room nearest it, items dropped there, formless matter where it has no look. What finds no room, or
      * does not make a whole unit, is left over (L1).
      */
     public static Placed place(ServerLevel level, BlockPos at, Matter matter) {
-        if (matter.state().fluid() && holdsFluid(level, at)) {
-            return pour(level, at, matter);
+        return place(level, at, matter, natural(matter));
+    }
+
+    /**
+     * As {@link #place(ServerLevel, BlockPos, Matter)}, at {@code temperature} (a mixture's): where that is not its
+     * nature, what it went into is awake, and the drives carry it on from there.
+     */
+    public static Placed place(ServerLevel level, BlockPos at, Matter matter, double temperature) {
+        if (MaterialTable.floats(matter.state())) {
+            return air(level, at, matter, temperature);
         }
-        return lay(level, at, matter);
+        if (matter.state() == State.LIQUID && holdsFluid(level, at)) {
+            return pour(level, at, matter, temperature);
+        }
+        Placed laid = lay(level, at, matter);
+        settle(level, laid.blocks(), matter, temperature);
+        return laid;
     }
 
     /** Whether the block at {@code pos} is fluid matter to pour into: a fluid's source, formless liquid; never air. */
@@ -164,42 +182,86 @@ public final class WorldMatter {
         return read(level, pos).map(matter -> matter.state().fluid()).orElse(false);
     }
 
+    /** How agitated matter is by its nature: as the world at rest, or as its state needs (molten, frozen). */
+    public static double natural(Matter matter) {
+        return MaterialTable.floats(matter.state()) ? 1.0D : Field.natural(matter.particles(), matter.state());
+    }
+
+    /** Matter, and how agitated it is. */
+    public record Mixed(Matter matter, double temperature) {
+    }
+
+    /**
+     * Portions of matter brought to one place become one (L4): all their particles, as agitated as what each brought
+     * (each by its nature) makes the whole, in the state the drives give it there. Empty when there is nothing.
+     */
+    public static Optional<Mixed> mix(List<Matter> portions) {
+        List<Field.Portion> lots = new ArrayList<>();
+        for (Matter portion : portions) {
+            Particles held = portion.particles().present();
+            if (held.total() > 0L) {
+                lots.add(new Field.Portion(held, natural(portion)));
+            }
+        }
+        return mixed(lots);
+    }
+
+    private static Optional<Mixed> mixed(List<Field.Portion> lots) {
+        if (lots.isEmpty()) {
+            return Optional.empty();
+        }
+        Field.Mixture mixture = Field.mix(lots);
+        return Optional.of(new Mixed(Matter.of(mixture.held(), mixture.state()), mixture.temperature()));
+    }
+
     /**
      * L4: {@code poured} mixes with the body of fluid matter at {@code at} (the blocks of the same matter joined to it,
-     * nearest first, up to {@link #MAX_BODY}). When the mixture is still what the body was, as with water poured into
-     * water, the body stays and what was poured is added to it as more of it; otherwise the body is taken up and the
-     * mixture put in its place: as a natural thing, near its code, or as formless matter; either way its opposites
-     * react first.
+     * nearest first, up to {@link #MAX_BODY}), with the agitation each has. When the mixture is still what the body was,
+     * as with water poured into water, the body stays and what was poured is added to it as more of it; otherwise the
+     * body is taken up and the mixture put in its place, in the state the drives give it: a natural thing near its code,
+     * formless matter, or what floats into the air. What floats does not mix: fire poured into water is agitation that
+     * warms it, air bubbles through it.
      */
     public static Placed pour(ServerLevel level, BlockPos at, Matter poured) {
+        return pour(level, at, poured, natural(poured));
+    }
+
+    private static Placed pour(ServerLevel level, BlockPos at, Matter poured, double temperature) {
+        if (MaterialTable.floats(poured.state())) {
+            return air(level, at, poured, temperature);
+        }
         Optional<Matter> there = read(level, at);
         if (there.isEmpty() || !there.get().state().fluid()) {
-            return lay(level, at, poured);
+            Placed laid = lay(level, at, poured);
+            settle(level, laid.blocks(), poured, temperature);
+            return laid;
         }
         List<BlockPos> body = bodyAt(level, at, there.get());
-        double held = 0.0D;
+        List<Field.Portion> lots = new ArrayList<>();
         for (BlockPos pos : body) {
-            held += read(level, pos).map(Matter::umu).orElse(0.0D);
+            read(level, pos).ifPresent(part -> lots.add(new Field.Portion(part.particles(),
+                    NatureWorld.temperature(level, pos))));
         }
-        Matter whole = there.get().withUmu(held);
-        Optional<Matter> mixed = MatterLaws.mix(List.of(whole, poured));
-        if (mixed.isEmpty()) {
-            return lay(level, at, poured);
-        }
+        lots.add(new Field.Portion(poured.particles(), temperature));
+        Mixed mixed = mixed(lots).orElseThrow();
+        Matter mixture = mixed.matter();
         MaterialTable table = table();
-        Optional<Substance> was = whole.substance(table);
-        Optional<Substance> becomes = mixed.get().substance(table);
+        Optional<Substance> was = there.get().substance(table);
+        Optional<Substance> becomes = mixture.substance(table);
         boolean formless = level.getBlockEntity(at) instanceof FormlessMatterBlockEntity;
-        if (!formless && becomes.isPresent() && becomes.equals(was) && mixed.get().state() == whole.state()) {
+        if (!formless && becomes.isPresent() && becomes.equals(was) && mixture.state() == there.get().state()) {
             // Still what it was: the body takes in what was poured as more of itself, and only that needs room.
-            Placed grown = lay(level, at, Matter.of(becomes.get(), whole.state(), poured.umu()));
-            return new Placed(grown.placed(), grown.leftover(), grown.blocks(), mixed.get());
+            Placed grown = lay(level, at, Matter.of(becomes.get(), mixture.state(), poured.umu()));
+            List<BlockPos> all = new ArrayList<>(body);
+            all.addAll(grown.blocks());
+            settle(level, all, mixture, mixed.temperature());
+            return new Placed(grown.placed(), grown.leftover(), grown.blocks(), mixture);
         }
         for (BlockPos pos : body) {
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
         }
-        Placed made = lay(level, at, mixed.get());
-        return new Placed(made.placed(), made.leftover(), made.blocks(), mixed.get());
+        Placed made = place(level, at, mixture, mixed.temperature());
+        return new Placed(made.placed(), made.leftover(), made.blocks(), mixture, made.entities());
     }
 
     /** The body of fluid matter {@code matter} at {@code at}: it and the blocks of the same matter joined to it. */
@@ -234,85 +296,104 @@ public final class WorldMatter {
 
     /**
      * Lays matter down at {@code at}, mixing with nothing: whole blocks from there into the free room nearest it, items
-     * dropped there, a gas shown there, formless matter where it has no look.
+     * dropped there, formless matter where it has no look, each block of it holding its share of the particles exactly;
+     * what floats goes into the air.
      */
     private static Placed lay(ServerLevel level, BlockPos at, Matter matter) {
-        double placed = 0.0D;
-        double leftover = 0.0D;
-        List<BlockPos> blocks = new ArrayList<>();
-        List<Entity> entities = new ArrayList<>();
-        for (Placement placement : Placement.plan(table(), matter)) {
-            leftover += placement.leftover();
-            if (placement.formless() && placement.floats()) {
-                // A gas with no look of its own: a cloud of its colour, which spreads into the air.
-                cloud(level, at, placement.matter());
-                placed += placement.placed();
-                continue;
+        Optional<Placement> plan = Placement.plan(table(), matter);
+        if (plan.isEmpty()) {
+            return new Placed(0.0D, 0.0D, List.of());
+        }
+        Placement placement = plan.get();
+        if (placement.floats()) {
+            return air(level, at, matter, natural(matter));
+        }
+        if (placement.formless()) {
+            BlockState block = formless(placement.state(), natural(matter));
+            List<Particles> shares = matter.particles().present().split(placement.units());
+            List<BlockPos> room = room(level, at, block, placement.units());
+            double placed = 0.0D;
+            for (int unit = 0; unit < room.size(); unit++) {
+                showFormless(level, room.get(unit), block, shares.get(unit));
+                placed += shares.get(unit).umu();
             }
-            if (placement.formless()) {
-                List<BlockPos> room = formless(level, at, placement);
-                double each = placement.placed() / placement.units();
-                placed += each * room.size();
-                leftover += each * (placement.units() - room.size());
-                blocks.addAll(room);
-                continue;
+            return new Placed(placed, Math.max(0.0D, matter.umu() - placed), room);
+        }
+        Form form = placement.form();
+        if (form == null || placement.units() <= 0) {
+            return new Placed(0.0D, placement.leftover(), List.of());
+        }
+        double unit = placement.placed() / placement.units();
+        switch (form.kind()) {
+            case BLOCK -> {
+                Optional<BlockState> state = block(form.id());
+                if (state.isEmpty()) {
+                    return new Placed(0.0D, matter.umu(), List.of());
+                }
+                List<BlockPos> room = room(level, at, state.get(), placement.units());
+                for (BlockPos pos : room) {
+                    level.setBlock(pos, state.get(), Block.UPDATE_ALL);
+                }
+                return new Placed(unit * room.size(), placement.leftover() + unit * (placement.units() - room.size()),
+                        room);
             }
-            Form form = placement.form();
-            if (form == null || placement.units() <= 0) {
-                continue;
+            case ITEM -> {
+                Optional<Item> item = item(form.id());
+                if (item.isEmpty()) {
+                    return new Placed(0.0D, matter.umu(), List.of());
+                }
+                List<Entity> dropped = drop(level, Vec3.atCenterOf(at), item.get(), placement.units());
+                return new Placed(placement.placed(), placement.leftover(), List.of(), null, dropped);
             }
-            switch (form.kind()) {
-                case BLOCK -> {
-                    Optional<BlockState> state = block(form.id());
-                    if (state.isEmpty()) {
-                        leftover += placement.placed();
-                        continue;
-                    }
-                    if (state.get().isAir()) {
-                        // Air let out joins the air around: there is no block to lay.
-                        placed += placement.placed();
-                        continue;
-                    }
-                    List<BlockPos> room = room(level, at, state.get(), placement.units());
-                    for (BlockPos pos : room) {
-                        level.setBlock(pos, state.get(), Block.UPDATE_ALL);
-                    }
-                    blocks.addAll(room);
-                    double unit = placement.placed() / placement.units();
-                    placed += unit * room.size();
-                    leftover += unit * (placement.units() - room.size());
-                }
-                case ITEM -> {
-                    Optional<Item> item = item(form.id());
-                    if (item.isEmpty()) {
-                        leftover += placement.placed();
-                        continue;
-                    }
-                    entities.addAll(drop(level, Vec3.atCenterOf(at), item.get(), placement.units()));
-                    placed += placement.placed();
-                }
-                case PARTICLE -> {
-                    particle(form.id()).ifPresent(options -> {
-                        Vec3 center = Vec3.atCenterOf(at);
-                        int count = (int) Math.max(4, Math.min(60, Math.round(8.0D * placement.placed())));
-                        level.sendParticles(options, center.x, center.y, center.z, count, 0.6D, 0.6D, 0.6D, 0.02D);
-                    });
-                    placed += placement.placed();
-                }
-                case ENTITY -> {
-                    Optional<Entity> entity = entity(level, form.id());
-                    if (entity.isEmpty()) {
-                        leftover += placement.placed();
-                        continue;
-                    }
-                    entity.get().moveTo(Vec3.atBottomCenterOf(at));
-                    level.addFreshEntity(entity.get());
-                    entities.add(entity.get());
-                    placed += placement.placed();
-                }
+            default -> {
+                return new Placed(0.0D, matter.umu(), List.of());
             }
         }
-        return new Placed(placed, leftover, blocks, null, entities);
+    }
+
+    /**
+     * What floats goes into the air at {@code at} whole, as agitated as {@code temperature}: its earth as dust, its water
+     * as vapour keeping the fire boiling took, its air, and its fire as agitation, which may be a flame, or lightning.
+     * It is seen as the table shows it, or as a cloud of its colour when it has no look. Nothing goes in where the
+     * drives cannot reach (a wall, too much awake at once), and then all of it is left over.
+     */
+    private static Placed air(ServerLevel level, BlockPos at, Matter matter, double temperature) {
+        Particles gas = matter.particles().present();
+        if (gas.total() <= 0L) {
+            return new Placed(0.0D, 0.0D, List.of());
+        }
+        if (!NatureWorld.blow(level, at, gas)) {
+            return new Placed(0.0D, matter.umu(), List.of());
+        }
+        long warmer = Field.agitation(Particles.NONE, gas, temperature);
+        if (warmer > 0L) {
+            NatureWorld.heat(level, at, warmer);
+        }
+        Optional<Placement> plan = Placement.plan(table(), matter);
+        Form form = plan.map(Placement::form).orElse(null);
+        if (form == null) {
+            cloud(level, at, matter);
+        } else if (form.kind() == Form.Kind.PARTICLE) {
+            particle(form.id()).ifPresent(options -> {
+                Vec3 center = Vec3.atCenterOf(at);
+                int count = (int) Math.max(4, Math.min(60, Math.round(8.0D * matter.umu())));
+                level.sendParticles(options, center.x, center.y, center.z, count, 0.6D, 0.6D, 0.6D, 0.02D);
+            });
+        }
+        return new Placed(matter.umu(), 0.0D, List.of());
+    }
+
+    /**
+     * What was put at {@code temperature} where that is not its nature goes into the drives there, as agitated as it
+     * came: a quenched melt still hot, a mixture warmer than it rests at.
+     */
+    private static void settle(ServerLevel level, List<BlockPos> blocks, Matter matter, double temperature) {
+        if (blocks.isEmpty() || Math.abs(temperature - natural(matter)) <= REST) {
+            return;
+        }
+        for (BlockPos pos : blocks) {
+            NatureWorld.settle(level, pos, temperature);
+        }
     }
 
     /** Drops {@code count} of an item at {@code at}, in stacks as full as the item allows; returns the stacks. */
@@ -360,28 +441,34 @@ public final class WorldMatter {
     }
 
     /**
-     * Shows one block of {@code matter} at {@code pos}, whatever was there: the block its substance takes in its state,
-     * or formless matter holding it when it has none (what the drives made of a block, docs/particulas-design.md).
-     * Returns the block put there.
+     * The block formless matter in {@code state} shows as, glowing as {@code temperature} makes it: solid, or liquid
+     * for anything that flows.
      */
-    public static BlockState show(ServerLevel level, BlockPos pos, Matter matter) {
-        MaterialTable table = table();
-        Optional<BlockState> block = matter.substance(table)
-                .flatMap(substance -> table.form(substance, matter.state()))
-                .filter(form -> form.kind() == Form.Kind.BLOCK)
-                .flatMap(form -> block(form.id()));
-        if (block.isPresent()) {
-            level.setBlock(pos, block.get(), Block.UPDATE_ALL);
-            return block.get();
-        }
-        boolean liquid = matter.state() != com.elderlexicon.mod.magic.matter.State.SOLID;
-        BlockState formless = (liquid ? MatterBlocks.FORMLESS_LIQUID.get() : MatterBlocks.FORMLESS_SOLID.get())
-                .defaultBlockState().setValue(FormlessMatterBlock.GLOW, Qualities.of(matter).glow());
-        level.setBlock(pos, formless, Block.UPDATE_ALL);
+    public static BlockState formless(State state, double temperature) {
+        Block block = state == State.SOLID ? MatterBlocks.FORMLESS_SOLID.get() : MatterBlocks.FORMLESS_LIQUID.get();
+        return block.defaultBlockState().setValue(FormlessMatterBlock.GLOW, FormlessMatterBlock.glowOf(temperature));
+    }
+
+    /**
+     * Shows formless matter at {@code pos}, whatever was there: {@code block} (one of {@link #formless}), holding
+     * exactly {@code held} (what the drives made of a block, docs/particulas-design.md).
+     */
+    public static void showFormless(ServerLevel level, BlockPos pos, BlockState block, Particles held) {
+        level.setBlock(pos, block, Block.UPDATE_ALL);
         if (level.getBlockEntity(pos) instanceof FormlessMatterBlockEntity entity) {
-            entity.hold(matter);
+            entity.hold(held);
         }
-        return formless;
+    }
+
+    /**
+     * The formless matter at {@code pos} holds {@code held} now, as the drives moved it: kept without a word to those
+     * who see it, since its block has not changed.
+     */
+    public static void keep(ServerLevel level, BlockPos pos, Particles held) {
+        if (level.getBlockEntity(pos) instanceof FormlessMatterBlockEntity entity
+                && !entity.particles().map(held.present()::equals).orElse(false)) {
+            entity.hold(held, false);
+        }
     }
 
     /** The block the table shows {@code matter} as, or empty when it shows as formless matter or not as a block. */
@@ -395,25 +482,6 @@ public final class WorldMatter {
 
     // ------------------------------------------------------------------ formless matter
 
-    /**
-     * Lays formless matter: as many blocks as the placement fills, from {@code at} into the free room nearest it, each
-     * holding its share exactly and glowing with its heat. Returns where it went.
-     */
-    private static List<BlockPos> formless(ServerLevel level, BlockPos at, Placement placement) {
-        boolean liquid = placement.state() != com.elderlexicon.mod.magic.matter.State.SOLID;
-        BlockState block = (liquid ? MatterBlocks.FORMLESS_LIQUID.get() : MatterBlocks.FORMLESS_SOLID.get())
-                .defaultBlockState().setValue(FormlessMatterBlock.GLOW, Qualities.of(placement.matter()).glow());
-        List<BlockPos> room = room(level, at, block, placement.units());
-        Matter share = placement.matter().withUmu(placement.placed() / placement.units());
-        for (BlockPos pos : room) {
-            level.setBlock(pos, block, Block.UPDATE_ALL);
-            if (level.getBlockEntity(pos) instanceof FormlessMatterBlockEntity formless) {
-                formless.hold(share);
-            }
-        }
-        return room;
-    }
-
     /** A gas with no look of its own shows as a cloud of its colour at {@code at}, and spreads into the air. */
     private static void cloud(ServerLevel level, BlockPos at, Matter matter) {
         int rgb = FormlessMatterBlockEntity.colorOf(matter);
@@ -425,20 +493,13 @@ public final class WorldMatter {
     }
 
     /**
-     * Formless matter broken or blown up (already gone from {@code pos}) is scattered into the air as a gas, all of it:
-     * nothing holds it together any more.
+     * Formless matter broken or blown up (already gone from {@code pos}): nothing holds it together any more, and its
+     * particles go into the air there, earth as dust carrying its fire, water as mist, where the drives take them.
      */
-    static void scatter(ServerLevel level, BlockPos pos, Matter matter) {
-        disperse(level, pos, lay(level, pos, matter.inState(com.elderlexicon.mod.magic.matter.State.GAS)).leftover());
-    }
-
-    /** What makes no whole block when matter is scattered, with no one to keep it, goes into the air around. */
-    private static void disperse(ServerLevel level, BlockPos pos, double umu) {
-        if (umu <= EPSILON) {
-            return;
-        }
+    static void scatter(ServerLevel level, BlockPos pos, Particles held) {
+        NatureWorld.scatter(level, pos, held);
         Vec3 center = Vec3.atCenterOf(pos);
-        int count = (int) Math.max(2, Math.min(20, Math.round(4.0D * umu)));
+        int count = (int) Math.max(2, Math.min(20, Math.round(4.0D * held.umu())));
         level.sendParticles(ParticleTypes.POOF, center.x, center.y, center.z, count, 0.3D, 0.3D, 0.3D, 0.01D);
     }
 
@@ -491,12 +552,6 @@ public final class WorldMatter {
         ResourceLocation location = ResourceLocation.tryParse(id);
         Item item = location == null ? null : ForgeRegistries.ITEMS.getValue(location);
         return item == null || item == net.minecraft.world.item.Items.AIR ? Optional.empty() : Optional.of(item);
-    }
-
-    private static Optional<Entity> entity(ServerLevel level, String id) {
-        ResourceLocation location = ResourceLocation.tryParse(id);
-        EntityType<?> type = location == null ? null : ForgeRegistries.ENTITY_TYPES.getValue(location);
-        return type == null ? Optional.empty() : Optional.ofNullable(type.create(level));
     }
 
     /** A particle by id: {@code block:<id>} and {@code item:<id>} are the particles of a block or an item. */

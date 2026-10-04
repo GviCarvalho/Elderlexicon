@@ -1,7 +1,6 @@
 package com.elderlexicon.mod.spell.function;
 
 import com.elderlexicon.mod.magic.matter.Matter;
-import com.elderlexicon.mod.magic.matter.MatterLaws;
 import com.elderlexicon.mod.magic.matter.Qualities;
 import com.elderlexicon.mod.magic.matter.State;
 import com.elderlexicon.mod.spell.SpellContext;
@@ -237,29 +236,33 @@ final class Transfer {
         BlockPos spot = spotOf(impact);
         SpellEffects.spawnSummonEffect(player, element, rune, impact);
         double leftover = 0.0D;
-        List<Matter> fluids = new ArrayList<>();
+        List<Matter> liquids = new ArrayList<>();
         for (Matter matter : taken) {
-            if (matter.state().fluid()) {
-                fluids.add(matter);
-            } else {
-                leftover += WorldMatter.place(level, spot, matter).leftover(); // solids do not mix: a bond joins them
+            if (matter.state() == State.LIQUID) {
+                liquids.add(matter);
+                continue;
+            }
+            // Solids do not mix (a bond joins them); what floats goes into the air there, where the drives take it.
+            leftover += WorldMatter.place(level, spot, matter).leftover();
+            if (matter.state() == State.GAS) {
+                // Air let out there joins the air around it: it is felt as a gust.
+                Invocation.invoke(player, element, rune, Invocation.Where.fixed(impact), matter.umu(), 0);
             }
         }
-        // Brought to one place, the fluids mix (L4); landing in fluid matter, they are poured into it.
-        Optional<Matter> together = MatterLaws.mix(fluids);
+        // Brought to one place, the liquids mix (L4), with the agitation each brought; landing in fluid matter, they
+        // are poured into it.
+        Optional<WorldMatter.Mixed> together = WorldMatter.mix(liquids);
         if (together.isPresent()) {
-            if (fluids.size() > 1) {
-                Pouring.tell(player, together.get());
+            Matter mixture = together.get().matter();
+            if (liquids.size() > 1) {
+                Pouring.tell(player, mixture);
             }
-            Optional<BlockPos> into = Pouring.into(level, impact);
-            WorldMatter.Placed placed = into.isPresent() ? WorldMatter.pour(level, into.get(), together.get())
-                    : WorldMatter.place(level, spot, together.get());
+            // A solid that came of it is laid beside, as any solid; a liquid or what floats goes into what it lands in.
+            Optional<BlockPos> into = Pouring.into(level, impact).filter(pos -> mixture.state() != State.SOLID);
+            WorldMatter.Placed placed = WorldMatter.place(level, into.orElse(spot), mixture,
+                    together.get().temperature());
             leftover += placed.leftover();
-            Pouring.tell(player, together.get(), placed);
-            if (into.isEmpty() && together.get().state() == State.GAS) {
-                // Air let out there joins the air around it: it is felt as a gust.
-                Invocation.invoke(player, element, rune, Invocation.Where.fixed(impact), together.get().umu(), 0);
-            }
+            Pouring.tell(player, mixture, placed);
         }
         if (leftover > 0.0D && !context.focusActive()) {
             VitaSystem.restoreElementEnergy(player, element, leftover);
