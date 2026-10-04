@@ -7,6 +7,7 @@ import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.SpellFlow;
 import com.elderlexicon.mod.spell.action.SpellAction;
 import com.elderlexicon.mod.spell.mark.SpellPlace;
+import com.elderlexicon.mod.spell.nature.NatureWorld;
 import com.elderlexicon.mod.vita.VitaElement;
 import com.elderlexicon.mod.vita.VitaSystem;
 import net.minecraft.server.level.ServerLevel;
@@ -71,12 +72,14 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
             MarkSpells.tell(player, "Esse lugar esta em outra dimensao.");
             return;
         }
-        // aqua quantum 32 vocant brings twice the water (book 4.3.2, linear); what goes beyond one block is paid.
-        double energy = action.map(SpellAction::quantity).orElse(OptionalDouble.empty()).orElse(DEFAULT_UMU);
+        // aqua quantum 32 vocant brings twice the water (book 4.3.2, linear); what goes beyond one block is paid. Fire is
+        // the exception: by itself, igni vocant brings what makes a flame of a block of air (user, 03/10/2026).
+        double usual = element == VitaElement.IGNI ? NatureWorld.flame() : DEFAULT_UMU;
+        double energy = action.map(SpellAction::quantity).orElse(OptionalDouble.empty()).orElse(usual);
         // chronos is how long what was summoned stays or keeps acting (book 4.3.2: "igni exsugat chronos firmo vocant"),
         // and a tap held open: it spends that much for every two seconds (SpellFlow).
         int window = action.map(Chronos::window).orElse(0);
-        context.addTotalCost(SpellFlow.total(energy, window) - DEFAULT_UMU);
+        context.addTotalCost(SpellFlow.total(energy, window) - usual);
         int linger = window > 0 ? window : LINGER_TICKS;
         Optional<Supplier<Optional<MarkSpells.Destination>>> follow = place
                 .filter(SpellPlace::followsMarks)
@@ -229,8 +232,14 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
             return;
         }
         EmissionRecorder.pointAt(context, element, impact.location(), SpellFlow.total(energy, window), linger);
-        double left = Invocation.invoke(player, element, rune, where, energy, window);
-        if (left > 1.0E-9D && !context.focusActive()) {
+        boolean body = !context.focusActive();
+        double left = Invocation.invoke(player, element, rune, where, energy, window, later -> {
+            // What a flame held for a while did not spend goes back into the body too.
+            if (body && later > 1.0E-9D && SpellEffects.isPlayerValid(player)) {
+                VitaSystem.restoreElementEnergy(player, element, later);
+            }
+        });
+        if (left > 1.0E-9D && body) {
             // What made no whole block, or found no room, goes back into the body (L1).
             VitaSystem.restoreElementEnergy(player, element, left);
         }

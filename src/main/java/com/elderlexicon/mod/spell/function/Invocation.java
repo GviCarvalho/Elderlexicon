@@ -7,7 +7,9 @@ import com.elderlexicon.mod.magic.matter.MaterialTable;
 import com.elderlexicon.mod.magic.matter.Materials;
 import com.elderlexicon.mod.magic.matter.Matter;
 import com.elderlexicon.mod.magic.matter.Particles;
+import com.elderlexicon.mod.spell.matter.MatterBlocks;
 import com.elderlexicon.mod.spell.matter.WorldMatter;
+import com.elderlexicon.mod.spell.nature.NatureWorld;
 import com.elderlexicon.mod.spell.ElementPersistence;
 import com.elderlexicon.mod.spell.SpellFlow;
 import com.elderlexicon.mod.spell.mark.MarkCost;
@@ -34,6 +36,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.function.DoubleConsumer;
+import java.util.function.Supplier;
 
 /**
  * What Vocant makes appear where it lands, by the nature of the element ({@link ElementPersistence}).
@@ -90,6 +94,15 @@ final class Invocation {
      */
     static double invoke(ServerPlayer player, VitaElement element, String elementRuneId, Where where,
                          double energy, int windowTicks) {
+        return invoke(player, element, elementRuneId, where, energy, windowTicks, left -> { });
+    }
+
+    /**
+     * As {@link #invoke(ServerPlayer, VitaElement, String, Where, double, int)}; what a flame held for a while did not
+     * spend comes back later, to {@code later}, in UMU.
+     */
+    static double invoke(ServerPlayer player, VitaElement element, String elementRuneId, Where where,
+                         double energy, int windowTicks, DoubleConsumer later) {
         String rune = elementRuneId == null ? element.runeId() : elementRuneId.toLowerCase(Locale.ROOT);
         Optional<SpellEffects.SpellImpact> first = where.now();
         if (first.isEmpty()) {
@@ -98,8 +111,59 @@ final class Invocation {
         if (ElementPersistence.of(rune) == ElementPersistence.PERMANENT) {
             return permanent(player, element, rune, where, first.get(), energy, windowTicks);
         }
+        if (SourceLooks.traits(rune).kindles()) {
+            flames(player, where, first.get(), energy, windowTicks, later);
+            show(player.serverLevel(), rune, element, first.get().location(), energy / VocantFunctionHandler.DEFAULT_UMU);
+            return 0.0D;
+        }
         ephemeral(player, element, rune, where, first.get(), energy / VocantFunctionHandler.DEFAULT_UMU, windowTicks);
         return 0.0D;
+    }
+
+    // ------------------------------------------------------------------ fire
+
+    /**
+     * Fire is agitation let into the air (docs/particulas-design.md, stage 9): it holds flames where it lands, each fed
+     * after every step up to a flame's agitation, for its moment ({@link NatureWorld#FLAME_TICKS}) or for the chronos
+     * window. As many flames as the fire pays for, one by itself (user, 03/10/2026); what they do (light what burns,
+     * burn what stands in them, go out) is up to the drives. Called at the feet of a marked creature, the flame follows
+     * it. What the flames did not spend comes back to {@code later}.
+     */
+    private static void flames(ServerPlayer player, Where where, SpellEffects.SpellImpact impact, double energy,
+                               int windowTicks, DoubleConsumer later) {
+        ServerLevel level = player.serverLevel();
+        int ticks = windowTicks > 0 ? windowTicks : NatureWorld.FLAME_TICKS;
+        double budget = windowTicks > 0 ? SpellFlow.total(energy, windowTicks) : energy;
+        double each = NatureWorld.flame() * Math.max(1.0D, (double) ticks / NatureWorld.FLAME_TICKS);
+        int count = (int) Math.max(1.0D, Math.floor(budget / each + 1.0E-9D));
+        BlockPos at = fireSpot(impact);
+        List<BlockPos> spots = new ArrayList<>(count <= 1 ? List.of(at) : SpellEffects.groundSpots(level, at, count));
+        if (spots.isEmpty()) {
+            spots.add(at);
+        }
+        List<BlockPos> targets = new ArrayList<>();
+        for (BlockPos spot : spots) {
+            // Inside an impediunt of fire it is pushed out: it burns on the edge, around the whole of it.
+            targets.addAll(ImpediuntZones.forbids(level, spot, VitaElement.IGNI)
+                    ? ImpediuntZones.pushedOut(level, spot, VitaElement.IGNI, MatterBlocks.FLAME.get().defaultBlockState())
+                    : List.of(spot));
+        }
+        if (targets.isEmpty()) {
+            later.accept(budget);
+            return;
+        }
+        double share = budget / targets.size();
+        boolean follows = where.atFeet() && targets.size() == 1;
+        for (BlockPos target : targets) {
+            Supplier<BlockPos> spot = follows ? () -> where.now().map(Invocation::fireSpot).orElse(null) : () -> target;
+            NatureWorld.keepFlame(level, spot, share, ticks, later);
+        }
+    }
+
+    /** Where fire lands: before the face it struck, or where the creature it struck stands. */
+    private static BlockPos fireSpot(SpellEffects.SpellImpact impact) {
+        BlockPos at = impact.entity() != null ? impact.entity().blockPosition() : SpellEffects.firePlacementPos(impact);
+        return at != null ? at : BlockPos.containing(impact.location());
     }
 
     // ------------------------------------------------------------------ image
@@ -288,7 +352,6 @@ final class Invocation {
                                   SpellEffects.SpellImpact impact, double power, int windowTicks) {
         ServerLevel level = player.serverLevel();
         Traits traits = SourceLooks.traits(rune);
-        boolean laysFire = traits.kindles();
         boolean wind = isWind(rune);
         double energy = power * EmissionRecorder.DEFAULT_QUANTITY_UMU;
         double radius = FIELD_BASE_RADIUS + 0.5D * Math.sqrt(SpellEffects.blocksFor(power));
@@ -300,8 +363,6 @@ final class Invocation {
                 if (traits.windStrikes() && impact.entity() != null && !where.atFeet()) {
                     SpellEffects.applyToEntity(player, element, rune, impact.entity(), power, false);
                 }
-            } else if (laysFire) {
-                SpellEffects.applyElementEffect(player, element, rune, impact, power);
             } else if (impact.entity() != null && traits.touches()) {
                 SpellEffects.applyToEntity(player, element, rune, impact.entity(), power, false);
             }
@@ -312,10 +373,6 @@ final class Invocation {
             return;
         }
 
-        List<BlockPos> fires = new ArrayList<>();
-        if (laysFire) {
-            lightFires(level, impact, SpellEffects.blocksFor(power), fires);
-        }
         // Held open, it flows as strongly as in the default two seconds for the whole window (SpellFlow).
         double flowing = SpellFlow.total(power, windowTicks);
         double flowingEnergy = flowing * EmissionRecorder.DEFAULT_QUANTITY_UMU;
@@ -338,15 +395,6 @@ final class Invocation {
                         SpellEffects.applyToEntity(player, element, rune, living, share, true);
                     }
                 }
-                if (laysFire && where.atFeet()) {
-                    lightFires(level, now, 1, fires); // it keeps burning at the feet of what it follows
-                }
-                for (BlockPos pos : fires) {
-                    if (level.isLoaded(pos) && level.isEmptyBlock(pos) && !level.isEmptyBlock(pos.below())
-                            && !ImpediuntZones.forbids(level, pos, VitaElement.IGNI)) { // pushed out, it burns on the edge
-                        level.setBlock(pos, Blocks.FIRE.defaultBlockState(), 3); // it keeps burning while the window lasts
-                    }
-                }
                 if (traits.strikes() && tick % LIGHTNING_TICKS == 0) {
                     strike(level, player, center);
                 }
@@ -357,37 +405,6 @@ final class Invocation {
             for (int elapsed = 0; elapsed <= windowTicks; elapsed++) {
                 SpellEffects.schedule(level, elapsed, () -> where.now().ifPresent(now ->
                         blow(level, now.location(), radius, flowingEnergy, windowTicks, windDirection(player, now))));
-            }
-        }
-        SpellEffects.schedule(level, windowTicks + 1, () -> {
-            for (BlockPos pos : fires) {
-                if (level.isLoaded(pos) && level.getBlockState(pos).is(Blocks.FIRE)) {
-                    level.removeBlock(pos, false); // and then it goes
-                }
-            }
-        });
-    }
-
-    /** Lights up to {@code count} fires on the ground around where it landed, remembering them to put out later. */
-    private static void lightFires(ServerLevel level, SpellEffects.SpellImpact impact, int count, List<BlockPos> fires) {
-        BlockPos firePos = impact.entity() != null ? impact.entity().blockPosition() : SpellEffects.firePlacementPos(impact);
-        if (firePos == null) {
-            return;
-        }
-        List<BlockPos> spots = new ArrayList<>(SpellEffects.groundSpots(level, firePos, count));
-        if (spots.isEmpty() && ImpediuntZones.forbids(level, firePos, VitaElement.IGNI)) {
-            spots.add(firePos); // at the feet of what it follows: still fed into the zone, to be pushed out
-        }
-        for (BlockPos written : spots) {
-            // An impediunt pushes the fire out: it spreads around the whole edge and burns there as a ring.
-            List<BlockPos> targets = ImpediuntZones.forbids(level, written, VitaElement.IGNI)
-                    ? ImpediuntZones.pushedOut(level, written, VitaElement.IGNI, Blocks.FIRE.defaultBlockState())
-                    : List.of(written);
-            for (BlockPos pos : targets) {
-                level.setBlock(pos, Blocks.FIRE.defaultBlockState(), 3);
-                if (!fires.contains(pos)) {
-                    fires.add(pos.immutable());
-                }
             }
         }
     }

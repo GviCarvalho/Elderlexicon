@@ -5,13 +5,13 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.server.level.ServerLevel;
 import org.slf4j.Logger;
 
-import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * Holds one {@link SpellScene} per world and runs its laws every tick, so spells interact
- * regardless of who cast them or when. All calls happen on the server thread.
+ * Holds one {@link SpellScene} per world and draws it every tick: the beams and glows of the spells cast in it. What the
+ * energies do when they meet is the drives' work (docs/particulas-design.md, stage 9), where each spell puts what it
+ * brings. All calls happen on the server thread.
  */
 public final class WorldScenes {
 
@@ -19,7 +19,6 @@ public final class WorldScenes {
 
     private static final class WorldScene {
         private final SpellScene scene = new SpellScene();
-        private final SceneLaws laws = new SceneLaws();
     }
 
     private static final Map<ServerLevel, WorldScene> SCENES = new WeakHashMap<>();
@@ -36,7 +35,7 @@ public final class WorldScenes {
         SCENES.remove(level);
     }
 
-    /** Draws the beams, applies the laws and turns the outcomes into events in the world. */
+    /** Draws the beams and glows of what is cast in the world. */
     public static void tick(ServerLevel level) {
         WorldScene world = SCENES.get(level);
         if (world == null) {
@@ -45,15 +44,10 @@ public final class WorldScenes {
         long tick = level.getServer().getTickCount();
         world.scene.prune(tick);
         if (world.scene.isEmpty()) {
-            world.laws.reset();
             return;
         }
         try {
             EmissionRenderer.render(level, world.scene, tick);
-            List<Outcome> outcomes = world.laws.tick(world.scene, tick);
-            for (Outcome outcome : outcomes) {
-                SceneOutcomeApplier.apply(level, outcome);
-            }
         } catch (RuntimeException exception) {
             LOGGER.error("Spell scene step failed", exception);
         }

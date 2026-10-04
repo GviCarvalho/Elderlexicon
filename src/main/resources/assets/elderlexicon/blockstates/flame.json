@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "": [
+      {"model": "elderlexicon:block/flame_floor0"},
+      {"model": "elderlexicon:block/flame_floor1"}
+    ]
+  }
+}

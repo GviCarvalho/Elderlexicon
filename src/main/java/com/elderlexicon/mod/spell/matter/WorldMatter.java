@@ -359,6 +359,40 @@ public final class WorldMatter {
         return Optional.empty();
     }
 
+    /**
+     * Shows one block of {@code matter} at {@code pos}, whatever was there: the block its substance takes in its state,
+     * or formless matter holding it when it has none (what the drives made of a block, docs/particulas-design.md).
+     * Returns the block put there.
+     */
+    public static BlockState show(ServerLevel level, BlockPos pos, Matter matter) {
+        MaterialTable table = table();
+        Optional<BlockState> block = matter.substance(table)
+                .flatMap(substance -> table.form(substance, matter.state()))
+                .filter(form -> form.kind() == Form.Kind.BLOCK)
+                .flatMap(form -> block(form.id()));
+        if (block.isPresent()) {
+            level.setBlock(pos, block.get(), Block.UPDATE_ALL);
+            return block.get();
+        }
+        boolean liquid = matter.state() != com.elderlexicon.mod.magic.matter.State.SOLID;
+        BlockState formless = (liquid ? MatterBlocks.FORMLESS_LIQUID.get() : MatterBlocks.FORMLESS_SOLID.get())
+                .defaultBlockState().setValue(FormlessMatterBlock.GLOW, Qualities.of(matter).glow());
+        level.setBlock(pos, formless, Block.UPDATE_ALL);
+        if (level.getBlockEntity(pos) instanceof FormlessMatterBlockEntity entity) {
+            entity.hold(matter);
+        }
+        return formless;
+    }
+
+    /** The block the table shows {@code matter} as, or empty when it shows as formless matter or not as a block. */
+    public static Optional<BlockState> blockOf(Matter matter) {
+        MaterialTable table = table();
+        return matter.substance(table)
+                .flatMap(substance -> table.form(substance, matter.state()))
+                .filter(form -> form.kind() == Form.Kind.BLOCK)
+                .flatMap(form -> block(form.id()));
+    }
+
     // ------------------------------------------------------------------ formless matter
 
     /**

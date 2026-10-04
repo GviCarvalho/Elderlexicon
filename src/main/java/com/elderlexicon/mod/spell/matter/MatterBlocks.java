@@ -12,7 +12,7 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
-/** The blocks matter needs that the game has none of: formless matter, solid and liquid (stage 5). */
+/** The blocks matter needs that the game has none of: formless matter, solid and liquid (stage 5), and the flame. */
 public final class MatterBlocks {
 
     public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS,
@@ -45,6 +45,18 @@ public final class MatterBlocks {
                     .isRedstoneConductor((state, level, pos) -> false)
                     .isSuffocating((state, level, pos) -> false)
                     .isViewBlocking((state, level, pos) -> false), true));
+
+    /** Air agitated until it glows: the flame the drives keep (docs/particulas-design.md). */
+    public static final RegistryObject<FlameBlock> FLAME = BLOCKS.register("flame",
+            () -> new FlameBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.FIRE)
+                    .replaceable()
+                    .noCollission()
+                    .instabreak()
+                    .lightLevel(state -> 15)
+                    .sound(SoundType.WOOL)
+                    .noLootTable()
+                    .pushReaction(PushReaction.DESTROY)));
 
     public static final RegistryObject<BlockEntityType<FormlessMatterBlockEntity>> FORMLESS_MATTER =
             BLOCK_ENTITY_TYPES.register("formless_matter", () -> BlockEntityType.Builder
