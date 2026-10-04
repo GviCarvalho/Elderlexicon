@@ -32,14 +32,29 @@ Uma **condição** é uma runa como qualquer outra: é lida onde quer que se lei
 círculo, fluxo). Ela funciona como um **"se"**: o espírito confere, no instante em que lê a linha, se o acontecimento
 dela é verdade *agora*. Se não for, a linha não faz nada. Ela não faz parte do que o feitiço faz.
 
-| Runa | Nome | A linha vale se quem conjura acabou de… | Gatilho |
-|---|---|---|---|
-| `ferit` | golpear | golpear algo | `attack` |
-| `patitur` | sofrer | ser ferido | `hurt` |
-| `necat` | matar | matar uma criatura | `kill` |
+Há dois tipos de condição:
 
-- "Agora" é **o último segundo**: o servidor guarda sempre, em fluxo ou não, quando cada acontecimento se deu.
-  Golpear e dizer `surgit` logo em seguida lê `ferit igni iactare` e lança o fogo; sem o golpe, nada.
+- **Acontecimentos** valem se se deram no último segundo (o servidor guarda sempre, em fluxo ou não, quando cada um se
+  deu). Em fluxo, cada um acorda o espírito.
+- **Estados** valem enquanto duram. Em fluxo, acordam o espírito no instante em que começam.
+
+| Runa | Nome | A linha vale se quem conjura… | Gatilho | Tipo |
+|---|---|---|---|---|
+| `ferit` | golpear | acabou de golpear algo | `attack` | acontecimento |
+| `patitur` | sofrer | acabou de ser ferido | `hurt` | acontecimento |
+| `necat` | matar | acabou de matar uma criatura | `kill` | acontecimento |
+| `salit` | pular | acabou de pular | `jump` | acontecimento |
+| `cadit` | cair | acabou de aterrissar de uma queda (2 blocos ou mais) | `land` | acontecimento |
+| `frangit` | quebrar | acabou de quebrar um bloco | `break` | acontecimento |
+| `utitur` | usar | acabou de usar o que tem na mão (botão direito, no ar ou num bloco) | `use` | acontecimento |
+| `latet` | agachar | está agachado | `sneak` | estado |
+| `currit` | correr | está correndo | `sprint` | estado |
+| `languet` | enfraquecer | está com 30% da vida ou menos | `low_health` | estado |
+| `ardet` | arder | está em chamas | `burning` | estado |
+| `mergitur` | submergir | está debaixo d'água (os olhos na água) | `underwater` | estado |
+
+- Golpear e dizer `surgit` logo em seguida lê `ferit igni iactare` e lança o fogo; sem o golpe, nada. Agachado,
+  `latet aura iactare` lança o ar; em pé, nada.
 - Escreve-se **abrindo a linha**: `ferit igni iactare`. A gramática ignora a condição em qualquer posição, então
   `igni ferit iactare` também funciona.
 - Várias condições na mesma linha valem **todas juntas**: `ferit patitur igni iactare` só vale se o mago acabou de
@@ -80,9 +95,12 @@ nenhuma linha vale, o espírito responde que a condição não se cumpre agora.
 - `runes.json`: `ferit`, `patitur`, `necat`, com `"class": "condition"` e `"trigger"`.
 - `SpellGrammar`: pula a condição. `SpellReading` e `SpellDescription`: explicam a condição no grimório
   ("Se quem conjura acabou de golpear algo: …").
-- `spelling/flow/Happenings`: quando cada acontecimento se deu, para cada mago, sempre; "agora" é o último segundo.
+- `spelling/flow/Happenings`: quando cada acontecimento se deu (vale por um segundo) e como se reconhece cada estado
+  (vale enquanto dura); quais estados acabam de começar, a cada tick.
 - `spelling/flow/FlowState`: as sessões, o custo, o meio segundo de espera.
-- `spelling/flow/FlowEvents`: golpe (`AttackEntityEvent`), ferimento (`LivingHurtEvent`), morte (`LivingDeathEvent`).
+- `spelling/flow/FlowEvents`: golpe (`AttackEntityEvent`), ferimento (`LivingHurtEvent`), morte (`LivingDeathEvent`),
+  pulo (`LivingJumpEvent`), aterrissagem (`LivingFallEvent`), bloco quebrado (`BlockEvent.BreakEvent`), uso
+  (`RightClickItem`, `RightClickBlock`) e o começo de cada estado (o tick do jogador).
 - `FlowTogglePacket` (tecla → servidor), `FlowStatePacket` (servidor → HUD), `client/ClientFlow`.
 - `ServerSpellingController.passes`: a regra única de toda leitura (as condições valem agora; em fluxo, a linha fala do
   acontecimento). Vale em `castPage`, `castRitualText`, `castCircle` e no transe. `wake`: a leitura do fluxo.
@@ -90,9 +108,7 @@ nenhuma linha vale, o espírito responde que a condição não se cumpre agora.
 ## 7. Perguntas abertas
 
 1. **Glifos das condições.** Depende de refazer os números como blocos (0 a 9999), o que libera Q–Z.
-2. Mais gatilhos: movimento (pular, agachar, correr, aterrissar), trabalho (quebrar bloco, usar o item), estado do
-   corpo (vida baixa, em chamas, debaixo d'água).
-3. O feitiço desperto por `ferit` deveria mirar quem foi golpeado, em vez da direção do olhar?
+2. O feitiço desperto por `ferit` deveria mirar quem foi golpeado, em vez da direção do olhar?
 
 ## 8. Decisões tomadas
 
@@ -103,3 +119,5 @@ nenhuma linha vale, o espírito responde que a condição não se cumpre agora.
 5. ~~O espírito escuta as mãos e a armadura vestida.~~ Substituída pela 7. (04/10/2026)
 6. A condição é uma runa como qualquer outra: um "se" avaliado no instante da leitura, em toda leitura. (04/10/2026)
 7. Em fluxo, o espírito escuta tudo o que o `surgit` lê, e mais a armadura vestida. (04/10/2026)
+8. Segunda leva: movimento, trabalho e estado do corpo. Os estados valem enquanto duram e, em fluxo, despertam ao
+   começar. (04/10/2026)

@@ -28,8 +28,8 @@ class LexiconTest {
 
     @Test
     void theLanguageIsSmall() {
-        assertEquals(19, LEXICON.runes().size(),
-                "five sources, seven verbs, four filters and three conditions: the rest is composition");
+        assertEquals(28, LEXICON.runes().size(),
+                "five sources, seven verbs, four filters and twelve conditions: the rest is composition");
     }
 
     @Test
@@ -38,6 +38,10 @@ class LexiconTest {
         assertEquals("attack", LEXICON.triggerOf("ferit").orElseThrow());
         assertEquals("hurt", LEXICON.triggerOf("patitur").orElseThrow());
         assertEquals("kill", LEXICON.triggerOf("necat").orElseThrow());
+        Map<String, String> more = Map.of("salit", "jump", "cadit", "land", "frangit", "break", "utitur", "use",
+                "latet", "sneak", "currit", "sprint", "languet", "low_health", "ardet", "burning",
+                "mergitur", "underwater");
+        more.forEach((rune, trigger) -> assertEquals(trigger, LEXICON.triggerOf(rune).orElseThrow(), rune));
         assertTrue(LEXICON.rune("ferit").orElseThrow().is(WordClass.CONDITION));
         assertFalse(LEXICON.isCondition("igni"));
     }
