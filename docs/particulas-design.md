@@ -1,7 +1,8 @@
 # Partículas: a física do mod
 
 **Status:** desenho aprovado (30/09/2026). Etapas 1 a 6 implementadas: a parte pura, criar pelo código, a retirada
-das runas fundidas e a transformação de blocos, itens, seres e jogadores. Continua
+das runas fundidas e a transformação de blocos, itens, seres e jogadores. Etapa 9 começada: o laboratório dos impulsos
+ligado ao mundo (§8.8). Continua
 `plano-materia-emergente.md` e
 `interacoes-design.md`, e junta as duas físicas que existem hoje com a lei do corpo (`vita-design.md`).
 
@@ -345,8 +346,9 @@ Cada etapa é um commit, com os testes passando.
    - a intensidade da condensação passa a ser compressão: quantos blocos cabem num;
    - as faixas do fogo ficam iguais (uma chama valia 1 UMU, e 44 chamas num ponto continuam calor 44); as da água, do ar
      e da terra são refeitas.
-9. **Os verbos no mundo:** matéria informe com partículas, trocas pelas faces. A parte pura, o laboratório, está
-   feita (§8.7); falta ligá-la ao mundo no lugar das três camadas antigas.
+9. **Os verbos no mundo:** matéria informe com partículas, trocas pelas faces. O laboratório está feito (§8.7) e
+   ligado ao mundo (§8.8): o calor, o fogo, a água fervendo, a lava e o raio já vêm dos impulsos. Falta a matéria
+   informe em partículas e o fim das leis antigas da matéria misturada.
 10. **Calor e frio:** o igni e a dívida de igni no lugar da temperatura do `NatureField`.
 11. **Pressão e umidade:** aura e aqua; sai a tabela `Material`.
 12. **O desenho dos voxels.**
@@ -694,6 +696,94 @@ média sai o certo.
 - o raio que corre (por enquanto só o plasma parado);
 - a ligação com o mundo.
 
+## 8.8 Como a etapa 9 começou: o laboratório no mundo
+
+Pedido do usuário (03/10/2026): "Confirmo as propostas, pode ligar o laboratório ao mundo".
+
+**As leis sem lugar** (`magic/physics/Field`): as leis do laboratório passaram para um campo de blocos ligados pelas
+faces, que não sabe onde estão. A caixa do laboratório (`Box`) arruma os blocos numa caixa fechada; o mundo arruma os
+que estão acordados. Os 19 cenários do laboratório continuam passando.
+
+**O campo de cada mundo** (`spell/nature/WorldField`, no lugar do `NatureField`):
+- **Acordar:** um bloco acorda como a tabela o lê, na agitação da sua natureza:
+  - o mundo em repouso;
+  - a lava logo acima da fusão da pedra dela;
+  - o gelo e a neve logo abaixo da fusão da água deles.
+
+  O ar e as plantas que estão nele são um bloco de ar, e uma chama é ar que brilha. O que a tabela não conhece é
+  parede.
+- **Em volta do que mexe:** os blocos vizinhos acordam, para o que ele dá ter para onde ir. O que é quente por natureza
+  (um lago de lava) é o mundo como sempre é, e só acorda quando algo o acorda de propósito.
+- **Mostrar:** a cada tick os impulsos agem uma vez, e o mundo mostra o que saiu:
+  - o bloco que a matéria é no estado dela, ou matéria informe quando a tabela não tem um;
+  - a chama onde o ar brilha;
+  - o raio onde o ar vira plasma.
+
+  A chama é um bloco do mod (`FlameBlock`): queima quem está nela, dá luz, não se espalha sozinha como o fogo do jogo,
+  e se apaga quando os impulsos não a mantêm mais.
+- **Dormir:** um bloco que volta à natureza por um tempo dorme de novo. O pouco que guardava além dela vai para o mundo
+  em repouso: o ar aberto leva a fumaça e o calor, o chão leva a cinza. O mundo é muito maior que o que está acordado.
+- **Limite:** no máximo 8192 blocos acordados por mundo. O campo não é salvo: ao recarregar, os blocos acordados
+  dormem, e as chamas se apagam.
+
+**Os feitiços:**
+- **`igni vocant`** (usuário, 03/10/2026: sem número, a quantidade certa para uma chama). O fogo segura uma chama onde
+  cai pelo seu momento (um segundo), alimentando-a a cada passo até a agitação de uma chama.
+  - Sozinho, traz o que segurar uma chama custa, e quem diz quanto são os impulsos: o mod mede uma vez, numa caixa de ar
+    parado. Dá 83 partículas (0,32 UMU): 32 para acender o ar e 51 para mantê-lo aceso.
+  - Mais fogo segura mais chamas em volta; `chronos` as segura por mais tempo.
+  - O que as chamas não gastam volta ao corpo.
+  - O que elas fazem é dos impulsos: secam e acendem o que queima, queimam quem está nelas e se apagam.
+- **O fogo condensado** (`tenet … chronos 0`) solta tudo de uma vez onde bate. Se for plasma, também explode, como
+  antes.
+- **O ar solto** de uma condensação entra no campo como partículas de ar, e o campo o espalha.
+- **A água solta** de uma condensação, ou a da vis, cai como água.
+
+**O que saiu:**
+- o `NatureField` e a tabela `Material`;
+- as leis de cena (`SceneLaws`, `Outcome`, `SceneOutcomeApplier`). Com elas acaba o raio que saía de qualquer coisa
+  misturada com água;
+- as faixas antigas do fogo condensado (areia em vidro, pedra em lava pelo número, chama no centro): os impulsos fazem
+  isso agora;
+- a tempestade do campo antigo (gotas e gelo agitados fazendo carga). O raio agora só sai do plasma.
+
+As emissões continuam, só como o desenho dos feitiços (feixes e brilhos).
+
+**A tabela** (usuário, 03/10/2026: os blocos feitos são feitos do que são):
+- madeira: troncos descascados, madeiras e tábuas;
+- pedra: pedregulho musgoso, pedra lisa, tijolos de pedra, granito, diorito, andesito, tufo, calcita;
+- ardósia: as lapidadas e os tijolos;
+- areia: areia vermelha e os arenitos;
+- terra: grama, terra grossa, podzol, micélio, caminho, terra arada;
+- obsidiana chorona; os blocos de ferro, ouro e cobre; as lãs de todas as cores; a neve em pó.
+
+O que o fogo fez de outra coisa (vidro, tijolo, terracota, concreto) ainda é parede, até ter código.
+
+**Duas leis que o mundo corrigiu no laboratório:**
+- **O ar que sobe** trocava um quarto do ar de cima com o bloco de baixo, mesmo quando este tinha pouco espaço (a
+  pedra derretida, com o espaço da água que ferveu). Agora os dois trocam o mesmo volume.
+- **A luz passa pelo ar limpo:** o brilho só vai e vem entre matéria e chama. A lava ao ar livre esfria pelo que o ar
+  leva, devagar, e a chama ainda aquece o tronco que lambe.
+
+**Os testes no jogo:**
+- uma chama segurada brilha e se apaga sem o que queimar;
+- uma chama segurada ao lado de um tronco o seca e acende, e o tronco queima até sumir, com chamas em volta;
+- a pedra aquecida além da fusão vira lava e volta a ser pedra;
+- a água aquecida além da fervura sai como vapor;
+- um bloco de fogo puro no ar vira raio;
+- o `igni vocant` sozinho segura uma chama pelo seu momento.
+
+Os 43 testes do jogo passam, e os 530 de unidade também.
+
+**O que falta da etapa 9:**
+- **A matéria informe em partículas.** A `FormlessMatterBlockEntity` ainda guarda proporção e UMU. Também continuam
+  as qualidades e as reações antigas da matéria misturada (`Qualities`, `MatterLaws.react`, `Placement`).
+- **Os seres no campo:** o corpo trocando calor com o ar e o chão (§4: o frio que congela, a lava que queima), e as
+  chamas e o raio queimando pelo corpo, não só pelo bloco.
+- **O vento** que o ar solto faz nos seres, pelo próprio campo.
+- **A água e a areia que escorrem e caem**, e a chuva.
+- **O desenho** dos blocos acordados (etapa 12).
+
 ## Os seres propostos
 
 Proporções propostas na etapa 6, para o usuário revisar. As colunas são as partes de cem: terra, água, ar e fogo.
@@ -857,8 +947,15 @@ Ficaram de fora os chefes (dragão do End e wither) e os que o jogo não faz nas
 29. As partículas de fogo precisam de espaço para tremular. A massa ocupa espaço, e o que concentra firmo resiste a
     pegar fogo (usuário, 03/10).
 30. Se a neve segura depende da agitação: quanto mais paradas as partículas, mais frio (usuário, 03/10).
-31. O ar agitado vira fogo e, mais agitado, raio (usuário, 03/10). Os limites estão em aberto.
-32. O que deveria carbonizar vira carvão vegetal ou derrete, com chance baseada no real (usuário, 03/10).
+31. O ar agitado vira fogo e, mais agitado, raio (usuário, 03/10). O gás que brilha (de uns 525 °C) é fogo; o que
+    vira plasma (de uns 5600 °C) é raio (confirmado, 03/10).
+32. O que deveria carbonizar vira carvão vegetal ou derrete, com chance baseada no real (usuário, 03/10). A chance sai
+    da velocidade do aquecimento, como na pirólise de verdade (confirmado, 03/10).
+33. Para ficar perto do real, o vapor é 9 de água para 1 de fogo e cada partícula de fogo leva 50 de ar (confirmado,
+    03/10).
+34. O `igni vocant` sem número invoca uma chama, com a quantidade certa de UMU para isso (usuário, 03/10).
+35. Os blocos feitos entram na física como a matéria de que são feitos (usuário, 03/10).
+36. O laboratório liga-se ao mundo no lugar das camadas antigas (usuário, 03/10).
 
 ## Decisões em aberto
 
@@ -871,8 +968,5 @@ Ficaram de fora os chefes (dragão do End e wither) e os que o jogo não faz nas
 4. **As variantes** (carvalho e bétula, as cores da lã): código próprio, ou a mesma coisa com outra forma.
 5. **O caldeirão:** como as coisas entram, se desfazem e saem.
 6. **A Forma:** se e como ensinar, agora sem as formas fundidas.
-7. **Os limites do fogo e do raio** (§8.7): o gás brilha e é fogo a partir de uns 525 °C, e vira plasma (raio) a partir
-   de uns 5600 °C.
-8. **A chance entre carvão e derreter:** saiu da velocidade do aquecimento, sem sorteio. Fica assim, ou entra sorteio?
-9. **As escolhas para ficar perto do real:** o vapor de 9 para 1 (mudou na tabela) e o fogo que leva 50 de ar.
-10. **Os códigos que mudam de nome quando aquecidos:** cobre, areia, pedra infernal, osso (§8.7).
+7. **Os códigos que mudam de nome quando aquecidos:** cobre, areia, pedra infernal, osso (§8.7).
+8. **O que o fogo fez de outra coisa:** vidro, tijolo, terracota e concreto ainda são parede. Precisam de código.

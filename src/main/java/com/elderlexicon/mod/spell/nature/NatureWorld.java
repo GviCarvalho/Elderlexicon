@@ -1,22 +1,16 @@
 package com.elderlexicon.mod.spell.nature;
 
 import com.elderlexicon.mod.ElderLexicon;
-import com.elderlexicon.mod.spell.AirPressure;
-import com.elderlexicon.mod.spell.Pressure;
-import com.elderlexicon.mod.spell.function.AirSpots;
+import com.elderlexicon.mod.magic.matter.Materials;
+import com.elderlexicon.mod.magic.matter.Matter;
+import com.elderlexicon.mod.magic.matter.Particles;
+import com.elderlexicon.mod.magic.physics.Box;
+import com.elderlexicon.mod.magic.physics.Field;
+import com.elderlexicon.mod.spell.matter.WorldMatter;
+import com.elderlexicon.mod.vita.VitaElement;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.tags.FluidTags;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LightningBolt;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.level.LevelEvent;
@@ -24,112 +18,164 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.slf4j.Logger;
 
-import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.WeakHashMap;
+import java.util.function.DoubleConsumer;
+import java.util.function.Supplier;
 
 /**
- * Holds the {@link NatureField} of each world, reads the world's blocks as {@link Material}s for it, runs its laws
- * every tick and does in the world what they decide: blocks that change phase, steam, and bursts.
+ * The drives in each world (docs/particulas-design.md, stage 9): holds the {@link WorldField} of each world, runs it
+ * every tick, and is where spells put what they bring into it. Whatever element or spell brought it, the drives decide
+ * what it does once it is there.
  */
 @Mod.EventBusSubscriber(modid = ElderLexicon.MODID)
 public final class NatureWorld {
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    /** At most this many steam puffs are shown each tick; the rest still happen. */
-    private static final int STEAM_SHOWN = 48;
-    private static final Map<ServerLevel, NatureField> FIELDS = new WeakHashMap<>();
-    /** The share of a pressure's energy that its air, let out, loses as it expands: it cools the air it rushes into. */
-    private static final double EXPANSION_COOLING = 0.5D;
-    /** How far down from the charge lightning looks for the ground to strike. */
-    private static final int STRIKE_DEPTH = 64;
+    private static final Map<ServerLevel, WorldField> FIELDS = new WeakHashMap<>();
+    /** How long a vocant's flame lasts by itself: a moment, one second. */
+    public static final int FLAME_TICKS = 20;
+    /** What holding one flame for that moment takes, in UMU (see {@link #flame}). */
+    private static final double FLAME_MOMENT = measureFlame();
 
     private NatureWorld() {
     }
 
-    private static NatureField fieldOf(ServerLevel level) {
-        return FIELDS.computeIfAbsent(level, key -> new NatureField());
-    }
-
-    private static NatureField.Matter matterOf(ServerLevel level) {
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        return key -> {
-            cursor.set(BlockPos.getX(key), BlockPos.getY(key), BlockPos.getZ(key));
-            if (!level.isLoaded(cursor) || level.isOutsideBuildHeight(cursor)) {
-                return Material.VOID;
-            }
-            return materialOf(level.getBlockState(cursor));
-        };
+    private static WorldField fieldOf(ServerLevel level) {
+        return FIELDS.computeIfAbsent(level, WorldField::new);
     }
 
     // ------------------------------------------------------------------ what spells put in
 
-    /** Warms the block at {@code pos} toward {@code target}, spending at most {@code budget} UMU; returns what it spent. */
-    public static double warm(ServerLevel level, BlockPos pos, double target, double budget) {
-        return fieldOf(level).warm(matterOf(level), pos.asLong(), target, budget);
+    /**
+     * {@code umu} of fire let into the air at {@code pos}: agitation, which the drives make a flame of, or lightning,
+     * or nothing much, by how much it is and what is around. Says whether it went in (not into a wall).
+     */
+    public static boolean fire(ServerLevel level, BlockPos pos, double umu) {
+        return fieldOf(level).heat(pos, Particles.ofUmu(umu));
     }
 
-    /** Wakes the block at {@code pos} with the heat it has by nature (lava a spell has just melted). */
+    /** {@code igni} particles of agitation into the block at {@code pos}; negative, taken out of it. */
+    public static boolean heat(ServerLevel level, BlockPos pos, long igni) {
+        return fieldOf(level).heat(pos, igni);
+    }
+
+    /**
+     * What holding one flame for a vocant's moment takes, in UMU: what {@code igni vocant} brings by itself (user,
+     * 03/10/2026). The drives say how much: worked out once in a box of still air, the fire it takes to make a block of
+     * air a flame and to keep it one for {@link #FLAME_TICKS} steps as its heat goes into the air around.
+     */
+    public static double flame() {
+        return FLAME_MOMENT;
+    }
+
+    private static double measureFlame() {
+        Box box = new Box(5, 5, 5);
+        Particles air = new Particles(0L, 0L, Particles.BLOCK, 0L);
+        for (int x = 0; x < 5; x++) {
+            for (int y = 0; y < 5; y++) {
+                for (int z = 0; z < 5; z++) {
+                    box.blow(x, y, z, air);
+                }
+            }
+        }
+        long spent = 0L;
+        for (int step = 0; step < FLAME_TICKS; step++) {
+            box.step();
+            long given = Math.max(0L, box.agitationFor(2, 1, 2, Field.flameTemperature()) - box.heat(2, 1, 2));
+            box.heat(2, 1, 2, given);
+            spent += given;
+        }
+        return (double) spent / Particles.PER_UMU;
+    }
+
+    /**
+     * Holds a flame where {@code where} says for {@code ticks} ticks, feeding it from {@code umu} of fire: after every
+     * step its air is brought back up to a flame's agitation. What is not spent goes to {@code left}, in UMU.
+     */
+    public static void keepFlame(ServerLevel level, Supplier<BlockPos> where, double umu, int ticks,
+                                 DoubleConsumer left) {
+        fieldOf(level).keep(where, Particles.ofUmu(umu), ticks,
+                rest -> left.accept((double) rest / Particles.PER_UMU));
+    }
+
+    /** Wakes the block at {@code pos} as it is by nature, even one hot by nature (lava a spell has reached). */
     public static void wake(ServerLevel level, BlockPos pos) {
-        fieldOf(level).wake(matterOf(level), pos.asLong());
+        fieldOf(level).wake(pos);
     }
 
-    /** Puts {@code energy} UMU of heat into the block at {@code pos}. */
-    public static void heat(ServerLevel level, BlockPos pos, double energy) {
-        fieldOf(level).heat(matterOf(level), pos.asLong(), energy);
-    }
-
-    /**
-     * Pressed air let out at {@code at}: it rushes out, stirring the air within {@code reach}, and, expanding from so
-     * great a pressure, cools it (air let out of a tank comes out freezing).
-     */
+    /** Pressed air let out at {@code at}: its particles go into the air there and spread from it, as wind. */
     public static void releaseAir(ServerLevel level, Vec3 at, double pressure, double reach) {
-        NatureField field = fieldOf(level);
-        NatureField.Matter matter = matterOf(level);
-        long center = BlockPos.containing(at).asLong();
-        field.stir(matter, center, reach, pressure);
-        field.heatAir(matter, center, reach, -EXPANSION_COOLING * pressure);
+        long air = Particles.ofUmu(pressure);
+        if (air > 0L) {
+            fieldOf(level).blow(BlockPos.containing(at), new Particles(0L, 0L, air, 0L));
+        }
     }
 
-    /**
-     * Pressed water let out at {@code at}: it springs back to its own volume, thrown about as droplets that fall and
-     * pool, and the burst stirs the air around.
-     */
+    /** Pressed water let out at {@code at}: it springs back to its own volume and falls as water. */
     public static void releaseWater(ServerLevel level, Vec3 at, double pressure) {
-        NatureField field = fieldOf(level);
-        NatureField.Matter matter = matterOf(level);
-        long center = BlockPos.containing(at).asLong();
-        double reach = Pressure.burstReach(pressure);
-        field.spray(matter, center, reach / 2.0D, pressure);
-        field.stir(matter, center, reach, pressure);
+        pour(level, at, pressure);
     }
 
-    /** {@code water} UMU of water thrown into the air around {@code at} as droplets, over {@code reach}: they fall and pool. */
+    /** {@code water} UMU of water thrown into the air around {@code at}: it falls and pools. */
     public static void spray(ServerLevel level, Vec3 at, double reach, double water) {
-        fieldOf(level).spray(matterOf(level), BlockPos.containing(at).asLong(), reach, water);
+        pour(level, at, water);
     }
 
+    private static void pour(ServerLevel level, Vec3 at, double water) {
+        if (water <= 0.0D) {
+            return;
+        }
+        WorldMatter.place(level, BlockPos.containing(at), Matter.natural(Materials.get().primordial(VitaElement.AQUA),
+                water));
+    }
+
+    // ------------------------------------------------------------------ what the drives say
+
+    /** Whether the block at {@code pos} is matter the drives know and not air: something heat can go into. */
     public static boolean isMatter(ServerLevel level, BlockPos pos) {
-        Material material = materialOf(level.getBlockState(pos));
-        return !material.gas && material != Material.VOID;
+        return fieldOf(level).isMatter(pos);
     }
 
-    // ------------------------------------------------------------------ the laws, each tick
+    /** Whether the drives keep a flame at {@code pos}: its air is awake and glows. */
+    public static boolean flameAt(ServerLevel level, BlockPos pos) {
+        WorldField field = FIELDS.get(level);
+        return field != null && field.flameAt(pos);
+    }
+
+    /** How agitated the block at {@code pos} is (1 is the world at rest, about 20 °C). */
+    public static double temperature(ServerLevel level, BlockPos pos) {
+        return fieldOf(level).temperature(pos);
+    }
+
+    /** What the block at {@code pos} holds and what flies in it, while it is awake. */
+    public static Optional<Field.Cell> cell(ServerLevel level, BlockPos pos) {
+        WorldField field = FIELDS.get(level);
+        return field == null ? Optional.empty() : field.cell(pos);
+    }
+
+    /** How many blocks are awake in a world. */
+    public static int awake(ServerLevel level) {
+        WorldField field = FIELDS.get(level);
+        return field == null ? 0 : field.size();
+    }
+
+    // ------------------------------------------------------------------ the drives, each tick
 
     @SubscribeEvent
     public static void onLevelTick(TickEvent.LevelTickEvent event) {
         if (event.phase != TickEvent.Phase.END || !(event.level instanceof ServerLevel level)) {
             return;
         }
-        NatureField field = FIELDS.get(level);
+        WorldField field = FIELDS.get(level);
         if (field == null || field.isEmpty()) {
             return;
         }
         try {
-            NatureField.Step step = field.step(matterOf(level));
-            apply(level, step);
+            field.step();
         } catch (RuntimeException exception) {
-            LOGGER.error("Nature step failed", exception);
+            LOGGER.error("The drives failed a step", exception);
         }
     }
 
@@ -138,148 +184,5 @@ public final class NatureWorld {
         if (event.getLevel() instanceof ServerLevel level) {
             FIELDS.remove(level);
         }
-    }
-
-    private static void apply(ServerLevel level, NatureField.Step step) {
-        for (NatureField.Change change : step.changes()) {
-            BlockPos pos = BlockPos.of(change.key());
-            BlockState state = level.getBlockState(pos);
-            if (materialOf(state) != change.from()) {
-                continue; // it was changed by someone else meanwhile
-            }
-            BlockState into = blockOf(change.to());
-            if (into != null) {
-                level.setBlock(pos, into, Block.UPDATE_ALL);
-            }
-            if (change.from() == Material.LAVA) {
-                level.sendParticles(ParticleTypes.LARGE_SMOKE, pos.getX() + 0.5D, pos.getY() + 1.0D, pos.getZ() + 0.5D,
-                        3, 0.3D, 0.1D, 0.3D, 0.01D);
-                level.playSound(null, pos, SoundEvents.LAVA_EXTINGUISH, SoundSource.BLOCKS, 0.5F, 1.0F);
-            }
-        }
-        steam(level, step.steams());
-        for (NatureField.Burst burst : step.bursts()) {
-            burst(level, BlockPos.of(burst.key()), burst.pressure());
-        }
-        for (NatureField.Discharge discharge : step.discharges()) {
-            strike(level, BlockPos.of(discharge.key()), discharge.charge());
-        }
-    }
-
-    private static void steam(ServerLevel level, List<NatureField.Steam> steams) {
-        if (steams.isEmpty()) {
-            return;
-        }
-        int every = Math.max(1, steams.size() / STEAM_SHOWN);
-        for (int i = 0; i < steams.size(); i += every) {
-            NatureField.Steam steam = steams.get(i);
-            BlockPos pos = BlockPos.of(steam.key());
-            int count = (int) Math.min(8.0D, 1.0D + steam.amount() * 4.0D);
-            level.sendParticles(ParticleTypes.CLOUD, pos.getX() + 0.5D, pos.getY() + 0.9D, pos.getZ() + 0.5D, count,
-                    0.3D, 0.2D, 0.3D, 0.03D);
-        }
-        if (level.getGameTime() % 10 == 0) {
-            BlockPos pos = BlockPos.of(steams.get(level.random.nextInt(steams.size())).key());
-            level.playSound(null, pos, SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS,
-                    (float) Math.min(1.5D, 0.3D + steams.size() / 20.0D), 0.8F);
-        }
-    }
-
-    /**
-     * Vapor that could not get out bursts: the water around is blown to spray, and the pressure goes off like any
-     * pressed air (water swallows an explosion's force, so it has to be thrown clear first).
-     */
-    private static void burst(ServerLevel level, BlockPos center, double pressure) {
-        int spray = (int) Math.min(8.0D, Math.ceil(AirPressure.bomb(pressure) / 2.0D));
-        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-spray, -spray, -spray),
-                center.offset(spray, spray, spray))) {
-            if (pos.distSqr(center) <= spray * spray && level.getBlockState(pos).is(Blocks.WATER)) {
-                level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-            }
-        }
-        Vec3 at = Vec3.atCenterOf(center);
-        AirSpots.bomb(level, null, at, pressure);
-        fieldOf(level).stir(matterOf(level), center.asLong(), AirPressure.reach(pressure), pressure);
-        level.sendParticles(ParticleTypes.CLOUD, at.x, at.y + 1.0D, at.z, 80, spray, spray, spray, 0.3D);
-    }
-
-    /**
-     * Charge that grew too strong strikes the ground below it as lightning, harder the more charge it held; with no
-     * ground near, it flashes in the air.
-     */
-    private static void strike(ServerLevel level, BlockPos from, double charge) {
-        BlockPos.MutableBlockPos ground = from.mutable();
-        boolean found = false;
-        for (int down = 0; down < STRIKE_DEPTH && ground.getY() > level.getMinBuildHeight(); down++) {
-            if (!materialOf(level.getBlockState(ground.below())).gas) {
-                found = true;
-                break;
-            }
-            ground.move(0, -1, 0);
-        }
-        LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
-        if (bolt == null) {
-            return;
-        }
-        bolt.moveTo(Vec3.atBottomCenterOf(found ? ground : from));
-        bolt.setVisualOnly(!found);
-        bolt.setDamage((float) (5.0D + 5.0D * Math.log10(charge / NatureField.DISCHARGE)));
-        level.addFreshEntity(bolt);
-    }
-
-    // ------------------------------------------------------------------ blocks and materials
-
-    static Material materialOf(BlockState state) {
-        if (state.isAir()) {
-            return Material.AIR;
-        }
-        if (state.getFluidState().is(FluidTags.LAVA)) {
-            return Material.LAVA;
-        }
-        if (state.is(Blocks.WATER)) {
-            return Material.WATER;
-        }
-        if (state.is(BlockTags.ICE)) {
-            return Material.ICE;
-        }
-        if (state.is(Blocks.SNOW) || state.is(Blocks.SNOW_BLOCK) || state.is(Blocks.POWDER_SNOW)) {
-            return Material.SNOW;
-        }
-        if (state.is(BlockTags.FIRE)) {
-            return Material.AIR; // a flame is hot gas
-        }
-        if (state.is(Blocks.OBSIDIAN) || state.is(Blocks.CRYING_OBSIDIAN)) {
-            return Material.OBSIDIAN;
-        }
-        if (state.is(Blocks.BASALT) || state.is(Blocks.SMOOTH_BASALT) || state.is(Blocks.POLISHED_BASALT)) {
-            return Material.BASALT;
-        }
-        if (state.is(BlockTags.SAND)) {
-            return Material.SAND;
-        }
-        if (state.is(BlockTags.DIRT) || state.is(Blocks.GRAVEL)) {
-            return Material.SOIL;
-        }
-        if (state.is(BlockTags.BASE_STONE_OVERWORLD) || state.is(BlockTags.BASE_STONE_NETHER)
-                || state.is(Blocks.COBBLESTONE) || state.is(Blocks.COBBLED_DEEPSLATE)) {
-            return Material.STONE;
-        }
-        if (state.canBeReplaced() && state.getFluidState().isEmpty()) {
-            return Material.AIR; // grass and flowers: the air around them
-        }
-        return Material.SOLID;
-    }
-
-    /** The block a change of phase leaves, or null when the block should stay as it is. */
-    static BlockState blockOf(Material material) {
-        return switch (material) {
-            case AIR -> Blocks.AIR.defaultBlockState();
-            case WATER -> Blocks.WATER.defaultBlockState();
-            case ICE -> Blocks.ICE.defaultBlockState();
-            case SNOW -> Blocks.SNOW.defaultBlockState();
-            case OBSIDIAN -> Blocks.OBSIDIAN.defaultBlockState();
-            case BASALT -> Blocks.BASALT.defaultBlockState();
-            default -> null;
-        };
     }
 }

@@ -727,9 +727,11 @@ public final class SpellGameTests {
         castOrFail(helper, mage, "igni quantum 3 vertere " + mark("c5galinha"));
         helper.runAfterDelay(2, () -> {
             check(helper, !chicken.isAlive(), "the chicken's body should be gone");
+            // The cow that carries the chicken's mark: a test beside this one may have cows of its own.
             List<net.minecraft.world.entity.animal.Cow> cows = helper.getLevel().getEntitiesOfClass(
-                    net.minecraft.world.entity.animal.Cow.class, new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(6.0D));
-            check(helper, cows.size() == 1, "one cow, were " + cows.size());
+                    net.minecraft.world.entity.animal.Cow.class, new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(6.0D),
+                    cow -> MarkHelper.markForEntity(cow).filter(mark("c5galinha")::equals).isPresent());
+            check(helper, cows.size() == 1, "one cow with the chicken's mark, were " + cows.size());
             net.minecraft.world.entity.animal.Cow cow = cows.get(0);
             check(helper, Math.abs(cow.getMaxHealth() - 4.0F) < 1.0E-4F && Math.abs(cow.getHealth() - 4.0F) < 1.0E-4F,
                     "the cow should have the chicken's life, 4, had " + cow.getHealth() + " of " + cow.getMaxHealth());
@@ -900,6 +902,32 @@ public final class SpellGameTests {
         check(helper, level.getBlockState(second).is(Blocks.STONE), "the configuration forbade breaking");
         check(helper, !pig.isAlive() || pig.getHealth() < health, "the blow should hurt the pig");
         helper.succeed();
+    }
+
+    /**
+     * By itself, igni vocant brings what holding one flame for a moment takes (user, 03/10/2026): a flame shows where
+     * it lands, burns for the moment, and goes out with nothing to burn (docs/particulas-design.md, stage 9).
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 200)
+    public static void igniVocantByItselfHoldsAFlameForAMoment(GameTestHelper helper) {
+        ServerPlayer mage = mageOnGlass(helper);
+        BlockPos spot = new BlockPos(2, 1, 2);
+        castOrFail(helper, mage, "igni " + at(helper, 2, 1, 2) + " ubis vocant");
+        boolean[] seen = {false};
+        helper.onEachTick(() -> {
+            for (int up = 0; up < 3; up++) {
+                seen[0] |= helper.getBlockState(spot.above(up)).is(com.elderlexicon.mod.spell.matter.MatterBlocks.FLAME.get());
+            }
+        });
+        helper.runAfterDelay(5, () -> check(helper, seen[0], "a flame should burn where the fire landed"));
+        helper.runAfterDelay(com.elderlexicon.mod.spell.nature.NatureWorld.FLAME_TICKS + 5,
+                () -> helper.succeedWhen(() -> {
+                    for (int up = 0; up < 3; up++) {
+                        check(helper, !helper.getBlockState(spot.above(up))
+                                        .is(com.elderlexicon.mod.spell.matter.MatterBlocks.FLAME.get()),
+                                "after its moment, with nothing to burn, the flame goes out");
+                    }
+                }));
     }
 
     @GameTest(template = EMPTY)

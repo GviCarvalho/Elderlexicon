@@ -54,6 +54,8 @@ final class Drives {
      * carries agitation away as light. Gas that glows is flame: fire.
      */
     static final double GLOW = 2.7D;
+    /** How agitated a flame is: about 1000 K, past the glow, as a candle's or a log's. */
+    static final double FLAME = 3.4D;
     /**
      * Past this agitation, about 5600 °C (the face of the sun), the agitation beats the expansion: air comes apart
      * into plasma, which is lightning.
@@ -111,5 +113,22 @@ final class Drives {
     static final double ESCAPE = 0.2D;
 
     private Drives() {
+    }
+
+    /**
+     * The free agitation that brings matter taking {@code capacity} to warm (its particles, by {@link #CAPACITY}) from
+     * the world at rest to {@code temperature}: fire to warm it, which agitates itself too; a debt to cool it, never
+     * below absolute zero. Past what agitation alone can reach, as much as there is.
+     */
+    static long agitation(double capacity, double temperature) {
+        double above = temperature - AT_REST;
+        if (above <= 0.0D) {
+            return (long) Math.floor(Math.max(-AT_REST, above) * capacity);
+        }
+        double itself = CAPACITY[IGNI] * above;
+        if (itself >= 1.0D) {
+            return Long.MAX_VALUE / 4L;
+        }
+        return (long) Math.ceil(above * capacity / (1.0D - itself));
     }
 }

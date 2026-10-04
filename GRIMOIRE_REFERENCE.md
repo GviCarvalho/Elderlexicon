@@ -237,6 +237,11 @@ earth and water, dust earth and air, mist water and air, lightning air and fire.
 into molten earth makes mud. The fused runes that once named them (`fusus`, `caligo`, `lutum`, `pulvis`, `nebula`,
 `fulmen`) left the language.
 
+Fire is agitation (docs/particulas-design.md, section 2). By itself, `igni vocant` holds one flame where it lands for
+a moment, with what the drives say a flame takes (about a third of a UMU). More fire holds more flames, `chronos` holds
+them longer, and what they do not spend returns to the body. What burns catches and burns away, water boils off, stone
+melts into lava and sets again, and air agitated past the face of the sun becomes lightning.
+
 ---
 
 ## 7. Functions — Narrative Essence
