@@ -89,6 +89,10 @@ public final class SpellGrammar {
         for (int index = 0; index < words.size(); index++) {
             String lexeme = words.get(index);
             Optional<Rune> rune = lexicon.rune(lexeme);
+            if (rune.isPresent() && rune.get().is(WordClass.CONDITION)) {
+                // Whether the line holds is no part of what it does (docs/fluxo-design.md).
+                continue;
+            }
             if (rune.isPresent()) {
                 tokens.add(Token.rune(lexeme, rune.get(), false));
                 continue;

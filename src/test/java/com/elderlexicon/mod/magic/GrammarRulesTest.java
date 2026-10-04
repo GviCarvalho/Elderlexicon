@@ -40,6 +40,17 @@ class GrammarRulesTest {
         return read(spell).issues().stream().anyMatch(issue -> issue.contains(about));
     }
 
+    // ------------------------------------------------------------------ conditions (docs/fluxo-design.md)
+
+    @Test
+    void aConditionIsNoPartOfWhatTheLineDoes() {
+        SpellAction plain = onlyVerb("igni iactare");
+        SpellAction woken = onlyVerb("ferit igni iactare");
+        assertEquals(plain.runeId(), woken.runeId());
+        assertEquals(plain.element(), woken.element());
+        assertEquals(plain.element(), onlyVerb("igni patitur iactare").element(), "written anywhere, it is skipped");
+    }
+
     // ------------------------------------------------------------------ R2: the subject
 
     @Test

@@ -34,6 +34,10 @@ public final class SpellingOverlay {
             return;
         }
 
+        if (ClientFlow.flowing()) {
+            renderFlow(graphics, minecraft.font, minecraft.getWindow().getGuiScaledWidth());
+        }
+
         ClientSpellingController controller = ClientSpellingController.getInstance();
         boolean recording = controller.isRecording();
         if (!recording) {
@@ -45,6 +49,14 @@ public final class SpellingOverlay {
         int centerX = width / 2;
 
         renderRecordingState(graphics, font, controller, centerX);
+    }
+
+    /** The state of flow, at the top of the screen: how long it has been held and what a second of it costs now. */
+    private void renderFlow(GuiGraphics graphics, Font font, int screenWidth) {
+        Component line = Component.translatable("overlay.elderlexicon.flow",
+                String.format(Locale.ROOT, "%.0f", ClientFlow.seconds()),
+                String.format(Locale.ROOT, "%.2f", ClientFlow.umuPerSecond()));
+        graphics.drawCenteredString(font, line, screenWidth / 2, 4, 0x9FD8FF);
     }
 
     private void renderRecordingState(GuiGraphics graphics,

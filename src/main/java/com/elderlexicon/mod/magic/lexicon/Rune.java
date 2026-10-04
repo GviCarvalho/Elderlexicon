@@ -25,6 +25,7 @@ public final class Rune {
     private final SourceSpec source;
     private final VerbSpec verb;
     private final FilterSpec filter;
+    private final ConditionSpec condition;
     private final Map<String, String> texts;
 
     private Rune(Builder builder) {
@@ -38,11 +39,13 @@ public final class Rune {
         this.source = builder.source;
         this.verb = builder.verb;
         this.filter = builder.filter;
+        this.condition = builder.condition;
         this.texts = Collections.unmodifiableMap(new LinkedHashMap<>(builder.texts));
         switch (wordClass) {
             case SOURCE -> Objects.requireNonNull(source, "source rune '" + id + "' needs its essence");
             case VERB -> Objects.requireNonNull(verb, "verb '" + id + "' needs an operation");
             case FILTER -> Objects.requireNonNull(filter, "filter '" + id + "' needs a parameter");
+            case CONDITION -> Objects.requireNonNull(condition, "condition '" + id + "' needs a trigger");
         }
     }
 
@@ -95,6 +98,10 @@ public final class Rune {
         return Optional.ofNullable(filter);
     }
 
+    public Optional<ConditionSpec> condition() {
+        return Optional.ofNullable(condition);
+    }
+
     /** A text of this rune for the grimoire and the spirit's messages, by key. */
     public Optional<String> text(String key) {
         return Optional.ofNullable(texts.get(key));
@@ -113,7 +120,8 @@ public final class Rune {
                 .lore(lore)
                 .source(source)
                 .verb(verb)
-                .filter(filter);
+                .filter(filter)
+                .condition(condition);
         texts.forEach(builder::text);
         return builder;
     }
@@ -143,6 +151,7 @@ public final class Rune {
         private SourceSpec source;
         private VerbSpec verb;
         private FilterSpec filter;
+        private ConditionSpec condition;
         private final Map<String, String> texts = new LinkedHashMap<>();
 
         private Builder(String id, WordClass wordClass) {
@@ -187,6 +196,11 @@ public final class Rune {
 
         public Builder filter(FilterSpec filter) {
             this.filter = filter;
+            return this;
+        }
+
+        public Builder condition(ConditionSpec condition) {
+            this.condition = condition;
             return this;
         }
 

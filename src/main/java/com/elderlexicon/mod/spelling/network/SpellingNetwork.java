@@ -20,7 +20,7 @@ import java.util.List;
 public final class SpellingNetwork {
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final String PROTOCOL = "10";
+    private static final String PROTOCOL = "11";
         private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ElderLexicon.MODID, "spelling"),
             () -> PROTOCOL,
@@ -106,6 +106,20 @@ public final class SpellingNetwork {
         );
         CHANNEL.registerMessage(
                 nextPacketId++,
+                FlowTogglePacket.class,
+                FlowTogglePacket::encode,
+                FlowTogglePacket::decode,
+                FlowTogglePacket::handle
+        );
+        CHANNEL.registerMessage(
+                nextPacketId++,
+                FlowStatePacket.class,
+                FlowStatePacket::encode,
+                FlowStatePacket::decode,
+                FlowStatePacket::handle
+        );
+        CHANNEL.registerMessage(
+                nextPacketId++,
                 LaunchPacket.class,
                 LaunchPacket::encode,
                 LaunchPacket::decode,
@@ -187,6 +201,15 @@ public final class SpellingNetwork {
 
     public static void syncToPlayer(ServerPlayer player, SpellingRepertoire repertoire) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), ServerRepertoireSyncPacket.from(repertoire));
+    }
+
+    /** The flow key was pressed: the server enters or leaves the state of flow. */
+    public static void sendFlowToggle() {
+        CHANNEL.sendToServer(new FlowTogglePacket());
+    }
+
+    public static void sendFlowState(ServerPlayer player, boolean flowing) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new FlowStatePacket(flowing));
     }
 
     public static void sendSpellCastResult(ServerPlayer player, ServerSpellingController.SpellCastResponse response) {

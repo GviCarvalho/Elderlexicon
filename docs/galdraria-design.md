@@ -39,7 +39,8 @@ gravação é uma página que não se gasta: ele a lê como lê um pergaminho.
   e os que estão no chão ou em molduras ao alcance. Com o vínculo de leitura (`vis eu ligabis m1`), os de toda a
   dimensão carregada.
 - Marcar um item: o Pincel Elder, ou **renomeá-lo na bigorna** (docs/marks.md).
-- Outras técnicas de ativação podem vir depois.
+- **Em fluxo** (docs/fluxo-design.md): as linhas com uma condição (`ferit igni iactare`) despertam sozinhas quando a
+  condição acontece, nas coisas gravadas nas mãos e na armadura vestida (e em tudo o mais que o `surgit` lê).
 
 ## 5. Raspar
 
@@ -58,7 +59,7 @@ gravação é uma página que não se gasta: ele a lê como lê um pergaminho.
 ## 7. Perguntas abertas
 
 1. Quais feitiços gravados **mudam o comportamento** do item (por exemplo, numa varinha)?
-2. Outras técnicas de ativação além do `surgit` e da marca.
+2. ~~Outras técnicas de ativação além do `surgit` e da marca.~~ O estado de fluxo (docs/fluxo-design.md).
 3. A gravação deve aparecer no sprite do item (um brilho, glifos)?
 
 ## 8. Decisões tomadas

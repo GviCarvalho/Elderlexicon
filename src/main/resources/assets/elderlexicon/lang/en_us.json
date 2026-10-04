@@ -157,5 +157,11 @@
   "gui.elderlexicon.galdraria.item_slot": "What to engrave",
   "gui.elderlexicon.galdraria.burin_slot": "Burin",
   "tooltip.elderlexicon.burin": "Carves %s more rune(s).",
-  "tooltip.elderlexicon.engraved": "Engraved: "
+  "tooltip.elderlexicon.engraved": "Engraved: ",
+  "key.elderlexicon.flow": "State of Flow",
+  "overlay.elderlexicon.flow": "Flow · %s s · %s UMU/s",
+  "message.elderlexicon.flow.enter": "You enter flow: the spirit listens.",
+  "message.elderlexicon.flow.leave": "The flow comes undone.",
+  "message.elderlexicon.flow.exhausted": "Your mana ran out: the flow comes undone.",
+  "message.elderlexicon.flow.no_mana": "No mana to enter flow."
 }

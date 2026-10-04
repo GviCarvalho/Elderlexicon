@@ -145,5 +145,11 @@
   "gui.elderlexicon.galdraria.item_slot": "O que gravar",
   "gui.elderlexicon.galdraria.burin_slot": "Buril",
   "tooltip.elderlexicon.burin": "Grava mais %s runa(s).",
-  "tooltip.elderlexicon.engraved": "Gravado: "
+  "tooltip.elderlexicon.engraved": "Gravado: ",
+  "key.elderlexicon.flow": "Estado de fluxo",
+  "overlay.elderlexicon.flow": "Fluxo · %s s · %s UMU/s",
+  "message.elderlexicon.flow.enter": "Você entra em fluxo: o espírito escuta.",
+  "message.elderlexicon.flow.leave": "O fluxo se desfaz.",
+  "message.elderlexicon.flow.exhausted": "A mana acabou: o fluxo se desfaz.",
+  "message.elderlexicon.flow.no_mana": "Sem mana para entrar em fluxo."
 }

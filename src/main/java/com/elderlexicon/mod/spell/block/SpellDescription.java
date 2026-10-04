@@ -45,7 +45,7 @@ public final class SpellDescription {
      */
     private record Spell(int release, String source, String mark, boolean capture, String origin, String amount,
                          boolean reversed, List<String> turns, boolean condensed, String seconds, String place,
-                         String function, String core) {
+                         String function, String core, List<String> when) {
 
         String element() {
             return turns.isEmpty() ? source : turns.get(turns.size() - 1);
@@ -114,7 +114,9 @@ public final class SpellDescription {
         if (written.isEmpty()) {
             return null;
         }
-        List<String> words = written;
+        // A condition says when the line holds (docs/fluxo-design.md); it is no part of what the spell does.
+        List<String> when = written.stream().filter(lexicon()::isCondition).toList();
+        List<String> words = written.stream().filter(word -> !lexicon().isCondition(word)).toList();
         String source = null;
         String mark = null;
         boolean capture = false;
@@ -198,7 +200,7 @@ public final class SpellDescription {
             }
         }
         return new Spell(release, source, mark, capture, origin, amount, reversed, turns, condensed, time, place,
-                function, core);
+                function, core, when);
     }
 
     private static Parameter parameterOf(Rune rune) {
@@ -212,6 +214,17 @@ public final class SpellDescription {
     // ------------------------------------------------------------------ writing it
 
     private String sentence(Spell spell) {
+        if (spell.when().isEmpty()) {
+            return deed(spell);
+        }
+        List<String> happenings = spell.when().stream()
+                .map(word -> lexicon().rune(word).flatMap(rune -> rune.text("describe")).orElse(word))
+                .toList();
+        return note("describe.when", Map.of("when", String.join(note("describe.and", Map.of()), happenings)))
+                + " " + deed(spell);
+    }
+
+    private String deed(Spell spell) {
         StringBuilder text = new StringBuilder();
         if (spell.core() != null) {
             String element = elementName(spell.source() == null ? lexicon().defaultSource().id() : spell.source());

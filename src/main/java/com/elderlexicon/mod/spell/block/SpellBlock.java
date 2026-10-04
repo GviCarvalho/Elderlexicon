@@ -3,6 +3,7 @@ package com.elderlexicon.mod.spell.block;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
 /**
@@ -75,6 +76,12 @@ public final class SpellBlock {
             }
         }
         return lines.isEmpty() ? EMPTY : new SpellBlock(lines);
+    }
+
+    /** The same page with only the lines that pass {@code keep}; each keeps its row and columns. */
+    public SpellBlock only(Predicate<Line> keep) {
+        List<Line> kept = lines.stream().filter(keep).toList();
+        return kept.isEmpty() ? EMPTY : new SpellBlock(kept);
     }
 
     public List<Line> lines() {

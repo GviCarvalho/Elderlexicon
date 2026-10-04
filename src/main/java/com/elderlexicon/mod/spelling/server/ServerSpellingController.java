@@ -4,6 +4,8 @@ import com.elderlexicon.mod.command.SpellCostCalculator;
 import com.elderlexicon.mod.ligabis.world.LigabisData;
 import com.elderlexicon.mod.ligabis.world.LigabisManager;
 import com.elderlexicon.mod.magic.lexicon.Lexicons;
+import com.elderlexicon.mod.spelling.flow.Happenings;
+import net.minecraft.world.entity.EquipmentSlot;
 import com.elderlexicon.mod.magic.lexicon.Rune;
 import com.elderlexicon.mod.spell.SpellCastingService;
 import com.elderlexicon.mod.spell.SpellTicks;
@@ -68,11 +70,17 @@ public final class ServerSpellingController {
     private static final long FAILURE_COOLDOWN_MS = 350L;
     /** How long after the mage's voice the echo shard of a held wand repeats it: half a second. */
     private static final int ECHO_DELAY_TICKS = 10;
+    private static final String UNMET = "A condição não se cumpre agora.";
 
     private static final ServerSpellingController INSTANCE = new ServerSpellingController();
 
     private final SpellCastingService castingService = new SpellCastingService();
     private final Map<UUID, Long> cooldowns = new HashMap<>();
+    /**
+     * The happening the spirit woke for, in flow, while it reads (docs/fluxo-design.md): only the lines whose conditions
+     * speak of it are cast, and the reading leaves no cooldown. Null in any other reading.
+     */
+    private String wakingTrigger;
     /** A rune, mark or number; a number may carry a minus sign ({@code -30 ubis}). */
 
     private ServerSpellingController() {
@@ -159,6 +167,9 @@ public final class ServerSpellingController {
 
         if (!playerHasRunes(player, expandedRunes)) {
             return applyFailure(player, Component.literal("Sequencia contem runas nao atribuidas."), now, true, expandedRunes);
+        }
+        if (!awake(player, expandedRunes)) {
+            return applyFailure(player, Component.literal(UNMET), now, true, expandedRunes);
         }
 
 
@@ -249,6 +260,9 @@ public final class ServerSpellingController {
     }
 
     private long applyCooldown(ServerPlayer player, long now, long durationMs) {
+        if (wakingTrigger != null) {
+            return 0L;
+        }
         long applied = Math.max(durationMs, 0L);
         if (applied <= 0L) {
             return 0L;
@@ -377,6 +391,9 @@ public final class ServerSpellingController {
             for (int p = 0; p < blocks.get(r).size(); p++) {
                 List<SpellBlock.Line> lines = blocks.get(r).get(p).lines();
                 for (int l = 0; l < lines.size(); l++) {
+                    if (!passes(player, lines.get(l))) {
+                        continue;
+                    }
                     List<String> lineRunes = CustomRuneHelper.expandRunes(player, lines.get(l).runeIds());
                     spells.add(new SpellCastingService.TimedSpell(lineRunes, steps.get(r).get(p).get(l)));
                     expanded.addAll(lineRunes);
@@ -384,7 +401,8 @@ public final class ServerSpellingController {
             }
         }
         if (spells.isEmpty()) {
-            return applyFailure(player, Component.literal("Circulo sem feitico."), now, true, reading());
+            return applyFailure(player, Component.literal(blocks.stream().flatMap(List::stream)
+                    .anyMatch(block -> !block.isEmpty()) ? UNMET : "Circulo sem feitico."), now, true, reading());
         }
         List<String> shown = List.copyOf(expanded);
         SpellCastingService.Result result = castingService.castBlock(player, spells,
@@ -746,6 +764,48 @@ public final class ServerSpellingController {
     }
 
     /**
+     * In flow, {@code trigger} happened to the mage (docs/fluxo-design.md): the spirit reads all that surgit would read
+     * (what the mage looks at or touches, the engraved things in either hand, the page in hand, the grimoire) and the
+     * engraved armor worn, each one, and casts the lines whose conditions speak of {@code trigger} and hold now. What
+     * has no such line is passed over in silence, and nothing leaves a cooldown.
+     */
+    public void wake(ServerPlayer caster, String trigger) {
+        String before = wakingTrigger;
+        wakingTrigger = trigger;
+        try {
+            long now = Util.getMillis();
+            processFramedPageSpell(caster, now);
+            for (EquipmentSlot slot : EquipmentSlot.values()) {
+                Engravings.of(caster.getItemBySlot(slot))
+                        .ifPresent(text -> castPage(caster, extractRunesFromText(text).block(), now));
+            }
+            processDetachedPageSpell(caster, now);
+            processGrimoireSpell(caster, now);
+        } finally {
+            wakingTrigger = before;
+        }
+    }
+
+    /**
+     * Whether a line is cast in this reading: its conditions all hold now (a happening of the last second); in flow,
+     * it must also have a condition that speaks of the happening the spirit woke for.
+     */
+    private boolean passes(ServerPlayer player, SpellBlock.Line line) {
+        List<String> words = line.runeIds();
+        if (wakingTrigger != null && words.stream()
+                .noneMatch(word -> Lexicons.get().triggerOf(word).filter(wakingTrigger::equals).isPresent())) {
+            return false;
+        }
+        return awake(player, words);
+    }
+
+    /** Whether every condition among {@code words} holds now for {@code player}. */
+    private static boolean awake(ServerPlayer player, List<String> words) {
+        return words.stream().allMatch(word -> Lexicons.get().triggerOf(word)
+                .map(trigger -> Happenings.recent(player, trigger)).orElse(true));
+    }
+
+    /**
      * The circles that a piece marked {@code mark} is part of (a scroll carrying the mark, or a marked block with runes
      * written on it), each read whole from anywhere in the dimension, as long as it is loaded; the farther it is, the
      * more it costs. The keys of their pieces go into {@code pieces}, so they are not read again one by one.
@@ -815,15 +875,19 @@ public final class ServerSpellingController {
 
     /** Casts a written text called by its mark, each line a spell, paid as usual with no cooldown. */
     private void castRitualText(ServerPlayer caster, String text, String prefix) {
-        GrimoireExtractionResult extraction = extractRunesFromText(text);
-        if (extraction.block().isEmpty()) {
+        castText(caster, extractRunesFromText(text).block().only(line -> passes(caster, line)), prefix);
+    }
+
+    /** Casts the lines of a block that are already chosen, each a spell, paid as usual with no cooldown. */
+    private void castText(ServerPlayer caster, SpellBlock block, String prefix) {
+        if (block.isEmpty()) {
             return;
         }
         List<SpellCastingService.TimedSpell> spells = new ArrayList<>();
         List<String> expanded = new ArrayList<>();
-        for (SpellBlock.Line line : extraction.block().lines()) {
+        for (SpellBlock.Line line : block.lines()) {
             List<String> lineRunes = CustomRuneHelper.expandRunes(caster, line.runeIds());
-            spells.add(new SpellCastingService.TimedSpell(lineRunes, extraction.block().delaySteps(line)));
+            spells.add(new SpellCastingService.TimedSpell(lineRunes, block.delaySteps(line)));
             expanded.addAll(lineRunes);
         }
         List<String> shown = List.copyOf(expanded);
@@ -837,8 +901,13 @@ public final class ServerSpellingController {
     }
 
     /** @param reading told what the page cost: at once, then more for each spell of it released later */
-    private SpellCastResponse castPage(ServerPlayer player, SpellBlock block, long now,
+    private SpellCastResponse castPage(ServerPlayer player, SpellBlock written, long now,
                                        java.util.function.BiConsumer<Double, Boolean> reading) {
+        // A line with a condition is cast only if it holds now (docs/fluxo-design.md).
+        SpellBlock block = written.only(line -> passes(player, line));
+        if (block.isEmpty()) {
+            return applyFailure(player, Component.literal(UNMET), now, true, reading());
+        }
         List<SpellCastingService.TimedSpell> spells = new ArrayList<>();
         List<String> expanded = new ArrayList<>();
         for (SpellBlock.Line line : block.lines()) {
