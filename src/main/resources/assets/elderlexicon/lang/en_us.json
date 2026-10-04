@@ -148,5 +148,14 @@
   "block.elderlexicon.formless_solid": "Formless Matter",
   "block.elderlexicon.formless_liquid": "Formless Liquid Matter",
   "block.elderlexicon.flame": "Flame",
-  "entity.elderlexicon.homunculus": "Homunculus"
+  "entity.elderlexicon.homunculus": "Homunculus",
+  "block.elderlexicon.galdraria_table": "Galdraria Table",
+  "item.elderlexicon.burin": "Burin",
+  "container.elderlexicon.galdraria_table": "Galdraria Table",
+  "gui.elderlexicon.galdraria.runes": "Runes",
+  "gui.elderlexicon.galdraria.engrave": "Engrave",
+  "gui.elderlexicon.galdraria.item_slot": "What to engrave",
+  "gui.elderlexicon.galdraria.burin_slot": "Burin",
+  "tooltip.elderlexicon.burin": "Carves %s more rune(s).",
+  "tooltip.elderlexicon.engraved": "Engraved: "
 }

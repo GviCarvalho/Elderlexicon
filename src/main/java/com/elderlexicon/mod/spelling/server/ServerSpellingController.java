@@ -8,6 +8,7 @@ import com.elderlexicon.mod.magic.lexicon.Rune;
 import com.elderlexicon.mod.spell.SpellCastingService;
 import com.elderlexicon.mod.spell.SpellTicks;
 import com.elderlexicon.mod.spell.block.SpellBlock;
+import com.elderlexicon.mod.galdraria.Engravings;
 import com.elderlexicon.mod.spell.function.MarkHelper;
 import com.elderlexicon.mod.spelling.custom.CustomRuneHelper;
 import com.elderlexicon.mod.spelling.data.SpellingRepertoire;
@@ -30,6 +31,8 @@ import net.minecraft.server.level.TicketType;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ItemFrame;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -123,6 +126,10 @@ public final class ServerSpellingController {
             SpellCastResponse framedResponse = processFramedPageSpell(player, now);
             if (framedResponse != null) {
                 return framedResponse;
+            }
+            SpellCastResponse engravedResponse = processEngravedItem(player, now);
+            if (engravedResponse != null) {
+                return engravedResponse;
             }
             SpellCastResponse scrollResponse = processDetachedPageSpell(player, now);
             if (scrollResponse != null) {
@@ -568,6 +575,24 @@ public final class ServerSpellingController {
         return response;
     }
 
+    /**
+     * Surgit with an engraved thing in hand (docs/galdraria-design.md): the spirit reads the runes carved in it, the
+     * main hand first. Returns null when neither hand holds an engraving.
+     */
+    private SpellCastResponse processEngravedItem(ServerPlayer player, long now) {
+        for (ItemStack held : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+            Optional<String> engraved = Engravings.of(held);
+            if (engraved.isPresent()) {
+                GrimoireExtractionResult extraction = extractRunesFromText(engraved.get());
+                if (extraction.block().isEmpty()) {
+                    return applyFailure(player, Component.literal("Gravacao sem feitico."), now, true, reading());
+                }
+                return castPage(player, extraction.block(), now);
+            }
+        }
+        return null;
+    }
+
     private ItemStack findGrimoire(ServerPlayer player) {
         ItemStack main = player.getMainHandItem();
         if (main.getItem() instanceof GrimoireItem) {
@@ -667,6 +692,7 @@ public final class ServerSpellingController {
         for (Entity scroll : scrolls) {
             castRitualScroll(caster, scroll);
         }
+        int engraved = readMarkedEngravings(caster, wanted, bound, reach);
         int waiting = 0;
         if (bound) {
             // Bound scrolls are read anywhere in the dimension: those in unloaded chunks are loaded, then read.
@@ -684,7 +710,39 @@ public final class ServerSpellingController {
                 waiting++;
             }
         }
-        return scrolls.size() + waiting + circles;
+        return scrolls.size() + waiting + circles + engraved;
+    }
+
+    /**
+     * The engraved things carrying {@code mark} (docs/galdraria-design.md), read as marked scrolls are: those the
+     * caster carries, and those lying or hung within touch; bound to the mark, those anywhere loaded in the dimension.
+     */
+    private int readMarkedEngravings(ServerPlayer caster, String mark, boolean bound, double reach) {
+        List<String> texts = new ArrayList<>();
+        Inventory inventory = caster.getInventory();
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            engravingMarked(inventory.getItem(slot), mark).ifPresent(texts::add);
+        }
+        Iterable<Entity> around = bound
+                ? caster.serverLevel().getAllEntities()
+                : caster.serverLevel().getEntities(caster, caster.getBoundingBox().inflate(reach),
+                        entity -> entity instanceof ItemEntity || entity instanceof ItemFrame);
+        for (Entity entity : around) {
+            if (!entity.isAlive() || (!bound && caster.distanceToSqr(entity) > reach * reach)) {
+                continue;
+            }
+            if (entity instanceof ItemEntity lying) {
+                engravingMarked(lying.getItem(), mark).ifPresent(texts::add);
+            } else if (entity instanceof ItemFrame frame && !LigabisManager.isScrollCarrier(frame)) {
+                engravingMarked(frame.getItem(), mark).ifPresent(texts::add);
+            }
+        }
+        texts.forEach(text -> castRitualText(caster, text, "Gravado: "));
+        return texts.size();
+    }
+
+    private static Optional<String> engravingMarked(ItemStack stack, String mark) {
+        return MarkHelper.markForItem(stack).filter(mark::equals).flatMap(found -> Engravings.of(stack));
     }
 
     /**
@@ -752,7 +810,12 @@ public final class ServerSpellingController {
             return;
         }
         CompoundTag tag = displayed.getTag();
-        GrimoireExtractionResult extraction = extractRunesFromText(tag == null ? "" : tag.getString("DetachedPageText"));
+        castRitualText(caster, tag == null ? "" : tag.getString("DetachedPageText"), "Ritual: ");
+    }
+
+    /** Casts a written text called by its mark, each line a spell, paid as usual with no cooldown. */
+    private void castRitualText(ServerPlayer caster, String text, String prefix) {
+        GrimoireExtractionResult extraction = extractRunesFromText(text);
         if (extraction.block().isEmpty()) {
             return;
         }
@@ -765,8 +828,8 @@ public final class ServerSpellingController {
         }
         List<String> shown = List.copyOf(expanded);
         SpellCastingService.Result result = castingService.castBlock(caster, spells,
-                delayed -> SpellFeedback.later(caster, delayed, finishCast(caster, delayed, shown), "Ritual: "));
-        SpellFeedback.later(caster, result, result.failed() ? result.warnings() : finishCast(caster, result, shown), "Ritual: ");
+                delayed -> SpellFeedback.later(caster, delayed, finishCast(caster, delayed, shown), prefix));
+        SpellFeedback.later(caster, result, result.failed() ? result.warnings() : finishCast(caster, result, shown), prefix);
     }
 
     private SpellCastResponse castPage(ServerPlayer player, SpellBlock block, long now) {

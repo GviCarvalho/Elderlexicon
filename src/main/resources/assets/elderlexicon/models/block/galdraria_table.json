@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "elderlexicon:block/galdraria_table_side",
+    "up": "elderlexicon:block/galdraria_table_top",
+    "down": "minecraft:block/dark_oak_planks",
+    "north": "elderlexicon:block/galdraria_table_side",
+    "south": "elderlexicon:block/galdraria_table_side",
+    "east": "elderlexicon:block/galdraria_table_side",
+    "west": "elderlexicon:block/galdraria_table_side"
+  }
+}

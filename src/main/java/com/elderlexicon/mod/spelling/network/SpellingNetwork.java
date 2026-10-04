@@ -148,6 +148,13 @@ public final class SpellingNetwork {
         );
         CHANNEL.registerMessage(
                 nextPacketId++,
+                com.elderlexicon.mod.galdraria.EngravePacket.class,
+                com.elderlexicon.mod.galdraria.EngravePacket::encode,
+                com.elderlexicon.mod.galdraria.EngravePacket::decode,
+                com.elderlexicon.mod.galdraria.EngravePacket::handle
+        );
+        CHANNEL.registerMessage(
+                nextPacketId++,
                 IncorporationPacket.class,
                 IncorporationPacket::encode,
                 IncorporationPacket::decode,
@@ -277,6 +284,11 @@ public final class SpellingNetwork {
 
     /** The local player wrote on a block face with a quill. */
     public static void sendInscribe(com.elderlexicon.mod.spelling.inscription.InscribePacket packet) {
+        CHANNEL.sendToServer(packet);
+    }
+
+    /** The local player carves runes at the galdraria table. */
+    public static void sendEngrave(com.elderlexicon.mod.galdraria.EngravePacket packet) {
         CHANNEL.sendToServer(packet);
     }
 

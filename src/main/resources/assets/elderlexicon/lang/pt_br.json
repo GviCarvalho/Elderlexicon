@@ -136,5 +136,14 @@
   "block.elderlexicon.formless_solid": "Matéria informe",
   "block.elderlexicon.formless_liquid": "Matéria informe líquida",
   "block.elderlexicon.flame": "Chama",
-  "entity.elderlexicon.homunculus": "Homúnculo"
+  "entity.elderlexicon.homunculus": "Homúnculo",
+  "block.elderlexicon.galdraria_table": "Mesa de Galdraria",
+  "item.elderlexicon.burin": "Buril",
+  "container.elderlexicon.galdraria_table": "Mesa de Galdraria",
+  "gui.elderlexicon.galdraria.runes": "Runas",
+  "gui.elderlexicon.galdraria.engrave": "Gravar",
+  "gui.elderlexicon.galdraria.item_slot": "O que gravar",
+  "gui.elderlexicon.galdraria.burin_slot": "Buril",
+  "tooltip.elderlexicon.burin": "Grava mais %s runa(s).",
+  "tooltip.elderlexicon.engraved": "Gravado: "
 }
