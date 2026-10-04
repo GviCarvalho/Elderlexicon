@@ -350,6 +350,78 @@
         "role": "Esta linha só vale se quem conjura acabou de matar uma criatura (no último segundo); em fluxo, a morte a desperta.",
         "describe": "quem conjura acabou de matar uma criatura"
       }
+    },
+    "salit": {
+      "class": "condition", "translation": "jumps", "name": "pular", "trigger": "jump",
+      "lore": "Condição: a linha só vale se quem conjura acabou de pular. Em fluxo, o pulo desperta a linha.",
+      "texts": {
+        "role": "Esta linha só vale se quem conjura acabou de pular (no último segundo); em fluxo, o pulo a desperta.",
+        "describe": "quem conjura acabou de pular"
+      }
+    },
+    "cadit": {
+      "class": "condition", "translation": "falls", "name": "cair", "trigger": "land",
+      "lore": "Condição: a linha só vale se quem conjura acabou de aterrissar de uma queda. Em fluxo, a aterrissagem desperta a linha.",
+      "texts": {
+        "role": "Esta linha só vale se quem conjura acabou de aterrissar de uma queda (no último segundo); em fluxo, a aterrissagem a desperta.",
+        "describe": "quem conjura acabou de aterrissar de uma queda"
+      }
+    },
+    "frangit": {
+      "class": "condition", "translation": "breaks", "name": "quebrar", "trigger": "break",
+      "lore": "Condição: a linha só vale se quem conjura acabou de quebrar um bloco. Em fluxo, o bloco quebrado desperta a linha.",
+      "texts": {
+        "role": "Esta linha só vale se quem conjura acabou de quebrar um bloco (no último segundo); em fluxo, o bloco quebrado a desperta.",
+        "describe": "quem conjura acabou de quebrar um bloco"
+      }
+    },
+    "utitur": {
+      "class": "condition", "translation": "uses", "name": "usar", "trigger": "use",
+      "lore": "Condição: a linha só vale se quem conjura acabou de usar o que tem na mão. Em fluxo, o uso desperta a linha.",
+      "texts": {
+        "role": "Esta linha só vale se quem conjura acabou de usar o que tem na mão (no último segundo); em fluxo, o uso a desperta.",
+        "describe": "quem conjura acabou de usar o que tem na mão"
+      }
+    },
+    "latet": {
+      "class": "condition", "translation": "hides", "name": "agachar", "trigger": "sneak",
+      "lore": "Condição: a linha só vale enquanto quem conjura está agachado. Em fluxo, ela desperta quando se agacha.",
+      "texts": {
+        "role": "Esta linha só vale enquanto quem conjura está agachado; em fluxo, ela desperta quando se agacha.",
+        "describe": "quem conjura está agachado"
+      }
+    },
+    "currit": {
+      "class": "condition", "translation": "runs", "name": "correr", "trigger": "sprint",
+      "lore": "Condição: a linha só vale enquanto quem conjura está correndo. Em fluxo, ela desperta quando começa a correr.",
+      "texts": {
+        "role": "Esta linha só vale enquanto quem conjura está correndo; em fluxo, ela desperta quando começa a correr.",
+        "describe": "quem conjura está correndo"
+      }
+    },
+    "languet": {
+      "class": "condition", "translation": "languishes", "name": "enfraquecer", "trigger": "low_health",
+      "lore": "Condição: a linha só vale enquanto quem conjura está com pouca vida. Em fluxo, ela desperta quando a vida cai a 30% ou menos.",
+      "texts": {
+        "role": "Esta linha só vale enquanto quem conjura está com pouca vida; em fluxo, ela desperta quando a vida cai a 30% ou menos.",
+        "describe": "quem conjura está com pouca vida"
+      }
+    },
+    "ardet": {
+      "class": "condition", "translation": "burns", "name": "arder", "trigger": "burning",
+      "lore": "Condição: a linha só vale enquanto quem conjura está em chamas. Em fluxo, ela desperta quando pega fogo.",
+      "texts": {
+        "role": "Esta linha só vale enquanto quem conjura está em chamas; em fluxo, ela desperta quando pega fogo.",
+        "describe": "quem conjura está em chamas"
+      }
+    },
+    "mergitur": {
+      "class": "condition", "translation": "sinks", "name": "submergir", "trigger": "underwater",
+      "lore": "Condição: a linha só vale enquanto quem conjura está debaixo d'água. Em fluxo, ela desperta quando mergulha.",
+      "texts": {
+        "role": "Esta linha só vale enquanto quem conjura está debaixo d'água; em fluxo, ela desperta quando mergulha.",
+        "describe": "quem conjura está debaixo d'água"
+      }
     }
   }
 }
