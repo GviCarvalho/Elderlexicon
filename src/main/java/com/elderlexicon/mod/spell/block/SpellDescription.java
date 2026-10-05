@@ -209,17 +209,19 @@ public final class SpellDescription {
     }
 
     private boolean isMark(String word) {
-        return !word.matches("-?\\d+") && !named.containsKey(word) && !lexicon().isRune(word);
+        // Something of the scene (ego, ille) stands where a mark would.
+        return lexicon().isReferent(word)
+                || !word.matches("-?\\d+") && !named.containsKey(word) && !lexicon().isRune(word);
     }
 
     // ------------------------------------------------------------------ writing it
 
     private String sentence(Spell spell) {
         if (spell.when().isEmpty()) {
-            return deed(spell);
+            return Referents.speak(lexicon(), deed(spell));
         }
-        return note(spell.lasting() ? "describe.while" : "describe.when", Map.of("when", conditions(spell.when())))
-                + " " + deed(spell);
+        return Referents.speak(lexicon(), note(spell.lasting() ? "describe.while" : "describe.when",
+                Map.of("when", conditions(spell.when()))) + " " + deed(spell));
     }
 
     /** The conditions of a line in words: side by side they hold together, aut splits them, non turns one around. */

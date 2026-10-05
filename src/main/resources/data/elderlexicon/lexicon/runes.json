@@ -452,6 +452,21 @@
       "texts": {
         "role": "Não: a condição logo depois dele vale quando não acontece."
       }
+    },
+
+    "ego": {
+      "class": "referent", "glyph": "\uE014", "translation": "I", "name": "eu", "noun": "o próprio conjurador", "refers": "caster",
+      "lore": "Cena: quem conjura. Fica onde ficaria uma marca, sem que ninguém precise ser marcado.",
+      "texts": {
+        "role": "Quem conjura, no lugar de uma marca."
+      }
+    },
+    "ille": {
+      "class": "referent", "glyph": "\uE015", "translation": "that one", "name": "aquele", "noun": "o alvo", "refers": "scene",
+      "lore": "Cena: o outro do acontecimento de que a linha fala (quem foi golpeado, quem feriu, quem morreu, o bloco quebrado, aquilo em que se usou o item).",
+      "texts": {
+        "role": "O outro do acontecimento mais recente de que a linha fala, no último segundo, no lugar de uma marca."
+      }
     }
   }
 }

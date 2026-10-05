@@ -128,3 +128,22 @@ E013 non
 .....
 .....
 #....
+
+# Scene runes. Family mark: a lone dot in the middle of the bottom (2,6), as in the game's P.
+E014 ego
+.###.
+#...#
+.....
+#...#
+.###.
+.....
+..#..
+
+E015 ille
+..#..
+..#..
+##.##
+..#..
+..#..
+.....
+..#..

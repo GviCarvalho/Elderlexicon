@@ -75,6 +75,40 @@ Há dois tipos de condição:
   W `utitur`, X `latet`, Y `currit`, Z `ardet`. Depois do Z, os glifos são do mod (docs/glifos-design.md):
   `languet` U+E010, `mergitur` U+E011, `aut` U+E012 e `non` U+E013.
 
+## 3b. Quem está na cena: `ego` e `ille`
+
+Duas runas de uma classe nova, a das que apontam para algo da cena da conjuração (`WordClass.REFERENT`). Elas ficam
+onde ficaria uma marca, sem que ninguém precise ser marcado: sujeito (`ille quantum 10 iactare`), lugar
+(`ille ubis`), origem (`ille tenet`), cerne (`aqua vertere ille`)…
+
+| Runa | Nome | Aponta para |
+|---|---|---|
+| `ego` | eu | quem conjura |
+| `ille` | aquele | o outro do acontecimento de que a linha fala |
+
+`ferit vis vertere igni ille ubis vocant`, gravado numa espada, põe fogo em quem o portador golpear, em fluxo.
+
+O que `ille` é em cada condição:
+
+| Condição | `ille` |
+|---|---|
+| `ferit` | quem ou o que foi golpeado |
+| `patitur` | quem feriu (sem ninguém, como numa queda, não há `ille`) |
+| `necat` | o lugar onde a criatura morreu |
+| `frangit` | o lugar onde estava o bloco quebrado |
+| `utitur` | o bloco ou a criatura em que se usou o item (no ar, não há `ille`) |
+| `salit`, `cadit` e os estados | não têm `ille` |
+
+- Com várias condições na linha, `ille` é o outro do acontecimento **mais recente** entre elas, no último segundo;
+  numa linha sem condição, o do acontecimento mais recente de qualquer tipo.
+- Sem ninguém na cena, `ille` fica como escrito e não encontra nada, como uma marca que ninguém tem.
+- Numa linha de "enquanto", `ille` é reavaliado a cada janela.
+- Um morto ou um bloco quebrado são só um **lugar**: servem ao `ubis`, mas não há o que empurrar ou converter.
+- Por dentro: ao conjurar a linha, cada `ego` e `ille` vira uma marca temporária (`ille_12`) ligada à criatura, ao
+  bloco ou ao ponto (`SceneWords`, `SceneMarks`); `MarkTargets.find` responde a ela antes das marcas do mundo, então
+  todo verbo e filtro que lê marcas lê essas também. O grimório diz "o alvo" e "o próprio conjurador" (`Referents`).
+- Ainda não vale no `ligabis`, que lê marcas por outro caminho.
+
 ## 4. Em fluxo: o espírito escuta
 
 Em fluxo, cada acontecimento acorda o espírito, que lê **tudo o que o `surgit` leria** e mais a armadura:
@@ -138,3 +172,4 @@ nenhuma linha vale, o espírito responde que a condição não se cumpre agora.
    condições; os textos antigos são convertidos na primeira leitura. (04/10/2026)
 10. Sem runas de "se" e "e" (implícitos); "enquanto" é o `chronos` sem número depois de uma condição, como no livro;
    runas novas `aut` ("ou") e `non` ("não"). (04/10/2026)
+11. Runas de cena: `ego` (quem conjura) e `ille` (o outro do acontecimento mais recente de que a linha fala). (04/10/2026)

@@ -49,6 +49,15 @@ class SpellDescriptionTest {
     }
 
     @Test
+    void theSceneIsSpokenOfByName() {
+        SpellDescription.Text text = new SpellDescription(DICTIONARY, Map.of())
+                .describe(page("ferit vis vertere igni ille ubis vocant"));
+        assertTrue(text.paragraphs().get(0).contains("onde está o alvo"), text.paragraphs().toString());
+        assertTrue(new SpellReading(DICTIONARY).read(List.of("ego", "ubis", "aqua", "vocant")).get(0).role()
+                .contains("Quem conjura"), "the tooltip of ego");
+    }
+
+    @Test
     void orNotAndWhileAreWrittenOut() {
         SpellDescription.Text either = new SpellDescription(DICTIONARY, Map.of())
                 .describe(page("ferit non latet aut patitur igni iactare"));

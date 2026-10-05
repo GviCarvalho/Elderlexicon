@@ -53,6 +53,18 @@ class GrammarRulesTest {
                 "and so are the words that join conditions");
     }
 
+    @Test
+    void aReferentStandsWhereAMarkWould() {
+        // docs/fluxo-design.md: ego and ille are read as marks, bound to the scene when the line is cast.
+        SpellAction pushed = onlyVerb("ille quantum 10 iactare");
+        assertEquals("ille", pushed.subjectMark().orElseThrow());
+        SpellActionResult burning = read("ferit vis vertere igni ille ubis vocant");
+        assertTrue(burning.issues().isEmpty(), burning.issues().toString());
+        List<SpellAction> verbs = verbs(burning);
+        assertEquals(SpellPlace.Kind.MARK, verbs.get(verbs.size() - 1).place().orElseThrow().kind());
+        assertEquals("ego", onlyVerb("ego quantum -10 iactare").subjectMark().orElseThrow());
+    }
+
     // ------------------------------------------------------------------ R2: the subject
 
     @Test

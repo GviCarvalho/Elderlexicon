@@ -26,6 +26,7 @@ public final class Rune {
     private final VerbSpec verb;
     private final FilterSpec filter;
     private final ConditionSpec condition;
+    private final ReferentSpec referent;
     private final Map<String, String> texts;
 
     private Rune(Builder builder) {
@@ -40,12 +41,14 @@ public final class Rune {
         this.verb = builder.verb;
         this.filter = builder.filter;
         this.condition = builder.condition;
+        this.referent = builder.referent;
         this.texts = Collections.unmodifiableMap(new LinkedHashMap<>(builder.texts));
         switch (wordClass) {
             case SOURCE -> Objects.requireNonNull(source, "source rune '" + id + "' needs its essence");
             case VERB -> Objects.requireNonNull(verb, "verb '" + id + "' needs an operation");
             case FILTER -> Objects.requireNonNull(filter, "filter '" + id + "' needs a parameter");
             case CONDITION -> Objects.requireNonNull(condition, "condition '" + id + "' needs a trigger");
+            case REFERENT -> Objects.requireNonNull(referent, "referent '" + id + "' needs what it refers to");
         }
     }
 
@@ -102,6 +105,10 @@ public final class Rune {
         return Optional.ofNullable(condition);
     }
 
+    public Optional<ReferentSpec> referent() {
+        return Optional.ofNullable(referent);
+    }
+
     /** A text of this rune for the grimoire and the spirit's messages, by key. */
     public Optional<String> text(String key) {
         return Optional.ofNullable(texts.get(key));
@@ -121,7 +128,8 @@ public final class Rune {
                 .source(source)
                 .verb(verb)
                 .filter(filter)
-                .condition(condition);
+                .condition(condition)
+                .referent(referent);
         texts.forEach(builder::text);
         return builder;
     }
@@ -152,6 +160,7 @@ public final class Rune {
         private VerbSpec verb;
         private FilterSpec filter;
         private ConditionSpec condition;
+        private ReferentSpec referent;
         private final Map<String, String> texts = new LinkedHashMap<>();
 
         private Builder(String id, WordClass wordClass) {
@@ -201,6 +210,11 @@ public final class Rune {
 
         public Builder condition(ConditionSpec condition) {
             this.condition = condition;
+            return this;
+        }
+
+        public Builder referent(ReferentSpec referent) {
+            this.referent = referent;
             return this;
         }
 

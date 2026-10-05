@@ -178,6 +178,15 @@ public final class Lexicon {
         return logicOf(word).isPresent();
     }
 
+    /** What a referent rune points at ({@code ego}: the caster), or empty for any other word. */
+    public Optional<ReferentSpec.Refers> referentOf(String word) {
+        return rune(word).flatMap(Rune::referent).map(ReferentSpec::refers);
+    }
+
+    public boolean isReferent(String word) {
+        return referentOf(word).isPresent();
+    }
+
     /** Whether a word is a verb that binds ({@code ligabis}), reading its own aspect and marks. */
     public boolean isBinding(String word) {
         return verb(word).map(VerbSpec::binds).orElse(false);
