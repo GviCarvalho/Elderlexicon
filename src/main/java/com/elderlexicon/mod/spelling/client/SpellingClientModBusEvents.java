@@ -31,5 +31,7 @@ public final class SpellingClientModBusEvents {
         event.registerEntityRenderer(ElderLexicon.BLACK_HOLE.get(),
                 com.elderlexicon.mod.spell.function.client.BlackHoleRenderer::new);
         event.registerEntityRenderer(ElderLexicon.HOMUNCULUS.get(), HomunculusRenderer::new);
+        event.registerEntityRenderer(ElderLexicon.SORCERER.get(),
+                net.minecraft.client.renderer.entity.EvokerRenderer::new);
     }
 }

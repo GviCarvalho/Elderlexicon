@@ -23,7 +23,9 @@ final class SightBonds {
     }
 
     static void start(SpellContext context, String mark, @Nullable Double chronos) {
-        ServerPlayer player = context.player();
+        if (!(context.player() instanceof ServerPlayer player)) {
+            return;
+        }
         Optional<Entity> seen = MarkTargets.find(player.server, mark).stream()
                 .map(thing -> thing.entity)
                 .filter(entity -> entity != null && entity != player && entity.isAlive() && entity.level() == player.level())

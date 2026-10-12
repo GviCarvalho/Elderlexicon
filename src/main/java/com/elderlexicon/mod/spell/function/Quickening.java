@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
+import net.minecraft.world.entity.LivingEntity;
+
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.magic.matter.Matter;
 import com.elderlexicon.mod.magic.matter.Particles;
@@ -31,7 +33,7 @@ public final class Quickening {
     private static final double TOGETHER = 2.5D;
 
     /** What one release offers: the particles it would give a body, or the Vis it would give the anchor. */
-    private record Offer(ServerLevel level, ServerPlayer caster, Vec3 at, Particles body, double vis,
+    private record Offer(ServerLevel level, LivingEntity caster, Vec3 at, Particles body, double vis,
                          Runnable manifest) {
     }
 
@@ -41,7 +43,7 @@ public final class Quickening {
     }
 
     /** {@code umu} of {@code element} invoked at {@code at}; {@code manifest} gives it its form, if no being binds. */
-    static void offer(ServerLevel level, ServerPlayer caster, Vec3 at, VitaElement element, double umu,
+    static void offer(ServerLevel level, LivingEntity caster, Vec3 at, VitaElement element, double umu,
                       Runnable manifest) {
         if (element == VitaElement.BALANCED) {
             PENDING.add(new Offer(level, caster, at, Particles.NONE, umu, manifest));
@@ -54,7 +56,7 @@ public final class Quickening {
      * Matter brought from the world to {@code at} (the ingredients of a body: flesh, water, air); {@code manifest} puts
      * it down, if no being binds.
      */
-    static void offer(ServerLevel level, ServerPlayer caster, Vec3 at, List<Matter> brought, Runnable manifest) {
+    static void offer(ServerLevel level, LivingEntity caster, Vec3 at, List<Matter> brought, Runnable manifest) {
         Particles body = Particles.NONE;
         for (Matter matter : brought) {
             body = body.plus(matter.particles());

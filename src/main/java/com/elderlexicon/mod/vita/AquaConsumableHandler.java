@@ -1,6 +1,7 @@
 package com.elderlexicon.mod.vita;
 
 import com.elderlexicon.mod.ElderLexicon;
+import com.elderlexicon.mod.nahva.Dreams;
 import com.elderlexicon.mod.vita.recovery.VitaRecoverySystem;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -22,7 +23,7 @@ public final class AquaConsumableHandler {
 
     @SubscribeEvent
     public static void handleItemConsumed(LivingEntityUseItemEvent.Finish event) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || Dreams.isDreaming(player)) {
             return;
         }
         ItemStack stack = event.getItem();

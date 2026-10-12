@@ -299,7 +299,10 @@ public final class FlowInterpreter {
             return null;
         }
         ledger.setPrimaryElement(request.target());
-        ledger.addTotalCost(transferred);
+        if (request.target() == null || !request.target().isBalanced()) {
+            // Converted into mana, it is mana gained: charging it as the spell's cost would take it right back.
+            ledger.addTotalCost(transferred);
+        }
         return request.target();
     }
 

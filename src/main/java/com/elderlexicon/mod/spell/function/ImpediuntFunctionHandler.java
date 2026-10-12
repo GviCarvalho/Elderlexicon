@@ -1,5 +1,8 @@
 package com.elderlexicon.mod.spell.function;
 
+import net.minecraft.world.entity.LivingEntity;
+import com.elderlexicon.mod.spell.Casters;
+
 import com.elderlexicon.mod.spell.Barrier;
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.SpellFlow;
@@ -35,7 +38,7 @@ public final class ImpediuntFunctionHandler implements SpellFunctionHandler {
 
     @Override
     public void execute(SpellContext context, VitaElement element) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         if (!SpellEffects.isPlayerValid(player)) {
             return;
         }
@@ -60,7 +63,7 @@ public final class ImpediuntFunctionHandler implements SpellFunctionHandler {
             return;
         }
 
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = Casters.level(player);
         Optional<SpellPlace> place = action.flatMap(SpellAction::place);
         Supplier<Optional<Vec3>> center;
         if (place.isEmpty()) {

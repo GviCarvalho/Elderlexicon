@@ -85,6 +85,7 @@ public final class ServerSpellingController {
     private String wakingTrigger;
     /** The lines being sustained while their conditions hold, by mage and words. */
     private final Set<String> sustained = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final Map<UUID, Fired> firedFalls = new java.util.concurrent.ConcurrentHashMap<>();
     /** A rune, mark or number; a number may carry a minus sign ({@code -30 ubis}). */
 
     private ServerSpellingController() {
@@ -98,12 +99,20 @@ public final class ServerSpellingController {
         if (player == null) {
             return;
         }
+        // Before the trance is woken, nothing is heard (docs/habilidades-design.md).
+        if (!com.elderlexicon.mod.spelling.data.MageAbilities.hasTrance(player)) {
+            return;
+        }
         long now = Util.getMillis();
         List<String> said = sanitize(runes);
         // A spell said while the spelling still recovers is not heard, and so not echoed either.
         boolean heard = remainingCooldown(player, now) <= 0L;
         SpellCastResponse response = process(player, said, activationTimestampMs, now, false);
         SpellingNetwork.sendSpellCastResult(player, SpellFeedback.forPlayer(player, response));
+        if (response.success()) {
+            // The infinite tower hears who speaks the old tongue (docs/habilidades-design.md).
+            com.elderlexicon.mod.nahva.TowerRealm.onSpellCast(player, said);
+        }
         if (heard && !said.isEmpty() && WandItem.holdsEcho(player)) {
             SpellTicks.schedule(player.server, ECHO_DELAY_TICKS, () -> echo(player, said));
         }
@@ -232,7 +241,10 @@ public final class ServerSpellingController {
         Set<String> allowed = new HashSet<>();
         try {
             SpellingRepertoire repertoire = SpellingRepertoireHelper.get(player);
-            allowed.addAll(normalizeRunes(repertoire.slots()));
+            // A rune in hand is said only if it is unlocked (every rune, in creative).
+            repertoire.slots().stream()
+                    .filter(rune -> player.isCreative() || repertoire.isUnlocked(rune))
+                    .forEach(rune -> allowed.addAll(normalizeRunes(List.of(rune))));
         } catch (IllegalStateException exception) {
             LOGGER.warn("Spelling repertoire missing for {}; falling back to defaults", player.getGameProfile().getName(), exception);
             allowed.addAll(normalizeRunes(SpellingRepertoire.defaultRunes()));
@@ -812,12 +824,26 @@ public final class ServerSpellingController {
         if (wakingTrigger != null && !LineConditions.wakesFor(Lexicons.get(), words, wakingTrigger)) {
             return false;
         }
-        return awake(player, words);
+        if (!awake(player, words)) {
+            return false;
+        }
+        if (LineConditions.FALLING.equals(wakingTrigger)) {
+            // Woken every tick of a fall near the ground: a line fires once a fall.
+            long fall = Happenings.fallOf(player);
+            Fired fired = firedFalls.compute(player.getUUID(),
+                    (id, old) -> old == null || old.fall() != fall ? new Fired(fall, new HashSet<>()) : old);
+            return fired.lines().add(String.join(" ", words));
+        }
+        return true;
+    }
+
+    /** The lines that fired in a mage's current fall. */
+    private record Fired(long fall, Set<String> lines) {
     }
 
     /** Whether every condition among {@code words} holds now for {@code player}. */
     private static boolean awake(ServerPlayer player, List<String> words) {
-        return LineConditions.holds(Lexicons.get(), words, trigger -> Happenings.recent(player, trigger));
+        return LineConditions.holds(Lexicons.get(), words, Happenings.scene(player));
     }
 
     /**

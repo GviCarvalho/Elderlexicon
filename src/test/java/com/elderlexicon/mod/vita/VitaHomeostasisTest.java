@@ -28,15 +28,28 @@ class VitaHomeostasisTest {
     }
 
     @Test
-    void anElementChangeStaysWhereItWasMade() {
+    void anElementChangeStaysWhereItWasMadeWhenThereIsRoom() {
+        VitaData data = newData(44.0D, 30.4D, 1.6D, 4.0D, 16.0F);
+
+        data.addElementEnergy(VitaElement.IGNI, 3.0D);
+
+        assertEquals(4.6D, data.get(VitaElement.IGNI), EPSILON);
+        assertEquals(44.0D, data.get(VitaElement.AQUA), EPSILON);
+        assertEquals(30.4D, data.get(VitaElement.AURA), EPSILON);
+        assertEquals(4.0D, data.get(VitaElement.FIRMO), EPSILON);
+    }
+
+    @Test
+    void anElementGivenToAFullBodyPushesTheOthersOut() {
+        // docs/vita-design.md, the chalice: it holds no more than its capacity.
         VitaData data = newData(55.0D, 38.0D, 2.0D, 5.0D, 20.0F);
 
         data.addElementEnergy(VitaElement.IGNI, 3.0D);
 
         assertEquals(5.0D, data.get(VitaElement.IGNI), EPSILON);
-        assertEquals(55.0D, data.get(VitaElement.AQUA), EPSILON);
-        assertEquals(38.0D, data.get(VitaElement.AURA), EPSILON);
-        assertEquals(5.0D, data.get(VitaElement.FIRMO), EPSILON);
+        assertEquals(100.0D, data.totalUmu(), EPSILON);
+        assertEquals(55.0D * 95.0D / 98.0D, data.get(VitaElement.AQUA), EPSILON);
+        assertEquals(5.0D * 95.0D / 98.0D, data.get(VitaElement.FIRMO), EPSILON);
     }
 
     @Test

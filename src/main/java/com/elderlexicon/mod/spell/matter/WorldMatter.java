@@ -163,6 +163,10 @@ public final class WorldMatter {
      * nature, what it went into is awake, and the drives carry it on from there.
      */
     public static Placed place(ServerLevel level, BlockPos at, Matter matter, double temperature) {
+        // Into a cauldron, water, lava and snow go in (and water puts out a burning campfire on its way).
+        if (com.elderlexicon.mod.spell.nature.BlockReactions.pour(level, at, matter)) {
+            return new Placed(matter.umu(), 0.0D, List.of(at));
+        }
         if (MaterialTable.floats(matter.state())) {
             return air(level, at, matter, temperature);
         }

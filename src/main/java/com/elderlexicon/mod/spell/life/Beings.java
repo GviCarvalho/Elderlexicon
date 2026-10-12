@@ -69,7 +69,7 @@ public final class Beings {
     }
 
     /** A being is born at {@code at}; its maker is told what came to be. */
-    public static void bear(ServerLevel level, ServerPlayer maker, Vec3 at, Animation.Being being) {
+    public static void bear(ServerLevel level, LivingEntity maker, Vec3 at, Animation.Being being) {
         Optional<Mob> made = create(level, being.kind());
         if (made.isEmpty()) {
             return;

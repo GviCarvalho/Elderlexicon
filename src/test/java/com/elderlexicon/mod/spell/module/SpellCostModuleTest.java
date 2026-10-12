@@ -1,7 +1,7 @@
 package com.elderlexicon.mod.spell.module;
 
 import com.elderlexicon.mod.vita.VitaElement;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -81,7 +81,7 @@ class SpellCostModuleTest {
         }
 
         @Override
-        public double consumeElementExcess(ServerPlayer player, VitaElement element, double umuAmount) {
+        public double consumeElementExcess(LivingEntity player, VitaElement element, double umuAmount) {
             overflowCalled = true;
             lastOverflowRequest = umuAmount;
             double spent = Math.min(initialOverflow - overflowSpent, umuAmount);
@@ -90,7 +90,7 @@ class SpellCostModuleTest {
         }
 
         @Override
-        public void consumeLifeEnergy(ServerPlayer player, float hpDamage, VitaElement element) {
+        public void consumeLifeEnergy(LivingEntity player, float hpDamage, VitaElement element) {
             // Not needed for this test since overflow + reserve cover full cost
         }
     }

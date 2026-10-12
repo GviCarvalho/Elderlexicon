@@ -133,7 +133,9 @@ public final class FlowState {
         }
         long now = player.serverLevel().getGameTime();
         Long last = session.lastWake.get(trigger);
-        if (last != null && now - last < REFRACTORY_TICKS) {
+        // A fall near the ground wakes every tick: its lines fire once a fall, as the ground comes within their reach.
+        boolean falling = com.elderlexicon.mod.spell.block.LineConditions.FALLING.equals(trigger);
+        if (!falling && last != null && now - last < REFRACTORY_TICKS) {
             return;
         }
         session.lastWake.put(trigger, now);

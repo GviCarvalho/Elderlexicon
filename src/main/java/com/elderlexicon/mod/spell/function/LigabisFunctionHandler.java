@@ -32,8 +32,7 @@ public final class LigabisFunctionHandler implements SpellFunctionHandler {
 
     @Override
     public void execute(SpellContext context, VitaElement element) {
-        ServerPlayer player = context.player();
-        if (!SpellEffects.isPlayerValid(player)) {
+        if (!(context.player() instanceof ServerPlayer player) || !SpellEffects.isPlayerValid(player)) {
             return;
         }
         Optional<Aspect> aspect = boundAspect(context.words());

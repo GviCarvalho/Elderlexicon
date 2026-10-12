@@ -1,5 +1,8 @@
 package com.elderlexicon.mod.spell.function;
 
+import net.minecraft.world.entity.LivingEntity;
+import com.elderlexicon.mod.spell.Casters;
+
 import com.elderlexicon.mod.magic.matter.Matter;
 import com.elderlexicon.mod.magic.matter.MatterLaws;
 import com.elderlexicon.mod.magic.matter.State;
@@ -39,11 +42,11 @@ public final class StateChange {
      * the origin written, goes to the target's state where it is. Returns the UMU changed.
      */
     public static double inPlace(SpellContext context, VitaElement from, VitaElement to, double amount) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         if (!SpellEffects.isPlayerValid(player)) {
             return 0.0D;
         }
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = Casters.level(player);
         Optional<State> source = State.of(from);
         if (source.isEmpty()) {
             MarkSpells.tell(player, "Vis nao tem estado: nao ha materia dela no mundo para converter.");
@@ -101,7 +104,7 @@ public final class StateChange {
     }
 
     /** Changes the block at {@code pos}; an empty target is vis, which unmakes it into the mage. Returns its UMU. */
-    private static double change(SpellContext context, ServerPlayer player, ServerLevel level, BlockPos pos,
+    private static double change(SpellContext context, LivingEntity player, ServerLevel level, BlockPos pos,
                                  Optional<State> target) {
         Optional<Matter> taken = WorldMatter.take(level, pos);
         if (taken.isEmpty()) {
@@ -126,7 +129,7 @@ public final class StateChange {
     }
 
     /** What finds no room, or is unmade, goes into the mage as energy (L3); with a focus the body is left alone. */
-    private static void keep(SpellContext context, ServerPlayer player, VitaElement aspect, double umu) {
+    private static void keep(SpellContext context, LivingEntity player, VitaElement aspect, double umu) {
         if (umu > EPSILON && !context.focusActive()) {
             VitaSystem.restoreElementEnergy(player, aspect, umu);
         }

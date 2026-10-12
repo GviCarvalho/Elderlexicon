@@ -875,6 +875,25 @@ Os 538 testes de unidade e os 44 do jogo passam.
 - **A lava e a terra derretida que um feitiço faz** ficam como estão, como o mundo; só esfriam se algo as acorda.
 - **Os seres ainda não trocam calor com o campo.** Quem encosta num bloco informe só queima ou se apaga pelo bloco.
 
+## 8.10 Os blocos que o campo não segura
+
+Decidido (usuário, 08/10/2026): **os feitiços interagem com os blocos.** Não faz sentido uma fogueira (ou uma fornalha)
+não acender ao receber calor suficiente para fazer uma chama, nem um caldeirão não encher ao receber água, lava ou neve.
+
+Uma fogueira, uma fornalha ou um caldeirão não estão na tabela de materiais: para o campo, são paredes, e o calor fica no
+ar diante deles. `spell/nature/BlockReactions` é o que o mundo faz com isso:
+
+- **O calor:** a cada passo, um bloco acordado quente o bastante para ser chama (`Field.flameTemperature`, uns 525 °C)
+  acende o que encosta nele: fogueira (se não estiver molhada), velas e bolo com vela, fornalha, defumador e alto-forno
+  (queimam 5 s, como um graveto) e TNT (que se acende).
+- **O que cai num caldeirão:** água, lava ou neve que um feitiço põe no mundo num caldeirão ou logo acima dele
+  (`WorldMatter.place`), ou que os impulsos mostram assentando em cima de um, entra nele e é gasta: a água sobe um nível
+  (até 3), a neve vira neve fina, a lava o enche. Água que cai numa fogueira acesa a apaga, e segue.
+
+Testado no servidor de testes (08/10/2026): uma chama posta sobre a fogueira, ao lado da vela, ao lado da fornalha e a
+chama mantida do `igni vocant` acendem; a água borrifada enche o caldeirão e apaga a fogueira. Os feitiços de fogo não
+foram testados por inteiro ali, porque o jogador de teste não solta a carga condensada.
+
 ## Os seres propostos
 
 Proporções propostas na etapa 6, para o usuário revisar. As colunas são as partes de cem: terra, água, ar e fogo.
@@ -1049,6 +1068,8 @@ Ficaram de fora os chefes (dragão do End e wither) e os que o jogo não faz nas
 36. O laboratório liga-se ao mundo no lugar das camadas antigas (usuário, 03/10).
 37. A matéria informe guarda partículas e age pelos impulsos, e as leis antigas da matéria misturada saem (usuário,
     03/10).
+38. Os feitiços interagem com os blocos: o calor que faz chama acende fogueiras, velas e fornalhas; água, lava e neve
+    enchem caldeirões; a água apaga fogueiras (usuário, 08/10; §8.10).
 
 ## Decisões em aberto
 

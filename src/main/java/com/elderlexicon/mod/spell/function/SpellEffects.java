@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.spell.Casters;
+
 import com.elderlexicon.mod.spell.SpellTicks;
 import com.elderlexicon.mod.vita.VitaElement;
 import java.lang.reflect.Field;
@@ -62,14 +64,14 @@ final class SpellEffects {
       }
    }
 
-   static boolean isPlayerValid(ServerPlayer player) {
+   static boolean isPlayerValid(LivingEntity player) {
       return player != null && !player.isRemoved() && player.isAlive();
    }
 
-   static void spawnProjectile(ServerPlayer player, VitaElement element, String elementRuneId) {
+   static void spawnProjectile(LivingEntity player, VitaElement element, String elementRuneId) {
       Optional<ParticleOptions> particle = resolveParticle(element, elementRuneId);
       if (!particle.isEmpty()) {
-         ServerLevel level = player.serverLevel();
+         ServerLevel level = Casters.level(player);
          Vec3 eyePosition = player.getEyePosition();
          Vec3 lookVector = player.getLookAngle().normalize();
          double step = 0.5D;
@@ -84,19 +86,19 @@ final class SpellEffects {
       }
    }
 
-   static void spawnSummonEffect(ServerPlayer player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact) {
+   static void spawnSummonEffect(LivingEntity player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact) {
       if (impact.blockPos() != null) {
          Optional<ParticleOptions> particle = resolveParticle(element, elementRuneId);
          if (!particle.isEmpty()) {
-            ServerLevel level = player.serverLevel();
+            ServerLevel level = Casters.level(player);
             Vec3 target = Vec3.atCenterOf(impact.blockPos()).add(0.0D, 0.5D, 0.0D);
             level.sendParticles((ParticleOptions)particle.get(), target.x, target.y, target.z, 12, 0.25D, 0.15D, 0.25D, 0.02D);
          }
       }
    }
 
-   static SpellEffects.SpellImpact findImpact(ServerPlayer player, double range) {
-      ServerLevel level = player.serverLevel();
+   static SpellEffects.SpellImpact findImpact(LivingEntity player, double range) {
+      ServerLevel level = Casters.level(player);
       Vec3 eyePosition = player.getEyePosition();
       Vec3 look = player.getLookAngle();
       if (look.lengthSqr() == 0.0D) {
@@ -109,7 +111,7 @@ final class SpellEffects {
          if (entityHit != null) {
             return new SpellEffects.SpellImpact(entityHit.getLocation(), entityHit.getEntity(), (BlockPos)null, (Direction)null);
          } else {
-            HitResult hitResult = player.pick(range, 0.0F, false);
+            HitResult hitResult = player.pick(range, 1.0F, false); // the aim of now (a creature turns just before it casts)
             if (hitResult instanceof BlockHitResult) {
                BlockHitResult blockHit = (BlockHitResult)hitResult;
                if (hitResult.getType() == Type.BLOCK) {
@@ -123,7 +125,7 @@ final class SpellEffects {
       }
    }
 
-   static void applyElementEffect(ServerPlayer player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact) {
+   static void applyElementEffect(LivingEntity player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact) {
       applyElementEffect(player, element, elementRuneId, impact, 1.0D);
    }
 
@@ -133,7 +135,7 @@ final class SpellEffects {
     * twice the damage and burns twice as long, and matter laid in the world (fire, earth) or touched (water)
     * covers about {@code power} blocks around the impact.
     */
-   static void applyElementEffect(ServerPlayer player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact,
+   static void applyElementEffect(LivingEntity player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact,
                                   double power) {
       if (power > 0.0D) {
          apply(player, element, elementRuneId, impact, new Dose(power, blocksFor(power), false));
@@ -145,7 +147,7 @@ final class SpellEffects {
     * its share where the mage is aiming at that moment, so sweeping the aim spreads the effect, and all the pulses
     * on one spot add up to the whole effect. Returns whether the pulse reached anything.
     */
-   static boolean applyElementPulse(ServerPlayer player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact,
+   static boolean applyElementPulse(LivingEntity player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact,
                                     Stream stream) {
       if (impact == null || (impact.entity() == null && impact.blockPos() == null)) {
          return false;
@@ -158,7 +160,7 @@ final class SpellEffects {
     * What an element does to one creature, with no matter laid in the world: {@code strength} 1 is the default
     * 10 UMU, and a {@code pulse} adds to what earlier pulses did (see {@link #applyElementPulse}).
     */
-   static void applyToEntity(ServerPlayer player, VitaElement element, String elementRuneId, Entity entity, double strength,
+   static void applyToEntity(LivingEntity player, VitaElement element, String elementRuneId, Entity entity, double strength,
                              boolean pulse) {
       if (entity != null && strength > 0.0D) {
          apply(player, element, elementRuneId, new SpellEffects.SpellImpact(entity.position(), entity, null, null),
@@ -191,7 +193,7 @@ final class SpellEffects {
     */
    private record Dose(double strength, int blocks, boolean pulse) { }
 
-   private static void apply(ServerPlayer player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact,
+   private static void apply(LivingEntity player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact,
                              Dose dose) {
       if (impact != null) {
          switch (element) {
@@ -222,7 +224,7 @@ final class SpellEffects {
       entity.hurt(source, (float) amount);
    }
 
-   private static void applyIgniEffect(ServerPlayer player, String elementRuneId, SpellEffects.SpellImpact impact, Dose dose) {
+   private static void applyIgniEffect(LivingEntity player, String elementRuneId, SpellEffects.SpellImpact impact, Dose dose) {
       Entity entity = impact.entity();
       if (entity instanceof LivingEntity living) {
          int fireTicks = (int) Math.round(4.0D * dose.strength() * 20.0D);
@@ -231,10 +233,10 @@ final class SpellEffects {
          } else {
             living.setSecondsOnFire(Math.max(1, fireTicks / 20));
          }
-         hurt(living, player.damageSources().playerAttack(player), 4.0D * dose.strength(), dose);
+         hurt(living, Casters.strike(player), 4.0D * dose.strength(), dose);
       } else {
          if (impact.blockPos() != null) {
-            ServerLevel level = player.serverLevel();
+            ServerLevel level = Casters.level(player);
             if (applyIgniBlockEffect(level, impact.blockPos(), (int) Math.round(furnaceBurnTicks(elementRuneId) * dose.strength()))) {
                return;
             }
@@ -250,14 +252,14 @@ final class SpellEffects {
       }
    }
 
-   private static void applyFirmoEffect(ServerPlayer player, SpellEffects.SpellImpact impact, Dose dose) {
-      ServerLevel level = player.serverLevel();
+   private static void applyFirmoEffect(LivingEntity player, SpellEffects.SpellImpact impact, Dose dose) {
+      ServerLevel level = Casters.level(player);
       Entity entity = impact.entity();
       Vec3 look = player.getLookAngle().normalize();
       double strength = dose.strength();
       if (entity != null) {
          push(entity, look.x * 0.6D * strength, 0.3D * strength, look.z * 0.6D * strength);
-         hurt(entity, player.damageSources().playerAttack(player), 4.0D * strength, dose);
+         hurt(entity, Casters.strike(player), 4.0D * strength, dose);
          placeDirtBlocks(level, entity.blockPosition(), dose.blocks());
       } else {
          BlockPos targetPos = impact.blockPos();
@@ -269,24 +271,24 @@ final class SpellEffects {
       }
    }
 
-   private static void applyAuraEffect(ServerPlayer player, SpellEffects.SpellImpact impact, Dose dose) {
+   private static void applyAuraEffect(LivingEntity player, SpellEffects.SpellImpact impact, Dose dose) {
       Entity entity = impact.entity();
       if (entity != null) {
          Vec3 look = player.getLookAngle().normalize();
          double strength = dose.strength();
-         hurt(entity, player.damageSources().playerAttack(player), 3.0D * strength, dose);
+         hurt(entity, Casters.strike(player), 3.0D * strength, dose);
          push(entity, look.x * 0.5D * strength, 0.2D * strength, look.z * 0.5D * strength);
       }
    }
 
-   private static void applyAquaEffect(ServerPlayer player, SpellEffects.SpellImpact impact, Dose dose) {
+   private static void applyAquaEffect(LivingEntity player, SpellEffects.SpellImpact impact, Dose dose) {
       Entity entity = impact.entity();
       if (entity instanceof LivingEntity living) {
          hurt(living, player.damageSources().drown(), 4.0D * dose.strength(), dose);
          living.setAirSupply(Math.min(living.getAirSupply(), 20));
       } else {
          if (impact.blockPos() != null && dose.blocks() > 0) {
-            ServerLevel level = player.serverLevel();
+            ServerLevel level = Casters.level(player);
             for (BlockPos pos : spotsAround(impact.blockPos(), dose.blocks())) {
                applyAquaBlockEffect(level, pos);
             }
@@ -534,11 +536,11 @@ final class SpellEffects {
       return ParticleTypes.CLOUD;
    }
 
-   static void spawnDrainParticles(ServerPlayer player, VitaElement element, String elementRuneId, BlockPos source, double amount) {
+   static void spawnDrainParticles(LivingEntity player, VitaElement element, String elementRuneId, BlockPos source, double amount) {
       if (player != null && element != null && source != null) {
          Optional<ParticleOptions> particle = resolveParticle(element, elementRuneId);
          if (!particle.isEmpty()) {
-            ServerLevel level = player.serverLevel();
+            ServerLevel level = Casters.level(player);
             Vec3 start = Vec3.atCenterOf(source);
             Vec3 end = player.getEyePosition();
             Vec3 delta = end.subtract(start);
@@ -554,9 +556,9 @@ final class SpellEffects {
       }
    }
 
-   static void spawnImpediuntPulse(ServerPlayer player, VitaElement element, String elementRuneId) {
+   static void spawnImpediuntPulse(LivingEntity player, VitaElement element, String elementRuneId) {
       if (player != null) {
-         ServerLevel level = player.serverLevel();
+         ServerLevel level = Casters.level(player);
          Vec3 origin = player.position().add(0.0D, 0.9D, 0.0D);
          ParticleOptions accent = (ParticleOptions)resolveParticle(element, elementRuneId).orElse(ParticleTypes.CLOUD);
          int segments = 16;
@@ -573,19 +575,19 @@ final class SpellEffects {
       }
    }
 
-   static void playImpediuntSound(ServerPlayer player) {
+   static void playImpediuntSound(LivingEntity player) {
       if (player != null) {
-         ServerLevel level = player.serverLevel();
+         ServerLevel level = Casters.level(player);
          float pitch = 0.85F + player.getRandom().nextFloat() * 0.3F;
          level.playSound((Player)null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_ATTACK_KNOCKBACK, SoundSource.PLAYERS, 0.9F, pitch);
       }
    }
 
-   static void spawnSourceDrift(ServerPlayer player, VitaElement element, String elementRuneId, Vec3 location) {
+   static void spawnSourceDrift(LivingEntity player, VitaElement element, String elementRuneId, Vec3 location) {
       if (player != null && element != null && !element.isBalanced() && location != null) {
          Optional<ParticleOptions> particle = resolveParticle(element, elementRuneId);
          if (!particle.isEmpty()) {
-            ServerLevel level = player.serverLevel();
+            ServerLevel level = Casters.level(player);
             Vec3 delta = location.subtract(player.position()).normalize();
             level.sendParticles((ParticleOptions)particle.get(), location.x, location.y, location.z, 4, delta.x * 0.08D, 0.05D, delta.z * 0.08D, 0.01D);
          }

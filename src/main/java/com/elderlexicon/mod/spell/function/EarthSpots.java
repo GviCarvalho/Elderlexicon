@@ -53,14 +53,14 @@ public final class EarthSpots {
     /** A condensed block on its way: flying (thrown) or falling, until it lands. */
     private static final class Flight {
         final FallingBlockEntity block;
-        final ServerPlayer caster;
+        final LivingEntity caster;
         final double density;
         final int coal;
         final boolean meteor;
         final long born;
         boolean struck;
 
-        Flight(FallingBlockEntity block, ServerPlayer caster, double density, int coal, boolean meteor, long born) {
+        Flight(FallingBlockEntity block, LivingEntity caster, double density, int coal, boolean meteor, long born) {
             this.block = block;
             this.caster = caster;
             this.density = density;
@@ -80,7 +80,7 @@ public final class EarthSpots {
      * Condensed earth invoked at {@code pos}: the block its density makes, which falls if nothing holds it up, or, for
      * carbon pressed hard enough, diamonds (one for every nine coal).
      */
-    static void place(ServerLevel level, ServerPlayer caster, BlockPos pos, double density, int coal) {
+    static void place(ServerLevel level, LivingEntity caster, BlockPos pos, double density, int coal) {
         Vec3 at = Vec3.atCenterOf(pos);
         if (makeDiamonds(level, at, density, coal)) {
             return;
@@ -114,7 +114,7 @@ public final class EarthSpots {
      * Condensed earth thrown: the block flies from before the mage toward where it looks, arcing as it falls, and
      * strikes like a meteor where it first hits, opening a crater as strong as it is heavy; then it falls into it.
      */
-    static void launch(ServerLevel level, ServerPlayer caster, double density, int coal) {
+    static void launch(ServerLevel level, LivingEntity caster, double density, int coal) {
         Vec3 look = caster.getViewVector(1.0F);
         BlockPos start = BlockPos.containing(caster.getEyePosition().add(look.scale(1.5D)));
         if (!level.getBlockState(start).canBeReplaced()) {
@@ -135,7 +135,7 @@ public final class EarthSpots {
     }
 
     /** Where condensed earth strikes: a crater as strong as it is heavy (carbon turns to diamond there instead). */
-    static void meteor(ServerLevel level, ServerPlayer caster, Vec3 at, double density, int coal) {
+    static void meteor(ServerLevel level, LivingEntity caster, Vec3 at, double density, int coal) {
         float strength = Density.meteor(density);
         level.explode(caster, at.x, at.y, at.z, strength, false, Impacts.explosions());
         // The weight of it: a heavy thud and a cloud of its own dust thrown up around the crater.

@@ -159,7 +159,7 @@ public final class AirSpots {
      * Pressed air released toward the aim: it throws what is in its path along it and, as a gale, tears light things
      * away and blows fire out; pressed into a bomb, it goes off where the aim lands.
      */
-    static void blast(ServerLevel level, ServerPlayer caster, double pressure) {
+    static void blast(ServerLevel level, LivingEntity caster, double pressure) {
         Vec3 eye = caster.getEyePosition();
         Vec3 look = caster.getViewVector(1.0F);
         boolean tears = AirPressure.band(pressure).compareTo(AirPressure.Band.GALE) >= 0;
@@ -208,7 +208,7 @@ public final class AirSpots {
     }
 
     /** Pressed air released at a point: it bursts out all around it, or, pressed into a bomb, goes off there. */
-    static void burst(ServerLevel level, ServerPlayer caster, Vec3 at, double pressure) {
+    static void burst(ServerLevel level, LivingEntity caster, Vec3 at, double pressure) {
         NatureWorld.releaseAir(level, at, pressure, AirPressure.reach(pressure));
         if (AirPressure.band(pressure) == AirPressure.Band.BOMB) {
             bomb(level, caster, at, pressure);
@@ -234,7 +234,7 @@ public final class AirSpots {
     }
 
     /** The pressure going all at once: an explosion with no fire and a shock that throws everything away. */
-    public static void bomb(ServerLevel level, ServerPlayer caster, Vec3 at, double pressure) {
+    public static void bomb(ServerLevel level, LivingEntity caster, Vec3 at, double pressure) {
         level.explode(caster, at.x, at.y, at.z, AirPressure.bomb(pressure), false, Impacts.explosions());
         throwAway(level, caster, at, AirPressure.reach(pressure), AirPressure.push(pressure), true);
         level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, at.x, at.y, at.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
@@ -242,7 +242,7 @@ public final class AirSpots {
     }
 
     /** Everything within {@code reach} of {@code at} is thrown straight away from it, harder the closer. */
-    private static void throwAway(ServerLevel level, ServerPlayer caster, Vec3 at, double reach, double push,
+    private static void throwAway(ServerLevel level, LivingEntity caster, Vec3 at, double reach, double push,
                                   boolean blowsFireOut) {
         for (Entity entity : level.getEntitiesOfClass(Entity.class, new AABB(at, at).inflate(reach),
                 candidate -> (candidate instanceof LivingEntity || candidate instanceof ItemEntity) && candidate.isAlive()

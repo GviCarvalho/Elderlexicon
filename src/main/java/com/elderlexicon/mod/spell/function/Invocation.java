@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.spell.Casters;
+
 import com.elderlexicon.mod.ligabis.world.LigabisManager;
 import com.elderlexicon.mod.magic.lexicon.Traits;
 import com.elderlexicon.mod.magic.matter.Form;
@@ -92,7 +94,7 @@ final class Invocation {
      *
      * @param windowTicks the chronos window; zero or less is the element's own timing
      */
-    static double invoke(ServerPlayer player, VitaElement element, String elementRuneId, Where where,
+    static double invoke(LivingEntity player, VitaElement element, String elementRuneId, Where where,
                          double energy, int windowTicks) {
         return invoke(player, element, elementRuneId, where, energy, windowTicks, left -> { });
     }
@@ -101,7 +103,7 @@ final class Invocation {
      * As {@link #invoke(ServerPlayer, VitaElement, String, Where, double, int)}; what a flame held for a while did not
      * spend comes back later, to {@code later}, in UMU.
      */
-    static double invoke(ServerPlayer player, VitaElement element, String elementRuneId, Where where,
+    static double invoke(LivingEntity player, VitaElement element, String elementRuneId, Where where,
                          double energy, int windowTicks, DoubleConsumer later) {
         String rune = elementRuneId == null ? element.runeId() : elementRuneId.toLowerCase(Locale.ROOT);
         Optional<SpellEffects.SpellImpact> first = where.now();
@@ -113,7 +115,7 @@ final class Invocation {
         }
         if (SourceLooks.traits(rune).kindles()) {
             flames(player, where, first.get(), energy, windowTicks, later);
-            show(player.serverLevel(), rune, element, first.get().location(), energy / VocantFunctionHandler.DEFAULT_UMU);
+            show(Casters.level(player), rune, element, first.get().location(), energy / VocantFunctionHandler.DEFAULT_UMU);
             return 0.0D;
         }
         ephemeral(player, element, rune, where, first.get(), energy / VocantFunctionHandler.DEFAULT_UMU, windowTicks);
@@ -129,9 +131,9 @@ final class Invocation {
      * burn what stands in them, go out) is up to the drives. Called at the feet of a marked creature, the flame follows
      * it. What the flames did not spend comes back to {@code later}.
      */
-    private static void flames(ServerPlayer player, Where where, SpellEffects.SpellImpact impact, double energy,
+    private static void flames(LivingEntity player, Where where, SpellEffects.SpellImpact impact, double energy,
                                int windowTicks, DoubleConsumer later) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = Casters.level(player);
         int ticks = windowTicks > 0 ? windowTicks : NatureWorld.FLAME_TICKS;
         double budget = windowTicks > 0 ? SpellFlow.total(energy, windowTicks) : energy;
         double each = NatureWorld.flame() * Math.max(1.0D, (double) ticks / NatureWorld.FLAME_TICKS);
@@ -173,9 +175,9 @@ final class Invocation {
      * never touched, for {@code ticks}. What has no matter to show (air, Vis, lightning) shows its light alone: its
      * particles for the whole time, and a lightning that strikes nothing (docs/surgit-visao-design.md, section 4).
      */
-    static void imagine(ServerPlayer player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact,
+    static void imagine(LivingEntity player, VitaElement element, String elementRuneId, SpellEffects.SpellImpact impact,
                         double power, int ticks) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = Casters.level(player);
         String rune = elementRuneId == null ? element.runeId() : elementRuneId.toLowerCase(Locale.ROOT);
         BlockState image = imageMatterOf(rune);
         if (image != null) {
@@ -230,9 +232,9 @@ final class Invocation {
 
     // ------------------------------------------------------------------ permanent
 
-    private static double permanent(ServerPlayer player, VitaElement element, String rune, Where where,
+    private static double permanent(LivingEntity player, VitaElement element, String rune, Where where,
                                     SpellEffects.SpellImpact impact, double energy, int windowTicks) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = Casters.level(player);
         double power = energy / VocantFunctionHandler.DEFAULT_UMU;
         // Thrown at a creature, matter strikes it; called at its feet, it only appears under it.
         if (impact.entity() != null && !where.atFeet()) {
@@ -348,9 +350,9 @@ final class Invocation {
 
     // ------------------------------------------------------------------ ephemeral
 
-    private static void ephemeral(ServerPlayer player, VitaElement element, String rune, Where where,
+    private static void ephemeral(LivingEntity player, VitaElement element, String rune, Where where,
                                   SpellEffects.SpellImpact impact, double power, int windowTicks) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = Casters.level(player);
         Traits traits = SourceLooks.traits(rune);
         boolean wind = isWind(rune);
         double energy = power * EmissionRecorder.DEFAULT_QUANTITY_UMU;
@@ -418,7 +420,7 @@ final class Invocation {
      * Air blows out of the surface it was called on: up from the ground, out of a wall, up from under the feet of a
      * marked creature. Called on a creature the mage aimed at, or in the open air, it blows the way the mage looks.
      */
-    private static Vec3 windDirection(ServerPlayer player, SpellEffects.SpellImpact impact) {
+    private static Vec3 windDirection(LivingEntity player, SpellEffects.SpellImpact impact) {
         if (impact.face() != null) {
             return Vec3.atLowerCornerOf(impact.face().getNormal());
         }
@@ -514,7 +516,7 @@ final class Invocation {
      * A player held up by an updraft steers like on the ground instead of the feeble control Minecraft gives in
      * the air: the walking keys the client reports (see {@code PlayerMotionInputPacket}) set the sideways speed.
      */
-    private static Vec3 walkInTheAir(ServerPlayer rider, Vec3 motion) {
+    private static Vec3 walkInTheAir(LivingEntity rider, Vec3 motion) {
         LigabisManager manager = LigabisManager.get();
         float[] input = manager == null ? null : manager.playerInput(rider.getUUID());
         if (input == null || (Math.abs(input[0]) < 1.0E-3F && Math.abs(input[1]) < 1.0E-3F)) {
@@ -541,11 +543,11 @@ final class Invocation {
         }
     }
 
-    private static void strike(ServerLevel level, ServerPlayer caster, Vec3 at) {
+    private static void strike(ServerLevel level, LivingEntity caster, Vec3 at) {
         LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level);
         if (bolt != null) {
             bolt.moveTo(at);
-            bolt.setCause(caster);
+            bolt.setCause(Casters.player(caster).orElse(null));
             level.addFreshEntity(bolt);
         }
     }

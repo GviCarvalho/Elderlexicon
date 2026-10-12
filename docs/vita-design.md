@@ -11,6 +11,48 @@ diagnóstico são os próximos passos.
 > - Um GameTest faz um homúnculo com 25 carnes do chão, 36 de ar, 40 de água e a âncora.
 > - Um corpo exatamente entre dois seres vira o que a tabela lista primeiro, e não o que o arredondamento escolheria.
 
+## O corpo como cálice (04/10/2026)
+
+O corpo é um cálice: os quatro elementos são a sua composição, e a vida é o quanto ele está inteiro (decidido com o
+autor em 04/10/2026; o livro, 3.2.1: "o calor das suas veias, a água do seu sangue, os minerais dos seus ossos").
+
+| Elemento | No corpo | Parte |
+|---|---|---|
+| igni | o calor | 2% |
+| aqua | os líquidos, o sangue | 55% |
+| firmo | os minerais, os ossos | 5% |
+| aura | o fôlego, o oxigênio | 38% |
+
+- **Capacidade.** Inteiro, o corpo comporta 5 UMU por ponto de vida máxima (100 UMU com 20 HP); cada elemento tem a
+  sua parte cheia.
+- **A vida segue o elemento mais em falta.** 100% de HP só com os quatro no 100%: com os ossos a 80% e o resto cheio,
+  a vida fica em 80%. Um elemento acima da sua parte não dá mais vida.
+- **O excesso toma espaço.** O cálice não passa da capacidade: o que entra num cálice cheio empurra os outros para
+  fora, cada um na proporção do que tem. Num corpo ferido, há espaço, e o que entra não empurra nada.
+- **Cada dano tira do que atinge** (`VitaDamageHandler.natureOf`), até a vida que sobra:
+
+  | Dano | Tira de |
+  |---|---|
+  | corte, perfuração (espada, mordida, flecha, espinhos), veneno | aqua (o sangue) |
+  | fogo, lava | aqua (resseca), e põe igni |
+  | queda, esmagamento, bigorna | firmo (os ossos) |
+  | afogamento, sufocação | aura (o fôlego) |
+  | raio | aura, e põe aura |
+  | congelamento | igni (o calor) |
+  | wither | firmo e aura |
+  | explosão, fome, mágico, o resto | todos, na proporção |
+
+- **A cura comum preenche primeiro o que falta.** Comida, descanso ou uma poção dão vida, e a vida ganha enche os
+  elementos que estão abaixo dela, até o novo nível.
+- **A homeostase só expele o excesso**: cada segundo, o que passa da parte cheia volta 10% do caminho. Ela não tira de
+  um elemento para dar a outro: depois de uma queda, os ossos ficam em falta até serem curados (comida, ou um feitiço
+  que lhes dê terra). Assim cada dano deixa a sua marca.
+- **Magia cura e fere pelo mesmo caminho.** Pôr um elemento no corpo cura se era o que faltava; tirá-lo fere (o
+  tributo em carne do livro). `firmo quantum chronos 0 iactare` (toda a terra do corpo) mata: o espírito é literal.
+- **O leite** esfria só o calor além do próprio do corpo (antes, tirava 0,8 UMU de fogo, 40% dele).
+- Um corpo de uma versão anterior é enchido, uma vez, até a vida que tem (`chalice` no NBT), para ninguém perder vida
+  com a mudança.
+
 ## A ideia
 
 A vida não é um elemento: é uma **mistura desequilibrada dos quatro** (`ReadmeVITA.md`), numa proporção que cada tipo

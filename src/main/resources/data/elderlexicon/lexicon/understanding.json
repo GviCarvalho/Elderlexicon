@@ -1,0 +1,10 @@
+{
+  "_license": "© GviCarvalho – This data is part of Elderlexicon. See LICENSE.txt.",
+  "_about": "How a rune is learned (docs/aprendizado-runas-design.md): the mage lives, in the body, every one of its 'experiences' (ids the mod knows how to tell); then a vivid dream may take them to its 'realm' in Nahvá, and escaping it teaches the rune.",
+  "runes": {
+    "igni": {
+      "experiences": ["igni_cold", "igni_hypothermia", "igni_warm", "igni_boiling", "burning", "freezing"],
+      "realm": "igni"
+    }
+  }
+}

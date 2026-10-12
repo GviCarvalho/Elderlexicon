@@ -152,11 +152,36 @@ public class ElderLexicon {
                             .clientTrackingRange(10)
                             .build("homunculus"));
 
+    /** The climber's double in the tower's mirror room (nahva/TowerRoom.MIRROR). */
+    public static final RegistryObject<EntityType<com.elderlexicon.mod.nahva.Reflection>> REFLECTION =
+            ENTITY_TYPES.register("reflection",
+                    () -> EntityType.Builder.<com.elderlexicon.mod.nahva.Reflection>of(
+                                    com.elderlexicon.mod.nahva.Reflection::new, MobCategory.MISC)
+                            .sized(0.6F, 1.8F)
+                            .noSave()
+                            .fireImmune()
+                            .clientTrackingRange(8)
+                            .updateInterval(1)
+                            .build("reflection"));
+
     public static final RegistryObject<EntityType<GolemEntity>> LIGABIS_GOLEM = ENTITY_TYPES.register("ligabis_golem",
             () -> EntityType.Builder.<GolemEntity>of(GolemEntity::new, MobCategory.MISC)
                     .sized(1.4F, 2.7F)
                     .clientTrackingRange(10)
                     .build("ligabis_golem"));
+
+    /** The evoker that knows the Old Tongue (docs/feiticeiro-design.md). */
+    public static final RegistryObject<EntityType<com.elderlexicon.mod.illager.Sorcerer>> SORCERER =
+            ENTITY_TYPES.register("sorcerer",
+                    () -> EntityType.Builder.<com.elderlexicon.mod.illager.Sorcerer>of(
+                                    com.elderlexicon.mod.illager.Sorcerer::new, MobCategory.MONSTER)
+                            .sized(0.6F, 1.95F)
+                            .clientTrackingRange(8)
+                            .build("sorcerer"));
+
+    public static final RegistryObject<Item> SORCERER_SPAWN_EGG = ITEMS.register("sorcerer_spawn_egg",
+            () -> new net.minecraftforge.common.ForgeSpawnEggItem(ElderLexicon.SORCERER, 0x959B9B, 0x6B3FA0,
+                    new Item.Properties()));
 
     public static final RegistryObject<RecipeSerializer<WandUpgradeRecipe>> WAND_UPGRADE_SERIALIZER =
             RECIPE_SERIALIZERS.register("wand_upgrade", () -> new SimpleCraftingRecipeSerializer<>(WandUpgradeRecipe::new));
@@ -185,6 +210,8 @@ public class ElderLexicon {
 
                         output.accept(com.elderlexicon.mod.galdraria.Galdraria.TABLE_ITEM.get());
                         output.accept(com.elderlexicon.mod.galdraria.Galdraria.BURIN.get());
+
+                        output.accept(ElderLexicon.SORCERER_SPAWN_EGG.get());
                     })
                     .build());
 
@@ -218,6 +245,8 @@ public class ElderLexicon {
     @SubscribeEvent
     public void registerCommands(RegisterCommandsEvent event) {
         SpellCommand.register(event.getDispatcher());
+        com.elderlexicon.mod.command.RuneCommand.register(event.getDispatcher());
+        com.elderlexicon.mod.command.MageCommand.register(event.getDispatcher());
         VitaCommand.register(event.getDispatcher());
     }
 
@@ -227,6 +256,8 @@ public class ElderLexicon {
         public static void onAttributeCreation(EntityAttributeCreationEvent event) {
             event.put(LIGABIS_GOLEM.get(), IronGolem.createAttributes().build());
             event.put(HOMUNCULUS.get(), com.elderlexicon.mod.spell.life.Homunculus.createAttributes().build());
+            event.put(REFLECTION.get(), com.elderlexicon.mod.nahva.Reflection.createAttributes().build());
+            event.put(SORCERER.get(), net.minecraft.world.entity.monster.Evoker.createAttributes().build());
         }
     }
 }

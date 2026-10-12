@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.spell.Casters;
+
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spell.Barrier;
 import com.elderlexicon.mod.spell.sight.Revelation;
@@ -54,7 +56,7 @@ public final class ImpediuntZones {
 
     private static final class Zone {
         final ServerLevel level;
-        final ServerPlayer caster;
+        final LivingEntity caster;
         final VitaElement element;
         final Supplier<Optional<Vec3>> center;
         final double radius;
@@ -63,7 +65,7 @@ public final class ImpediuntZones {
         final boolean drawsIn;
         Vec3 lastCenter;
 
-        Zone(ServerLevel level, ServerPlayer caster, VitaElement element, Supplier<Optional<Vec3>> center, double radius,
+        Zone(ServerLevel level, LivingEntity caster, VitaElement element, Supplier<Optional<Vec3>> center, double radius,
              long untilTick, boolean drawsIn, Vec3 lastCenter) {
             this.level = level;
             this.caster = caster;
@@ -80,7 +82,7 @@ public final class ImpediuntZones {
      * Opens a zone of {@code radius} around {@code center} for {@code ticks}, clearing it at once. Earth is moved only
      * then, into a wall at the edge; fire, water and creatures are kept out for as long as it lasts.
      */
-    static void open(ServerPlayer caster, VitaElement element, Supplier<Optional<Vec3>> center, double radius, int ticks) {
+    static void open(LivingEntity caster, VitaElement element, Supplier<Optional<Vec3>> center, double radius, int ticks) {
         open(caster, element, center, radius, ticks, false);
     }
 
@@ -90,13 +92,13 @@ public final class ImpediuntZones {
      * air carries everything loose in it, so a zone of air (or of vis) draws in any creature and any thing on the
      * ground: a vortex.
      */
-    static void open(ServerPlayer caster, VitaElement element, Supplier<Optional<Vec3>> center, double radius, int ticks,
+    static void open(LivingEntity caster, VitaElement element, Supplier<Optional<Vec3>> center, double radius, int ticks,
                      boolean drawsIn) {
         Optional<Vec3> at = center.get();
         if (at.isEmpty() || radius <= 0.0D) {
             return;
         }
-        ServerLevel level = caster.serverLevel();
+        ServerLevel level = Casters.level(caster);
         Zone zone = new Zone(level, caster, element, center, radius, level.getGameTime() + Math.max(1, ticks), drawsIn,
                 at.get());
         sweep(zone, at.get(), true);

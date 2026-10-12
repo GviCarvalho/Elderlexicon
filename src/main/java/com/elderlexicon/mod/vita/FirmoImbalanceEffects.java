@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita;
 
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -25,7 +25,7 @@ final class FirmoImbalanceEffects {
     private FirmoImbalanceEffects() {
     }
 
-    static void apply(ServerPlayer player, VitaData data) {
+    static void apply(LivingEntity player, VitaData data) {
         VitaImbalanceTier tier = data.firmoTier();
         switch (tier) {
             case SEVERELY_LOW -> applySeverelyLow(player);
@@ -39,30 +39,30 @@ final class FirmoImbalanceEffects {
         }
     }
 
-    private static void applySeverelyLow(ServerPlayer player) {
+    private static void applySeverelyLow(LivingEntity player) {
         applyEffect(player, MobEffects.DIG_SLOWDOWN, 1, 80);
         applyEffect(player, MobEffects.WEAKNESS, 1, 80);
         applyEffect(player, MobEffects.HUNGER, 0, 60);
         applyHealthDebuff(player);
     }
 
-    private static void applySlightlyLow(ServerPlayer player) {
+    private static void applySlightlyLow(LivingEntity player) {
         applyEffect(player, MobEffects.DIG_SLOWDOWN, 0, 80);
         applyEffect(player, MobEffects.WEAKNESS, 0, 80);
     }
 
-    private static void applySlightlyHigh(ServerPlayer player) {
+    private static void applySlightlyHigh(LivingEntity player) {
         applyEffect(player, MobEffects.DAMAGE_RESISTANCE, 0, 80);
         applyEffect(player, MobEffects.MOVEMENT_SLOWDOWN, 0, 80);
     }
 
-    private static void applySeverelyHigh(ServerPlayer player) {
+    private static void applySeverelyHigh(LivingEntity player) {
         applyEffect(player, MobEffects.DAMAGE_RESISTANCE, 1, 80);
         applyEffect(player, MobEffects.MOVEMENT_SLOWDOWN, 1, 80);
         applyEffect(player, MobEffects.HUNGER, 0, 80);
     }
 
-    private static void applyEffect(ServerPlayer player, MobEffect effect, int amplifier, int duration) {
+    private static void applyEffect(LivingEntity player, MobEffect effect, int amplifier, int duration) {
         MobEffectInstance existing = player.getEffect(effect);
         if (existing != null && existing.getAmplifier() >= amplifier) {
             player.addEffect(new MobEffectInstance(effect, duration, existing.getAmplifier(), true, false, true));
@@ -71,7 +71,7 @@ final class FirmoImbalanceEffects {
         player.addEffect(new MobEffectInstance(effect, duration, amplifier, true, false, true));
     }
 
-    private static void applyHealthDebuff(ServerPlayer player) {
+    private static void applyHealthDebuff(LivingEntity player) {
         AttributeInstance attribute = player.getAttribute(Attributes.MAX_HEALTH);
         if (attribute == null) {
             return;
@@ -84,14 +84,14 @@ final class FirmoImbalanceEffects {
         }
     }
 
-    private static void removeHealthDebuff(ServerPlayer player) {
+    private static void removeHealthDebuff(LivingEntity player) {
         AttributeInstance attribute = player.getAttribute(Attributes.MAX_HEALTH);
         if (attribute != null && attribute.hasModifier(LOW_HEALTH_DEBUFF)) {
             attribute.removeModifier(LOW_HEALTH_DEBUFF);
         }
     }
 
-    private static void clear(ServerPlayer player) {
+    private static void clear(LivingEntity player) {
         removeHealthDebuff(player);
     }
 }

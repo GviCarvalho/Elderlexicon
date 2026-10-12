@@ -28,6 +28,10 @@ O livro não fala disso; é mecânica nova do mod.
 
 ## 3. As condições
 
+> **Família: Fatos** (*Facts*). O livro divide as runas "em vários f: Fonte, Função, Filtro e Forma" (cap. 4); as
+> condições e as runas de cena (`ego`, `ille`, seção 3b) formam a família dos **Fatos**: o que precisa ser verdade para a
+> linha valer, e quem está nesse fato. Decidido em 06/10/2026. A Forma continua reservada (o livro a cita e não ensina).
+
 Uma **condição** é uma runa como qualquer outra: é lida onde quer que se leiam runas (transe, `surgit`, marca, ritual,
 círculo, fluxo). Ela funciona como um **"se"**: o espírito confere, no instante em que lê a linha, se o acontecimento
 dela é verdade *agora*. Se não for, a linha não faz nada. Ela não faz parte do que o feitiço faz.
@@ -75,6 +79,39 @@ Há dois tipos de condição:
   W `utitur`, X `latet`, Y `currit`, Z `ardet`. Depois do Z, os glifos são do mod (docs/glifos-design.md):
   `languet` U+E010, `mergitur` U+E011, `aut` U+E012 e `non` U+E013.
 
+## 3a. Filtros nas condições
+
+Sem runa nova: os filtros agem nas condições como agem nos verbos (o livro: eles perguntam onde, quando e quanto).
+
+- **Medida.** Uma quantidade antes de uma fonte (`quantum 5 firmo`) já é, na gramática, "o valor da fonte" (no `surgit`,
+  o que se procura). Ela vira **condição** quando, logo depois dela, vem uma palavra de condição ou um `chronos` sem
+  número, ou quando `non`/`aut` vem logo antes. Lê-se "o corpo de quem conjura tem **exatamente** 5 de terra", em UMU
+  inteira (4,6 é 5). A terra, a água, o ar e o fogo são os do Vita; a `vis` é a mana. Não há "maior que" nem "menor
+  que": `non` nega ("não tem exatamente 5"). Fora dessas posições, nada muda: `quantum 2 firmo surgit` procura,
+  `ferit quantum 20 igni iactare` lança 20 de fogo.
+- **"Enquanto" depois de uma medida.** O `chronos` sem número tira o tempo da medida, como no livro (4.3.2).
+  `non quantum 5 firmo chronos vis quantum 1 vertere firmo`: enquanto não houver exatamente 5 de terra, a cada segundo
+  converte 1 de mana em terra.
+- **Lugar antes de `cadit`.** `3 ubis cadit` é "caindo, com o chão a 3 blocos ou menos" (sem `ubis`, `cadit` continua
+  sendo aterrissar). A queda conta a partir de 2 blocos caídos, e o chão é procurado até 32 blocos abaixo.
+  `3 ubis cadit aura ille ubis impediunt`: a 3 blocos do chão, uma barreira de ar surge onde se vai cair e repele o
+  mago para cima.
+- As medidas e os lugares das condições **não fazem parte do feitiço**: a gramática os deixa de fora
+  (`LineConditions.positions`), e numa janela de "enquanto" eles saem antes de o `chronos` ganhar o seu `1`.
+- **Em fluxo:** o corpo é olhado uma vez por segundo, e as linhas que o medem despertam (negadas ou não; a medida diz
+  se vale). Uma queda perto do chão (16 blocos) desperta a cada tick as linhas que a esperam, e cada linha dispara
+  **uma vez por queda**.
+
+### `vertere` com `vis` no corpo
+
+Um `vertere` sem verbo depois converte dentro do corpo (livro: "uma fonte interna"). A `vis` do corpo é a **mana**:
+
+- `vis vertere firmo` põe terra no corpo, e a mana paga como o custo do feitiço paga: da experiência; quando ela
+  acaba, do próprio corpo, como o livro manda. (Antes, tirava da vida, os quatro aspectos juntos, e ainda cobrava a
+  experiência: pagava duas vezes.)
+- `firmo vertere vis` tira terra do corpo e a devolve como mana (a conversão não entra no custo, senão a mana ganha
+  seria cobrada de volta).
+
 ## 3b. Quem está na cena: `ego` e `ille`
 
 Duas runas de uma classe nova, a das que apontam para algo da cena da conjuração (`WordClass.REFERENT`). Elas ficam
@@ -97,7 +134,8 @@ O que `ille` é em cada condição:
 | `necat` | o lugar onde a criatura morreu |
 | `frangit` | o lugar onde estava o bloco quebrado |
 | `utitur` | o bloco ou a criatura em que se usou o item (no ar, não há `ille`) |
-| `salit`, `cadit` e os estados | não têm `ille` |
+| `cadit` | o chão em que se aterrissou; com `ubis`, o chão em que se vai cair |
+| `salit` e os estados | não têm `ille` |
 
 - Com várias condições na linha, `ille` é o outro do acontecimento **mais recente** entre elas, no último segundo;
   numa linha sem condição, o do acontecimento mais recente de qualquer tipo.
@@ -107,7 +145,11 @@ O que `ille` é em cada condição:
 - Por dentro: ao conjurar a linha, cada `ego` e `ille` vira uma marca temporária (`ille_12`) ligada à criatura, ao
   bloco ou ao ponto (`SceneWords`, `SceneMarks`); `MarkTargets.find` responde a ela antes das marcas do mundo, então
   todo verbo e filtro que lê marcas lê essas também. O grimório diz "o alvo" e "o próprio conjurador" (`Referents`).
-- Ainda não vale no `ligabis`, que lê marcas por outro caminho.
+- **No `ligabis`**, um vínculo dura além da conjuração, então `ego` e `ille` viram a **marca duradoura** da coisa: a
+  que ela já tem, ou uma nova dada a ela (`ego_<nome do jogador>`, `ille_<código>`). `firmo ego ligabis ille`, com
+  `ferit` na frente, liga você a quem golpeou. Quando a última palavra é de cena, essa coisa já está marcada, e o
+  `ligabis` não marca o que o mago está olhando. Um morto ou um bloco quebrado não podem ser ligados. O vínculo de
+  um sentido (`surgit ille ligabis`) lê a sua coisa uma vez, como qualquer feitiço, e usa a marca temporária.
 
 ## 4. Em fluxo: o espírito escuta
 
@@ -173,3 +215,7 @@ nenhuma linha vale, o espírito responde que a condição não se cumpre agora.
 10. Sem runas de "se" e "e" (implícitos); "enquanto" é o `chronos` sem número depois de uma condição, como no livro;
    runas novas `aut` ("ou") e `non` ("não"). (04/10/2026)
 11. Runas de cena: `ego` (quem conjura) e `ille` (o outro do acontecimento mais recente de que a linha fala). (04/10/2026)
+12. No `ligabis`, `ego` e `ille` viram a marca duradoura da coisa (a que ela tem, ou uma nova). (04/10/2026)
+13. Filtros nas condições, sem runa nova: a medida (`quantum N fonte`, exata, em UMU inteira; `non` nega) e o lugar
+    antes de `cadit` (o chão perto, caindo). O `ille` do `cadit` é o chão. (04/10/2026)
+14. No corpo, a `vis` do `vertere` é a mana. (04/10/2026)

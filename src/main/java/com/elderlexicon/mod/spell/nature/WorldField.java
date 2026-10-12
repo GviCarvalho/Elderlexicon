@@ -287,6 +287,10 @@ final class WorldField {
             } else if (shown[i].formless() != null) {
                 WorldMatter.keep(level, BlockPos.of(where[i]), field.held(i));
             }
+            // Heat enough for a flame kindles what can be kindled beside it (BlockReactions).
+            if (field.temperature(i) >= Field.flameTemperature()) {
+                BlockReactions.flameAt(level, BlockPos.of(where[i]));
+            }
             if (field.state(i) == State.PLASMA && now - struck[i] >= STRIKE_TICKS) {
                 strike(i);
                 struck[i] = now;
@@ -535,6 +539,17 @@ final class WorldField {
             WorldMatter.showFormless(level, pos, showing.block(), showing.formless());
         } else {
             level.setBlock(pos, showing.block(), Block.UPDATE_ALL);
+            // Water, lava or snow come to rest on a cauldron go into it: the block is the air left behind.
+            if (BlockReactions.settled(level, pos, showing.block())) {
+                Nature left = read(pos);
+                if (left != null) {
+                    nature[i] = left;
+                    field.set(i, left.cell());
+                    expected[i] = level.getBlockState(pos);
+                    shown[i] = display(i);
+                    return;
+                }
+            }
         }
         shown[i] = showing;
         expected[i] = level.getBlockState(pos);

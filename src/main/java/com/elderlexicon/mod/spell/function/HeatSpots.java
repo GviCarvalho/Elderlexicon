@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
+import net.minecraft.world.entity.LivingEntity;
+
 import com.elderlexicon.mod.spell.Heat;
 import com.elderlexicon.mod.spell.nature.NatureWorld;
 import net.minecraft.core.BlockPos;
@@ -19,7 +21,7 @@ public final class HeatSpots {
     }
 
     /** A condensed fire of {@code heat} (the UMU of fire it gathered) strikes at {@code at}. */
-    static void strike(ServerLevel level, ServerPlayer caster, Vec3 at, double heat) {
+    static void strike(ServerLevel level, LivingEntity caster, Vec3 at, double heat) {
         if (heat <= 0.0D) {
             return;
         }

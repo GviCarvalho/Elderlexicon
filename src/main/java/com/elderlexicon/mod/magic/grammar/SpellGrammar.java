@@ -14,6 +14,7 @@ import com.elderlexicon.mod.parser.ParserDictionary;
 import com.elderlexicon.mod.spell.action.SpellAction;
 import com.elderlexicon.mod.spell.action.SpellActionResult;
 import com.elderlexicon.mod.spell.action.SpellActionType;
+import com.elderlexicon.mod.spell.block.LineConditions;
 import com.elderlexicon.mod.spell.mark.SpellPlace;
 import com.elderlexicon.mod.spell.mark.SpellWords;
 import com.elderlexicon.mod.spell.vertere.VertereRequest;
@@ -86,8 +87,13 @@ public final class SpellGrammar {
         boolean binding = words.stream().anyMatch(lexicon::isBinding);
         Set<Integer> names = namePositions(words);
         List<Token> tokens = new ArrayList<>();
+        // The conditions, their measures (quantum 5 firmo chronos) and places (3 ubis cadit) are no part of the spell.
+        Set<Integer> conditions = LineConditions.positions(lexicon, words);
         for (int index = 0; index < words.size(); index++) {
             String lexeme = words.get(index);
+            if (conditions.contains(index)) {
+                continue;
+            }
             Optional<Rune> rune = lexicon.rune(lexeme);
             if (rune.isPresent() && rune.get().is(WordClass.CONDITION)) {
                 // Whether the line holds is no part of what it does (docs/fluxo-design.md).

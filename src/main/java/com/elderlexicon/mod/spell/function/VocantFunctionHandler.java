@@ -1,5 +1,8 @@
 package com.elderlexicon.mod.spell.function;
 
+import net.minecraft.world.entity.LivingEntity;
+import com.elderlexicon.mod.spell.Casters;
+
 import com.elderlexicon.mod.magic.matter.Particles;
 import com.elderlexicon.mod.spell.Heat;
 import com.elderlexicon.mod.spell.Pressure;
@@ -33,11 +36,11 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
 
     @Override
     public void execute(SpellContext context, VitaElement element) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         if (!SpellEffects.isPlayerValid(player)) {
             return;
         }
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = Casters.level(player);
         Optional<SpellAction> action = context.currentAction();
         if (action.isPresent() && action.get().reversed()) {
             bringToCaster(context, element, action.get());
@@ -185,7 +188,7 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
     }
 
     /** Condensed fire where it appears: a hot spot that cools little by little. */
-    private static void hotSpot(ServerLevel level, ServerPlayer player, VitaElement element,
+    private static void hotSpot(ServerLevel level, LivingEntity player, VitaElement element,
                                 Optional<SpellAction> action, Vec3 at) {
         double heat = action.map(SpellAction::intensity).orElse(Heat.COMMON);
         if (heat > Heat.COMMON && element == VitaElement.IGNI) {
@@ -199,7 +202,7 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
      * bursts, or bursts at once when it was not pressed hard enough to freeze; earth is one block as dense as all of
      * it (docs/condensacao-design.md).
      */
-    private static void releaseCondensed(ServerLevel level, ServerPlayer player, VitaElement element,
+    private static void releaseCondensed(ServerLevel level, LivingEntity player, VitaElement element,
                                          SpellAction action, SpellEffects.SpellImpact at, int window) {
         if (!SpellEffects.isPlayerValid(player)) {
             return;
@@ -230,7 +233,7 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
     }
 
     /** What is summoned appears at {@code impact} and does there what it does. */
-    private static void appear(SpellContext context, ServerPlayer player, VitaElement element, String rune,
+    private static void appear(SpellContext context, LivingEntity player, VitaElement element, String rune,
                                SpellEffects.SpellImpact impact, Invocation.Where where, double energy, int window,
                                int linger) {
         if (!SpellEffects.isPlayerValid(player)) {

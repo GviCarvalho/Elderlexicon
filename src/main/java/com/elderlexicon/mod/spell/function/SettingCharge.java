@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
+import net.minecraft.world.entity.LivingEntity;
+
 import com.elderlexicon.mod.spell.mark.SpellPlace;
 import com.elderlexicon.mod.spelling.item.WandItem;
 import com.elderlexicon.mod.vita.VitaElement;
@@ -80,7 +82,7 @@ final class SettingCharge {
     }
 
     /** Puts up to {@code amount} of {@code element} into the gem; returns what it did not take. */
-    static double charge(ServerPlayer caster, Bearer bearer, VitaElement element, double amount) {
+    static double charge(LivingEntity caster, Bearer bearer, VitaElement element, double amount) {
         String kind = kindOf(element);
         double stored = bearer.wand().store(bearer.stack(), kind, amount);
         if (bearer.holder() instanceof ItemEntity lying) {

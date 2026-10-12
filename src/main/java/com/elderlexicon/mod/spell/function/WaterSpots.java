@@ -55,7 +55,7 @@ public final class WaterSpots {
     // ------------------------------------------------------------------ the jet
 
     /** Condensed water released as a jet toward the aim: it pushes, puts fire out and, pressed enough, cuts. */
-    static void jet(ServerLevel level, ServerPlayer caster, double pressure) {
+    static void jet(ServerLevel level, LivingEntity caster, double pressure) {
         Vec3 eye = caster.getEyePosition();
         Vec3 look = caster.getViewVector(1.0F);
         int cuts = Pressure.cuts(pressure);
@@ -134,7 +134,7 @@ public final class WaterSpots {
     }
 
     /** Pressed ice thrown: it flies like a stone and bursts where it strikes. */
-    static void launchIce(ServerLevel level, ServerPlayer caster, double pressure) {
+    static void launchIce(ServerLevel level, LivingEntity caster, double pressure) {
         Vec3 look = caster.getViewVector(1.0F);
         BlockPos start = BlockPos.containing(caster.getEyePosition().add(look.scale(1.5D)));
         if (!level.getBlockState(start).canBeReplaced()) {

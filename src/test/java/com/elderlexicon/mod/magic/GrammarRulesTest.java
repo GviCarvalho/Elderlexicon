@@ -65,6 +65,16 @@ class GrammarRulesTest {
         assertEquals("ego", onlyVerb("ego quantum -10 iactare").subjectMark().orElseThrow());
     }
 
+    @Test
+    void theMeasuresAndPlacesOfConditionsAreNoPartOfTheSpell() {
+        SpellAction converts = onlyVerb("non quantum 5 firmo chronos 1 vis quantum 1 vertere firmo");
+        assertEquals(1.0D, converts.quantity().orElseThrow(), 1.0E-9, "one UMU a window, not five");
+        SpellAction once = onlyVerb("non quantum 5 firmo vis quantum 1 vertere firmo");
+        assertEquals(1.0D, once.quantity().orElseThrow(), 1.0E-9);
+        SpellAction boot = onlyVerb("3 ubis cadit aura ille ubis impediunt");
+        assertEquals("ille", boot.place().orElseThrow().mark(), "the barrier goes where the fall lands");
+    }
+
     // ------------------------------------------------------------------ R2: the subject
 
     @Test

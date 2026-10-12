@@ -1,5 +1,8 @@
 package com.elderlexicon.mod.spell.action;
 
+import net.minecraft.world.entity.LivingEntity;
+import com.elderlexicon.mod.spell.Casters;
+
 import com.elderlexicon.mod.command.SpellCostCalculator;
 import com.elderlexicon.mod.magic.flow.FlowInterpreter;
 import com.elderlexicon.mod.magic.flow.FlowWorld;
@@ -108,11 +111,10 @@ public final class SpellActionExecutor {
                 return;
             }
             // A verb with no operation to run: say so, rather than let the spell fall silent.
-            ServerPlayer player = context.player();
+            LivingEntity player = context.player();
             if (player != null) {
                 String text = Lexicons.get().note("issue.nooperation").orElse("'{rune}' nao faz nada ainda.");
-                player.displayClientMessage(Component.literal(Template.fill(text, Map.of("rune", action.runeId()))),
-                        true);
+                Casters.status(player, Component.literal(Template.fill(text, Map.of("rune", action.runeId()))));
             }
         }
 
@@ -133,8 +135,8 @@ public final class SpellActionExecutor {
 
         @Override
         public void nothingInBody(VitaElement element) {
-            context.player().displayClientMessage(Component.literal(
-                    "Nao ha " + element.runeId() + " no teu corpo para tirar."), true);
+            Casters.status(context.player(), Component.literal(
+                    "Nao ha " + element.runeId() + " no teu corpo para tirar."));
         }
 
         @Override
@@ -146,14 +148,14 @@ public final class SpellActionExecutor {
 
         @Override
         public int gatherFromBody(List<VitaElement> chain, double worked, SpellAction spender, int chargeTicks) {
-            ServerPlayer player = context.player();
+            LivingEntity player = context.player();
             // Gathered where it will be released: before the hand for what is thrown, at the point for what is made to
             // appear; the energy is seen streaming out of the mage into it.
             Supplier<Vec3> point = WorldSources.orbPoint(context, spender);
-            ElementOrb gathering = ElementOrb.gathering(player.serverLevel(), player, List.copyOf(chain), worked, 0,
+            ElementOrb gathering = ElementOrb.gathering(Casters.level(player), player, List.copyOf(chain), worked, 0,
                     point, chargeTicks);
-            player.serverLevel().addFreshEntity(gathering);
-            Gatherings.fromBody(player.serverLevel(), player, chain.get(0), point, chargeTicks);
+            Casters.level(player).addFreshEntity(gathering);
+            Gatherings.fromBody(Casters.level(player), player, chain.get(0), point, chargeTicks);
             return gathering.getId();
         }
 
@@ -181,7 +183,15 @@ public final class SpellActionExecutor {
             if (context == null || request == null) {
                 return 0.0D;
             }
-            ServerPlayer player = context.player();
+            LivingEntity player = context.player();
+            VitaElement source = request.source() == null ? VitaElement.BALANCED : request.source();
+            VitaElement target = request.target() == null ? VitaElement.BALANCED : request.target();
+            if (source != target && (source.isBalanced() || target.isBalanced())) {
+                double moved = throughMana(player, source, target, request.amount());
+                if (moved > 0.0D) {
+                    return moved;
+                }
+            }
             VitaSystem.ElementTransferResult result = VitaSystem.transferElement(
                     player,
                     request.source(),
@@ -199,7 +209,28 @@ public final class SpellActionExecutor {
             return result.transferred();
         }
 
-        private void sendMessage(ServerPlayer player, Component message) {
+        /**
+         * Vis in the body is the mana, the mage's experience (docs/fluxo-design.md). {@code vis vertere firmo} gives
+         * the body earth, and the mana pays for it as the spell's cost does, from the experience (and, when that runs
+         * out, from the body, as the book has it). {@code firmo vertere vis} takes the body's earth and gives it back
+         * as mana. Returns how much moved.
+         */
+        private static double throughMana(LivingEntity player, VitaElement source, VitaElement target, double amount) {
+            if (amount <= 0.0D) {
+                return 0.0D;
+            }
+            if (source.isBalanced()) {
+                VitaSystem.restoreElementEnergy(player, target, amount);
+                return amount;
+            }
+            double taken = BodyEnergy.draw(player, source, amount);
+            if (taken > 0.0D) {
+                Casters.giveVis(player, taken);
+            }
+            return taken;
+        }
+
+        private void sendMessage(LivingEntity player, Component message) {
             if (player != null && message != null) {
                 player.sendSystemMessage(message);
             }

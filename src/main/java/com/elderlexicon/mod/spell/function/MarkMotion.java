@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.spell.Casters;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -92,7 +94,7 @@ final class MarkMotion {
         }
         Vec3 from = entity.position();
         if (entity instanceof ServerPlayer player) {
-            player.teleportTo(player.serverLevel(), feet.x, feet.y, feet.z, player.getYRot(), player.getXRot());
+            player.teleportTo(Casters.level(player), feet.x, feet.y, feet.z, player.getYRot(), player.getXRot());
         } else {
             entity.teleportTo(feet.x, feet.y, feet.z);
         }

@@ -11,27 +11,42 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * Mirror packet that pushes the authoritative repertoire to the client.
+ * Mirror packet that pushes the authoritative repertoire to the client: the nine slots and the runes unlocked.
  */
-public record ServerRepertoireSyncPacket(List<String> slots) {
+public record ServerRepertoireSyncPacket(List<String> slots, List<String> unlocked, List<String> understood,
+                                         boolean trance, boolean flow) {
 
     public static ServerRepertoireSyncPacket from(SpellingRepertoire repertoire) {
-        return new ServerRepertoireSyncPacket(repertoire.copySlots());
+        return new ServerRepertoireSyncPacket(repertoire.copySlots(), new ArrayList<>(repertoire.unlocked()),
+                new ArrayList<>(repertoire.understood()), repertoire.hasTrance(), repertoire.hasFlow());
     }
 
     public static ServerRepertoireSyncPacket decode(FriendlyByteBuf buffer) {
+        return new ServerRepertoireSyncPacket(readList(buffer), readList(buffer), readList(buffer),
+                buffer.readBoolean(), buffer.readBoolean());
+    }
+
+    private static List<String> readList(FriendlyByteBuf buffer) {
         int size = buffer.readVarInt();
-        List<String> slots = new ArrayList<>(size);
+        List<String> list = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
-            slots.add(buffer.readUtf(32));
+            list.add(buffer.readUtf(32));
         }
-        return new ServerRepertoireSyncPacket(slots);
+        return list;
     }
 
     public void encode(FriendlyByteBuf buffer) {
-        buffer.writeVarInt(slots.size());
-        for (String slot : slots) {
-            buffer.writeUtf(slot == null ? "" : slot, 32);
+        writeList(buffer, slots);
+        writeList(buffer, unlocked);
+        writeList(buffer, understood);
+        buffer.writeBoolean(trance);
+        buffer.writeBoolean(flow);
+    }
+
+    private static void writeList(FriendlyByteBuf buffer, List<String> list) {
+        buffer.writeVarInt(list.size());
+        for (String entry : list) {
+            buffer.writeUtf(entry == null ? "" : entry, 32);
         }
     }
 
@@ -40,6 +55,9 @@ public record ServerRepertoireSyncPacket(List<String> slots) {
         context.enqueueWork(() -> {
             Minecraft minecraft = Minecraft.getInstance();
             ClientSpellingController.getInstance().applyServerRepertoire(packet.slots);
+            ClientSpellingController.getInstance().applyUnlocked(packet.unlocked);
+            ClientSpellingController.getInstance().applyUnderstood(packet.understood);
+            ClientSpellingController.getInstance().applyAbilities(packet.trance, packet.flow);
         });
         context.setPacketHandled(true);
     }

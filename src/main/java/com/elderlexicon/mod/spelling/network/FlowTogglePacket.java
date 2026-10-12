@@ -21,7 +21,7 @@ public record FlowTogglePacket() {
         NetworkEvent.Context context = contextSupplier.get();
         context.enqueueWork(() -> {
             ServerPlayer sender = context.getSender();
-            if (sender != null) {
+            if (sender != null && com.elderlexicon.mod.spelling.data.MageAbilities.hasFlow(sender)) {
                 FlowState.toggle(sender);
             }
         });

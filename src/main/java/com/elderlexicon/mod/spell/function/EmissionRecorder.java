@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
+import net.minecraft.world.entity.LivingEntity;
+
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.scene.ElementProperties;
 import com.elderlexicon.mod.spell.scene.Emission;
@@ -22,7 +24,7 @@ final class EmissionRecorder {
 
     /** Records a beam that leaves the caster's eyes along the current look direction. */
     static void beamFromCaster(SpellContext context, VitaElement element, double length, double energy, int lifetimeTicks) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         if (player == null) {
             return;
         }
@@ -41,7 +43,7 @@ final class EmissionRecorder {
 
     /** Records matter that appears at a fixed spot. */
     static void pointAt(SpellContext context, VitaElement element, Vec3 center, double energy, int lifetimeTicks) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         if (player == null || center == null) {
             return;
         }
@@ -55,7 +57,7 @@ final class EmissionRecorder {
                 POINT_RADIUS, nowTick(player), lifetimeTicks));
     }
 
-    private static long nowTick(ServerPlayer player) {
-        return player.server.getTickCount();
+    private static long nowTick(LivingEntity player) {
+        return player.getServer().getTickCount();
     }
 }

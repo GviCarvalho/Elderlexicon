@@ -1,0 +1,60 @@
+{
+  "_license": "© GviCarvalho – Part of Elderlexicon. The rune structure, nomenclature and texts in this file fall under LICENSE-DOCS.txt (CC BY-NC-ND 4.0).",
+  "_about": "O grimório escrito à mão do feiticeiro (docs/feiticeiro-design.md). Cada página é escrita como no grimório do jogador: uma linha por feitiço, e cada coluna um passo de tempo (0,25 s); '.' é uma pausa. Ele lê a página com o transe e o surgit (livro, cap. 5), e todas as linhas saem, cada uma no seu passo. 'range' é a distância ao alvo, em blocos, em que a página serve; 'weight', o quanto ele gosta dela; 'wounded', se ele só a lê ferido (abaixo de 70% da vida). Ele mira o alvo, e a mira basta. Quem o derrota pode achar este grimório: as páginas são as mesmas.",
+  "pages": [
+    {
+      "name": "lança de fogo",
+      "lines": [
+        "igni vocant iactare"
+      ],
+      "range": [3, 16],
+      "weight": 2
+    },
+    {
+      "name": "salva de fogo",
+      "lines": [
+        "igni vocant iactare",
+        ". . igni vocant iactare",
+        ". . . . igni vocant iactare"
+      ],
+      "range": [4, 16],
+      "weight": 3
+    },
+    {
+      "name": "mordida",
+      "lines": [
+        "aqua quantum -10 vocant"
+      ],
+      "range": [0, 14],
+      "weight": 3,
+      "wounded": true
+    },
+    {
+      "name": "sangria",
+      "lines": [
+        "aqua tenet iactare"
+      ],
+      "range": [0, 12],
+      "weight": 2
+    },
+    {
+      "name": "beber e devolver",
+      "lines": [
+        "aqua quantum -10 vocant",
+        ". . . aqua tenet iactare"
+      ],
+      "range": [0, 12],
+      "weight": 2
+    },
+    {
+      "name": "véu",
+      "lines": [
+        "chronos 6 surgit ego quantum 0",
+        ". . . . igni vocant iactare"
+      ],
+      "range": [0, 10],
+      "weight": 2,
+      "wounded": true
+    }
+  ]
+}

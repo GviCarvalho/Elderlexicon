@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell;
 
+import net.minecraft.world.entity.LivingEntity;
+
 import com.elderlexicon.mod.magic.lexicon.Flow;
 import com.elderlexicon.mod.magic.lexicon.Lexicons;
 import com.elderlexicon.mod.spell.action.SpellAction;
@@ -38,7 +40,7 @@ final class UmuLeakHandler {
 
     static void handleLeaks(SpellContext context, List<SpellAction> actions) {
         Objects.requireNonNull(context, "context");
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         if (player == null || actions == null || actions.isEmpty()) {
             return;
         }
@@ -87,7 +89,7 @@ final class UmuLeakHandler {
         return runeId != null && Lexicons.get().flowOf(runeId.toLowerCase(Locale.ROOT)) == Flow.CONVERT;
     }
 
-    private static void applyElementalPenalty(ServerPlayer player, VitaElement element) {
+    private static void applyElementalPenalty(LivingEntity player, VitaElement element) {
         if (element == null) {
             return;
         }
@@ -101,24 +103,24 @@ final class UmuLeakHandler {
         }
     }
 
-    private static void ignitePlayer(ServerPlayer player) {
+    private static void ignitePlayer(LivingEntity player) {
         player.setSecondsOnFire(FIRE_SECONDS);
     }
 
-    private static void floodFeet(ServerPlayer player) {
-        ServerLevel level = player.serverLevel();
+    private static void floodFeet(LivingEntity player) {
+        ServerLevel level = Casters.level(player);
         BlockPos pos = player.blockPosition();
         placeBlockIfPossible(level, pos, Blocks.WATER.defaultBlockState());
     }
 
-    private static void dropDirt(ServerPlayer player) {
-        ServerLevel level = player.serverLevel();
+    private static void dropDirt(LivingEntity player) {
+        ServerLevel level = Casters.level(player);
         BlockPos headPos = player.blockPosition().above();
         placeBlockIfPossible(level, headPos, Blocks.DIRT.defaultBlockState());
     }
 
-    private static void burstAir(ServerPlayer player) {
-        ServerLevel level = player.serverLevel();
+    private static void burstAir(LivingEntity player) {
+        ServerLevel level = Casters.level(player);
         double dx = (player.getRandom().nextDouble() - 0.5D) * 0.6D;
         double dz = (player.getRandom().nextDouble() - 0.5D) * 0.6D;
         player.push(dx, 0.6D, dz);
@@ -152,7 +154,7 @@ final class UmuLeakHandler {
         level.setBlock(pos, newState, Block.UPDATE_ALL);
     }
 
-    private static void applyNausea(ServerPlayer player, int leakCount) {
+    private static void applyNausea(LivingEntity player, int leakCount) {
         if (leakCount <= 0) {
             return;
         }
@@ -163,7 +165,7 @@ final class UmuLeakHandler {
         player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, duration, 0));
     }
 
-    private static boolean hasActiveConduit(ServerPlayer player) {
+    private static boolean hasActiveConduit(LivingEntity player) {
         return conduitReady(player.getMainHandItem()) || conduitReady(player.getOffhandItem());
     }
 

@@ -1,9 +1,13 @@
 package com.elderlexicon.mod.spell.module;
 
+import net.minecraft.world.entity.LivingEntity;
+
 import com.elderlexicon.mod.ElderLexicon;
+import com.elderlexicon.mod.spell.Casters;
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.SpellModule;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodData;
 
 public final class SpellCostModule implements SpellModule {
@@ -26,13 +30,14 @@ public final class SpellCostModule implements SpellModule {
     @Override
     public void apply(SpellContext context) {
         double payable = context.payableCost();
-        if (payable <= EPSILON) {
+        // In a vivid dream the kern's will is law: the UMU does not run out (docs/aprendizado-runas-design.md).
+        if (payable <= EPSILON || dreaming(context.player())) {
             return;
         }
         consumeSpellCost(context.player(), payable, context.primaryElement(), context.focusActive());
     }
 
-    private void consumeSpellCost(ServerPlayer player, double umuCost, com.elderlexicon.mod.vita.VitaElement element,
+    private void consumeSpellCost(LivingEntity player, double umuCost, com.elderlexicon.mod.vita.VitaElement element,
                                   boolean focusActive) {
         if (player == null || umuCost <= EPSILON) {
             return;
@@ -59,7 +64,7 @@ public final class SpellCostModule implements SpellModule {
 
     /** Elemental excess is drawn from the caster's Vita, so a focus skips this stage entirely. */
     static double settleElementalStage(VitaGateway vita,
-                                       ServerPlayer player,
+                                       LivingEntity player,
                                        com.elderlexicon.mod.vita.VitaElement element,
                                        double umuCost,
                                        boolean focusActive) {
@@ -67,14 +72,14 @@ public final class SpellCostModule implements SpellModule {
     }
 
     static double settleElementalCost(VitaGateway vita,
-                                      ServerPlayer player,
+                                      LivingEntity player,
                                       com.elderlexicon.mod.vita.VitaElement element,
                                       double umuCost) {
         return consumeElementOverflow(vita, player, element, umuCost);
     }
 
     private static double consumeElementOverflow(VitaGateway vita,
-                                                 ServerPlayer player,
+                                                 LivingEntity player,
                                                  com.elderlexicon.mod.vita.VitaElement element,
                                                  double umuCost) {
         if (umuCost <= EPSILON) {
@@ -93,14 +98,18 @@ public final class SpellCostModule implements SpellModule {
         return Math.max(0.0D, umuCost - paid);
     }
 
-    private double drainExperience(ServerPlayer player, double umuCost) {
+    private double drainExperience(LivingEntity player, double umuCost) {
         if (umuCost <= EPSILON) {
             return umuCost;
         }
+        if (!(player instanceof Player mage)) {
+            // A creature's Vis is its anchor (book 3.2), not experience.
+            return umuCost - Casters.takeVis(player, umuCost);
+        }
         double carried = player.getPersistentData().getDouble(EXPERIENCE_FRACTION_TAG);
-        ExperienceCharge charge = chargeExperience(Math.max(0, player.totalExperience), umuCost, carried);
+        ExperienceCharge charge = chargeExperience(Math.max(0, mage.totalExperience), umuCost, carried);
         if (charge.points() > 0) {
-            player.giveExperiencePoints(-charge.points());
+            mage.giveExperiencePoints(-charge.points());
         }
         if (charge.carried() > EPSILON) {
             player.getPersistentData().putDouble(EXPERIENCE_FRACTION_TAG, charge.carried());
@@ -133,12 +142,15 @@ public final class SpellCostModule implements SpellModule {
     record ExperienceCharge(int points, double carried, double unpaidUmu) {
     }
 
-    private double drainSaturation(ServerPlayer player, double umuCost) {
+    private double drainSaturation(LivingEntity player, double umuCost) {
         if (umuCost <= EPSILON) {
             return umuCost;
         }
 
-        FoodData foodData = player.getFoodData();
+        if (!(player instanceof Player mage)) {
+            return umuCost; // only a player pays with food
+        }
+        FoodData foodData = mage.getFoodData();
         double fractionalReserve = player.getPersistentData().getDouble(SATURATION_FRACTION_TAG);
         if (fractionalReserve > EPSILON) {
             double headroom = Math.max(0.0D, 20 - foodData.getFoodLevel());
@@ -178,15 +190,17 @@ public final class SpellCostModule implements SpellModule {
      * then their own life. If they do not have enough even counting their life, everything they have is
      * taken (which can kill them) and false is returned. Creative players pay nothing.
      */
-    public boolean payOutsideCast(ServerPlayer player, double umuCost, boolean focusActive) {
+    public boolean payOutsideCast(LivingEntity player, double umuCost, boolean focusActive) {
         if (player == null || !player.isAlive()) {
             return false;
         }
-        if (umuCost <= EPSILON || player.isCreative()) {
+        if (umuCost <= EPSILON || Casters.creative(player) || dreaming(player)) {
             return true;
         }
-        double available = Math.max(0, player.totalExperience) / com.elderlexicon.mod.vita.VitaSystem.XP_PER_UMU
-                + player.getFoodData().getFoodLevel()
+        double available = (player instanceof Player mage
+                ? Math.max(0, mage.totalExperience) / com.elderlexicon.mod.vita.VitaSystem.XP_PER_UMU
+                + mage.getFoodData().getFoodLevel()
+                : Casters.vis(player))
                 + Math.max(0.0F, player.getHealth()) * com.elderlexicon.mod.vita.VitaSystem.UMU_PER_HP;
         if (umuCost > available + EPSILON) {
             consumeSpellCost(player, available, com.elderlexicon.mod.vita.VitaElement.BALANCED, focusActive);
@@ -196,21 +210,27 @@ public final class SpellCostModule implements SpellModule {
         return true;
     }
 
-    interface VitaGateway {
-        double consumeElementExcess(ServerPlayer player, com.elderlexicon.mod.vita.VitaElement element, double umuAmount);
+    /** In a vivid dream the kern's will is law: a dreaming mage pays nothing. */
+    private static boolean dreaming(LivingEntity caster) {
+        return caster instanceof net.minecraft.server.level.ServerPlayer mage
+                && com.elderlexicon.mod.nahva.Dreams.isDreaming(mage);
+    }
 
-        void consumeLifeEnergy(ServerPlayer player, float hpDamage, com.elderlexicon.mod.vita.VitaElement element);
+    interface VitaGateway {
+        double consumeElementExcess(LivingEntity player, com.elderlexicon.mod.vita.VitaElement element, double umuAmount);
+
+        void consumeLifeEnergy(LivingEntity player, float hpDamage, com.elderlexicon.mod.vita.VitaElement element);
     }
 
     private static final class DefaultVitaGateway implements VitaGateway {
 
         @Override
-        public double consumeElementExcess(ServerPlayer player, com.elderlexicon.mod.vita.VitaElement element, double umuAmount) {
+        public double consumeElementExcess(LivingEntity player, com.elderlexicon.mod.vita.VitaElement element, double umuAmount) {
             return com.elderlexicon.mod.vita.VitaSystem.consumeElementExcess(player, element, umuAmount);
         }
 
         @Override
-        public void consumeLifeEnergy(ServerPlayer player, float hpDamage, com.elderlexicon.mod.vita.VitaElement element) {
+        public void consumeLifeEnergy(LivingEntity player, float hpDamage, com.elderlexicon.mod.vita.VitaElement element) {
             com.elderlexicon.mod.vita.VitaSystem.consumeLifeEnergy(player, hpDamage, element);
         }
     }

@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita;
 
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -24,7 +24,7 @@ final class AquaImbalanceEffects {
     private AquaImbalanceEffects() {
     }
 
-    static void apply(ServerPlayer player, VitaData data) {
+    static void apply(LivingEntity player, VitaData data) {
         if (player == null || data == null) {
             return;
         }
@@ -44,29 +44,29 @@ final class AquaImbalanceEffects {
         }
     }
 
-    private static void applySeverelyLow(ServerPlayer player) {
+    private static void applySeverelyLow(LivingEntity player) {
         applyEffect(player, MobEffects.MOVEMENT_SLOWDOWN, 1, BASE_DURATION_TICKS);
         applyEffect(player, MobEffects.WEAKNESS, 0, BASE_DURATION_TICKS);
-        player.causeFoodExhaustion(0.04F);
+        VitaSystem.causeExhaustion(player, 0.04F);
         int counter = severeLowPulse.compute(player.getUUID(), (uuid, ticks) -> ticks == null ? 1 : ticks + 1);
         if (counter >= SEVERE_LOW_PULSE_INTERVAL) {
             severeLowPulse.put(player.getUUID(), 0);
-            player.causeFoodExhaustion(1.5F);
+            VitaSystem.causeExhaustion(player, 1.5F);
             player.hurt(player.damageSources().starve(), 1.0F);
         }
     }
 
-    private static void applySlightlyLow(ServerPlayer player) {
+    private static void applySlightlyLow(LivingEntity player) {
         applyEffect(player, MobEffects.MOVEMENT_SLOWDOWN, 0, BASE_DURATION_TICKS);
-        player.causeFoodExhaustion(0.01F);
+        VitaSystem.causeExhaustion(player, 0.01F);
     }
 
-    private static void applySlightlyHigh(ServerPlayer player) {
+    private static void applySlightlyHigh(LivingEntity player) {
         applyEffect(player, MobEffects.MOVEMENT_SLOWDOWN, 0, BASE_DURATION_TICKS);
         applyEffect(player, MobEffects.WATER_BREATHING, 0, BASE_DURATION_TICKS + 40);
     }
 
-    private static void applySeverelyHigh(ServerPlayer player) {
+    private static void applySeverelyHigh(LivingEntity player) {
         applyEffect(player, MobEffects.MOVEMENT_SLOWDOWN, 2, BASE_DURATION_TICKS);
         applyEffect(player, MobEffects.DIG_SLOWDOWN, 1, BASE_DURATION_TICKS);
         applyEffect(player, MobEffects.HUNGER, 0, BASE_DURATION_TICKS);
@@ -77,7 +77,7 @@ final class AquaImbalanceEffects {
         }
     }
 
-    private static void applyEffect(ServerPlayer player, MobEffect effect, int amplifier, int durationTicks) {
+    private static void applyEffect(LivingEntity player, MobEffect effect, int amplifier, int durationTicks) {
         if (player.hasEffect(effect) && player.getEffect(effect).getAmplifier() >= amplifier) {
             // refresh duration but keep amplifier
             player.addEffect(new MobEffectInstance(effect, durationTicks, player.getEffect(effect).getAmplifier(), true, false, true));
@@ -86,7 +86,7 @@ final class AquaImbalanceEffects {
         player.addEffect(new MobEffectInstance(effect, durationTicks, amplifier, true, false, true));
     }
 
-    private static void clearTimers(ServerPlayer player) {
+    private static void clearTimers(LivingEntity player) {
         severeLowPulse.remove(player.getUUID());
         severeHighPulse.remove(player.getUUID());
     }

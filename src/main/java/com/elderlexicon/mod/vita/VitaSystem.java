@@ -1,7 +1,11 @@
 package com.elderlexicon.mod.vita;
 
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -58,7 +62,7 @@ public final class VitaSystem {
     private VitaSystem() {
     }
 
-    public static VitaProfile fromPlayer(ServerPlayer player) {
+    public static VitaProfile fromPlayer(LivingEntity player) {
         if (player == null) {
             return VitaProfile.empty();
         }
@@ -66,11 +70,11 @@ public final class VitaSystem {
         return data.toProfile();
     }
 
-    public static double getLifeEnergy(ServerPlayer player) {
+    public static double getLifeEnergy(LivingEntity player) {
         return getLifeEnergy(player, VitaElement.BALANCED);
     }
 
-    public static double getLifeEnergy(ServerPlayer player, VitaElement element) {
+    public static double getLifeEnergy(LivingEntity player, VitaElement element) {
         if (player == null) {
             return 0.0D;
         }
@@ -79,30 +83,82 @@ public final class VitaSystem {
         return data.get(target);
     }
 
-    public static void tickPlayer(ServerPlayer player) {
+    /**
+     * A tick of a living body. A player's is always kept; a creature's only while it is out of whole (docs/feiticeiro-design.md,
+     * 7.4): a whole creature with no body written down has nothing to tick, and one that comes back whole is forgotten.
+     */
+    public static void tick(LivingEntity player) {
         if (player == null) {
+            return;
+        }
+        boolean creature = !(player instanceof Player);
+        if (creature && !VitaData.kept(player)) {
+            NATURES.remove(player.getUUID());
             return;
         }
 
         VitaData data = VitaData.get(player);
         float currentHealth = Math.max(0.0F, player.getHealth());
         float lastHealth = data.lastHealth();
+        float maxHealth = data.maxHealth();
         boolean dirty = false;
+        List<Nature> natures = NATURES.remove(player.getUUID());
+
+        if (!data.chalice()) {
+            // An older body is read as a chalice from now on: it is filled up to the health it has, so nobody loses
+            // life to the change.
+            data.healTo(currentHealth / maxHealth);
+            data.setChalice();
+            dirty = true;
+        }
 
         if (Math.abs(currentHealth - lastHealth) > HEALTH_EPSILON) {
             if (currentHealth < lastHealth) {
-                double lostUmu = (lastHealth - currentHealth) * UMU_PER_HP;
-                data.consume(lostUmu);
-            } else if (currentHealth > lastHealth) {
-                double gainedUmu = (currentHealth - lastHealth) * UMU_PER_HP;
-                data.restoreAndStabilize(gainedUmu);
+                hurt(data, lastHealth, currentHealth, natures);
+            } else {
+                // Food, rest, a potion: what lacks is filled first, up to the health now.
+                data.healTo(currentHealth / maxHealth);
             }
             data.setLastHealth(currentHealth);
             dirty = true;
         }
 
-        if (player.tickCount % TICKS_PER_SECOND == 0 && data.relaxTowardBalance(RELAX_PER_SECOND)) {
+        if (player.tickCount % TICKS_PER_SECOND == 0 && data.expelExcess(RELAX_PER_SECOND)) {
             dirty = true;
+        }
+
+        // The life follows the element most lacking (docs/vita-design.md): a spell that fills it heals, one that takes
+        // it hurts.
+        if (player.isAlive() && !player.isDeadOrDying()) {
+            float derived = (float) (maxHealth * Math.min(1.0D, data.wholeness()));
+            if (Math.abs(derived - currentHealth) > 0.01F) {
+                if (derived <= 0.05F) {
+                    data.setLastHealth(0.0F);
+                    data.save(player);
+                    player.hurt(lackOf(player), Float.MAX_VALUE);
+                    DRAWERS.remove(player.getUUID());
+                    return;
+                }
+                boolean lost = derived < currentHealth;
+                player.setHealth(derived);
+                data.setLastHealth(player.getHealth());
+                dirty = true;
+                java.util.Optional<Entity> drawer = lost ? drawerOf(player) : java.util.Optional.empty();
+                drawer.ifPresent(by -> {
+                    // Who drew it out is who hurt it: the creature turns on them, and a death after is their kill.
+                    if (by instanceof Player mage) {
+                        player.setLastHurtByPlayer(mage);
+                    }
+                    if (by instanceof LivingEntity hurter) {
+                        player.setLastHurtByMob(hurter);
+                    }
+                });
+                if (lost && (creature || drawer.isPresent())
+                        && player.level() instanceof net.minecraft.server.level.ServerLevel level) {
+                    // A creature has no life bar to show it, and a mage should feel whose hand it was.
+                    level.broadcastDamageEvent(player, lackOf(player));
+                }
+            }
         }
 
         if (refreshAquaTier(data)) {
@@ -118,6 +174,12 @@ public final class VitaSystem {
             dirty = true;
         }
 
+        if (creature && data.whole()) {
+            VitaData.forget(player);
+            DRAWERS.remove(player.getUUID());
+            return;
+        }
+
         if (dirty) {
             data.save(player);
         }
@@ -129,35 +191,35 @@ public final class VitaSystem {
         IgniImbalanceEffects.apply(player, data);
     }
 
-    public static VitaImbalanceTier getAquaTier(ServerPlayer player) {
+    public static VitaImbalanceTier getAquaTier(LivingEntity player) {
         if (player == null) {
             return VitaImbalanceTier.BALANCED;
         }
         return VitaData.get(player).aquaTier();
     }
 
-    public static VitaImbalanceTier getAuraTier(ServerPlayer player) {
+    public static VitaImbalanceTier getAuraTier(LivingEntity player) {
         if (player == null) {
             return VitaImbalanceTier.BALANCED;
         }
         return VitaData.get(player).auraTier();
     }
 
-    public static VitaImbalanceTier getFirmoTier(ServerPlayer player) {
+    public static VitaImbalanceTier getFirmoTier(LivingEntity player) {
         if (player == null) {
             return VitaImbalanceTier.BALANCED;
         }
         return VitaData.get(player).firmoTier();
     }
 
-    public static VitaImbalanceTier getIgniTier(ServerPlayer player) {
+    public static VitaImbalanceTier getIgniTier(LivingEntity player) {
         if (player == null) {
             return VitaImbalanceTier.BALANCED;
         }
         return VitaData.get(player).igniTier();
     }
 
-    public static void initialize(ServerPlayer player) {
+    public static void initialize(LivingEntity player) {
         VitaData data = VitaData.get(player);
         data.setBalancedValues(Math.max(0.0F, player.getHealth()) * UMU_PER_HP);
         data.setLastHealth(player.getHealth());
@@ -165,11 +227,11 @@ public final class VitaSystem {
         VitaScoreboardManager.update(player, data.toProfile());
     }
 
-    public static void consumeLifeEnergy(ServerPlayer player, float hpDamage) {
+    public static void consumeLifeEnergy(LivingEntity player, float hpDamage) {
         consumeLifeEnergy(player, hpDamage, VitaElement.BALANCED);
     }
 
-    public static void consumeLifeEnergy(ServerPlayer player, float hpDamage, VitaElement element) {
+    public static void consumeLifeEnergy(LivingEntity player, float hpDamage, VitaElement element) {
         if (player == null) {
             return;
         }
@@ -177,18 +239,169 @@ public final class VitaSystem {
         if (clamped <= 1.0E-4F) {
             return;
         }
-
-        VitaData data = VitaData.get(player);
-        double drain = clamped * UMU_PER_HP;
+        // The flesh tribute (book 3.2.1) is a hurt of the element it is taken from: the next tick takes it from there.
         VitaElement target = element == null ? VitaElement.BALANCED : element;
-        data.consumeElement(target, drain);
+        hurtBy(player, clamped, target.isBalanced() ? new VitaElement[0] : new VitaElement[] {target});
         player.hurt(Objects.requireNonNull(player.damageSources().magic()), clamped);
-        data.setLastHealth(player.getHealth());
-        data.save(player);
-        VitaScoreboardManager.update(player, data.toProfile());
     }
 
-    public static void restoreLifeEnergy(ServerPlayer player, double umuAmount) {
+    /** Hunger from an imbalance: only a player has hunger to feel. */
+    static void causeExhaustion(LivingEntity living, float amount) {
+        if (living instanceof Player player) {
+            player.causeFoodExhaustion(amount);
+        }
+    }
+
+    static void addExhaustion(LivingEntity living, float amount) {
+        if (living instanceof Player player) {
+            player.getFoodData().addExhaustion(amount);
+        }
+    }
+
+    /**
+     * Takes up to {@code amount} UMU of {@code element} out of a living body (docs/feiticeiro-design.md, 7.4): what leaves
+     * it is a lack, and the life follows the element most lacking, so the body is hurt on its next tick. Returns how much
+     * was taken. Vis is no part of the body: nothing is taken of it.
+     */
+    public static double drain(LivingEntity living, VitaElement element, double amount) {
+        return drain(living, element, amount, null).umu();
+    }
+
+    /**
+     * How much of its life (points of health) drawing {@code amount} UMU of {@code element} out of {@code living} would
+     * take, foreseen without taking anything (docs/feiticeiro-design.md, 3.3).
+     */
+    public static double lifeTakenBy(LivingEntity living, VitaElement element, double amount) {
+        if (living == null || element == null || element.isBalanced() || amount <= EPSILON) {
+            return 0.0D;
+        }
+        VitaData data = VitaData.peek(living);
+        double before = Math.min(living.getHealth(), data.maxHealth() * Math.min(1.0D, data.wholeness()));
+        data.consumeElement(element, Math.min(amount, Math.max(0.0D, data.get(element))));
+        return Math.max(0.0D, before - data.maxHealth() * Math.min(1.0D, data.wholeness()));
+    }
+
+    /** What the body of {@code living} lacks of {@code element} to be whole, in UMU (nothing written down: nothing). */
+    public static double lackOf(LivingEntity living, VitaElement element) {
+        if (living == null || element == null || element.isBalanced()) {
+            return 0.0D;
+        }
+        VitaData data = VitaData.peek(living);
+        return Math.max(0.0D, data.full(element) - data.get(element));
+    }
+
+    /** What was drawn out of a body: how many UMU, and how much of its life the lack takes (points of health). */
+    public record Drawn(double umu, double life) {
+        public static final Drawn NOTHING = new Drawn(0.0D, 0.0D);
+    }
+
+    /**
+     * The same, by {@code by}: the hurt the lack makes is theirs for a few seconds (the creature turns on them, and a
+     * death by it is a kill of theirs).
+     */
+    public static Drawn drain(LivingEntity living, VitaElement element, double amount,
+                              @org.jetbrains.annotations.Nullable Entity by) {
+        if (living == null || element == null || element.isBalanced() || amount <= EPSILON || !living.isAlive()) {
+            return Drawn.NOTHING;
+        }
+        if (by != null && by != living) {
+            DRAWERS.put(living.getUUID(), new Drawer(by, living.level().getGameTime()));
+        }
+        VitaData data = VitaData.get(living);
+        double taken = Math.min(amount, Math.max(0.0D, data.get(element)));
+        if (taken <= EPSILON) {
+            return Drawn.NOTHING;
+        }
+        // The life follows the element most lacking: what the lack takes is the life before less the life after.
+        double before = Math.min(living.getHealth(), data.maxHealth() * Math.min(1.0D, data.wholeness()));
+        data.consumeElement(element, taken);
+        double after = data.maxHealth() * Math.min(1.0D, data.wholeness());
+        data.save(living);
+        VitaScoreboardManager.update(living, data.toProfile());
+        return new Drawn(taken, Math.max(0.0D, before - after));
+    }
+
+    // ------------------------------------------------------------------ the chalice (docs/vita-design.md)
+
+    /** A hurt and the elements it takes the life from (none: all of them, in their shares). */
+    private record Nature(VitaElement[] elements, double amount) {
+    }
+
+    /** Who last drew something out of a body, and when: the lack it leaves is their hurt. */
+    private record Drawer(Entity by, long at) {
+    }
+
+    /** How long a draw is still the drawer's hurt: five seconds. */
+    private static final long DRAWER_TICKS = 100L;
+    private static final java.util.Map<java.util.UUID, Drawer> DRAWERS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Who drew out of {@code living} in the last seconds, still there; empty when no one did. */
+    private static java.util.Optional<Entity> drawerOf(LivingEntity living) {
+        Drawer drawer = DRAWERS.get(living.getUUID());
+        if (drawer == null) {
+            return java.util.Optional.empty();
+        }
+        if (living.level().getGameTime() - drawer.at() > DRAWER_TICKS || drawer.by().isRemoved()) {
+            DRAWERS.remove(living.getUUID());
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.of(drawer.by());
+    }
+
+    /** The hurt a lack makes: the drawer's, when someone drew it out, or else the body's own. */
+    private static DamageSource lackOf(LivingEntity living) {
+        return drawerOf(living)
+                .map(by -> living.damageSources().indirectMagic(by, by))
+                .orElseGet(() -> living.damageSources().magic());
+    }
+
+    /** The natures of the hurts each player took since the last tick, in order. */
+    private static final java.util.Map<java.util.UUID, List<Nature>> NATURES = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Says {@code amount} of health is about to be lost from {@code elements} (none: from all of them). */
+    public static void hurtBy(LivingEntity player, double amount, VitaElement... elements) {
+        if (player == null || amount <= EPSILON) {
+            return;
+        }
+        if (!(player instanceof Player)) {
+            // A creature's body is written down from the health it had before the hurt, for the tick to take it from.
+            VitaData.get(player);
+        }
+        NATURES.computeIfAbsent(player.getUUID(), id -> new java.util.ArrayList<>())
+                .add(new Nature(elements == null ? new VitaElement[0] : elements, amount));
+    }
+
+    /**
+     * The health lost since the last tick, taken from the elements: each hurt of a nature from its elements, down to
+     * the health left after it; what no nature claims, from all of them in their shares.
+     */
+    private static void hurt(VitaData data, float from, float to, @org.jetbrains.annotations.Nullable List<Nature> natures) {
+        float maxHealth = data.maxHealth();
+        double remaining = from - to;
+        double level = from;
+        if (natures != null) {
+            for (Nature nature : natures) {
+                double amount = Math.min(nature.amount(), remaining);
+                if (amount <= EPSILON) {
+                    continue;
+                }
+                level -= amount;
+                remaining -= amount;
+                if (nature.elements().length == 0) {
+                    data.loseShare(amount / maxHealth);
+                } else {
+                    for (VitaElement element : nature.elements()) {
+                        data.dropTo(element, level / maxHealth);
+                    }
+                }
+            }
+        }
+        if (remaining > EPSILON) {
+            data.loseShare(remaining / maxHealth);
+        }
+    }
+
+    public static void restoreLifeEnergy(LivingEntity player, double umuAmount) {
         if (player == null || umuAmount <= 1.0E-4D) {
             return;
         }
@@ -284,7 +497,7 @@ public final class VitaSystem {
     // ------------------------------------------------------------------ the core (docs/particulas-design.md, stage 6)
 
     /** The share of the life each element is in the player's core: a person's 55/38/2/5 until a vertere changes it. */
-    public static java.util.Map<VitaElement, Double> core(ServerPlayer player) {
+    public static java.util.Map<VitaElement, Double> core(LivingEntity player) {
         VitaData data = VitaData.get(player);
         java.util.Map<VitaElement, Double> core = new java.util.EnumMap<>(VitaElement.class);
         for (VitaElement element : new VitaElement[] {VitaElement.FIRMO, VitaElement.AQUA, VitaElement.AURA,
@@ -295,7 +508,7 @@ public final class VitaSystem {
     }
 
     /** What the player's body holds of each element now, in UMU. */
-    public static java.util.Map<VitaElement, Double> body(ServerPlayer player) {
+    public static java.util.Map<VitaElement, Double> body(LivingEntity player) {
         VitaData data = VitaData.get(player);
         java.util.Map<VitaElement, Double> body = new java.util.EnumMap<>(VitaElement.class);
         for (VitaElement element : new VitaElement[] {VitaElement.FIRMO, VitaElement.AQUA, VitaElement.AURA,
@@ -309,7 +522,7 @@ public final class VitaSystem {
      * A vertere changed the player's core (docs/particulas-design.md, stage 6): the body is converted into the new
      * proportion, as much in all as before, and from then on heals, hurts and settles back in it.
      */
-    public static void reshape(ServerPlayer player, java.util.Map<VitaElement, Double> core) {
+    public static void reshape(LivingEntity player, java.util.Map<VitaElement, Double> core) {
         if (player == null || core == null) {
             return;
         }
@@ -324,7 +537,7 @@ public final class VitaSystem {
         VitaScoreboardManager.update(player, data.toProfile());
     }
 
-    public static void restoreElementEnergy(ServerPlayer player, VitaElement element, double umuAmount) {
+    public static void restoreElementEnergy(LivingEntity player, VitaElement element, double umuAmount) {
         if (player == null || umuAmount <= 1.0E-4D) {
             return;
         }
@@ -334,7 +547,7 @@ public final class VitaSystem {
         VitaScoreboardManager.update(player, data.toProfile());
     }
 
-    public static void setElementEnergy(ServerPlayer player, VitaElement element, double umuAmount) {
+    public static void setElementEnergy(LivingEntity player, VitaElement element, double umuAmount) {
         if (player == null || element == null || umuAmount < 0.0D) {
             return;
         }
@@ -345,7 +558,7 @@ public final class VitaSystem {
         VitaScoreboardManager.update(player, data.toProfile());
     }
 
-public static void forceSetElement(ServerPlayer player, VitaElement element, double umuAmount) {
+public static void forceSetElement(LivingEntity player, VitaElement element, double umuAmount) {
         if (player == null || element == null) {
             return;
         }
@@ -355,7 +568,7 @@ public static void forceSetElement(ServerPlayer player, VitaElement element, dou
         VitaScoreboardManager.update(player, data.toProfile());
     }
 
-    public static void resetStatus(ServerPlayer player) {
+    public static void resetStatus(LivingEntity player) {
         if (player == null) {
             return;
         }
@@ -367,7 +580,7 @@ public static void forceSetElement(ServerPlayer player, VitaElement element, dou
         VitaScoreboardManager.update(player, data.toProfile());
     }
 
-    public static ElementTransferResult transferElement(ServerPlayer player,
+    public static ElementTransferResult transferElement(LivingEntity player,
                                                          VitaElement source,
                                                          VitaElement target,
                                                          double umuAmount,
@@ -407,7 +620,7 @@ public static void forceSetElement(ServerPlayer player, VitaElement element, dou
         return new ElementTransferResult(requested, applied, clamped);
     }
 
-    public static double getElementExcess(ServerPlayer player, VitaElement element) {
+    public static double getElementExcess(LivingEntity player, VitaElement element) {
         if (player == null || element == null || element.isBalanced()) {
             return 0.0D;
         }
@@ -415,7 +628,7 @@ public static void forceSetElement(ServerPlayer player, VitaElement element, dou
         return data.elementExcess(element);
     }
 
-    public static double consumeElementExcess(ServerPlayer player, VitaElement element, double umuAmount) {
+    public static double consumeElementExcess(LivingEntity player, VitaElement element, double umuAmount) {
         if (player == null || element == null || element.isBalanced() || umuAmount <= 1.0E-4D) {
             return umuAmount;
         }
@@ -428,7 +641,7 @@ public static void forceSetElement(ServerPlayer player, VitaElement element, dou
         return remaining;
     }
 
-    public static void consumeElementReserve(ServerPlayer player, VitaElement element, double umuAmount) {
+    public static void consumeElementReserve(LivingEntity player, VitaElement element, double umuAmount) {
         if (player == null || umuAmount <= 1.0E-4D) {
             return;
         }

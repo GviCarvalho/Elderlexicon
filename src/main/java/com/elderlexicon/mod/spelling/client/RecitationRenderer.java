@@ -33,10 +33,7 @@ public final class RecitationRenderer {
 
     @SubscribeEvent
     public static void renderAboveHead(RenderLivingEvent.Post<?, ?> event) {
-        LivingEntity entity = event.getEntity();
-        if (!(entity instanceof Player player)) {
-            return;
-        }
+        LivingEntity player = event.getEntity();
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player != null && player.isInvisibleTo(minecraft.player)) {
             return;
@@ -50,11 +47,13 @@ public final class RecitationRenderer {
                     ? Component.literal("· · ·")
                     : RuneSgaMapper.sequenceComponent(recitation.runes());
             int color = recitation.ended() ? SPOKEN_COLOR : RECITING_COLOR;
-            draw(event.getPoseStack(), event, player, words, color, opacity, player != minecraft.player);
+            // A player's name tag is above any other player's head; a creature's, only when it shows one.
+            boolean nameTag = player instanceof Player ? player != minecraft.player : player.shouldShowName();
+            draw(event.getPoseStack(), event, player, words, color, opacity, nameTag);
         });
     }
 
-    private static void draw(PoseStack poseStack, RenderLivingEvent.Post<?, ?> event, Player player, Component words,
+    private static void draw(PoseStack poseStack, RenderLivingEvent.Post<?, ?> event, LivingEntity player, Component words,
                              int color, float opacity, boolean hasNameTag) {
         Minecraft minecraft = Minecraft.getInstance();
         Font font = minecraft.font;

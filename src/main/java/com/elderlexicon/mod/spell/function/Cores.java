@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.spell.Casters;
+
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.command.SpellCostCalculator;
 import com.elderlexicon.mod.magic.lexicon.Lexicons;
@@ -65,7 +67,7 @@ public final class Cores {
      * One line asking a thing's core: who asked, which primordial, and how many parts of the hundred; with no number, it
      * shares what the numbers leave with the other lines written without one.
      */
-    private record Ask(ServerPlayer caster, Marked thing, VitaElement aspect, OptionalDouble parts) {
+    private record Ask(LivingEntity caster, Marked thing, VitaElement aspect, OptionalDouble parts) {
     }
 
     /** What the lines of one instant ask of one thing: the parts given a number, and the primordials given none. */
@@ -96,13 +98,13 @@ public final class Cores {
      * are.
      */
     static void ask(SpellContext context, String mark, VitaElement aspect, OptionalDouble parts, int delayTicks) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         if (State.of(aspect).isEmpty()) {
             MarkSpells.tell(player, note("note.core.vis",
                     "A vis nao e parte de cerne nenhum: escreva terra, agua, ar ou fogo antes do vertere.", Map.of()));
             return;
         }
-        List<Marked> things = MarkTargets.find(player.server, mark);
+        List<Marked> things = MarkTargets.find(player.getServer(), mark);
         if (things.isEmpty()) {
             MarkSpells.tell(player, "A marca '" + mark + "' nao responde.");
             return;
@@ -120,7 +122,7 @@ public final class Cores {
             }
         });
         if (delayTicks > 0) {
-            SpellEffects.schedule(player.serverLevel(), delayTicks, asking);
+            SpellEffects.schedule(Casters.level(player), delayTicks, asking);
         } else {
             asking.run();
         }
@@ -165,12 +167,12 @@ public final class Cores {
     }
 
     /** A player's core is the Vita's: a person's until a vertere changes it. */
-    private static Composition playerCore(ServerPlayer player) {
+    private static Composition playerCore(LivingEntity player) {
         return Composition.of(VitaSystem.core(player));
     }
 
     /** A player's body is what their Vita holds of each element now. */
-    private static Particles playerBody(ServerPlayer player) {
+    private static Particles playerBody(LivingEntity player) {
         Particles body = Particles.NONE;
         for (Map.Entry<VitaElement, Double> held : VitaSystem.body(player).entrySet()) {
             body = body.plus(Particles.of(held.getKey(), Particles.ofUmu(Math.max(0.0D, held.getValue()))));
@@ -432,7 +434,7 @@ public final class Cores {
     // ------------------------------------------------------------------ what the spirit says
 
     private static void tell(List<Ask> asks, String text) {
-        Set<ServerPlayer> told = new LinkedHashSet<>();
+        Set<LivingEntity> told = new LinkedHashSet<>();
         for (Ask ask : asks) {
             if (told.add(ask.caster())) {
                 MarkSpells.tell(ask.caster(), text);

@@ -221,8 +221,11 @@ public final class SpellingNetwork {
         CHANNEL.sendToServer(new RecitationPacket(0, runes, finished));
     }
 
-    /** Shows {@code reciter}'s words to everyone who can see them (the reciter shows its own). */
-    static void broadcastRecitation(ServerPlayer reciter, RecitationPacket packet) {
+    /**
+     * Shows {@code reciter}'s words to everyone who can see them (a player shows its own; a creature in trance, such as a
+     * sorcerer, is shown by the server alone).
+     */
+    public static void broadcastRecitation(net.minecraft.world.entity.Entity reciter, RecitationPacket packet) {
         CHANNEL.send(PacketDistributor.TRACKING_ENTITY.with(() -> reciter), packet);
     }
 

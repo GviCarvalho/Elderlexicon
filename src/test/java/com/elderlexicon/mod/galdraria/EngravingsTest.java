@@ -24,6 +24,16 @@ class EngravingsTest {
     }
 
     @Test
+    void aPauseTakesAColumnButCarvesNothing() {
+        List<String> words = Engravings.words("igni . vocant . .");
+        assertEquals(List.of("igni", ".", "vocant"), words, "pauses at the end are dropped");
+        assertEquals(2, Engravings.runes(words), "the burin spends only the runes");
+        assertEquals(List.of("igni", "", "vocant"), Engravings.read(Engravings.written(words)));
+        assertEquals(false, Engravings.unreadable(words));
+        assertEquals(true, Engravings.unreadable(List.of("igni", "!!")));
+    }
+
+    @Test
     void aWordTheSpiritCannotReadIsLeftBlank() {
         assertEquals(List.of("igni", ""), Engravings.read(Engravings.written(List.of("igni", "!!"))));
     }

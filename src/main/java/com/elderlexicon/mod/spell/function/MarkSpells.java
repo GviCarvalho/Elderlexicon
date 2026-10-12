@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.spell.Casters;
+
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.SpellFlow;
@@ -74,15 +76,15 @@ final class MarkSpells {
      * the marked things. Quiet, since it is asked again on every pulse.
      */
     static Supplier<Optional<Destination>> follower(SpellContext context, SpellPlace place, double range) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         return () -> SpellEffects.isPlayerValid(player)
                 ? destination(player, Optional.of(place), range, true)
                 : Optional.empty();
     }
 
-    private static Optional<Destination> destination(ServerPlayer player, Optional<SpellPlace> place, double range,
+    private static Optional<Destination> destination(LivingEntity player, Optional<SpellPlace> place, double range,
                                                      boolean quiet) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = Casters.level(player);
         if (place.isEmpty()) {
             SpellEffects.SpellImpact impact = SpellEffects.findImpact(player, range);
             Vec3 point = impact.location();
@@ -144,8 +146,8 @@ final class MarkSpells {
      * The average of where the carriers of {@code mark} stand (a creature by its feet, a block by its top), among
      * those in the mage's dimension, or else in the dimension of the closest one.
      */
-    private static Optional<Average> averageOf(ServerPlayer player, String mark, boolean quiet) {
-        List<Marked> found = MarkTargets.find(player.server, mark);
+    private static Optional<Average> averageOf(LivingEntity player, String mark, boolean quiet) {
+        List<Marked> found = MarkTargets.find(player.getServer(), mark);
         if (found.isEmpty()) {
             if (!quiet) {
                 tell(player, "A marca '" + mark + "' nao responde.");
@@ -181,13 +183,13 @@ final class MarkSpells {
      * With a chronos window ({@code stayTicks} above zero) it goes back where it was when the window ends.
      */
     static void summon(SpellContext context, String mark, Optional<SpellPlace> place, int delayTicks, int stayTicks) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         Optional<Destination> found = destination(context, place, SUMMON_RANGE);
         if (found.isEmpty()) {
             return;
         }
         Destination destination = found.get();
-        List<Marked> things = sameDimension(player, MarkTargets.find(player.server, mark), destination.level(), mark);
+        List<Marked> things = sameDimension(player, MarkTargets.find(player.getServer(), mark), destination.level(), mark);
         if (things.isEmpty()) {
             return;
         }
@@ -254,10 +256,10 @@ final class MarkSpells {
      */
     static void push(SpellContext context, String mark, Optional<SpellPlace> place, Push mode, double energyPerWindow,
                      int durationTicks) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         // A push held for a chronos window keeps the speed of the default one, for longer, spending more (SpellFlow).
         double energy = SpellFlow.total(energyPerWindow, durationTicks);
-        List<Marked> things = sameDimension(player, MarkTargets.find(player.server, mark), player.serverLevel(), mark);
+        List<Marked> things = sameDimension(player, MarkTargets.find(player.getServer(), mark), Casters.level(player), mark);
         if (things.isEmpty()) {
             return;
         }
@@ -330,7 +332,7 @@ final class MarkSpells {
      * turns where the mage looks now (the mage's own look, when the mage is the one flying); toward a place written
      * with ubis, it homes in on it; pulled or pushed, it follows where the mage stands now.
      */
-    private record Steering(ServerPlayer player, Push mode, Optional<Vec3> fixedAim, Vec3 initial) {
+    private record Steering(LivingEntity player, Push mode, Optional<Vec3> fixedAim, Vec3 initial) {
 
         Vec3 heading(Entity flying, Vec3 previous) {
             if (!SpellEffects.isPlayerValid(player)) {
@@ -341,7 +343,7 @@ final class MarkSpells {
                         ? fixedAim.get().subtract(flying.position())
                         : flying == player
                                 ? player.getLookAngle()
-                                : player.pick(THROW_AIM_RANGE, 0.0F, false).getLocation().subtract(flying.position());
+                                : player.pick(THROW_AIM_RANGE, 1.0F, false).getLocation().subtract(flying.position());
                 case TOWARD_CASTER -> player.getEyePosition().subtract(flying.position());
                 case AWAY_FROM_CASTER -> flying.position().subtract(fixedAim.orElse(player.position()));
             };
@@ -371,13 +373,13 @@ final class MarkSpells {
 
     /** {@code m1 vertere m2}: everything that carried m1 now carries m2. */
     static void rename(SpellContext context, String mark, String newMark, int delayTicks) {
-        ServerPlayer player = context.player();
-        List<Marked> things = MarkTargets.find(player.server, mark);
+        LivingEntity player = context.player();
+        List<Marked> things = MarkTargets.find(player.getServer(), mark);
         if (things.isEmpty()) {
             tell(player, "A marca '" + mark + "' nao responde.");
             return;
         }
-        SpellEffects.schedule(player.serverLevel(), delayTicks, () -> MarkTargets.load(things, () -> {
+        SpellEffects.schedule(Casters.level(player), delayTicks, () -> MarkTargets.load(things, () -> {
             int renamed = 0;
             for (Marked thing : things) {
                 if (!thing.present()) {
@@ -403,8 +405,8 @@ final class MarkSpells {
      */
     static void convert(SpellContext context, String mark, VitaElement element, String elementRuneId, OptionalDouble limit,
                         int delayTicks) {
-        ServerPlayer player = context.player();
-        List<Marked> things = MarkTargets.find(player.server, mark);
+        LivingEntity player = context.player();
+        List<Marked> things = MarkTargets.find(player.getServer(), mark);
         if (things.isEmpty()) {
             tell(player, "A marca '" + mark + "' nao responde.");
             return;
@@ -427,7 +429,7 @@ final class MarkSpells {
         }
         context.addTotalCost(estimate);
 
-        SpellEffects.schedule(player.serverLevel(), delayTicks, () -> MarkTargets.load(things, () -> {
+        SpellEffects.schedule(Casters.level(player), delayTicks, () -> MarkTargets.load(things, () -> {
             for (Marked thing : things) {
                 if (!thing.present()) {
                     continue;
@@ -448,7 +450,7 @@ final class MarkSpells {
         }));
     }
 
-    private static double convertOne(ServerPlayer player, Marked thing, OptionalDouble limit) {
+    private static double convertOne(LivingEntity player, Marked thing, OptionalDouble limit) {
         if (!(thing.entity instanceof LivingEntity)) {
             double whole = MarkCost.vitaOf(thing.mass);
             if (limit.isPresent() && limit.getAsDouble() < whole) {
@@ -480,7 +482,7 @@ final class MarkSpells {
         return 0.0D;
     }
 
-    private static DamageSource vertereSource(Entity target, ServerPlayer caster) {
+    private static DamageSource vertereSource(Entity target, LivingEntity caster) {
         Holder<DamageType> holder = target.level().registryAccess().registryOrThrow(Registries.DAMAGE_TYPE)
                 .getHolderOrThrow(VERTERE_VITA);
         return new DamageSource(holder, caster, caster);
@@ -488,7 +490,7 @@ final class MarkSpells {
 
     // ------------------------------------------------------------------ helpers
 
-    private static List<Marked> sameDimension(ServerPlayer player, List<Marked> things, ServerLevel level, String mark) {
+    private static List<Marked> sameDimension(LivingEntity player, List<Marked> things, ServerLevel level, String mark) {
         if (things.isEmpty()) {
             tell(player, "A marca '" + mark + "' nao responde.");
             return things;
@@ -505,11 +507,11 @@ final class MarkSpells {
         return here;
     }
 
-    private static double distanceFor(ServerPlayer player, Marked thing) {
-        return thing.level == player.serverLevel() ? thing.position.distanceToSqr(player.position()) : Double.MAX_VALUE;
+    private static double distanceFor(LivingEntity player, Marked thing) {
+        return thing.level == Casters.level(player) ? thing.position.distanceToSqr(player.position()) : Double.MAX_VALUE;
     }
 
-    static void tell(ServerPlayer player, String message) {
+    static void tell(LivingEntity player, String message) {
         if (player != null) {
             player.sendSystemMessage(Component.literal(message));
         }

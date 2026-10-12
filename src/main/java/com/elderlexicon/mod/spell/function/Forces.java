@@ -1,5 +1,8 @@
 package com.elderlexicon.mod.spell.function;
 
+import net.minecraft.world.entity.LivingEntity;
+import com.elderlexicon.mod.spell.Casters;
+
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.action.SpellAction;
 import com.elderlexicon.mod.spell.mark.MarkCost;
@@ -47,7 +50,7 @@ final class Forces {
         if (handed.isEmpty()) {
             return false;
         }
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         double energy = action.quantity().orElse(MarkCost.DEFAULT_THROW_ENERGY);
         context.addTotalCost(energy - MarkCost.DEFAULT_THROW_ENERGY);
         // A place written for the force is fixed when the spell is cast; without one, the aim is read when it pushes.
@@ -63,7 +66,7 @@ final class Forces {
         double speed = Math.min(MarkCost.MAX_ENTITY_SPEED, BASE_SPEED * Math.sqrt(Math.max(0.1D, energy)
                 / MarkCost.DEFAULT_THROW_ENERGY));
         handed.get().take(product -> {
-            if (!SpellEffects.isPlayerValid(player) || product.level() != player.serverLevel()) {
+            if (!SpellEffects.isPlayerValid(player) || product.level() != Casters.level(player)) {
                 return;
             }
             ServerLevel level = product.level();
@@ -87,7 +90,7 @@ final class Forces {
     }
 
     /** Which way the force pushes what is at {@code from}, as a unit vector. */
-    private static Vec3 direction(ServerPlayer player, MarkSpells.Push push, Vec3 from, Optional<Vec3> written) {
+    private static Vec3 direction(LivingEntity player, MarkSpells.Push push, Vec3 from, Optional<Vec3> written) {
         Vec3 toward = switch (push) {
             case TOWARD_AIM -> written.orElseGet(() -> SpellEffects.findImpact(player, RANGE).location()).subtract(from);
             case TOWARD_CASTER -> written.orElseGet(player::getEyePosition).subtract(from);

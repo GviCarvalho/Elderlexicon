@@ -25,8 +25,7 @@ public final class ReframeFunctionHandler implements SpellFunctionHandler {
 
     @Override
     public void execute(SpellContext context, VitaElement element) {
-        ServerPlayer player = context.player();
-        if (player == null) {
+        if (!(context.player() instanceof ServerPlayer player)) {
             return;
         }
 

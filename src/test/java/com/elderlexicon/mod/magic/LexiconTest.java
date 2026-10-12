@@ -107,8 +107,8 @@ class LexiconTest {
     @Test
     void theDefaultsAreTheBooks() {
         assertEquals("vis", LEXICON.defaultSource().id(), "book 4.2: the spirit fills the gap with mana");
-        assertEquals(List.of("igni", "aqua", "aura", "firmo", "impediunt", "vertere", "vocant", "iactare"),
-                LEXICON.repertoire());
+        assertEquals(List.of(), LEXICON.repertoire(),
+                "a new mage knows no rune: each is learned by understanding it (docs/aprendizado-runas-design.md)");
     }
 
     @Test

@@ -322,6 +322,45 @@ public final class ClientSpellingController {
         }
     }
 
+    /** The runes the server says this mage has unlocked. */
+    public void applyUnlocked(List<String> runes) {
+        repertoire.setUnlocked(runes);
+    }
+
+    /** Whether the server says this mage can enter the trance and the state of flow. */
+    public void applyAbilities(boolean trance, boolean flow) {
+        repertoire.setTrance(trance);
+        repertoire.setFlow(flow);
+    }
+
+    /** Whether the local player can enter the trance: a mage, anyone in creative, every spirit in Nahvá. */
+    public boolean hasTrance() {
+        net.minecraft.client.Minecraft minecraft = net.minecraft.client.Minecraft.getInstance();
+        return (minecraft.player != null && minecraft.player.isCreative()) || repertoire.hasTrance()
+                || com.elderlexicon.mod.nahva.Nahva.isNahva(minecraft.level);
+    }
+
+    /** Whether the local player can enter the state of flow (every player, in creative). */
+    public boolean hasFlow() {
+        net.minecraft.client.Minecraft minecraft = net.minecraft.client.Minecraft.getInstance();
+        return (minecraft.player != null && minecraft.player.isCreative()) || repertoire.hasFlow();
+    }
+
+    /** The runes the server says this mage has understood whole, which only their dream still keeps. */
+    public void applyUnderstood(List<String> runes) {
+        repertoire.setUnderstood(runes);
+    }
+
+    public boolean isUnderstood(String runeId) {
+        return repertoire.isUnderstood(runeId);
+    }
+
+    /** Whether the local mage may use {@code runeId}: unlocked, or every rune in creative. */
+    public boolean isUnlocked(String runeId) {
+        net.minecraft.client.Minecraft minecraft = net.minecraft.client.Minecraft.getInstance();
+        return (minecraft.player != null && minecraft.player.isCreative()) || repertoire.isUnlocked(runeId);
+    }
+
     public void requestRepertoireUpdate(List<String> slots) {
         if (slots.size() != SpellingRepertoire.SLOT_COUNT) {
             return;

@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita;
 
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -20,7 +20,7 @@ final class IgniImbalanceEffects {
     private IgniImbalanceEffects() {
     }
 
-    static void apply(ServerPlayer player, VitaData data) {
+    static void apply(LivingEntity player, VitaData data) {
         VitaImbalanceTier tier = data.igniTier();
         switch (tier) {
             case SEVERELY_LOW -> applySeverelyLow(player);
@@ -34,25 +34,25 @@ final class IgniImbalanceEffects {
         }
     }
 
-    private static void applySeverelyLow(ServerPlayer player) {
+    private static void applySeverelyLow(LivingEntity player) {
         applyEffect(player, MobEffects.MOVEMENT_SLOWDOWN, 1, BASE_DURATION);
         applyEffect(player, MobEffects.DIG_SLOWDOWN, 1, BASE_DURATION);
         applyEffect(player, MobEffects.WEAKNESS, 0, BASE_DURATION);
-        player.getFoodData().addExhaustion(0.04F);
+        VitaSystem.addExhaustion(player, 0.04F);
         player.clearFire();
     }
 
-    private static void applySlightlyLow(ServerPlayer player) {
+    private static void applySlightlyLow(LivingEntity player) {
         applyEffect(player, MobEffects.DIG_SLOWDOWN, 0, BASE_DURATION);
-        player.getFoodData().addExhaustion(0.01F);
+        VitaSystem.addExhaustion(player, 0.01F);
     }
 
-    private static void applySlightlyHigh(ServerPlayer player) {
+    private static void applySlightlyHigh(LivingEntity player) {
         applyEffect(player, MobEffects.CONFUSION, 0, 40);
-        player.getFoodData().addExhaustion(0.02F);
+        VitaSystem.addExhaustion(player, 0.02F);
     }
 
-    private static void applySeverelyHigh(ServerPlayer player) {
+    private static void applySeverelyHigh(LivingEntity player) {
         applyEffect(player, MobEffects.WEAKNESS, 1, BASE_DURATION);
         applyEffect(player, MobEffects.HUNGER, 1, BASE_DURATION);
         int counter = heatPulse.merge(player.getUUID(), 1, Integer::sum);
@@ -62,7 +62,7 @@ final class IgniImbalanceEffects {
         }
     }
 
-    private static void applyEffect(ServerPlayer player, MobEffect effect, int amplifier, int duration) {
+    private static void applyEffect(LivingEntity player, MobEffect effect, int amplifier, int duration) {
         MobEffectInstance current = player.getEffect(effect);
         if (current != null && current.getAmplifier() >= amplifier) {
             player.addEffect(new MobEffectInstance(effect, duration, current.getAmplifier(), true, false, true));

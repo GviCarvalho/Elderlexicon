@@ -16,6 +16,15 @@ import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.commands.arguments.EntityAnchorArgument;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.animal.Cow;
+import net.minecraft.world.entity.monster.Evoker;
+import net.minecraft.world.entity.npc.Villager;
+import com.elderlexicon.mod.illager.Sorcerer;
+import com.elderlexicon.mod.illager.SorcererGrimoire;
+import com.elderlexicon.mod.spelling.item.GrimoireItem;
+import com.elderlexicon.mod.spell.Casters;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -52,6 +61,16 @@ public final class SpellGameTests {
      * looking at the wall.
      */
     private static ServerPlayer mageBeforeAWall(GameTestHelper helper) {
+        roomWithAWall(helper);
+        ServerPlayer mage = mage(helper);
+        Vec3 at = helper.absoluteVec(new Vec3(2.5D, 1.0D, 0.5D));
+        // Yaw 0 looks south (+z), toward the wall, whichever way the test is rotated in the world.
+        mage.moveTo(at.x, at.y, at.z, facingWall(helper), 0.0F);
+        return mage;
+    }
+
+    /** A floor under the room and a wall of stone at its far end (z = 4). */
+    private static void roomWithAWall(GameTestHelper helper) {
         for (int x = 0; x < 5; x++) {
             for (int z = 0; z < 5; z++) {
                 helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
@@ -60,11 +79,6 @@ public final class SpellGameTests {
                 helper.setBlock(new BlockPos(x, y, 4), Blocks.STONE);
             }
         }
-        ServerPlayer mage = mage(helper);
-        Vec3 at = helper.absoluteVec(new Vec3(2.5D, 1.0D, 0.5D));
-        // Yaw 0 looks south (+z), toward the wall, whichever way the test is rotated in the world.
-        mage.moveTo(at.x, at.y, at.z, facingWall(helper), 0.0F);
-        return mage;
     }
 
     /**
@@ -126,6 +140,398 @@ public final class SpellGameTests {
             }
         }
         return found.toString();
+    }
+
+    /**
+     * A living body aimed at is a source (docs/feiticeiro-design.md, 7.4): water drawn out of a cow is a lack in its body,
+     * and the life follows the element most lacking, so the cow is hurt.
+     */
+    @GameTest(template = EMPTY)
+    public static void waterDrawnOutOfABodyHurtsIt(GameTestHelper helper) {
+        ServerPlayer mage = mageBeforeAWall(helper);
+        Cow cow = helper.spawn(EntityType.COW, new Vec3(2.5D, 1.0D, 2.5D));
+        cow.setNoAi(true);
+        Vec3 body = cow.position().add(0.0D, cow.getBbHeight() * 0.5D, 0.0D);
+        mage.lookAt(EntityAnchorArgument.Anchor.EYES, body);
+        float before = cow.getHealth();
+        castOrFail(helper, mage, "aqua quantum -10 vocant");
+        helper.succeedWhen(() -> {
+            if (!(cow.getHealth() < before)) {
+                helper.fail("the cow lost no life: " + cow.getHealth() + " of " + before);
+            }
+        });
+    }
+
+    /**
+     * Any living being casts by the same rules (docs/feiticeiro-design.md, 8): an evoker throws earth at the wall as a
+     * player would, and pays from its Anchor of the Hundred, not from experience it does not have.
+     */
+    @GameTest(template = EMPTY)
+    public static void aCreatureCastsAndPaysFromItsAnchor(GameTestHelper helper) {
+        roomWithAWall(helper);
+        Evoker evoker = helper.spawn(EntityType.EVOKER, new Vec3(2.5D, 1.0D, 0.5D));
+        evoker.setNoAi(true);
+        evoker.lookAt(EntityAnchorArgument.Anchor.EYES, helper.absoluteVec(new Vec3(2.5D, 1.5D, 3.5D)));
+        SpellCastingService.Result result = new SpellCastingService().cast(evoker, List.of("firmo", "vocant"));
+        if (result.failed()) {
+            helper.fail("firmo vocant failed: " + result.message().getString());
+        }
+        if (!(Casters.vis(evoker) < Casters.ANCHOR_UMU)) {
+            helper.fail("the evoker paid nothing from its anchor: " + Casters.vis(evoker));
+        }
+        helper.succeedWhen(() -> {
+            if (!anyIn(helper, Blocks.DIRT, 3, 3)) {
+                helper.fail("no earth before the wall");
+            }
+        });
+    }
+
+    /**
+     * The sorcerer reads its grimoire against a villager it hunts (docs/feiticeiro-design.md, stage 2): it stands, the
+     * trance lasts two seconds, and the page it reads hurts the villager.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 300)
+    public static void theSorcererReadsAPageAgainstItsPrey(GameTestHelper helper) {
+        roomWithAWall(helper);
+        Villager villager = helper.spawn(EntityType.VILLAGER, new Vec3(2.5D, 1.0D, 3.5D));
+        villager.setNoAi(true);
+        Sorcerer evoker = huntingOnly(helper, villager);
+        float before = villager.getHealth();
+        helper.succeedWhen(() -> {
+            if (!(villager.getHealth() < before)) {
+                helper.fail("the villager was not hurt");
+            }
+        });
+    }
+
+    /**
+     * A sorcerer that hunts {@code prey} alone: the other tests' mages share the world, and an evoker would turn on
+     * the nearest player.
+     */
+    private static Sorcerer huntingOnly(GameTestHelper helper, Villager prey) {
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 0.5D));
+        evoker.targetSelector.removeAllGoals(goal -> true);
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.ELDER, com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        evoker.setTarget(prey);
+        return evoker;
+    }
+
+    /**
+     * Out of a fight, with nothing to hunt, the sorcerer writes (docs/feiticeiro-design.md, 2.1): its pages are
+     * written in a while, and kept with it when it is saved and loaded again.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 2000)
+    public static void aSorcererAloneWritesItsPages(GameTestHelper helper) {
+        roomWithAWall(helper);
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 1.5D));
+        evoker.targetSelector.removeAllGoals(goal -> true);
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.ELDER, com.elderlexicon.mod.mind.Personality.TRICKSTER,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        helper.succeedWhen(() -> {
+            if (evoker.written().isEmpty()) {
+                helper.fail("nothing written yet");
+            }
+            net.minecraft.nbt.CompoundTag saved = new net.minecraft.nbt.CompoundTag();
+            evoker.saveWithoutId(saved);
+            Sorcerer again = ElderLexicon.SORCERER.get().create(helper.getLevel());
+            again.load(saved);
+            List<String> before = evoker.written().stream().map(com.elderlexicon.mod.mind.Option::name).toList();
+            List<String> after = again.written().stream().map(com.elderlexicon.mod.mind.Option::name).toList();
+            if (!before.equals(after)) {
+                helper.fail("written " + before + ", loaded " + after);
+            }
+            if (again.grimoire().getOrCreateTag().getList("pages", net.minecraft.nbt.Tag.TAG_STRING).size()
+                    < before.size()) {
+                helper.fail("its grimoire does not hold what it wrote");
+            }
+        });
+    }
+
+    /**
+     * A sorcerer that sees a mage cast writes the sentence down (docs/feiticeiro-design.md, 4), leaving out the runes
+     * it does not know, as its spirit would skip them.
+     */
+    @GameTest(template = EMPTY)
+    public static void aSorcererCopiesWhatItSeesCast(GameTestHelper helper) {
+        ServerPlayer mage = mageBeforeAWall(helper);
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(1.5D, 1.0D, 2.5D));
+        evoker.setNoAi(true);
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE, com.elderlexicon.mod.mind.Personality.TRICKSTER,
+                java.util.Set.of("aqua", "iactare", "vocant"));
+        castOrFail(helper, mage, "aqua tenet iactare");
+        List<String> learned = evoker.learned().stream().map(com.elderlexicon.mod.mind.Option::name).toList();
+        if (!learned.contains("aqua iactare")) {
+            helper.fail("it wrote down " + learned + ", not what it could read of 'aqua tenet iactare'");
+        }
+        if (!evoker.grimoire().getOrCreateTag().getList("pages", net.minecraft.nbt.Tag.TAG_STRING)
+                .contains(net.minecraft.nbt.StringTag.valueOf("aqua iactare"))) {
+            helper.fail("its grimoire does not keep the copy");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A mansion's evoker may be a sorcerer (docs/feiticeiro-design.md, 7): it takes the evoker's place where it stood,
+     * and a corner to study in is put beside it. (The chance is made certain for the test, and given back.)
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 60)
+    public static void aMansionsEvokerMayBeASorcerer(GameTestHelper helper) {
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < 5; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+            }
+        }
+        double chance = com.elderlexicon.mod.Config.sorcererMansionChance;
+        com.elderlexicon.mod.Config.sorcererMansionChance = 1.0D;
+        net.minecraft.world.entity.monster.Evoker evoker = EntityType.EVOKER.create(helper.getLevel());
+        Vec3 at = helper.absoluteVec(new Vec3(2.5D, 1.0D, 2.5D));
+        evoker.moveTo(at.x, at.y, at.z, 0.0F, 0.0F);
+        evoker.setPersistenceRequired();
+        evoker.setNoAi(true);
+        helper.getLevel().addFreshEntity(evoker);
+        com.elderlexicon.mod.Config.sorcererMansionChance = chance;
+        helper.succeedWhen(() -> {
+            if (!evoker.isRemoved()) {
+                helper.fail("the evoker is still there");
+            }
+            List<Sorcerer> sorcerers = helper.getLevel().getEntitiesOfClass(Sorcerer.class,
+                    new AABB(at, at).inflate(1.0D));
+            if (sorcerers.isEmpty() || !sorcerers.get(0).isPersistenceRequired()) {
+                helper.fail("no sorcerer kept where it stood");
+            }
+            boolean lectern = false;
+            for (net.minecraft.core.Direction side : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+                lectern |= helper.getLevel().getBlockState(BlockPos.containing(at).relative(side)).is(Blocks.LECTERN);
+            }
+            if (!lectern) {
+                helper.fail("no lectern to study at");
+            }
+        });
+    }
+
+    /**
+     * A sorcerer learns as a mage does (docs/aprendizado-runas-design.md): it lives a rune a few times, and in calm it
+     * dreams it and knows it; its degree follows, and it writes its grimoire again.
+     */
+    @GameTest(template = EMPTY)
+    public static void aSorcererLearnsARuneItLivedByDreamingIt(GameTestHelper helper) {
+        Sorcerer sorcerer = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 2.5D));
+        sorcerer.setNoAi(true);
+        sorcerer.setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE, com.elderlexicon.mod.mind.Personality.CAUTIOUS,
+                java.util.Set.of("igni", "iactare", "vocant"));
+        sorcerer.experience("aqua");
+        sorcerer.experience("aqua");
+        if (sorcerer.dream()) {
+            helper.fail("it dreamed what it barely lived");
+        }
+        // A blow of no energy teaches nothing; water lived once more, and it is enough.
+        sorcerer.hurt(helper.getLevel().damageSources().generic(), 1.0F);
+        sorcerer.experience("aqua");
+        if (!sorcerer.dream() || !sorcerer.known().contains("aqua")) {
+            helper.fail("it did not learn aqua: " + sorcerer.known() + " " + sorcerer.understanding());
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A sorcerer leads its band (docs/feiticeiro-design.md, 7.2): an aggressive one gives every member one mark, a
+     * trickster gives each its own.
+     */
+    @GameTest(template = EMPTY)
+    public static void aSorcererMarksItsBandAsItLikes(GameTestHelper helper) {
+        Sorcerer aggressive = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        aggressive.setNoAi(true);
+        aggressive.setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE, com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                java.util.Set.of("igni", "iactare", "vocant"));
+        List<net.minecraft.world.entity.monster.Vindicator> band = List.of(
+                helper.spawn(EntityType.VINDICATOR, new Vec3(3.5D, 1.0D, 1.5D)),
+                helper.spawn(EntityType.VINDICATOR, new Vec3(3.5D, 1.0D, 3.5D)));
+        band.forEach(member -> member.setNoAi(true));
+        aggressive.markBand();
+        List<String> marks = band.stream().map(member -> com.elderlexicon.mod.spell.function.MarkHelper
+                .markForEntity(member).orElse("")).toList();
+        if (marks.get(0).isEmpty() || !marks.get(0).equals(marks.get(1))) {
+            helper.fail("an aggressive sorcerer gave its band " + marks);
+        }
+        band.forEach(member -> com.elderlexicon.mod.spell.function.MarkHelper.applyMark(member, null));
+        Sorcerer trickster = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(1.5D, 1.0D, 3.5D));
+        trickster.setNoAi(true);
+        trickster.setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE, com.elderlexicon.mod.mind.Personality.TRICKSTER,
+                java.util.Set.of("igni", "iactare", "vocant"));
+        trickster.markBand();
+        List<String> own = band.stream().map(member -> com.elderlexicon.mod.spell.function.MarkHelper
+                .markForEntity(member).orElse("")).toList();
+        if (own.get(0).isEmpty() || own.get(0).equals(own.get(1))) {
+            helper.fail("a trickster gave its band " + own);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The mind weighs what the scene asks (docs/feiticeiro-design.md, 3.3): drawing the water out of a cow is worth more
+     * to a wounded evoker, which heals by it, than to a whole one; and it foresees what the draw takes from the cow.
+     */
+    @GameTest(template = EMPTY)
+    public static void aWoundedMindWantsToDrawMore(GameTestHelper helper) {
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 0.5D));
+        evoker.setNoAi(true);
+        Cow cow = helper.spawn(EntityType.COW, new Vec3(2.5D, 1.0D, 3.5D));
+        cow.setNoAi(true);
+        com.elderlexicon.mod.mind.Option bite = com.elderlexicon.mod.mind.Option.of(
+                com.elderlexicon.mod.mind.PhraseCatalog.imagine(List.of("aqua", "quantum", "-10", "vocant")).orElseThrow());
+        com.elderlexicon.mod.mind.Personality trickster = com.elderlexicon.mod.mind.Personality.TRICKSTER;
+        double whole = com.elderlexicon.mod.mind.Mind.evaluate(new com.elderlexicon.mod.mind.Mind.Scene(evoker, cow, 3.0D,
+                1.0F, 100.0D), trickster, bite).map(com.elderlexicon.mod.mind.Mind.Choice::score).orElse(0.0D);
+        evoker.hurt(helper.getLevel().damageSources().generic(), evoker.getMaxHealth() * 0.6F);
+        float share = evoker.getHealth() / evoker.getMaxHealth();
+        double wounded = com.elderlexicon.mod.mind.Mind.evaluate(new com.elderlexicon.mod.mind.Mind.Scene(evoker, cow,
+                3.0D, share, 100.0D), trickster, bite).map(com.elderlexicon.mod.mind.Mind.Choice::score).orElse(0.0D);
+        if (!(whole > 0.0D)) {
+            helper.fail("drawing out of the cow is worth nothing: " + whole);
+        }
+        if (!(wounded > whole)) {
+            helper.fail("wounded (" + share + ") it is worth " + wounded + ", whole " + whole);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * What the sorcerer leaves is a grimoire like any other (docs/feiticeiro-design.md, 5): its pages as the spirit
+     * reads them, named, with the evoker as their author and the runes it wrote in the glossary.
+     */
+    @GameTest(template = EMPTY)
+    public static void theSorcerersGrimoireIsAGrimoireLikeAnyOther(GameTestHelper helper) {
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 0.5D));
+        // An elder reads every page written by hand.
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.ELDER, com.elderlexicon.mod.mind.Personality.CAUTIOUS,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        ItemStack book = evoker.grimoire();
+        if (!(book.getItem() instanceof GrimoireItem) || book.getTag() == null) {
+            helper.fail("not a grimoire: " + book);
+        }
+        net.minecraft.nbt.ListTag pages = book.getTag().getList("pages", net.minecraft.nbt.Tag.TAG_STRING);
+        if (pages.size() != SorcererGrimoire.get().pages().size()) {
+            helper.fail("the grimoire holds " + pages.size() + " pages");
+        }
+        for (int i = 0; i < pages.size(); i++) {
+            if (com.elderlexicon.mod.spell.block.SpellBlock.parse(pages.getString(i),
+                    com.elderlexicon.mod.spell.block.RuneTokens::normalize).isEmpty()) {
+                helper.fail("page " + i + " has nothing the spirit reads");
+            }
+        }
+        if (!book.getTag().getList(GrimoireItem.GLOSSARY_TAG, net.minecraft.nbt.Tag.TAG_STRING).contains(
+                net.minecraft.nbt.StringTag.valueOf("igni"))) {
+            helper.fail("igni is not in the glossary");
+        }
+        helper.succeed();
+    }
+
+    /** A blow during the trance breaks it (book, cap. 6): the page is not read. */
+    @GameTest(template = EMPTY, timeoutTicks = 300)
+    public static void aBlowBreaksTheSorcerersTrance(GameTestHelper helper) {
+        roomWithAWall(helper);
+        Villager villager = helper.spawn(EntityType.VILLAGER, new Vec3(2.5D, 1.0D, 3.5D));
+        villager.setNoAi(true);
+        Sorcerer evoker = huntingOnly(helper, villager);
+        helper.succeedWhen(() -> {
+            if (!evoker.inTrance()) {
+                helper.fail("not in trance yet");
+            }
+            evoker.hurt(helper.getLevel().damageSources().generic(), 1.0F);
+            if (evoker.inTrance()) {
+                helper.fail("the trance held after a blow");
+            }
+        });
+    }
+
+    /** A creature bites as a mage does: the water of a cow, drawn by an evoker, hurts the cow, and the evoker pays. */
+    @GameTest(template = EMPTY)
+    public static void aCreatureDrawsOutOfABody(GameTestHelper helper) {
+        roomWithAWall(helper);
+        Evoker evoker = helper.spawn(EntityType.EVOKER, new Vec3(2.5D, 1.0D, 0.5D));
+        evoker.setNoAi(true);
+        Cow cow = helper.spawn(EntityType.COW, new Vec3(2.5D, 1.0D, 2.5D));
+        cow.setNoAi(true);
+        evoker.lookAt(EntityAnchorArgument.Anchor.EYES, cow.position().add(0.0D, cow.getBbHeight() * 0.5D, 0.0D));
+        float before = cow.getHealth();
+        SpellCastingService.Result result = new SpellCastingService().cast(evoker, List.of("aqua", "quantum", "-10",
+                "vocant"));
+        if (result.failed()) {
+            helper.fail("the bite failed: " + result.message().getString());
+        }
+        helper.succeedWhen(() -> {
+            if (!(cow.getHealth() < before)) {
+                helper.fail("the cow lost no life: " + cow.getHealth() + " of " + before);
+            }
+            if (cow.getLastHurtByMob() != evoker) {
+                helper.fail("the cow does not know the evoker drew its water");
+            }
+            if (!(Casters.vis(evoker) < Casters.ANCHOR_UMU)) {
+                helper.fail("the evoker paid nothing for the life it took");
+            }
+        });
+    }
+
+    /** The hurt a lack makes is the drawer's: the cow turns on the mage who drew its water out. */
+    @GameTest(template = EMPTY)
+    public static void aBodyDrawnFromKnowsWhoDrewIt(GameTestHelper helper) {
+        ServerPlayer mage = mageBeforeAWall(helper);
+        Cow cow = helper.spawn(EntityType.COW, new Vec3(2.5D, 1.0D, 2.5D));
+        cow.setNoAi(true);
+        mage.lookAt(EntityAnchorArgument.Anchor.EYES, cow.position().add(0.0D, cow.getBbHeight() * 0.5D, 0.0D));
+        castOrFail(helper, mage, "aqua quantum -10 vocant");
+        helper.succeedWhen(() -> {
+            if (cow.getLastHurtByMob() != mage) {
+                helper.fail("the cow does not know who drew its water: " + cow.getLastHurtByMob());
+            }
+        });
+    }
+
+    /**
+     * The spirit charges for the life a draw takes, five UMU a point, not for the energy it moves: one UMU of fire out
+     * of a cow (it has one and a half) takes two thirds of its ten points of health, and costs the mage some thirty UMU.
+     */
+    @GameTest(template = EMPTY)
+    public static void drawingOutOfABodyCostsTheLifeItTakes(GameTestHelper helper) {
+        ServerPlayer mage = mageBeforeAWall(helper);
+        mage.giveExperiencePoints(1000);
+        Cow cow = helper.spawn(EntityType.COW, new Vec3(2.5D, 1.0D, 2.5D));
+        cow.setNoAi(true);
+        mage.lookAt(EntityAnchorArgument.Anchor.EYES, cow.position().add(0.0D, cow.getBbHeight() * 0.5D, 0.0D));
+        int before = mage.totalExperience;
+        castOrFail(helper, mage, "igni quantum -1 vocant");
+        int spent = before - mage.totalExperience;
+        if (spent < 250) {
+            helper.fail("the draw cost only " + spent + " points of experience");
+        }
+        helper.succeedWhen(() -> {
+            if (!(cow.getHealth() < 5.0F)) {
+                helper.fail("the cow kept " + cow.getHealth() + " of its life");
+            }
+        });
+    }
+
+    /** Matter moved out of a living body ({@code aqua tenet vocant} at a cow): its water is put down, and it is hurt. */
+    @GameTest(template = EMPTY)
+    public static void waterMovedOutOfABodyIsPutDown(GameTestHelper helper) {
+        ServerPlayer mage = mageBeforeAWall(helper);
+        Cow cow = helper.spawn(EntityType.COW, new Vec3(2.5D, 1.0D, 2.5D));
+        cow.setNoAi(true);
+        mage.lookAt(EntityAnchorArgument.Anchor.EYES, cow.position().add(0.0D, cow.getBbHeight() * 0.5D, 0.0D));
+        float before = cow.getHealth();
+        castOrFail(helper, mage, "aqua tenet vocant");
+        helper.succeedWhen(() -> {
+            if (!(cow.getHealth() < before)) {
+                helper.fail("the cow lost no life: " + cow.getHealth() + " of " + before);
+            }
+            if (!anyIn(helper, Blocks.WATER, 0, 4)) {
+                helper.fail("no water was put down");
+            }
+        });
     }
 
     @GameTest(template = EMPTY)
