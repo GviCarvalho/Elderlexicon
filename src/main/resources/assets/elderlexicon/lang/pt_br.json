@@ -137,6 +137,8 @@
   "block.elderlexicon.formless_liquid": "Matéria informe líquida",
   "block.elderlexicon.flame": "Chama",
   "entity.elderlexicon.homunculus": "Homúnculo",
+  "entity.elderlexicon.wizard": "Mago",
+  "item.elderlexicon.wizard_spawn_egg": "Ovo Gerador de Mago",
   "entity.elderlexicon.sorcerer": "Feiticeiro",
   "item.elderlexicon.sorcerer_spawn_egg": "Ovo Gerador de Feiticeiro",
   "block.elderlexicon.galdraria_table": "Mesa de Galdraria",

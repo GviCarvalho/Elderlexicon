@@ -282,6 +282,37 @@ public final class VitaSystem {
     }
 
     /** What the body of {@code living} lacks of {@code element} to be whole, in UMU (nothing written down: nothing). */
+    /**
+     * The life (points of health) {@code living} would get back if {@code given} were put into its body, element by
+     * element: the life follows the element most lacking, so filling one heals only as far as the next one lacking
+     * lets it (docs/vita-design.md).
+     */
+    public static double lifeGivenBy(LivingEntity living, java.util.Map<VitaElement, Double> given) {
+        if (living == null || given.isEmpty()) {
+            return 0.0D;
+        }
+        VitaData data = VitaData.peek(living);
+        double before = Double.MAX_VALUE;
+        double after = Double.MAX_VALUE;
+        for (VitaElement element : VitaElement.values()) {
+            if (element.isBalanced()) {
+                continue;
+            }
+            double full = data.full(element);
+            if (full <= 1.0E-6D) {
+                continue;
+            }
+            double now = data.get(element);
+            before = Math.min(before, now / full);
+            after = Math.min(after, Math.min(full, now + given.getOrDefault(element, 0.0D)) / full);
+        }
+        if (before == Double.MAX_VALUE) {
+            return 0.0D;
+        }
+        double max = living.getMaxHealth();
+        return Math.max(0.0D, (Math.min(1.0D, after) - Math.min(1.0D, before)) * max);
+    }
+
     public static double lackOf(LivingEntity living, VitaElement element) {
         if (living == null || element == null || element.isBalanced()) {
             return 0.0D;

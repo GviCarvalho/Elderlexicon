@@ -144,6 +144,69 @@ Fora do jogo, como ferramenta de quem faz o mod: gerar e revisar bancos de frase
 evocador um grimório inicial com cara de autor. Esse banco entra como dado (JSON), passa pela mesma validação e não é
 consultado durante o jogo.
 
+### 3.7 Fonte e alcance (pedido do autor, 12/10/2026)
+
+- **Sem fonte não fere.** Um `iactare` sozinho é Vis sem aspecto: um feixe de luz que não machuca ninguém (o efeito
+  de pulso de `BALANCED` não faz nada). A mente agora sabe disso: um arremesso sem fonte não serve a golpe nenhum, e
+  só o Vis condensado (`chronos 0`, que solta os quatro aspectos onde cai) conta como golpe.
+- **O que não chega não faz nada.** Cada ato tem um alcance (`mind/Reach`): o arremesso vai 20 blocos (o do
+  `iactare`), o que se faz onde se mira 12 (o do `vocant`), um corpo se bebe de 16. Uma distância escrita antes do
+  verbo (`igni 40 ubis iactare`) leva o ato até lá; o `ubis` com distância continua sendo a mira, só mais longe (o
+  `Act` guarda o `reach`). Fora do alcance, a opção não vale nada na avaliação.
+- **Quem sabe escrever a distância, escreve.** Se o alvo está além do que a opção alcança e o conjurador conhece o
+  `ubis`, a mente reescreve a frase com a distância (arredondada para cima, de 8 em 8, com folga de 4 blocos, porque
+  o alvo anda durante o transe): `igni iactare` vira `igni 32 ubis iactare`. A gramática lê cada tentativa; até 12
+  opções reescritas por escolha, guardadas para a próxima.
+- **Quem não sabe, chega perto.** Um objetivo novo (`approachGoal`) leva o conjurador até onde suas magias chegam
+  (um pouco aquém do alcance) quando o alvo está longe demais ou fora de vista, e para lá; não chega mais perto do que
+  precisa. Quem conhece o `ubis` mira até 32 blocos.
+- O Feiticeiro enxerga 24 blocos (o evocador vê 12, menos do que suas magias alcançam).
+- Testes: `ReachTest` (unitários) e os GameTests `aSorcererWalksUpToWhatItCannotReach` e
+  `aSorcererWhoKnowsHowWritesTheDistance`.
+
+### 3.8 Errar menos, e cuidar de si (pedido do autor, 12/10/2026)
+
+O autor viu que eles insistiam no que não fazia efeito, e que só atacavam.
+
+- **A mira durante a canalização.** O `iactare` dura 2 segundos, em pulsos, e cada pulso cai onde o conjurador olha
+  naquele instante. A mente só mirava no instante da leitura; depois o mob virava a cabeça e os pulsos se perdiam. Agora
+  ele segura a mira até as torneiras que abriu fecharem (2 s do arremesso, ou o `chronos` escrito). É provavelmente o
+  que fazia magias com fonte "não darem dano nem nada". O GameTest `aSorcererHurtsWhatItAimsAt` confirma o acerto.
+- **Folga de alcance.** Ele só lê o que alcança o alvo com 1,5 bloco de folga, porque o alvo anda durante o transe.
+- **Desistir do que não funciona.** Depois de cada leitura ele confere o que aconteceu. A que não fez nada (menos de
+  0,25 de vida tirada) passa a valer no máximo 30% contra aquele alvo; duas vezes seguidas, ele desiste dela contra
+  aquele alvo. Se falhou de longe (mais da metade do alcance), ele aprende também que ela não chega tão longe: não a
+  lê mais daquela distância contra ninguém, e o objetivo de se aproximar passa a contar com esse alcance menor. Uma
+  leitura que funciona apaga a falha. Quando algo não faz nada, ele solta fumaça e resmunga.
+- **Só um golpe quebra o transe.** Fogo, afogamento ou queda não quebram mais (senão quem pega fogo nunca consegue ler a
+  água que o apaga). O golpe precisa vir de alguém (um atacante ou um projétil).
+
+**Novas intenções**, todas com magias que o sistema já tem, e cada uma com a sua mira (`mind/Aim`):
+
+| Intenção | Frase típica | Mira | Quando serve |
+|---|---|---|---|
+| curar (`HEAL`) | `aura quantum -10 vocant` | o céu (nenhum corpo) | ferido (menos de 90%): puxa do mundo o elemento que falta |
+| proteger (`WARD`) | `vis impediunt` | qualquer | um inimigo dentro do raio da zona (3 blocos com 10 UMU) |
+| fugir (`FLEE`) | `ego iactare` | para longe do inimigo, um pouco para cima | inimigo a menos de 4,5 blocos, sobretudo ferido |
+| apagar o fogo (`DOUSE`) | `aqua vocant` | os próprios pés | pegando fogo |
+
+- A mesma frase faz coisas diferentes conforme a mira: `aqua quantum -10 vocant` mirando um corpo bebe dele (`DRAW`);
+  mirando o céu, puxa água do mundo para o próprio corpo (`HEAL`). A mente pesa cada opção em cada mira e escolhe.
+- **A cura respeita o Vita.** A vida segue o elemento que mais falta, então um elemento sozinho só cura o que só ele
+  tirou (uma queimadura, uma queda). Por isso a preparação escreve a página "cura", com todos os elementos que ele sabe
+  puxar, um por passo, e também uma "cura de X" para cada elemento. A previsão é exata (`VitaSystem.lifeGivenBy`), e
+  ele só puxa o que vê ao redor: ar sempre, terra onde há chão, água e fogo se houver por perto (6 blocos).
+- **Sem inimigo** ele também lê para si: ferido ou pegando fogo, cura-se ou se apaga depois da luta.
+- A preparação escreve, além dos golpes: "escudo", "fuga", "apagar o fogo" e "cura". Pesa num terceiro cenário,
+  "pressionado" (inimigo a 2,5 blocos, ferido e pegando fogo).
+- A personalidade tem um peso novo, "cuidar de si": agressivo 0,7, trapaceiro 1,1, cauteloso 1,5 (apagar o fogo pesa
+  1,5 para todos).
+- **O que ficou de fora:** curar os outros (o Mago curando aldeões). O sistema ainda não tem como pôr um elemento no
+  corpo de outro ser (`docs/vita-design.md`, "cura com diagnóstico", nos próximos passos). Também não há escudo contra
+  flechas: o `impediunt` empurra criaturas e itens, não projéteis.
+- Testes: `KeepingWholeTest` (unitários) e os GameTests `aSorcererHurtsWhatItAimsAt`, `aWoundedWizardHealsItself`,
+  `aBurningWizardPutsItOut` e `aCasterWardsAFoeAtHand`.
+
 ## 4. O que o evocador sabe
 
 - **Repertório por grau.** Aprendiz (2 ou 3 runas), mestre (6 a 8), ancião (quase o léxico inteiro). Cada evocador
@@ -571,7 +634,16 @@ Pacote `mind`, e o `Sorcerer` sobre ele:
 - **Vexes:** o homúnculo é necessário, ou o evocador pode juntar direto a proporção do vex (quase todo ar) com a
   âncora? A lei da animação já faria nascer um vex; o homúnculo é a etapa a mais.
 - **A fome:** do que, como come e como se gasta (seção 7.3).
-- **Quebrar o transe.** A Vis é toda perdida, metade, ou nada? (Hoje: nada.)
+
+## 10a. A próxima fase (pedido do autor, 12/10/2026)
+
+- **A torre do feiticeiro:** a torre clássica que todo mago tem. Estrutura própria do feiticeiro.
+- **O Mago (*Wizard*):** a versão neutra do feiticeiro. Funciona igual (a mesma mente, grimório, aprendizado e
+  catálogo), mas não é maligno: não caça ninguém, e se defende quando atacado. Tem estruturas próprias e vive dentro e
+  fora das vilas.
+- **As universidades:** estruturas onde vivem vários magos, junto de outros aldeões.
+- Os vexes como homúnculos famintos (seção 7.3) ficam para mais adiante.
+- O Mago e as universidades têm documento próprio: docs/mago-design.md.
 
 ## 11. Decisões tomadas
 
@@ -596,3 +668,5 @@ Pacote `mind`, e o `Sorcerer` sobre ele:
 11. O feiticeiro lidera o bando e o marca como lhe convém (uma marca para todos, por função, ou uma para cada),
     segundo as intenções dele; `<marca> vocant` traz os marcados até o alvo. (12/10/2026)
 12. O dano previsto de um lançamento não precisa ser exato: ele aprende com a experiência. (12/10/2026)
+13. Quebrar o transe não custa nada: a página não é lida e nenhuma Vis se perde. Os vexes ficam para mais adiante.
+    (12/10/2026)

@@ -41,6 +41,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -370,6 +371,344 @@ public final class SpellGameTests {
         helper.succeed();
     }
 
+    /** A wizard takes up the cause of a villager hurt near it (docs/mago-design.md, 1), as an iron golem would. */
+    @GameTest(template = EMPTY, timeoutTicks = 200, batch = "wizard_defends")
+    public static void aWizardDefendsAHurtVillager(GameTestHelper helper) {
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        Villager villager = helper.spawn(EntityType.VILLAGER, new Vec3(3.5D, 1.0D, 1.5D));
+        villager.setNoAi(true);
+        net.minecraft.world.entity.monster.Zombie zombie = helper.spawn(EntityType.ZOMBIE, new Vec3(3.5D, 1.0D, 3.5D));
+        zombie.setNoAi(true);
+        villager.hurt(helper.getLevel().damageSources().mobAttack(zombie), 1.0F);
+        helper.succeedWhen(() -> {
+            // Whoever hurt the villager last (a creature of another test may wander in and do it).
+            if (wizard.getTarget() == null || wizard.getTarget() != zombie
+                    && wizard.getTarget() != villager.getLastHurtByMob()) {
+                helper.fail("the wizard does not fight the one who hurt the villager: " + wizard.getTarget());
+            }
+        });
+    }
+
+    /** A wizard hunts no one: one who hurt no one near it is let be, and has its wares (docs/mago-design.md, 1 and 2). */
+    @GameTest(template = EMPTY, timeoutTicks = 100, batch = "wizard_trades")
+    public static void aWizardLetsBeAndTrades(GameTestHelper helper) {
+        ServerPlayer visitor = mageBeforeAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(2.5D, 1.0D, 2.5D));
+        if (wizard.getOffers().isEmpty()) {
+            helper.fail("the wizard has nothing to offer");
+        }
+        if (wizard.getOffers().stream().noneMatch(offer -> offer.getResult().is(ElderLexicon.WAND.get()))) {
+            helper.fail("the wizard offers no wand");
+        }
+        helper.runAtTickTime(60, () -> {
+            // (Another test's sorcerer may hurt a villager near it: then the wizard rightly fights it.)
+            if (wizard.getTarget() == visitor) {
+                helper.fail("the wizard turned on the visitor, who did nothing");
+            }
+            helper.succeed();
+        });
+    }
+
+    /** Whoever hurts a wizard is its foe. */
+    @GameTest(template = EMPTY, timeoutTicks = 100, batch = "wizard_fights")
+    public static void aWizardFightsWhoeverHurtsIt(GameTestHelper helper) {
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        net.minecraft.world.entity.monster.Zombie zombie = helper.spawn(EntityType.ZOMBIE, new Vec3(3.5D, 1.0D, 3.5D));
+        zombie.setNoAi(true);
+        // Hurt a few ticks after it came (a hurt in its very first tick is not told apart from none).
+        helper.runAtTickTime(5, () -> wizard.hurt(helper.getLevel().damageSources().mobAttack(zombie), 1.0F));
+        helper.succeedWhen(() -> {
+            if (wizard.getTarget() != zombie) {
+                helper.fail("the wizard does not fight the one who hurt it: " + wizard.getTarget());
+            }
+        });
+    }
+
+    /** A long strip of floor, {@code length} blocks along z, for those who must walk or aim far. */
+    private static void longFloor(GameTestHelper helper, int length) {
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < length; z++) {
+                helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)), Blocks.STONE.defaultBlockState());
+                for (int y = 1; y < 4; y++) {
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)), Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
+    }
+
+    /** A sorcerer that knows {@code known} and hunts {@code prey} alone, far down the floor. */
+    private static Sorcerer farFrom(GameTestHelper helper, Villager prey, String... known) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 0.5D));
+        evoker.targetSelector.removeAllGoals(goal -> true);
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE, com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                Set.of(known));
+        evoker.setTarget(prey);
+        return evoker;
+    }
+
+    /**
+     * What it throws gets twenty blocks (docs/feiticeiro-design.md, 3.7): one that cannot write a distance walks up to
+     * a target farther than that, rather than throwing what would fall short.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 400, batch = "reach_walk")
+    public static void aSorcererWalksUpToWhatItCannotReach(GameTestHelper helper) {
+        longFloor(helper, 30);
+        Villager prey = helper.spawn(EntityType.VILLAGER, new Vec3(2.5D, 1.0D, 27.5D));
+        prey.setNoAi(true);
+        Sorcerer evoker = farFrom(helper, prey, "igni", "iactare", "vocant");
+        helper.succeedWhen(() -> {
+            if (evoker.lastChoice().isPresent() && evoker.distanceTo(prey) > com.elderlexicon.mod.mind.Reach.THROW) {
+                helper.fail("it read from " + evoker.distanceTo(prey) + " blocks: " + evoker.lastChoice().get().option().name());
+            }
+            if (evoker.distanceTo(prey) > com.elderlexicon.mod.mind.Reach.THROW - 1.0D) {
+                helper.fail("it has not come near yet: " + evoker.distanceTo(prey));
+            }
+        });
+    }
+
+    /** One who can write a distance writes it, and throws from where it stands. */
+    @GameTest(template = EMPTY, timeoutTicks = 400, batch = "reach_write")
+    public static void aSorcererWhoKnowsHowWritesTheDistance(GameTestHelper helper) {
+        longFloor(helper, 30);
+        Villager prey = helper.spawn(EntityType.VILLAGER, new Vec3(2.5D, 1.0D, 27.5D));
+        prey.setNoAi(true);
+        Sorcerer evoker = farFrom(helper, prey, "igni", "iactare", "vocant", "ubis");
+        helper.succeedWhen(() -> {
+            if (evoker.lastChoice().isEmpty()) {
+                helper.fail("it read nothing yet (" + evoker.distanceTo(prey) + " blocks away)");
+            }
+            List<String> words = evoker.lastChoice().get().option().words();
+            if (!words.contains("ubis")) {
+                helper.fail("it read " + words + " from " + evoker.distanceTo(prey) + " blocks");
+            }
+        });
+    }
+
+    /**
+     * What it throws lands (docs/feiticeiro-design.md, 3.8): it keeps looking at its target while the throw runs its two
+     * seconds, so the flow lands on it and not wherever it turned.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 400, batch = "caster_aim")
+    public static void aSorcererHurtsWhatItAimsAt(GameTestHelper helper) {
+        longFloor(helper, 12);
+        Villager prey = helper.spawn(EntityType.VILLAGER, new Vec3(2.5D, 1.0D, 9.5D));
+        prey.setNoAi(true);
+        farFrom(helper, prey, "igni", "iactare", "vocant");
+        helper.succeedWhen(() -> {
+            if (prey.isAlive() && prey.getHealth() >= prey.getMaxHealth()) {
+                helper.fail("the villager is not hurt");
+            }
+        });
+    }
+
+    /** A wizard alone, hurt, draws out of the world what it lacks: it heals (docs/feiticeiro-design.md, 3.8). */
+    @GameTest(template = EMPTY, timeoutTicks = 600, batch = "caster_heal")
+    public static void aWoundedWizardHealsItself(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        wizard.targetSelector.removeAllGoals(goal -> true);
+        wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE,
+                com.elderlexicon.mod.mind.Personality.CAUTIOUS, Set.of("aura", "vocant", "quantum"));
+        float[] least = {Float.MAX_VALUE};
+        helper.runAtTickTime(5, () -> com.elderlexicon.mod.vita.VitaSystem.drain(wizard,
+                com.elderlexicon.mod.vita.VitaElement.AURA, 15.0D));
+        helper.succeedWhen(() -> {
+            least[0] = Math.min(least[0], wizard.getHealth());
+            if (least[0] >= wizard.getMaxHealth()) {
+                helper.fail("the wizard was not hurt yet");
+            }
+            if (wizard.getHealth() < least[0] + 1.0F) {
+                helper.fail("not healed: " + wizard.getHealth() + " (least " + least[0] + "); read "
+                        + wizard.casterMind().lastChoice().map(choice -> choice.option().name() + " " + choice.intent())
+                        .orElse("nothing"));
+            }
+        });
+    }
+
+    /** A burning wizard brings water to where it stands and puts the fire out. */
+    @GameTest(template = EMPTY, timeoutTicks = 400, batch = "caster_douse")
+    public static void aBurningWizardPutsItOut(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        wizard.targetSelector.removeAllGoals(goal -> true);
+        wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE,
+                com.elderlexicon.mod.mind.Personality.AGGRESSIVE, Set.of("aqua", "vocant"));
+        helper.runAtTickTime(5, () -> wizard.setRemainingFireTicks(600));
+        helper.succeedWhen(() -> {
+            if (helper.getTick() < 10 || wizard.isOnFire()) {
+                helper.fail("still burning; read " + wizard.casterMind().lastChoice()
+                        .map(choice -> choice.option().name() + " " + choice.intent()).orElse("nothing"));
+            }
+        });
+    }
+
+    /** A foe at hand is kept off: a zone around the caster no creature enters. */
+    @GameTest(template = EMPTY, timeoutTicks = 400, batch = "caster_ward")
+    public static void aCasterWardsAFoeAtHand(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        wizard.targetSelector.removeAllGoals(goal -> true);
+        wizard.goalSelector.removeAllGoals(goal -> !(goal.getClass().getEnclosingClass()
+                == com.elderlexicon.mod.caster.CasterMind.class));
+        wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE,
+                com.elderlexicon.mod.mind.Personality.CAUTIOUS, Set.of("vis", "impediunt", "igni", "iactare"));
+        net.minecraft.world.entity.monster.Zombie zombie = helper.spawn(EntityType.ZOMBIE, new Vec3(3.0D, 1.0D, 1.5D));
+        zombie.setNoAi(true);
+        wizard.setTarget(zombie);
+        boolean[] warded = {false};
+        helper.onEachTick(() -> wizard.casterMind().lastChoice()
+                .filter(choice -> choice.intent() == com.elderlexicon.mod.mind.Intent.WARD)
+                .ifPresent(choice -> warded[0] = true));
+        helper.succeedWhen(() -> {
+            if (!warded[0]) {
+                helper.fail("it did not ward; read " + wizard.casterMind().lastChoice()
+                        .map(choice -> choice.option().name() + " " + choice.intent()).orElse("nothing"));
+            }
+        });
+    }
+
+    /** A wizard is heard: it murmurs now and then, as a villager does. */
+    @GameTest(template = EMPTY, timeoutTicks = 600, batch = "wizard_voice")
+    public static void aWizardIsHeard(GameTestHelper helper) {
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        java.util.List<String> heard = new java.util.ArrayList<>();
+        java.util.function.Consumer<net.minecraftforge.event.PlayLevelSoundEvent.AtPosition> listener = event -> {
+            if (event.getPosition().distanceTo(wizard.position()) < 1.0D && event.getSound() != null) {
+                heard.add(event.getSound().get().getLocation().toString());
+            }
+        };
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener(listener);
+        helper.succeedWhen(() -> {
+            if (heard.isEmpty()) {
+                helper.fail("not a sound from the wizard");
+            }
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.unregister(listener);
+        });
+    }
+
+    /** A wizard of few runes, alone in a room whose far wall is {@code wall}: it writes its pages quickly. */
+    private static com.elderlexicon.mod.wizard.Wizard studentBefore(GameTestHelper helper,
+                                                                     net.minecraft.world.level.block.Block wall) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < 5; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+            }
+            helper.setBlock(new BlockPos(x, 1, 4), wall);
+        }
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(2.5D, 1.0D, 1.5D));
+        wizard.targetSelector.removeAllGoals(goal -> true);
+        wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE,
+                com.elderlexicon.mod.mind.Personality.CAUTIOUS, Set.of("igni", "iactare", "vocant", "quantum"));
+        wizard.casterMind().studySoon();
+        return wizard;
+    }
+
+    /** At the shelves a caster reads what others wrote: sentences in the runes it knows (docs/mago-design.md, 5c). */
+    @GameTest(template = EMPTY, timeoutTicks = 2000, batch = "caster_study")
+    public static void aCasterReadsAtTheShelves(GameTestHelper helper) {
+        com.elderlexicon.mod.wizard.Wizard wizard = studentBefore(helper, Blocks.BOOKSHELF);
+        helper.onEachTick(() -> {
+            if (!wizard.casterMind().written().isEmpty() && helper.getTick() % 100 == 0) {
+                wizard.casterMind().studySoon();
+            }
+        });
+        helper.succeedWhen(() -> {
+            if (wizard.casterMind().studiedSentences().isEmpty()) {
+                helper.fail("nothing read at the shelves; " + wizard.describe());
+            }
+        });
+    }
+
+    /** At the galdraria table a wizard engraves a page of its own into a wand, and sells it. */
+    @GameTest(template = EMPTY, timeoutTicks = 2000, batch = "caster_engrave")
+    public static void aWizardEngravesAWandToSell(GameTestHelper helper) {
+        com.elderlexicon.mod.wizard.Wizard wizard = studentBefore(helper,
+                com.elderlexicon.mod.galdraria.Galdraria.TABLE.get());
+        helper.onEachTick(() -> {
+            if (!wizard.casterMind().written().isEmpty() && helper.getTick() % 100 == 0) {
+                wizard.casterMind().studySoon();
+            }
+        });
+        helper.succeedWhen(() -> {
+            boolean engraved = wizard.getOffers().stream()
+                    .anyMatch(offer -> com.elderlexicon.mod.galdraria.Engravings.has(offer.getResult()));
+            if (!engraved) {
+                helper.fail("no engraved wand offered; " + wizard.describe());
+            }
+        });
+    }
+
+    /** A Sorcerer leaves a Wizard be: the two are neither friends nor foes (docs/mago-design.md, 5b). */
+    @GameTest(template = EMPTY, timeoutTicks = 100, batch = "casters_neutral")
+    public static void aSorcererLeavesAWizardBe(GameTestHelper helper) {
+        roomWithAWall(helper);
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(3.5D, 1.0D, 1.5D));
+        helper.runAtTickTime(60, () -> {
+            if (evoker.getTarget() == wizard) {
+                helper.fail("the sorcerer hunts the wizard");
+            }
+            if (wizard.getTarget() == evoker) {
+                helper.fail("the wizard hunts the sorcerer");
+            }
+            helper.succeed();
+        });
+    }
+
+    /** Two casters talk in the Old Tongue (docs/mago-design.md, 5b): what one says, the other hears. */
+    @GameTest(template = EMPTY, timeoutTicks = 300, batch = "casters_talk")
+    public static void twoCastersTalk(GameTestHelper helper) {
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard one = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        com.elderlexicon.mod.wizard.Wizard other = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(3.5D, 1.0D, 1.5D));
+        for (com.elderlexicon.mod.wizard.Wizard wizard : List.of(one, other)) {
+            wizard.targetSelector.removeAllGoals(goal -> true);
+            wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.MASTER,
+                    com.elderlexicon.mod.mind.Personality.CAUTIOUS, Set.of("igni", "aqua", "iactare", "vocant"));
+        }
+        one.casterMind().talkWith(other.casterMind());
+        helper.succeedWhen(() -> {
+            if (!one.casterMind().talking()) {
+                helper.fail("they are not talking");
+            }
+            if (other.casterMind().lastHeard().isEmpty()) {
+                helper.fail("nothing said yet");
+            }
+        });
+    }
+
+    /** Words come to blows: a duel, until one yields; then both let go. */
+    @GameTest(template = EMPTY, timeoutTicks = 200, batch = "casters_quarrel")
+    public static void aQuarrelLastsUntilOneYields(GameTestHelper helper) {
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard one = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        com.elderlexicon.mod.wizard.Wizard other = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(3.5D, 1.0D, 1.5D));
+        for (com.elderlexicon.mod.wizard.Wizard wizard : List.of(one, other)) {
+            wizard.targetSelector.removeAllGoals(goal -> true);
+            wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE,
+                    com.elderlexicon.mod.mind.Personality.AGGRESSIVE, Set.of("igni", "iactare", "vocant"));
+        }
+        one.casterMind().quarrel(other.casterMind());
+        if (one.getTarget() != other || other.getTarget() != one) {
+            helper.fail("they did not come to blows");
+        }
+        helper.runAtTickTime(10, () -> other.setHealth(other.getMaxHealth() * 0.2F));
+        helper.runAtTickTime(15, () -> {
+            if (one.getTarget() != null || other.getTarget() != null) {
+                helper.fail("still fighting after one yielded: " + one.getTarget() + ", " + other.getTarget());
+            }
+            helper.succeed();
+        });
+    }
+
     /**
      * The mind weighs what the scene asks (docs/feiticeiro-design.md, 3.3): drawing the water out of a cow is worth more
      * to a wounded evoker, which heals by it, than to a whole one; and it foresees what the draw takes from the cow.
@@ -441,7 +780,7 @@ public final class SpellGameTests {
             if (!evoker.inTrance()) {
                 helper.fail("not in trance yet");
             }
-            evoker.hurt(helper.getLevel().damageSources().generic(), 1.0F);
+            evoker.hurt(helper.getLevel().damageSources().mobAttack(villager), 1.0F);
             if (evoker.inTrance()) {
                 helper.fail("the trance held after a blow");
             }

@@ -3,6 +3,7 @@ package com.elderlexicon.mod.mind;
 import com.elderlexicon.mod.magic.lexicon.Lexicon;
 import com.elderlexicon.mod.magic.lexicon.ReferentSpec;
 import com.elderlexicon.mod.spell.action.SpellAction;
+import com.elderlexicon.mod.spell.mark.SpellPlace;
 import com.elderlexicon.mod.vita.VitaElement;
 
 import java.util.Locale;
@@ -23,10 +24,19 @@ import java.util.OptionalDouble;
  * @param seconds    for how long, when written
  * @param visibility how much is seen of its subject, when written ({@code surgit ego quantum 0})
  * @param mark       the mark its subject or target is, when one is written ({@code kador vocant}), or null
+ * @param reach      how far along the aim it acts, when written ({@code igni 40 ubis iactare})
  */
 public record Act(String operation, VitaElement element, Toward toward, boolean reversed, boolean fromWorld,
                   boolean atOnce, OptionalDouble quantity, OptionalDouble seconds, OptionalDouble visibility,
-                  String mark) {
+                  String mark, OptionalDouble reach) {
+
+    /** An act with no reach written. */
+    public Act(String operation, VitaElement element, Toward toward, boolean reversed, boolean fromWorld,
+               boolean atOnce, OptionalDouble quantity, OptionalDouble seconds, OptionalDouble visibility,
+               String mark) {
+        this(operation, element, toward, reversed, fromWorld, atOnce, quantity, seconds, visibility, mark,
+                OptionalDouble.empty());
+    }
 
     /** An act with no mark written. */
     public Act(String operation, VitaElement element, Toward toward, boolean reversed, boolean fromWorld,
@@ -51,8 +61,10 @@ public record Act(String operation, VitaElement element, Toward toward, boolean 
         String operation = lexicon.operationOf(action.runeId()).orElse(action.runeId());
         String mark = action.subjectMark().or(action::targetMark)
                 .filter(written -> lexicon.referentOf(written).isEmpty()).orElse(null);
+        OptionalDouble reach = action.place().filter(place -> place.kind() == SpellPlace.Kind.DISTANCE)
+                .map(place -> OptionalDouble.of(place.distance())).orElse(OptionalDouble.empty());
         return new Act(operation, element, toward(lexicon, action), action.reversed(), action.fromWorld(),
-                action.atOnce(), action.quantity(), action.seconds(), action.visibility(), mark);
+                action.atOnce(), action.quantity(), action.seconds(), action.visibility(), mark, reach);
     }
 
     private static Toward toward(Lexicon lexicon, SpellAction action) {
@@ -61,7 +73,8 @@ public record Act(String operation, VitaElement element, Toward toward, boolean 
             return lexicon.referentOf(mark).filter(refers -> refers == ReferentSpec.Refers.CASTER).isPresent()
                     ? Toward.SELF : Toward.WRITTEN;
         }
-        if (action.place().isPresent()) {
+        // A distance along the aim is still the aim, only farther (or nearer).
+        if (action.place().filter(place -> place.kind() != SpellPlace.Kind.DISTANCE).isPresent()) {
             return Toward.WRITTEN;
         }
         return action.chained() ? Toward.RESULT : Toward.AIM;
@@ -83,6 +96,7 @@ public record Act(String operation, VitaElement element, Toward toward, boolean 
         quantity.ifPresent(value -> key.append(" q").append(format(value)));
         seconds.ifPresent(value -> key.append(" t").append(format(value)));
         visibility.ifPresent(value -> key.append(" v").append(format(value)));
+        reach.ifPresent(value -> key.append(" r").append(format(value)));
         if (mark != null) {
             key.append(" @").append(mark);
         }

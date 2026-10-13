@@ -31,11 +31,24 @@ public final class Memory {
         }
     };
 
+    /** Below this much harm done (points of health), a reading did nothing. */
+    private static final double NOTHING = 0.25D;
+    /** After one reading that did nothing, an option is worth this much less; after two, nothing against that one. */
+    private static final double ONCE_FAILED = 0.3D;
+    private static final int FAILURES_TO_GIVE_UP = 2;
+
     /** What it remembers of one opponent. */
     private static final class Opponent {
         final Map<String, Double> factors = new HashMap<>();
+        final Map<String, Integer> failures = new HashMap<>();
         int breaks;
     }
+
+    /**
+     * How far each option got, as far as it learned: the nearest it was read from and did nothing to anyone. Kept for
+     * any opponent: what does not get there, does not get there.
+     */
+    private final Map<String, Double> fellShort = new HashMap<>();
 
     private Opponent of(UUID opponent) {
         return opponents.computeIfAbsent(opponent, id -> new Opponent());
@@ -47,13 +60,60 @@ public final class Memory {
      */
     public double factor(UUID opponent, Option option) {
         Opponent known = opponents.get(opponent);
-        return known == null ? 1.0D : known.factors.getOrDefault(option.name(), 1.0D);
+        if (known == null) {
+            return 1.0D;
+        }
+        int failed = known.failures.getOrDefault(option.name(), 0);
+        if (failed >= FAILURES_TO_GIVE_UP) {
+            return 0.0D; // it did nothing twice: it gives up on it, against this one
+        }
+        double factor = known.factors.getOrDefault(option.name(), 1.0D);
+        return failed > 0 ? Math.min(factor, ONCE_FAILED) : factor;
+    }
+
+    /**
+     * What it learned of {@code option} against {@code opponent} {@code distance} away: as {@link #factor}, and nothing
+     * when it learned it does not get that far.
+     */
+    public double factor(UUID opponent, Option option, double distance) {
+        double reach = reachOf(option);
+        return reach < Double.POSITIVE_INFINITY && distance + 0.5D >= reach ? 0.0D : factor(opponent, option);
+    }
+
+    /** How far {@code option} gets, as far as it learned (unbounded until it fell short). */
+    public double reachOf(Option option) {
+        return fellShort.getOrDefault(option.name(), Double.POSITIVE_INFINITY);
     }
 
     /** {@code option} was read against {@code opponent}: it foresaw {@code foreseen} harm, and {@code done} came of it. */
     public void outcome(UUID opponent, Option option, double foreseen, double done) {
         double ratio = clamp((Math.max(0.0D, done) + 1.0D) / (Math.max(0.0D, foreseen) + 1.0D));
-        of(opponent).factors.merge(option.name(), ratio, (old, fresh) -> clamp(old * (1.0D - FRESH) + fresh * FRESH));
+        Opponent known = of(opponent);
+        known.factors.merge(option.name(), ratio, (old, fresh) -> clamp(old * (1.0D - FRESH) + fresh * FRESH));
+        if (foreseen > 0.0D && done < NOTHING) {
+            known.failures.merge(option.name(), 1, Integer::sum);
+        } else if (done >= NOTHING) {
+            known.failures.remove(option.name());
+        }
+    }
+
+    /**
+     * {@code option} was read against {@code opponent} {@code distance} away, foreseeing {@code foreseen} harm, and
+     * {@code done} came of it: as {@link #outcome(UUID, Option, double, double)}, and when it did nothing, it learns it
+     * may not get that far (twice from as far or farther, and it is sure).
+     */
+    public void outcome(UUID opponent, Option option, double foreseen, double done, double distance) {
+        outcome(opponent, option, foreseen, done);
+        if (foreseen > 0.0D && done < NOTHING && opponents.get(opponent).failures.getOrDefault(option.name(), 0)
+                >= FAILURES_TO_GIVE_UP) {
+            fellShort.merge(option.name(), distance, Math::min);
+        }
+    }
+
+    /** Whether {@code option} did nothing the last time against {@code opponent}. */
+    public boolean failed(UUID opponent, Option option) {
+        Opponent known = opponents.get(opponent);
+        return known != null && known.failures.getOrDefault(option.name(), 0) > 0;
     }
 
     /** {@code opponent} broke its trance. */

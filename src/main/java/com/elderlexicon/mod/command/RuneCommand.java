@@ -59,18 +59,21 @@ public final class RuneCommand {
                                         EntityArgument.getPlayer(context, "jogador"))))));
     }
 
-    /** {@code /runas mente}: who the nearest sorcerer is, what it knows and what it read last. */
+    /** {@code /runas mente}: who the nearest caster (a sorcerer, a wizard) is, what it knows and what it read last. */
     private static int mind(CommandSourceStack source) {
         net.minecraft.world.phys.Vec3 at = source.getPosition();
-        List<com.elderlexicon.mod.illager.Sorcerer> near = source.getLevel().getEntitiesOfClass(
-                com.elderlexicon.mod.illager.Sorcerer.class, new net.minecraft.world.phys.AABB(at, at).inflate(32.0D));
+        List<net.minecraft.world.entity.Mob> near = source.getLevel().getEntitiesOfClass(
+                net.minecraft.world.entity.Mob.class, new net.minecraft.world.phys.AABB(at, at).inflate(32.0D),
+                mob -> mob instanceof com.elderlexicon.mod.caster.RuneCaster);
         if (near.isEmpty()) {
-            source.sendFailure(Component.literal("Nenhum feiticeiro a 32 blocos."));
+            source.sendFailure(Component.literal("Nenhum feiticeiro ou mago a 32 blocos."));
             return 0;
         }
-        com.elderlexicon.mod.illager.Sorcerer nearest = near.stream()
-                .min(java.util.Comparator.comparingDouble(evoker -> evoker.position().distanceToSqr(at))).get();
-        source.sendSuccess(() -> Component.literal("Feiticeiro: " + nearest.describe()), false);
+        net.minecraft.world.entity.Mob nearest = near.stream()
+                .min(java.util.Comparator.comparingDouble(mob -> mob.position().distanceToSqr(at))).get();
+        String about = nearest instanceof com.elderlexicon.mod.illager.Sorcerer sorcerer ? sorcerer.describe()
+                : ((com.elderlexicon.mod.caster.RuneCaster) nearest).casterMind().describe();
+        source.sendSuccess(() -> Component.literal(nearest.getName().getString() + ": " + about), false);
         return 1;
     }
 

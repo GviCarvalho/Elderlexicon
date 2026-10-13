@@ -32,6 +32,14 @@ public final class SpellingClientModBusEvents {
                 com.elderlexicon.mod.spell.function.client.BlackHoleRenderer::new);
         event.registerEntityRenderer(ElderLexicon.HOMUNCULUS.get(), HomunculusRenderer::new);
         event.registerEntityRenderer(ElderLexicon.SORCERER.get(),
-                net.minecraft.client.renderer.entity.EvokerRenderer::new);
+                com.elderlexicon.mod.illager.client.SorcererRenderer::new);
+        event.registerEntityRenderer(ElderLexicon.WIZARD.get(),
+                com.elderlexicon.mod.wizard.client.WizardRenderer::new);
+    }
+
+    @SubscribeEvent
+    public static void registerLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
+        event.registerLayerDefinition(com.elderlexicon.mod.wizard.client.WizardModel.LAYER,
+                com.elderlexicon.mod.wizard.client.WizardModel::createBodyLayer);
     }
 }

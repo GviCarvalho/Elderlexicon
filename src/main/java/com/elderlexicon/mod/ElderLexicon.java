@@ -179,6 +179,19 @@ public class ElderLexicon {
                             .clientTrackingRange(8)
                             .build("sorcerer"));
 
+    /** The Wizard: the neutral caster (docs/mago-design.md). */
+    public static final RegistryObject<EntityType<com.elderlexicon.mod.wizard.Wizard>> WIZARD =
+            ENTITY_TYPES.register("wizard",
+                    () -> EntityType.Builder.<com.elderlexicon.mod.wizard.Wizard>of(
+                                    com.elderlexicon.mod.wizard.Wizard::new, MobCategory.CREATURE)
+                            .sized(0.6F, 1.95F)
+                            .clientTrackingRange(10)
+                            .build("wizard"));
+
+    public static final RegistryObject<Item> WIZARD_SPAWN_EGG = ITEMS.register("wizard_spawn_egg",
+            () -> new net.minecraftforge.common.ForgeSpawnEggItem(ElderLexicon.WIZARD, 0x3B4A8C, 0xC9B26B,
+                    new Item.Properties()));
+
     public static final RegistryObject<Item> SORCERER_SPAWN_EGG = ITEMS.register("sorcerer_spawn_egg",
             () -> new net.minecraftforge.common.ForgeSpawnEggItem(ElderLexicon.SORCERER, 0x959B9B, 0x6B3FA0,
                     new Item.Properties()));
@@ -212,6 +225,7 @@ public class ElderLexicon {
                         output.accept(com.elderlexicon.mod.galdraria.Galdraria.BURIN.get());
 
                         output.accept(ElderLexicon.SORCERER_SPAWN_EGG.get());
+                        output.accept(ElderLexicon.WIZARD_SPAWN_EGG.get());
                     })
                     .build());
 
@@ -257,7 +271,8 @@ public class ElderLexicon {
             event.put(LIGABIS_GOLEM.get(), IronGolem.createAttributes().build());
             event.put(HOMUNCULUS.get(), com.elderlexicon.mod.spell.life.Homunculus.createAttributes().build());
             event.put(REFLECTION.get(), com.elderlexicon.mod.nahva.Reflection.createAttributes().build());
-            event.put(SORCERER.get(), net.minecraft.world.entity.monster.Evoker.createAttributes().build());
+            event.put(SORCERER.get(), com.elderlexicon.mod.illager.Sorcerer.createAttributes().build());
+            event.put(WIZARD.get(), com.elderlexicon.mod.wizard.Wizard.createAttributes().build());
         }
     }
 }
