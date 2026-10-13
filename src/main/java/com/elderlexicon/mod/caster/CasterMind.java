@@ -300,6 +300,25 @@ public final class CasterMind {
         return Optional.ofNullable(lastChoice);
     }
 
+    /**
+     * Forgets who it was, to be born anew: a creature saved in a structure is placed many times, and each is drawn its
+     * own degree, personality and runes, with nothing written yet (docs/mago-design.md, 5f).
+     */
+    public void reborn() {
+        degree = null;
+        known = Set.of();
+        written = List.of();
+        preparation = null;
+        options = null;
+        composed.clear();
+        copied.clear();
+        studied.clear();
+        learned.clear();
+        understanding.clear();
+        home = null;
+        ensureMind();
+    }
+
     /** Gives it a mind, for a test or a command: its degree, personality and runes. */
     public void setMind(Degree degree, Personality personality, Set<String> known) {
         this.degree = degree;

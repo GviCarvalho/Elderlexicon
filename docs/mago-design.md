@@ -3,7 +3,8 @@
 > "Tudo o que é medido pode ser transformado." (Grimório de EVL, cap. 3)
 
 **Status:** passos 1 e 2 feitos (13/10/2026): a mente comum, o Mago com as trocas dele (5a a 5c) e o bibliotecário
-(5d); passo 3 feito (13/10/2026): as torres (5e). Segue docs/feiticeiro-design.md (seção 10a).
+(5d); passo 3 feito (13/10/2026): as torres (5e); passo 4 feito (13/10/2026): a casa do mago nas vilas
+(5f). Segue docs/feiticeiro-design.md (seção 10a).
 
 A segunda fase dos conjuradores do mod. O Feiticeiro mostrou que uma criatura pode conjurar pelas regras do jogador;
 agora a língua ganha quem a usa sem ser inimigo, e lugares onde ela é ensinada.
@@ -140,7 +141,7 @@ servem a casa: bibliotecários do Arquivo, clérigos da enfermaria, o mercador d
 1. ~~A mente sai do `Sorcerer` para uma peça comum; o **Mago** nasce dela, neutro, com as trocas dele.~~ Feito.
 2. ~~O **bibliotecário** com os guias de runas.~~ Feito (seção 5d).
 3. ~~A **torre do feiticeiro** e a **torre do mago** (peças por código).~~ Feito (seção 5e).
-4. A **casa do mago** nas vilas.
+4. ~~A **casa do mago** nas vilas.~~ Feito (seção 5f).
 5. A **universidade**: primeiro o lugar e quem mora; depois o exame, a mensalidade e os graus; depois o Arquivo e a
    oficina; por fim a disciplina da casa.
 6. Os outros aldeões (clérigo, armeiro, ferramenteiro).
@@ -282,6 +283,36 @@ servem a casa: bibliotecários do Arquivo, clérigos da enfermaria, o mercador d
   rachadas, o guia do atril, o bando) sai da posição, para os chunks concordarem.
 - `/locate structure elderlexicon:wizard_tower` (ou `sorcerer_tower`) acha a mais próxima.
 - Testes: `theTowersAreStructures`, `aWizardsTowerIsBuilt`.
+
+## 5f. A casa do mago nas vilas (13/10/2026)
+
+- **A casa** (`village/WizardHouse`): um cômodo de 7 por 8 sob telhado de duas águas com beirais. A porta dá para a rua.
+  Dentro: estantes na parede do fundo, com uma lanterna em cada ponta; diante delas o atril (com o guia do `vocant`
+  aberto) e a mesa de galdraria; a cama roxa, o suporte de poções e um baú (`chests/wizard_house`); tapete roxo no
+  meio. Os materiais são os de cada vila:
+
+  | Vila | Paredes e piso | Cantos | Telhado | Porta |
+  |---|---|---|---|---|
+  | planície | carvalho | tronco de carvalho descascado | escada de carvalho | carvalho |
+  | deserto | arenito liso | arenito talhado | escada de arenito liso | selva |
+  | savana | acácia | tronco de acácia | escada de acácia | acácia |
+  | neve | abeto | tronco de abeto descascado | escada de abeto | abeto |
+  | taiga | abeto | tronco de abeto | escada de abeto | abeto |
+
+- **Gerada por código, salva como estrutura.** O sistema de vilas (jigsaw) só aceita estruturas salvas. A casa é
+  desenhada por código num mundo, com o Mago dentro, e salva em `structures/village/<vila>/wizard_house.nbt`. Quem faz
+  isso é um GameTest (`theWizardHousesAreSavedAsDrawn`): desenha cada estilo, compara com o arquivo que o mod leva e,
+  se faltar ou for diferente, salva de novo nos recursos do projeto e pede outra rodada. Assim o arquivo nunca se
+  afasta do código: para mudar a casa, muda-se o desenho e rodam-se os testes duas vezes.
+- **A ligação com a rua** é o bloco de quebra-cabeça (jigsaw) diante da porta, igual ao das casas do jogo
+  (`building_entrance`, junta alinhada).
+- **Na vila.** Ao ligar o servidor, a casa entra no conjunto de casas de cada um dos cinco tipos de vila, com peso 2
+  (as casas do jogo pesam de 1 a 4). As listas do conjunto não são abertas para acréscimo e são alcançadas por
+  reflexão (`VillageHouses`). As vilas zumbis ficam de fora.
+- **O Mago chega.** O Mago salvo na casa vem marcado como "chegando". No primeiro tique depois de posta a casa, ele
+  nasce de novo (sorteia grau, personalidade e runas; cada vila tem o seu) e faz da casa o seu lar, a até 24 blocos.
+  Na vila, ele defende os aldeões (seção 1) e usa a estante, o atril, a galdraria e as poções da casa (seção 5c).
+- Testes: `theWizardHousesAreSavedAsDrawn`, `theWizardsHouseIsInTheVillages`, `aWizardMovesIntoItsHouse`.
 
 ## 6. Perguntas abertas
 

@@ -81,6 +81,13 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
     private final List<ItemStack> engravedWares = new java.util.ArrayList<>();
     /** Whether what it has to sell changed since its offers were made. */
     private boolean waresChanged;
+    /**
+     * Whether it was just placed with a house it was saved in (docs/mago-design.md, 5f): it is born anew there, and it
+     * is its home.
+     */
+    private boolean arriving;
+    /** How far from its house it wanders at peace. */
+    private static final int HOUSE_RADIUS = 24;
 
     public Wizard(EntityType<? extends AbstractVillager> type, Level level) {
         super(type, level);
@@ -213,6 +220,12 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
             }
             return;
         }
+        if (arriving) {
+            arriving = false;
+            casterMind().reborn();
+            casterMind().home(blockPosition(), HOUSE_RADIUS);
+            offers = null;
+        }
         casterMind().tick();
         // Once it wrote its pages, what it has to offer changes: its grimoire, a page of it.
         if (getTradingPlayer() == null && (offeredFor != casterMind().written().size() || waresChanged)) {
@@ -234,6 +247,7 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
         net.minecraft.nbt.ListTag wares = new net.minecraft.nbt.ListTag();
         engravedWares.forEach(wand -> wares.add(wand.save(new CompoundTag())));
         saved.put("EngravedWares", wares);
+        saved.putBoolean("Arriving", arriving);
         tag.put(MIND_TAG, saved);
     }
 
@@ -243,6 +257,7 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
         if (tag.contains(MIND_TAG)) {
             CompoundTag saved = tag.getCompound(MIND_TAG);
             casterMind().load(saved);
+            arriving = saved.getBoolean("Arriving");
             engravedWares.clear();
             net.minecraft.nbt.ListTag wares = saved.getList("EngravedWares", net.minecraft.nbt.Tag.TAG_COMPOUND);
             for (int i = 0; i < wares.size(); i++) {
@@ -375,6 +390,11 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
 
     public String describe() {
         return casterMind().describe();
+    }
+
+    /** It will be born anew where it is placed next, and make that its home (a house saved with it). */
+    public void arriveWithHouse() {
+        arriving = true;
     }
 
     public void setMind(Degree degree, Personality personality, Set<String> known) {

@@ -766,6 +766,9 @@ public final class SpellGameTests {
         com.elderlexicon.mod.tower.TowerPiece tower = new com.elderlexicon.mod.tower.TowerPiece(
                 com.elderlexicon.mod.tower.TowerKind.WIZARD, center, 4);
         net.minecraft.world.level.levelgen.structure.BoundingBox box = tower.getBoundingBox();
+        // Whatever an earlier run left there is not part of the tower.
+        level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, net.minecraft.world.phys.AABB.of(box))
+                .forEach(net.minecraft.world.entity.Entity::discard);
         tower.postProcess(level, level.structureManager(), level.getChunkSource().getGenerator(), level.getRandom(),
                 box, new net.minecraft.world.level.ChunkPos(center), center);
         List<com.elderlexicon.mod.wizard.Wizard> dwellers = level.getEntitiesOfClass(
@@ -805,6 +808,138 @@ public final class SpellGameTests {
             BlockPos.betweenClosed(box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ())
                     .forEach(pos -> level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2));
         }
+    }
+
+    /**
+     * The Wizard's houses are saved as the code draws them (docs/mago-design.md, 5f): each is drawn, taken as a
+     * structure, and compared with the one the mod carries. One missing or different is saved again into the mod's
+     * resources (when run from the project), and the test asks to be run again.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 100, batch = "wizard_house_saved")
+    public static void theWizardHousesAreSavedAsDrawn(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = helper.absolutePos(new BlockPos(0, 1, 0)).above(20);
+        net.minecraft.core.Vec3i size = new net.minecraft.core.Vec3i(com.elderlexicon.mod.village.WizardHouse.WIDTH,
+                com.elderlexicon.mod.village.WizardHouse.HEIGHT, com.elderlexicon.mod.village.WizardHouse.DEPTH);
+        List<String> saved = new java.util.ArrayList<>();
+        for (com.elderlexicon.mod.village.WizardHouse.Style style
+                : com.elderlexicon.mod.village.WizardHouse.Style.values()) {
+            // Whatever an earlier run left there is not part of the house.
+            level.getEntitiesOfClass(net.minecraft.world.entity.Entity.class, new net.minecraft.world.phys.AABB(origin,
+                            origin.offset(size)).inflate(2.0D), entity -> !(entity instanceof net.minecraft.world.entity.player.Player))
+                    .forEach(net.minecraft.world.entity.Entity::discard);
+            com.elderlexicon.mod.village.WizardHouse.build(level, origin, style);
+            com.elderlexicon.mod.wizard.Wizard wizard = ElderLexicon.WIZARD.get().create(level);
+            BlockPos at = origin.offset(com.elderlexicon.mod.village.WizardHouse.DWELLER);
+            wizard.moveTo(at.getX() + 0.5D, at.getY(), at.getZ() + 0.5D, 180.0F, 0.0F);
+            wizard.setPersistenceRequired();
+            wizard.arriveWithHouse();
+            level.addFreshEntity(wizard);
+            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate drawn =
+                    new net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate();
+            drawn.fillFromWorld(level, origin, size, true, Blocks.STRUCTURE_VOID);
+            drawn.setAuthor(ElderLexicon.MODID);
+            net.minecraft.nbt.CompoundTag fresh = drawn.save(new net.minecraft.nbt.CompoundTag());
+            wizard.discard();
+            BlockPos.betweenClosed(origin, origin.offset(size).offset(-1, -1, -1))
+                    .forEach(pos -> level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2));
+            int taken = fresh.getList("entities", net.minecraft.nbt.Tag.TAG_COMPOUND).size();
+            if (taken != 1) {
+                helper.fail("the " + style + " house was taken with " + taken + " creatures");
+            }
+            boolean same = level.getStructureManager().get(style.template())
+                    .map(carried -> blocksOf(carried.save(new net.minecraft.nbt.CompoundTag())).equals(blocksOf(fresh)))
+                    .orElse(false);
+            if (!same) {
+                // The project is the first folder up from where the server runs that has the mod's resources.
+                java.nio.file.Path project = level.getServer().getServerDirectory().toPath().toAbsolutePath().normalize();
+                while (project != null && !java.nio.file.Files.isDirectory(project.resolve("src/main/resources"))) {
+                    project = project.getParent();
+                }
+                if (project == null) {
+                    helper.fail("the " + style + " house differs from the saved one, and the project is not here");
+                    return;
+                }
+                java.nio.file.Path file = project.resolve("src/main/resources/data/" + ElderLexicon.MODID
+                        + "/structures/" + style.template().getPath() + ".nbt");
+                try {
+                    java.nio.file.Files.createDirectories(file.getParent());
+                    net.minecraft.nbt.NbtIo.writeCompressed(fresh, file.toFile());
+                    saved.add(style.village());
+                } catch (java.io.IOException exception) {
+                    helper.fail("the " + style + " house could not be saved: " + exception);
+                }
+            }
+        }
+        if (!saved.isEmpty()) {
+            helper.fail("saved again " + saved + ": run the tests again");
+        }
+        helper.succeed();
+    }
+
+    /** What a saved structure is, but for its creatures (they are saved with where and who they were). */
+    private static net.minecraft.nbt.CompoundTag blocksOf(net.minecraft.nbt.CompoundTag structure) {
+        net.minecraft.nbt.CompoundTag blocks = structure.copy();
+        blocks.remove("entities");
+        blocks.remove("DataVersion");
+        return blocks;
+    }
+
+    /** The Wizard's house is among the houses every village may build. */
+    @GameTest(template = EMPTY)
+    public static void theWizardsHouseIsInTheVillages(GameTestHelper helper) {
+        var pools = helper.getLevel().registryAccess().registryOrThrow(
+                net.minecraft.core.registries.Registries.TEMPLATE_POOL);
+        for (com.elderlexicon.mod.village.WizardHouse.Style style
+                : com.elderlexicon.mod.village.WizardHouse.Style.values()) {
+            var pool = pools.get(style.housesPool());
+            if (pool == null || !com.elderlexicon.mod.village.VillageHouses.holds(pool, style)) {
+                helper.fail("the " + style.village() + " villages have no wizard's house");
+            }
+        }
+        helper.succeed();
+    }
+
+    /** A house placed from what was saved: its door, its lectern, and its wizard, born anew and at home there. */
+    @GameTest(template = EMPTY, timeoutTicks = 60, batch = "wizard_house_placed")
+    public static void aWizardMovesIntoItsHouse(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = helper.absolutePos(new BlockPos(0, 1, 0)).above(20);
+        var template = level.getStructureManager().get(
+                com.elderlexicon.mod.village.WizardHouse.Style.PLAINS.template());
+        if (template.isEmpty()) {
+            helper.fail("no plains house saved");
+            return;
+        }
+        template.get().placeInWorld(level, origin, origin,
+                new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings(),
+                level.getRandom(), 2);
+        net.minecraft.world.phys.AABB house = new net.minecraft.world.phys.AABB(origin,
+                origin.offset(com.elderlexicon.mod.village.WizardHouse.WIDTH, com.elderlexicon.mod.village.WizardHouse.HEIGHT,
+                        com.elderlexicon.mod.village.WizardHouse.DEPTH));
+        helper.runAtTickTime(10, () -> {
+            List<com.elderlexicon.mod.wizard.Wizard> wizards = level.getEntitiesOfClass(
+                    com.elderlexicon.mod.wizard.Wizard.class, house);
+            try {
+                if (wizards.size() != 1) {
+                    helper.fail(wizards.size() + " wizards in the house");
+                }
+                if (wizards.get(0).casterMind().home().isEmpty()) {
+                    helper.fail("the wizard is not at home");
+                }
+                if (!level.getBlockState(origin.offset(2, 1, 6)).is(Blocks.LECTERN)) {
+                    helper.fail("no lectern: " + level.getBlockState(origin.offset(2, 1, 6)));
+                }
+                helper.succeed();
+            } finally {
+                wizards.forEach(net.minecraft.world.entity.Entity::discard);
+                BlockPos.betweenClosed(origin, origin.offset(com.elderlexicon.mod.village.WizardHouse.WIDTH - 1,
+                        com.elderlexicon.mod.village.WizardHouse.HEIGHT - 1,
+                        com.elderlexicon.mod.village.WizardHouse.DEPTH - 1))
+                        .forEach(pos -> level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2));
+            }
+        });
     }
 
     /** A Sorcerer leaves a Wizard be: the two are neither friends nor foes (docs/mago-design.md, 5b). */
