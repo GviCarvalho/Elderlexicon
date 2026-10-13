@@ -207,6 +207,29 @@ O autor viu que eles insistiam no que não fazia efeito, e que só atacavam.
 - Testes: `KeepingWholeTest` (unitários) e os GameTests `aSorcererHurtsWhatItAimsAt`, `aWoundedWizardHealsItself`,
   `aBurningWizardPutsItOut` e `aCasterWardsAFoeAtHand`.
 
+### 3.9 Onde ficar, e o grau na cabeça (pedido do autor, 13/10/2026)
+
+Um zumbi vencia um ancião. O mago abria o transe com o zumbi colado, o golpe quebrava o transe, nada saía, e ele abria
+de novo. Depois de duas quebras, passava a só abrir de longe, mas não tinha como se afastar: ficava parado apanhando.
+Além disso, o grau só mudava as runas que ele sabe, não o jeito de pensar.
+
+- **Tempo até o golpe (`Threat`).** Ele mede a distância, o alcance do golpe do inimigo (2 blocos; uma pessoa, 3) e a
+  velocidade com que o inimigo vem: a que ele viu nos últimos ticks, ou a que ele chuta para alguém daquele tipo (0,5
+  bloco por tick para cada ponto de velocidade; uma pessoa correndo, 0,28), a maior das duas. Só conta quem vem bater:
+  uma pessoa, ou uma criatura que o caça e tem golpe. Quem atira ou lê fica onde está, e a presa foge.
+- **Só abre o transe se o golpe não chegar antes do fim.** O mestre quer que o transe acabe antes do golpe (1×), o
+  ancião com folga (1,25×). O aprendiz não vê o inimigo chegando: continua aprendendo só depois de levar o golpe, como
+  antes (`Memory.safeDistance`).
+- **Manter distância (`keepDistanceGoal`).** Entre uma leitura e outra, ele recua de quem está mais perto do que ele
+  quer, mas nunca para tão longe que o que ele lê deixe de alcançar. Se recuar sem ganhar distância por 1,5 s, está
+  **encurralado**: lê onde está por 3 s (a mente já prefere barreira e fuga com o inimigo em cima). O Mago usa o mesmo
+  objetivo, com um piso de 5 blocos.
+- **O grau pesa na escolha.** Escolhe entre as 3, 2 ou 1 melhores (aprendiz, mestre, ancião), com sorte 0,3, 0,15 ou
+  0,05. Cansa de repetir: cada vez seguida que lê a mesma coisa contra o mesmo inimigo, ela vale 15% (mestre) ou 25%
+  (ancião) menos, até no mínimo 30%. O aprendiz não cansa, e repete.
+- Testes: `ThreatTest` (unitários) e o GameTest `aMasterKeepsAHuskOff`, em que um mestre só com pedra e fogo vence um
+  husk que começa a 3 blocos. Com o código anterior, o husk ganha.
+
 ## 4. O que o evocador sabe
 
 - **Repertório por grau.** Aprendiz (2 ou 3 runas), mestre (6 a 8), ancião (quase o léxico inteiro). Cada evocador

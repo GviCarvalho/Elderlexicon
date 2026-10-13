@@ -112,6 +112,7 @@ public class Sorcerer extends Evoker implements RuneCaster, CasterMind.Body {
         // The fangs, the vexes and the wololo are the vanilla evoker's: this one says what it does.
         goalSelector.removeAllGoals(wrapped -> wrapped.getClass().getEnclosingClass() == Evoker.class);
         goalSelector.addGoal(1, casterMind().tranceGoal());
+        goalSelector.addGoal(2, casterMind().keepDistanceGoal(0.8D, 0.0D));
         goalSelector.addGoal(3, casterMind().approachGoal(0.7D));
         goalSelector.addGoal(4, casterMind().talkGoal());
         goalSelector.addGoal(5, casterMind().writeGoal());

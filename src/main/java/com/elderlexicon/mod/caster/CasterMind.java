@@ -15,6 +15,7 @@ import com.elderlexicon.mod.mind.Phrase;
 import com.elderlexicon.mod.mind.PhraseCatalog;
 import com.elderlexicon.mod.mind.Preparation;
 import com.elderlexicon.mod.mind.Reach;
+import com.elderlexicon.mod.mind.Threat;
 import com.elderlexicon.mod.mind.Variations;
 import com.elderlexicon.mod.parser.ParserDictionary;
 import com.elderlexicon.mod.spell.Casters;
@@ -226,6 +227,20 @@ public final class CasterMind {
     private Mind.Choice lastChoice;
     /** What it remembers of the ones it fights, for this life (docs/feiticeiro-design.md, 3.5). */
     private final Memory memory = new Memory();
+    /** How fast it saw its foe come, and which foe, and where that one stood a tick ago (docs/feiticeiro-design.md, 3.9). */
+    private final Threat threat = new Threat();
+    @Nullable
+    private UUID threatOf;
+    @Nullable
+    private Vec3 threatWas;
+    /** What it read last, against whom, and how many times in a row: what an old hand tires of. */
+    @Nullable
+    private String lastRead;
+    @Nullable
+    private UUID lastReadAgainst;
+    private int inARow;
+    /** How long it is still cornered: it could not get away, so it reads where it stands. */
+    private int cornered;
     /** What it learned to read in this life: variations of what worked, and sentences it saw others cast. */
     private final List<Option> learned = new ArrayList<>();
     /** The options it already varied: one is varied once. */
@@ -557,8 +572,92 @@ public final class CasterMind {
         }
         // With no foe it reads for itself: what it learned of that is kept under its own name.
         UUID opponent = target == null ? owner.getUUID() : target.getUUID();
-        return Mind.choose(scene, personality(), all, owner.getRandom(), option -> target == null
-                ? memory.factor(opponent, option) : memory.factor(opponent, option, distance));
+        Degree degree = degree();
+        return Mind.choose(scene, personality(), all, owner.getRandom(), option -> (target == null
+                ? memory.factor(opponent, option) : memory.factor(opponent, option, distance))
+                * (option.name().equals(lastRead) && opponent.equals(lastReadAgainst) ? degree.habit(inARow) : 1.0D),
+                degree.among(), degree.luck());
+    }
+
+    // ------------------------------------------------------------------ where it stands (docs/feiticeiro-design.md, 3.9)
+
+    /**
+     * Whether {@code target} comes to strike it with a blow: a person may; a creature does when it hunts it and has a
+     * blow to strike with. One who shoots, or reads, keeps where it stands; prey runs.
+     */
+    private boolean closesIn(LivingEntity target) {
+        if (target instanceof net.minecraft.world.entity.player.Player) {
+            return true;
+        }
+        return target instanceof Mob mob && mob.getTarget() == owner
+                && !(target instanceof net.minecraft.world.entity.monster.RangedAttackMob)
+                && !(target instanceof RuneCaster)
+                && mob.getAttributes().hasAttribute(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE);
+    }
+
+    /** How fast {@code target} comes, as far as it can tell: what it saw of it, or what it guesses of one like it. */
+    private double speedOf(LivingEntity target) {
+        double guessed = target instanceof net.minecraft.world.entity.player.Player ? Threat.PERSON_SPEED
+                : target.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED)
+                * Threat.PER_SPEED;
+        return target.getUUID().equals(threatOf) ? threat.speed(guessed) : guessed;
+    }
+
+    private static double blowOf(LivingEntity target) {
+        return target instanceof net.minecraft.world.entity.player.Player ? Threat.PERSON_BLOW : Threat.BLOW;
+    }
+
+    /**
+     * Whether it may open its trance with {@code target} where it stands: past where that one broke it before, and, when
+     * it sees a foe coming (a master, an elder), far enough that the trance ends before the blow.
+     */
+    private boolean safeToOpen(LivingEntity target) {
+        double distance = owner.distanceTo(target);
+        if (distance < memory.safeDistance(target.getUUID())) {
+            return false;
+        }
+        double foresight = degree().foresight();
+        return foresight <= 0.0D || !closesIn(target)
+                || Threat.ticksToBlow(distance, blowOf(target), speedOf(target)) >= TRANCE_TICKS * foresight;
+    }
+
+    /**
+     * How far it wants {@code target} to stand: no nearer than {@code floor}, than where it was struck in its trance
+     * before, nor, when it sees a foe coming, than where the blow comes before the trance ends; and never so far that
+     * what it reads would no longer get there.
+     */
+    private double wantedDistance(LivingEntity target, double floor) {
+        double wanted = Math.max(floor, memory.safeDistance(target.getUUID()));
+        double foresight = degree().foresight();
+        if (foresight > 0.0D && closesIn(target)) {
+            wanted = Math.max(wanted, Threat.safeDistance(blowOf(target), speedOf(target), TRANCE_TICKS, foresight));
+        }
+        double reach = reach();
+        return reach > 0.0D ? Math.min(wanted, reach - Math.min(6.0D, reach * 0.25D) - 1.0D) : wanted;
+    }
+
+    /** It watches its foe come: how far it came toward it this tick. */
+    private void watchFoe() {
+        LivingEntity target = owner.getTarget();
+        if (target == null || !target.isAlive()) {
+            if (threatOf != null) {
+                threat.forget();
+                threatOf = null;
+                threatWas = null;
+            }
+            return;
+        }
+        Vec3 now = target.position();
+        if (!target.getUUID().equals(threatOf) || threatWas == null) {
+            threat.forget();
+            threatOf = target.getUUID();
+        } else {
+            Vec3 toward = owner.position().subtract(now).multiply(1.0D, 0.0D, 1.0D);
+            if (toward.lengthSqr() > 1.0E-6D) {
+                threat.saw(now.subtract(threatWas).multiply(1.0D, 0.0D, 1.0D).dot(toward.normalize()));
+            }
+        }
+        threatWas = now;
     }
 
     /** How far around its hand it looks for an energy to draw in. */
@@ -666,6 +765,10 @@ public final class CasterMind {
     /** One tick of the mind, on the server: the lines still released, the rest, a dream in calm, what came of a reading. */
     public void tick() {
         tickCount++;
+        watchFoe();
+        if (cornered > 0) {
+            cornered--;
+        }
         if (releaseTicks > 0) {
             // The lines come out one step after another, each where it looks then: it keeps the aim.
             releaseTicks--;
@@ -948,6 +1051,10 @@ public final class CasterMind {
             }
         }
         lastChoice = choice;
+        UUID against = target == null ? owner.getUUID() : target.getUUID();
+        inARow = option.name().equals(lastRead) && against.equals(lastReadAgainst) ? inARow + 1 : 1;
+        lastRead = option.name();
+        lastReadAgainst = against;
         // It keeps looking while the lines are out and the taps it opened run (a throw runs two seconds): the flow
         // lands where it looks at each moment, so looking away is missing.
         // (A line is released at the step after the reading: it keeps looking that long at least.)
@@ -1429,6 +1536,20 @@ public final class CasterMind {
         return new ApproachGoal(speed);
     }
 
+    /**
+     * Keeps its foe off (docs/feiticeiro-design.md, 3.9): between readings, it backs away from a foe nearer than it wants
+     * it ({@link #wantedDistance}), no nearer than {@code floor} in any case. When it cannot get farther, it is cornered,
+     * and reads where it stands.
+     */
+    public Goal keepDistanceGoal(double speed, double floor) {
+        return new KeepDistanceGoal(speed, floor);
+    }
+
+    /** Whether it is cornered now: it could not get away from its foe, and reads where it stands. */
+    public boolean cornered() {
+        return cornered > 0;
+    }
+
     /** Stands with the one it talks with, looking at it (docs/mago-design.md, 5b). */
     public Goal talkGoal() {
         return new TalkGoal();
@@ -1494,6 +1615,87 @@ public final class CasterMind {
                     Vec3 leg = owner.position().add(way.normalize().scale(LEG));
                     owner.getNavigation().moveTo(leg.x, leg.y, leg.z, speed);
                 }
+            }
+        }
+    }
+
+    private final class KeepDistanceGoal extends Goal {
+
+        /** How long it backs away without getting farther before it knows it is cornered, and how long it then stays. */
+        private static final int STUCK_TICKS = 30;
+        private static final int CORNERED_TICKS = 60;
+        /** How far past what it wants it goes before it stops: so it does not stop and start at the edge. */
+        private static final double PAST = 1.5D;
+
+        private final double speed;
+        private final double floor;
+        private int repath;
+        private int stuck;
+        private double farthest;
+
+        KeepDistanceGoal(double speed, double floor) {
+            this.speed = speed;
+            this.floor = floor;
+            setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            return tooNear(0.0D);
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return tooNear(PAST);
+        }
+
+        private boolean tooNear(double past) {
+            LivingEntity target = owner.getTarget();
+            if (target == null || !target.isAlive() || reading != null || releaseTicks > 0 || cornered > 0
+                    || !(owner instanceof net.minecraft.world.entity.PathfinderMob)) {
+                return false;
+            }
+            return owner.distanceTo(target) < wantedDistance(target, floor) + past;
+        }
+
+        @Override
+        public void start() {
+            repath = 0;
+            stuck = 0;
+            LivingEntity target = owner.getTarget();
+            farthest = target == null ? 0.0D : owner.distanceTo(target);
+        }
+
+        @Override
+        public void stop() {
+            owner.getNavigation().stop();
+        }
+
+        @Override
+        public void tick() {
+            LivingEntity target = owner.getTarget();
+            if (target == null || !(owner instanceof net.minecraft.world.entity.PathfinderMob walker)) {
+                return;
+            }
+            owner.getLookControl().setLookAt(target, 30.0F, 30.0F);
+            double distance = owner.distanceTo(target);
+            if (distance > farthest + 0.5D) {
+                farthest = distance;
+                stuck = 0;
+            } else if (++stuck >= STUCK_TICKS) {
+                cornered = CORNERED_TICKS;
+                return;
+            }
+            if (--repath <= 0) {
+                repath = 10;
+                Vec3 away = net.minecraft.world.entity.ai.util.DefaultRandomPos.getPosAway(walker, 16, 7,
+                        target.position());
+                if (away == null) {
+                    Vec3 from = owner.position().subtract(target.position()).multiply(1.0D, 0.0D, 1.0D);
+                    away = owner.position().add(from.lengthSqr() < 1.0E-6D ? new Vec3(1.0D, 0.0D, 0.0D)
+                            : from.normalize().scale(8.0D));
+                }
+                owner.getNavigation().moveTo(away.x, away.y, away.z, speed);
             }
         }
     }
@@ -1925,9 +2127,10 @@ public final class CasterMind {
             if (!owner.hasLineOfSight(target)) {
                 return false;
             }
-            // One who broke its trance before is not let near it again: it opens its trance only from afar.
+            // One who broke its trance before is not let near it again, and one who sees a foe coming does not open its
+            // trance with it at hand: it opens it only from afar, unless it could not get away, or is desperate.
             float share = owner.getHealth() / Math.max(1.0F, owner.getMaxHealth());
-            if (owner.distanceTo(target) < memory.safeDistance(target.getUUID()) && !personality().desperate(share)) {
+            if (!safeToOpen(target) && cornered == 0 && !personality().desperate(share)) {
                 restTicks = 10;
                 return false;
             }

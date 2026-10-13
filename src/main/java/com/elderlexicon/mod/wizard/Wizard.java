@@ -132,7 +132,7 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
         goalSelector.addGoal(1, new TradeWithPlayerGoal(this));
         goalSelector.addGoal(1, new LookAtTradingPlayerGoal(this));
         goalSelector.addGoal(2, casterMind().tranceGoal());
-        goalSelector.addGoal(3, new KeepAwayGoal());
+        goalSelector.addGoal(3, casterMind().keepDistanceGoal(0.7D, KEEPS_AWAY));
         goalSelector.addGoal(4, casterMind().approachGoal(0.6D));
         goalSelector.addGoal(5, casterMind().talkGoal());
         goalSelector.addGoal(6, casterMind().writeGoal());
@@ -565,36 +565,6 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
             setTarget(foe);
             targetMob = foe;
             super.start();
-        }
-    }
-
-    /** In a fight it keeps its distance: a caster is no swordsman. */
-    private final class KeepAwayGoal extends Goal {
-
-        KeepAwayGoal() {
-            setFlags(EnumSet.of(Flag.MOVE));
-        }
-
-        @Override
-        public boolean canUse() {
-            LivingEntity target = getTarget();
-            return target != null && target.isAlive() && distanceTo(target) < KEEPS_AWAY && !casterMind().inTrance();
-        }
-
-        @Override
-        public void start() {
-            LivingEntity target = getTarget();
-            if (target == null) {
-                return;
-            }
-            Vec3 away = position().subtract(target.position()).normalize().scale(KEEPS_AWAY + 3.0D);
-            Vec3 to = position().add(away);
-            getNavigation().moveTo(to.x, to.y, to.z, 0.6D);
-        }
-
-        @Override
-        public boolean canContinueToUse() {
-            return !getNavigation().isDone() && getTarget() != null;
         }
     }
 }

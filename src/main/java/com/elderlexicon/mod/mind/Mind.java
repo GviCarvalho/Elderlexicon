@@ -136,6 +136,16 @@ public final class Mind {
      */
     public static Optional<Choice> choose(Scene scene, Personality personality, List<Option> options,
                                           RandomSource random, ToDoubleFunction<Option> learned) {
+        return choose(scene, personality, options, random, learned, AMONG, LUCK);
+    }
+
+    /**
+     * What it would read now, as {@link #choose(Scene, Personality, List, RandomSource, ToDoubleFunction)}, reading
+     * among the best {@code among} with {@code luck} weighing in: how a degree chooses (an elder leaves little to luck).
+     */
+    public static Optional<Choice> choose(Scene scene, Personality personality, List<Option> options,
+                                          RandomSource random, ToDoubleFunction<Option> learned, int among,
+                                          double luck) {
         Foresight foresight = new Live(scene);
         List<Choice> scored = new ArrayList<>();
         for (Option option : options) {
@@ -143,13 +153,13 @@ public final class Mind {
             if (factor <= 0.0D) {
                 continue;
             }
-            best(scene, personality, option, foresight, random, factor).ifPresent(scored::add);
+            best(scene, personality, option, foresight, random, factor, luck).ifPresent(scored::add);
         }
         if (scored.isEmpty()) {
             return Optional.empty();
         }
         scored.sort(Comparator.comparingDouble(Choice::score).reversed());
-        List<Choice> best = scored.subList(0, Math.min(AMONG, scored.size()));
+        List<Choice> best = scored.subList(0, Math.min(Math.max(1, among), scored.size()));
         double total = best.stream().mapToDouble(Choice::score).sum();
         double roll = random.nextDouble() * total;
         for (Choice choice : best) {
@@ -163,7 +173,7 @@ public final class Mind {
 
     /** The score of one option in the scene, the best way it could look, without luck; empty when it serves nothing. */
     public static Optional<Choice> evaluate(Scene scene, Personality personality, Option option) {
-        return best(scene, personality, option, new Live(scene), null, 1.0D);
+        return best(scene, personality, option, new Live(scene), null, 1.0D, 0.0D);
     }
 
     /**
@@ -171,12 +181,12 @@ public final class Mind {
      * luck: what the mind weighs when it has no scene before it (when it writes, docs/feiticeiro-design.md, 2.1).
      */
     public static Optional<Choice> evaluate(Scene scene, Personality personality, Option option, Foresight foresight) {
-        return best(scene, personality, option, foresight, null, 1.0D);
+        return best(scene, personality, option, foresight, null, 1.0D, 0.0D);
     }
 
     /** The best of the ways it could look reading {@code option}. */
     private static Optional<Choice> best(Scene scene, Personality personality, Option option, Foresight foresight,
-                                         RandomSource random, double learned) {
+                                         RandomSource random, double learned, double luck) {
         Set<Aim> aims = EnumSet.noneOf(Aim.class);
         option.acts().forEach(act -> aims.addAll(aimsOf(act)));
         if (aims.contains(Aim.ANY) || aims.isEmpty()) {
@@ -185,7 +195,7 @@ public final class Mind {
         }
         Optional<Choice> best = Optional.empty();
         for (Aim aim : aims) {
-            Optional<Choice> choice = score(scene, personality, option, aim, foresight, random, learned);
+            Optional<Choice> choice = score(scene, personality, option, aim, foresight, random, learned, luck);
             if (choice.isPresent() && (best.isEmpty() || choice.get().score() > best.get().score())) {
                 best = choice;
             }
@@ -195,7 +205,8 @@ public final class Mind {
 
     /** The score of one option in the scene, looking {@code aim}; empty when it serves nothing now, or cannot be paid. */
     static Optional<Choice> score(Scene scene, Personality personality, Option option, Aim aim, Foresight foresight,
-                                  @org.jetbrains.annotations.Nullable RandomSource random, double learned) {
+                                  @org.jetbrains.annotations.Nullable RandomSource random, double learned,
+                                  double luck) {
         Map<Intent, Double> done = new EnumMap<>(Intent.class);
         Map<VitaElement, Double> given = new EnumMap<>(VitaElement.class);
         double harm = 0.0D;
@@ -304,7 +315,7 @@ public final class Mind {
                 most = entry.getKey();
             }
         }
-        score += -personality.costWeight() * spent - risk + (random == null ? 0.0D : random.nextDouble() * LUCK);
+        score += -personality.costWeight() * spent - risk + (random == null ? 0.0D : random.nextDouble() * luck);
         return score > 0.0D && most != null ? Optional.of(new Choice(option, most, score, aim, harm, healed))
                 : Optional.empty();
     }

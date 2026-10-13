@@ -484,6 +484,36 @@ public final class SpellGameTests {
         });
     }
 
+    /**
+     * A master does not open its trance with a husk at hand (docs/feiticeiro-design.md, 3.9): it backs away until the husk
+     * could not strike before the reading is out, reads from there, and is not beaten by a creature that only walks up.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 600, batch = "keep_distance")
+    public static void aMasterKeepsAHuskOff(GameTestHelper helper) {
+        longFloor(helper, 40);
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 10.5D));
+        evoker.targetSelector.removeAllGoals(goal -> true);
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.MASTER, com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                Set.of("firmo", "igni", "iactare", "vocant"));
+        net.minecraft.world.entity.monster.Husk husk = helper.spawn(EntityType.HUSK, new Vec3(2.5D, 1.0D, 7.5D));
+        husk.targetSelector.removeAllGoals(goal -> true);
+        husk.setTarget(evoker);
+        evoker.setTarget(husk);
+        float before = husk.getHealth();
+        helper.onEachTick(() -> {
+            if (evoker.getHealth() < evoker.getMaxHealth() * 0.5F) {
+                helper.fail("the husk beat it: " + evoker.getHealth() + " left");
+            }
+        });
+        helper.succeedWhen(() -> {
+            if (!(husk.getHealth() < before)) {
+                helper.fail("the husk was not hurt (" + evoker.distanceTo(husk) + " blocks apart)");
+            }
+            leave(evoker, husk);
+        });
+    }
+
     /** One who can write a distance writes it, and throws from where it stands. */
     @GameTest(template = EMPTY, timeoutTicks = 400, batch = "reach_write")
     public static void aSorcererWhoKnowsHowWritesTheDistance(GameTestHelper helper) {
