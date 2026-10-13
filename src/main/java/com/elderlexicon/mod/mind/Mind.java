@@ -171,6 +171,25 @@ public final class Mind {
         return Optional.of(best.get(0));
     }
 
+    /**
+     * The best it could read for each intent, without luck, each option's worth multiplied by what it learned of it:
+     * what a doctrine chooses among (docs/feiticeiro-design.md, 3.10).
+     */
+    public static Map<Intent, Choice> bestByIntent(Scene scene, Personality personality, List<Option> options,
+                                                   ToDoubleFunction<Option> learned) {
+        Foresight foresight = new Live(scene);
+        Map<Intent, Choice> best = new EnumMap<>(Intent.class);
+        for (Option option : options) {
+            double factor = learned.applyAsDouble(option);
+            if (factor <= 0.0D) {
+                continue;
+            }
+            best(scene, personality, option, foresight, null, factor, 0.0D).ifPresent(choice -> best.merge(
+                    choice.intent(), choice, (old, fresh) -> fresh.score() > old.score() ? fresh : old));
+        }
+        return best;
+    }
+
     /** The score of one option in the scene, the best way it could look, without luck; empty when it serves nothing. */
     public static Optional<Choice> evaluate(Scene scene, Personality personality, Option option) {
         return best(scene, personality, option, new Live(scene), null, 1.0D, 0.0D);

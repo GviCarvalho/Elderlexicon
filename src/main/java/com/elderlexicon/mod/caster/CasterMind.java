@@ -6,6 +6,7 @@ import com.elderlexicon.mod.magic.lexicon.Lexicons;
 import com.elderlexicon.mod.magic.lexicon.WordClass;
 import com.elderlexicon.mod.mind.Aim;
 import com.elderlexicon.mod.mind.Degree;
+import com.elderlexicon.mod.mind.Doctrine;
 import com.elderlexicon.mod.mind.Intent;
 import com.elderlexicon.mod.mind.Memory;
 import com.elderlexicon.mod.mind.Mind;
@@ -241,6 +242,11 @@ public final class CasterMind {
     private int inARow;
     /** How long it is still cornered: it could not get away, so it reads where it stands. */
     private int cornered;
+    /** What its doctrine said to do, and the sentence for it when it said to read: null where it has none. */
+    @Nullable
+    private Doctrine.Stance stance;
+    @Nullable
+    private Mind.Choice stanceChoice;
     /** What it learned to read in this life: variations of what worked, and sentences it saw others cast. */
     private final List<Option> learned = new ArrayList<>();
     /** The options it already varied: one is varied once. */
@@ -560,23 +566,103 @@ public final class CasterMind {
      * again, nor from as far as it fell short (docs/feiticeiro-design.md, 3.8).
      */
     private Optional<Mind.Choice> choose(@Nullable LivingEntity target) {
+        Degree degree = degree();
+        return Mind.choose(scene(target), personality(), readable(target), owner.getRandom(), learnedAgainst(target),
+                degree.among(), degree.luck());
+    }
+
+    /** What it sees, choosing against {@code target} (null: for itself). */
+    private Mind.Scene scene(@Nullable LivingEntity target) {
         float share = owner.getHealth() / Math.max(1.0F, owner.getMaxHealth());
         double distance = target == null ? Double.POSITIVE_INFINITY : owner.distanceTo(target);
-        Mind.Scene scene = new Mind.Scene(owner, target, distance, share, Casters.vis(owner),
+        return new Mind.Scene(owner, target, distance, share, Casters.vis(owner),
                 mark -> target == null ? 0.0D : body.allies(mark, target), owner.isOnFire(), inWorld());
+    }
+
+    /** Everything it can read now against {@code target}: its pages, what it learned, what else it can, written farther. */
+    private List<Option> readable(@Nullable LivingEntity target) {
         List<Option> all = new ArrayList<>(options());
         all.addAll(learned);
         all.addAll(body.moreOptions());
         if (target != null) {
-            all.addAll(farther(all, distance));
+            all.addAll(farther(all, owner.distanceTo(target)));
         }
+        return all;
+    }
+
+    /** What it learned of each option against {@code target}, and how tired it is of what it read last. */
+    private java.util.function.ToDoubleFunction<Option> learnedAgainst(@Nullable LivingEntity target) {
         // With no foe it reads for itself: what it learned of that is kept under its own name.
         UUID opponent = target == null ? owner.getUUID() : target.getUUID();
+        double distance = target == null ? Double.POSITIVE_INFINITY : owner.distanceTo(target);
         Degree degree = degree();
-        return Mind.choose(scene, personality(), all, owner.getRandom(), option -> (target == null
-                ? memory.factor(opponent, option) : memory.factor(opponent, option, distance))
-                * (option.name().equals(lastRead) && opponent.equals(lastReadAgainst) ? degree.habit(inARow) : 1.0D),
-                degree.among(), degree.luck());
+        return option -> (target == null ? memory.factor(opponent, option) : memory.factor(opponent, option, distance))
+                * (option.name().equals(lastRead) && opponent.equals(lastReadAgainst) ? degree.habit(inARow) : 1.0D);
+    }
+
+    // ------------------------------------------------------------------ a doctrine (docs/feiticeiro-design.md, 3.10)
+
+    /** How often, free in a fight, it asks its doctrine what to do. */
+    private static final int DOCTRINE_TICKS = 10;
+
+    /** The kind of foe a doctrine is learned against, as the arena names it; null for one it has none for. */
+    @Nullable
+    static String kindOf(LivingEntity target) {
+        return target instanceof net.minecraft.world.entity.monster.Zombie ? "zombie" : null;
+    }
+
+    /** The doctrine it fights {@code target} by: an elder's, against a kind of foe the arena taught. */
+    private Optional<Doctrine> doctrineAgainst(LivingEntity target) {
+        String kind = kindOf(target);
+        return degree() == Degree.ELDER && kind != null ? Doctrine.of(kind) : Optional.empty();
+    }
+
+    /** What it sees of a fight with {@code target}, as the arena saw it. */
+    private Doctrine.Situation situation(LivingEntity target) {
+        double distance = owner.distanceTo(target);
+        double blow = closesIn(target) ? Threat.ticksToBlow(distance, blowOf(target), speedOf(target))
+                : Double.POSITIVE_INFINITY;
+        return new Doctrine.Situation(distance, blow / TRANCE_TICKS,
+                owner.getHealth() / Math.max(1.0F, owner.getMaxHealth()), Casters.vis(owner) / Casters.ANCHOR_UMU,
+                target.getHealth() / Math.max(1.0F, target.getMaxHealth()), restTicks == 0);
+    }
+
+    /**
+     * Free in a fight, an elder asks its doctrine what to do now: read for something (the mind chooses the sentence),
+     * back away, walk up or wait. Where the doctrine never was, it fights as it would with none ({@link #stance} null).
+     */
+    private void followDoctrine() {
+        LivingEntity target = owner.getTarget();
+        if (reading != null || releaseTicks > 0) {
+            return; // busy: what it chose stands until it is free again
+        }
+        stance = null;
+        stanceChoice = null;
+        if (target == null || !target.isAlive() || conversation != null) {
+            return;
+        }
+        Optional<Doctrine> doctrine = doctrineAgainst(target);
+        if (doctrine.isEmpty()) {
+            return;
+        }
+        Set<Doctrine.Stance> possible = java.util.EnumSet.of(Doctrine.Stance.BACK_OFF, Doctrine.Stance.CLOSE_IN,
+                Doctrine.Stance.WAIT);
+        Map<Intent, Mind.Choice> best = restTicks == 0 && owner.hasLineOfSight(target)
+                ? Mind.bestByIntent(scene(target), personality(), readable(target), learnedAgainst(target)) : Map.of();
+        for (Doctrine.Stance each : Doctrine.Stance.values()) {
+            if (each.intent() != null && best.containsKey(each.intent())) {
+                possible.add(each);
+            }
+        }
+        doctrine.get().choose(situation(target), possible).ifPresent(chosen -> {
+            stance = chosen;
+            stanceChoice = chosen.intent() == null ? null : best.get(chosen.intent());
+        });
+    }
+
+    /** What its doctrine says to do now, if it follows one and it knows the situation. */
+    public Optional<Doctrine.Stance> stance() {
+        return Optional.ofNullable(stance);
     }
 
     // ------------------------------------------------------------------ where it stands (docs/feiticeiro-design.md, 3.9)
@@ -768,6 +854,9 @@ public final class CasterMind {
         watchFoe();
         if (cornered > 0) {
             cornered--;
+        }
+        if (tickCount % DOCTRINE_TICKS == 0) {
+            followDoctrine();
         }
         if (releaseTicks > 0) {
             // The lines come out one step after another, each where it looks then: it keeps the aim.
@@ -1584,6 +1673,9 @@ public final class CasterMind {
             if (target == null || !target.isAlive() || reading != null || releaseTicks > 0) {
                 return false;
             }
+            if (stance != null) {
+                return stance == Doctrine.Stance.CLOSE_IN || !owner.hasLineOfSight(target);
+            }
             double reach = reach();
             return reach > 0.0D && (owner.distanceTo(target) > reach - within || !owner.hasLineOfSight(target));
         }
@@ -1651,11 +1743,14 @@ public final class CasterMind {
 
         private boolean tooNear(double past) {
             LivingEntity target = owner.getTarget();
-            if (target == null || !target.isAlive() || reading != null || releaseTicks > 0 || cornered > 0
+            if (target == null || !target.isAlive() || reading != null || releaseTicks > 0
                     || !(owner instanceof net.minecraft.world.entity.PathfinderMob)) {
                 return false;
             }
-            return owner.distanceTo(target) < wantedDistance(target, floor) + past;
+            if (stance != null) {
+                return stance == Doctrine.Stance.BACK_OFF;
+            }
+            return cornered == 0 && owner.distanceTo(target) < wantedDistance(target, floor) + past;
         }
 
         @Override
@@ -2126,6 +2221,15 @@ public final class CasterMind {
             }
             if (!owner.hasLineOfSight(target)) {
                 return false;
+            }
+            if (stance != null) {
+                // Its doctrine says when to read, and what for.
+                if (stanceChoice == null) {
+                    return false;
+                }
+                chosen = stanceChoice;
+                stanceChoice = null;
+                return true;
             }
             // One who broke its trance before is not let near it again, and one who sees a foe coming does not open its
             // trance with it at hand: it opens it only from afar, unless it could not get away, or is desperate.

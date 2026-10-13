@@ -230,6 +230,50 @@ Além disso, o grau só mudava as runas que ele sabe, não o jeito de pensar.
 - Testes: `ThreatTest` (unitários) e o GameTest `aMasterKeepsAHuskOff`, em que um mestre só com pedra e fogo vence um
   husk que começa a 3 blocos. Com o código anterior, o husk ganha.
 
+### 3.10 A arena e as doutrinas (pedido do autor, 13/10/2026)
+
+Os anciãos aprendem a lutar **fora do jogo**, numa arena, e o que aprendem fica guardado num arquivo que o mod carrega.
+
+- **A arena (`src/arena`).** É um simulador tique a tique: chão plano murado, um conjurador e um inimigo
+  que anda até ele e bate. Ela reproduz o transe de 2 s que um golpe quebra, as linhas soltas depois dele (o
+  conjurador fica parado, mirando: um arremesso segura 2 s), o descanso, a Vis gasta e recuperada (0,5 por segundo).
+  Ela **usa a própria mente do mod**: o catálogo de frases, `Mind.evaluate`, `Threat`. Assim, o que se treina é o
+  mesmo que roda no jogo, e não uma cópia que se perderia com o tempo.
+- **Calibrada pelo mundo.** A GameTest `theArenaIsSetByTheWorld` mede a velocidade do husk (0,114 bloco por tick)
+  e a de quem recua (Feiticeiro 0,345, Mago 0,264), e a arena usa esses números (`Calibration`). Quando o mundo
+  mudar, mede-se de novo. A medição às vezes sai torta, quando algo de outro teste atravessa o caminho: vale olhar
+  duas rodadas.
+- **O que se aprende é a postura, não a frase.** Em cada momento livre, o ancião escolhe entre ferir, tirar,
+  proteger, fugir, curar, sumir, recuar, aproximar e esperar. A frase continua sendo escolhida pela mente. A situação
+  é vista em degraus: distância, quantos transes até o golpe, a própria vida, a Vis, a vida do inimigo e se o
+  descanso já acabou (1512 situações). Sem esse último dado, mais treino piorava a doutrina: recuar e ferir se
+  confundiam. O aprendizado é Q-learning em tabela: cada luta ajusta um pouco quanto vale cada postura em cada
+  situação.
+- **A doutrina** é um JSON em `data/elderlexicon/doctrines/<inimigo>.json`. Ele guarda os degraus, quanto cada
+  postura vale em cada situação vista pelo menos 30 vezes, e como foi treinado (lutas, sementes, velocidades,
+  vitórias). Dá para abrir e ler o que o ancião "pensa".
+- **No jogo.** Só o **ancião** segue doutrina, e só contra um inimigo para o qual há uma (por enquanto, zumbis e
+  parentes: husk, afogado). A cada meio segundo livre ele pergunta à doutrina o que fazer. Se for ler, a mente
+  escolhe a melhor frase para aquela intenção. Se for recuar ou aproximar, os objetivos de movimento obedecem. Numa
+  situação que a doutrina nunca viu, ele luta como na 3.9.
+- **Treinar:** `gradlew trainDoctrines --args="--foe zombie --episodes 300000 --half 40 --install"`. Sem `--install`, o
+  arquivo vai para `build/doctrines`. `--show` lista as frases que a mente escolheria para cada intenção. Mudou a
+  potência, o custo ou o alcance das runas: treina-se de novo.
+- **As paredes importam.** Numa arena de 24 × 24, o ancião recuava até o canto e perdia 82% das lutas, com ou sem
+  doutrina. Em campo aberto (`--half 40`, 80 × 80), que é como a doutrina atual foi treinada:
+
+  | 3000 lutas, mesmos começos | vence (sorteadas) | vence (frescas) | transes quebrados |
+  |---|---|---|---|
+  | como antes da 3.9 | 3% | 0% | 3,1 |
+  | ancião, só a 3.9 | 95% | 93% | 0,2 |
+  | ancião, doutrina | 96% | 95% | 0,5 |
+
+  A doutrina é mais agressiva que a regra da 3.9: perde menos lutas, mas termina com menos vida. Ela não sabe onde
+  ficam as paredes: num lugar fechado, ainda se encurrala.
+- **Limites.** A arena não tem quinas, buracos, água nem empurrão. O resultado de cada frase é a previsão da mente
+  (`Mind.potency`, `Mind.person`), e não o efeito de verdade. Por isso o que ela aprende precisa ser conferido no
+  jogo (GameTest `anElderFollowsItsDoctrine`).
+
 ## 4. O que o evocador sabe
 
 - **Repertório por grau.** Aprendiz (2 ou 3 runas), mestre (6 a 8), ancião (quase o léxico inteiro). Cada evocador

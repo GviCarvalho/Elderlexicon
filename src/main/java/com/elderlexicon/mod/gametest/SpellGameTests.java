@@ -514,6 +514,93 @@ public final class SpellGameTests {
         });
     }
 
+    /**
+     * An elder fights a husk by the doctrine the arena taught it (docs/feiticeiro-design.md, 3.10): it asks it what to do,
+     * and is not beaten by a creature that only walks up.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 900, batch = "doctrine")
+    public static void anElderFollowsItsDoctrine(GameTestHelper helper) {
+        longFloor(helper, 40);
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 14.5D));
+        evoker.targetSelector.removeAllGoals(goal -> true);
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.ELDER, com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        net.minecraft.world.entity.monster.Husk husk = helper.spawn(EntityType.HUSK, new Vec3(2.5D, 1.0D, 8.5D));
+        husk.targetSelector.removeAllGoals(goal -> true);
+        husk.setTarget(evoker);
+        evoker.setTarget(husk);
+        boolean[] followed = new boolean[1];
+        helper.onEachTick(() -> {
+            followed[0] |= evoker.casterMind().stance().isPresent();
+            if (!evoker.isAlive() || evoker.getHealth() < evoker.getMaxHealth() * 0.25F) {
+                helper.fail("the husk beat it: " + evoker.getHealth() + " left");
+            }
+        });
+        helper.succeedWhen(() -> {
+            if (!followed[0]) {
+                helper.fail("it never asked its doctrine");
+            }
+            if (husk.isAlive()) {
+                helper.fail("the husk lives: " + husk.getHealth() + " (" + evoker.distanceTo(husk) + " blocks apart)");
+            }
+            leave(evoker, husk);
+        });
+    }
+
+    /**
+     * What the arena (src/arena) is set by: how fast a husk comes for its prey, and how fast a sorcerer and a wizard back
+     * away, in blocks a tick, measured here and written to the log (docs/feiticeiro-design.md, 3.10).
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 200, batch = "calibration")
+    public static void theArenaIsSetByTheWorld(GameTestHelper helper) {
+        longFloor(helper, 40);
+        Villager prey = helper.spawn(EntityType.VILLAGER, new Vec3(0.5D, 1.0D, 38.5D));
+        prey.setNoAi(true);
+        net.minecraft.world.entity.monster.Husk husk = helper.spawn(EntityType.HUSK, new Vec3(0.5D, 1.0D, 1.5D));
+        husk.targetSelector.removeAllGoals(goal -> true);
+        husk.setTarget(prey);
+        Sorcerer sorcerer = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 1.5D));
+        sorcerer.goalSelector.removeAllGoals(goal -> true);
+        sorcerer.targetSelector.removeAllGoals(goal -> true);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(4.5D, 1.0D, 1.5D));
+        wizard.goalSelector.removeAllGoals(goal -> true);
+        wizard.targetSelector.removeAllGoals(goal -> true);
+        double[] from = new double[3];
+        helper.runAfterDelay(40, () -> {
+            from[0] = husk.getZ();
+            from[1] = sorcerer.getZ();
+            from[2] = wizard.getZ();
+        });
+        helper.runAfterDelay(41, () -> {
+            // Not too far: a way is found only within its follow range.
+            sorcerer.getNavigation().moveTo(2.5D + helper.absolutePos(BlockPos.ZERO).getX(), sorcerer.getY(),
+                    helper.absolutePos(new BlockPos(0, 0, 14)).getZ() + 0.5D, 0.8D);
+            wizard.getNavigation().moveTo(4.5D + helper.absolutePos(BlockPos.ZERO).getX(), wizard.getY(),
+                    helper.absolutePos(new BlockPos(0, 0, 14)).getZ() + 0.5D, 0.7D);
+        });
+        double[] walked = new double[2];
+        helper.runAfterDelay(51, () -> {
+            // The first ticks of a walk are slower: measured from the tenth on, for twenty ticks.
+            from[1] = sorcerer.getZ();
+            from[2] = wizard.getZ();
+        });
+        helper.runAfterDelay(71, () -> {
+            walked[0] = (sorcerer.getZ() - from[1]) / 20.0D;
+            walked[1] = (wizard.getZ() - from[2]) / 20.0D;
+        });
+        helper.runAfterDelay(140, () -> {
+            double huskSpeed = (husk.getZ() - from[0]) / 100.0D;
+            double sorcererSpeed = walked[0];
+            double wizardSpeed = walked[1];
+            com.mojang.logging.LogUtils.getLogger().info("CALIBRATION husk={} sorcerer={} wizard={} (blocks a tick)", huskSpeed, sorcererSpeed,
+                    wizardSpeed);
+            leave(prey, husk, sorcerer, wizard);
+            helper.succeed();
+        });
+    }
+
     /** One who can write a distance writes it, and throws from where it stands. */
     @GameTest(template = EMPTY, timeoutTicks = 400, batch = "reach_write")
     public static void aSorcererWhoKnowsHowWritesTheDistance(GameTestHelper helper) {
