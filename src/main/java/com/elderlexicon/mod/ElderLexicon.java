@@ -237,6 +237,7 @@ public class ElderLexicon {
         ENTITY_TYPES.register(modEventBus);
         MatterBlocks.register(modEventBus);
         com.elderlexicon.mod.galdraria.Galdraria.register(modEventBus);
+        com.elderlexicon.mod.tower.Towers.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
         RECIPE_SERIALIZERS.register(modEventBus);
 

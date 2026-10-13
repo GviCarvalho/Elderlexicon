@@ -220,6 +220,10 @@ public final class CasterMind {
     private final Map<String, Intent> studied = new LinkedHashMap<>();
     /** How long until it goes to a block of the craft again. */
     private int studyRest = STUDY_REST_TICKS;
+    /** Its home, and how far from it it wanders at peace. */
+    @Nullable
+    private net.minecraft.core.BlockPos home;
+    private int homeRadius;
     /** The station it works at now, if any. */
     @Nullable
     private Station working;
@@ -371,6 +375,9 @@ public final class CasterMind {
         mind.put("Written", pages);
         mind.put("Copied", intents(copied));
         mind.put("Studied", intents(studied));
+        if (home != null) {
+            mind.putIntArray("Home", new int[]{home.getX(), home.getY(), home.getZ(), homeRadius});
+        }
         CompoundTag understood = new CompoundTag();
         understanding.forEach(understood::putInt);
         mind.put("Understanding", understood);
@@ -404,6 +411,10 @@ public final class CasterMind {
                 .ifPresent(learned::add));
         studied.clear();
         studied.putAll(intents(mind.getList("Studied", Tag.TAG_COMPOUND)));
+        int[] savedHome = mind.getIntArray("Home");
+        if (savedHome.length == 4) {
+            home(new net.minecraft.core.BlockPos(savedHome[0], savedHome[1], savedHome[2]), savedHome[3]);
+        }
         studied.keySet().forEach(text -> PhraseCatalog.imagine(List.of(text.split(" "))).map(Option::of)
                 .ifPresent(learned::add));
         options = null;
@@ -1468,6 +1479,23 @@ public final class CasterMind {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Its home (its tower, docs/mago-design.md, 5e): at peace it does not wander farther than {@code radius} blocks from
+     * it. A foe it follows anywhere.
+     */
+    public void home(net.minecraft.core.BlockPos pos, int radius) {
+        home = pos.immutable();
+        homeRadius = radius;
+        if (owner instanceof net.minecraft.world.entity.PathfinderMob walker) {
+            walker.restrictTo(home, radius);
+        }
+    }
+
+    /** Its home, if it has one. */
+    public Optional<net.minecraft.core.BlockPos> home() {
+        return Optional.ofNullable(home);
     }
 
     /** The sentences it read in the books of the shelves, newest last. */

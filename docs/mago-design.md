@@ -3,7 +3,7 @@
 > "Tudo o que é medido pode ser transformado." (Grimório de EVL, cap. 3)
 
 **Status:** passos 1 e 2 feitos (13/10/2026): a mente comum, o Mago com as trocas dele (5a a 5c) e o bibliotecário
-(5d). Segue docs/feiticeiro-design.md (seção 10a).
+(5d); passo 3 feito (13/10/2026): as torres (5e). Segue docs/feiticeiro-design.md (seção 10a).
 
 A segunda fase dos conjuradores do mod. O Feiticeiro mostrou que uma criatura pode conjurar pelas regras do jogador;
 agora a língua ganha quem a usa sem ser inimigo, e lugares onde ela é ensinada.
@@ -139,7 +139,7 @@ servem a casa: bibliotecários do Arquivo, clérigos da enfermaria, o mercador d
 
 1. ~~A mente sai do `Sorcerer` para uma peça comum; o **Mago** nasce dela, neutro, com as trocas dele.~~ Feito.
 2. ~~O **bibliotecário** com os guias de runas.~~ Feito (seção 5d).
-3. A **torre do feiticeiro** e a **torre do mago** (peças por código).
+3. ~~A **torre do feiticeiro** e a **torre do mago** (peças por código).~~ Feito (seção 5e).
 4. A **casa do mago** nas vilas.
 5. A **universidade**: primeiro o lugar e quem mora; depois o exame, a mensalidade e os graus; depois o Arquivo e a
    oficina; por fim a disciplina da casa.
@@ -246,6 +246,42 @@ servem a casa: bibliotecários do Arquivo, clérigos da enfermaria, o mercador d
   caçava. Vale para todos: jogador, Feiticeiro, Mago, bibliotecário.
 - `/runas guia <runa|fontes|funcoes|filtros|fatos>` dá o guia na mão, para testar.
 - Testes: `aRuneGuideTellsTheRune`, `aLibrarianKeepsGuides`, `aLibrarianVanishesFromItsHunter`.
+
+## 5e. As torres (13/10/2026)
+
+- **Uma estrutura, dois donos** (`tower/`): um tipo de estrutura (`elderlexicon:caster_tower`) desenhado por código
+  (`TowerPiece`), com o dono como dado (`"kind": "sorcerer" | "wizard"`). Onde aparecem e quão raras são é dado de
+  mundo, ajustável por datapack: `worldgen/structure/*_tower.json`, `worldgen/structure_set/*_towers.json` e as
+  etiquetas de bioma `has_structure/*_tower`.
+
+  | | Torre do Feiticeiro | Torre do Mago |
+  |---|---|---|
+  | Biomas | floresta escura, taigas, pântanos | planícies, prados, florestas, savana, planície nevada, cerejeiras, colinas |
+  | Raridade | uma a cada ~56 chunks de grade (no mínimo 24) | uma a cada ~48 (no mínimo 20) |
+  | Pedra | tijolos de ardósia (alguns rachados), ardósia lascada na base | tijolos de pedra (alguns musgosos), pedregulho na base |
+  | Madeira, luz, vidro | carvalho escuro, lanterna de almas, vidro preto | abeto, lanterna, vidro |
+  | Telhado | telhas de ardósia | terracota azul |
+
+- **A forma.** Redonda (raio 5), de 3 a 5 andares de 5 blocos. Uma escada em caracol, um degrau por bloco, sobe em
+  volta de uma coluna central da porta até o observatório. A fundação desce até o chão firme (até 12 blocos).
+- **Os andares:**
+  - **Térreo:** a porta, ao sul, com o caminho limpo até ela; o depósito, com dois baús (loot próprio:
+    `chests/sorcerer_tower` e `chests/wizard_tower`), barris e uma mesa de trabalho.
+  - **Primeiro andar:** a biblioteca, com estantes de três de altura em volta, um atril com um guia de runa aberto, a
+    mesa de galdraria e a mesa de encantamento.
+  - **Andares do meio:** a alquimia (suporte de poções e caldeirão com água), com quatro andares ou mais; o estudo
+    (estantes e outro atril), com cinco.
+  - **Último andar:** o quarto, com cama, baú e tapete (e o suporte de poções, se a torre tiver só três andares).
+  - **Observatório:** no alto, aberto em vidro entre oito pilares, sob o telhado cônico com beiral e um para-raios
+    na ponta.
+- **Quem mora.** O dono nasce na biblioteca, preso à torre (fica a até 16 blocos dela em paz; vai atrás de um inimigo
+  aonde for). A casa é guardada com ele (`Home` na mente). Na torre do Feiticeiro, metade das vezes, um ou dois do
+  bando (vingador ou saqueador) estão à porta. Como a torre tem estante, atril, encantamento, poções e galdraria, o
+  morador usa tudo (seção 5c).
+- **Por dentro:** tudo é desenhado em coordenadas do mundo e só dentro do chunk em geração; o que é sorteado (pedras
+  rachadas, o guia do atril, o bando) sai da posição, para os chunks concordarem.
+- `/locate structure elderlexicon:wizard_tower` (ou `sorcerer_tower`) acha a mais próxima.
+- Testes: `theTowersAreStructures`, `aWizardsTowerIsBuilt`.
 
 ## 6. Perguntas abertas
 

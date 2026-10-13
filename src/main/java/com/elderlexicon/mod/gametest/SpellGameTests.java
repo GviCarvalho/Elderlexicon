@@ -741,6 +741,72 @@ public final class SpellGameTests {
         });
     }
 
+    /** The towers are structures of the world (docs/mago-design.md, 5e). */
+    @GameTest(template = EMPTY)
+    public static void theTowersAreStructures(GameTestHelper helper) {
+        var structures = helper.getLevel().registryAccess().registryOrThrow(
+                net.minecraft.core.registries.Registries.STRUCTURE);
+        for (String tower : List.of("sorcerer_tower", "wizard_tower")) {
+            if (!structures.containsKey(new net.minecraft.resources.ResourceLocation(ElderLexicon.MODID, tower))) {
+                helper.fail("no structure " + tower);
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A tower drawn whole: its door, its library, its stair, its roof, and its caster at home in it. The tower is larger
+     * than a test's room: what it drew is taken away after.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 100, batch = "tower")
+    public static void aWizardsTowerIsBuilt(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        ServerLevel level = helper.getLevel();
+        BlockPos center = helper.absolutePos(new BlockPos(2, 0, 2)).above(10);
+        com.elderlexicon.mod.tower.TowerPiece tower = new com.elderlexicon.mod.tower.TowerPiece(
+                com.elderlexicon.mod.tower.TowerKind.WIZARD, center, 4);
+        net.minecraft.world.level.levelgen.structure.BoundingBox box = tower.getBoundingBox();
+        tower.postProcess(level, level.structureManager(), level.getChunkSource().getGenerator(), level.getRandom(),
+                box, new net.minecraft.world.level.ChunkPos(center), center);
+        List<com.elderlexicon.mod.wizard.Wizard> dwellers = level.getEntitiesOfClass(
+                com.elderlexicon.mod.wizard.Wizard.class, net.minecraft.world.phys.AABB.of(box));
+        try {
+            if (!(level.getBlockState(center.offset(0, 1, 5)).getBlock() instanceof net.minecraft.world.level.block.DoorBlock)) {
+                helper.fail("no door: " + level.getBlockState(center.offset(0, 1, 5)));
+            }
+            if (!level.getBlockState(center.offset(0, 6, -3)).is(Blocks.LECTERN)) {
+                helper.fail("no lectern in the library: " + level.getBlockState(center.offset(0, 6, -3)));
+            }
+            if (!level.getBlockState(center.offset(-3, 6, 0)).is(com.elderlexicon.mod.galdraria.Galdraria.TABLE.get())) {
+                helper.fail("no galdraria table in the library");
+            }
+            long shelves = BlockPos.betweenClosedStream(box).filter(pos -> level.getBlockState(pos).is(Blocks.BOOKSHELF))
+                    .count();
+            if (shelves < 20) {
+                helper.fail("a library of " + shelves + " shelves");
+            }
+            if (!level.getBlockState(center.offset(1, 1, 0)).is(Blocks.SPRUCE_PLANKS)) {
+                helper.fail("the stair does not start at the column: " + level.getBlockState(center.offset(1, 1, 0)));
+            }
+            if (!level.getBlockState(center.offset(0, 4 * 5 + 4 + 5 + 1, 0)).is(Blocks.BLUE_TERRACOTTA)) {
+                helper.fail("no roof at the top");
+            }
+            if (dwellers.size() != 1) {
+                helper.fail(dwellers.size() + " wizards in the tower");
+            }
+            if (dwellers.get(0).casterMind().home().isEmpty()) {
+                helper.fail("the wizard has no home");
+            }
+            helper.succeed();
+        } finally {
+            dwellers.forEach(net.minecraft.world.entity.Entity::discard);
+            level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, net.minecraft.world.phys.AABB.of(box))
+                    .forEach(net.minecraft.world.entity.Entity::discard);
+            BlockPos.betweenClosed(box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ())
+                    .forEach(pos -> level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2));
+        }
+    }
+
     /** A Sorcerer leaves a Wizard be: the two are neither friends nor foes (docs/mago-design.md, 5b). */
     @GameTest(template = EMPTY, timeoutTicks = 100, batch = "casters_neutral")
     public static void aSorcererLeavesAWizardBe(GameTestHelper helper) {
