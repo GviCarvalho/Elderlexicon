@@ -2,7 +2,8 @@
 
 > "Tudo o que é medido pode ser transformado." (Grimório de EVL, cap. 3)
 
-**Status:** passo 1 feito (12/10/2026): a mente comum e o Mago com as trocas dele (seção 8). Segue docs/feiticeiro-design.md (seção 10a).
+**Status:** passos 1 e 2 feitos (13/10/2026): a mente comum, o Mago com as trocas dele (5a a 5c) e o bibliotecário
+(5d). Segue docs/feiticeiro-design.md (seção 10a).
 
 A segunda fase dos conjuradores do mod. O Feiticeiro mostrou que uma criatura pode conjurar pelas regras do jogador;
 agora a língua ganha quem a usa sem ser inimigo, e lugares onde ela é ensinada.
@@ -137,7 +138,7 @@ servem a casa: bibliotecários do Arquivo, clérigos da enfermaria, o mercador d
 ## 5. Ordem proposta
 
 1. ~~A mente sai do `Sorcerer` para uma peça comum; o **Mago** nasce dela, neutro, com as trocas dele.~~ Feito.
-2. O **bibliotecário** com os guias de runas.
+2. ~~O **bibliotecário** com os guias de runas.~~ Feito (seção 5d).
 3. A **torre do feiticeiro** e a **torre do mago** (peças por código).
 4. A **casa do mago** nas vilas.
 5. A **universidade**: primeiro o lugar e quem mora; depois o exame, a mensalidade e os graus; depois o Arquivo e a
@@ -219,6 +220,32 @@ servem a casa: bibliotecários do Arquivo, clérigos da enfermaria, o mercador d
   - A escolha pesa a necessidade: o suporte de poções quando está ferido, a mesa de encantamento quando falta Vis.
   - O estudo dos Feiticeiros das mansões usa o atril e as estantes que `Sorcerers.study()` já põe ao lado deles.
 - Testes: `aWizardIsHeard`, `aCasterReadsAtTheShelves`, `aWizardEngravesAWandToSell`.
+
+## 5d. O bibliotecário (13/10/2026)
+
+- **Os guias (`library/RuneGuides`).** Livros escritos, feitos só do léxico (uma runa de addon ganha o seu guia sem
+  código), com "A Biblioteca" como autora:
+  - **Guia de uma runa:** a capa com o glifo e o nome; o que ela é (a descrição do léxico); como entra na frase (o
+    papel dela, do léxico); até três frases curtas do catálogo que se leem bem, com o que cada uma faz; e **como
+    vivê-la**: as experiências da lição da runa (`lexicon/understanding.json`). Fecha com "Ler não ensina a runa:
+    ensina o que ela é. Ela vem num sonho, depois de vivida."
+  - **Guia de uma família** (a gramática): Fontes, Funções, Filtros ou Fatos, o que a família é, e cada runa dela numa
+    linha.
+  - Hoje só o `igni` tem lição escrita. Os guias das outras runas dizem que não sabem como ela se vive; quando cada
+    runa ganhar a sua lição, o guia passa a dizê-la sozinho.
+- **As trocas.** Entram no conjunto de ofertas do bibliotecário, por nível: Fontes (1), Funções (2), Filtros (3),
+  Fatos (4), qualquer runa (5); em cada nível, o guia de uma runa sorteada e o guia da família. Um livro e de 4 a 10
+  esmeraldas. Como no jogo base, cada nível sorteia duas ofertas do conjunto, então nem todo bibliotecário tem um guia
+  em cada nível. Os bibliotecários que já existem só mostram guias nos níveis que ainda vão subir.
+- **A defesa.** Com um monstro a até 8 blocos (a memória de "hostil mais próximo" do cérebro do aldeão) ou logo
+  depois de um golpe, o bibliotecário fica parado os dois segundos do transe, com as runas sobre a cabeça, e lê o
+  véu mais longo do catálogo (`chronos 6 surgit ego quantum 0`). Um golpe no meio quebra o transe. Depois, 30 s até
+  ler de novo (5 s se foi quebrado).
+- **O véu agora esconde dos monstros.** Antes ele só mudava o desenho. Agora quem está menos visível é percebido
+  tanto menos (o invisível, como na invisibilidade do jogo, ainda um pouco), e quem some de todo é perdido por quem o
+  caçava. Vale para todos: jogador, Feiticeiro, Mago, bibliotecário.
+- `/runas guia <runa|fontes|funcoes|filtros|fatos>` dá o guia na mão, para testar.
+- Testes: `aRuneGuideTellsTheRune`, `aLibrarianKeepsGuides`, `aLibrarianVanishesFromItsHunter`.
 
 ## 6. Perguntas abertas
 

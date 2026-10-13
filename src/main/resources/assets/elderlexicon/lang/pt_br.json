@@ -329,5 +329,12 @@
   "phantur.elderlexicon.won.0.1": "E quando o mundo rachar sob teus pés, lembra que eu avisei.",
   "phantur.elderlexicon.won.1.0": "Tu conseguiste.",
   "phantur.elderlexicon.won.1.1": "Eu devia estar com raiva. Estou só cansado.",
-  "phantur.elderlexicon.won.1.2": "Leva a represa quebrada contigo. Usa-a com mais cuidado do que eu usaria."
+  "phantur.elderlexicon.won.1.2": "Leva a represa quebrada contigo. Usa-a com mais cuidado do que eu usaria.",
+  "guide.elderlexicon.experience.igni_cold": "sentir frio de verdade;",
+  "guide.elderlexicon.experience.igni_hypothermia": "sentir o frio entrar nos ossos;",
+  "guide.elderlexicon.experience.igni_warm": "sentir calor de verdade;",
+  "guide.elderlexicon.experience.igni_boiling": "sentir o calor ferver por dentro;",
+  "guide.elderlexicon.experience.burning": "queimar;",
+  "guide.elderlexicon.experience.freezing": "congelar.",
+  "guide.elderlexicon.unwritten": "Este guia não sabe dizer como se vive esta runa. Os que a sabem não escreveram como a entenderam.\n\n"
 }

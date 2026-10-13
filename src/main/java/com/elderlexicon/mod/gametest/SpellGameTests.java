@@ -438,6 +438,16 @@ public final class SpellGameTests {
         }
     }
 
+    /**
+     * Takes away what a test on the long floor spawned: it stands beyond the test's bounds, where the test does not
+     * clear it, and would wander into the tests after.
+     */
+    private static void leave(net.minecraft.world.entity.Entity... spawned) {
+        for (net.minecraft.world.entity.Entity entity : spawned) {
+            entity.discard();
+        }
+    }
+
     /** A sorcerer that knows {@code known} and hunts {@code prey} alone, far down the floor. */
     private static Sorcerer farFrom(GameTestHelper helper, Villager prey, String... known) {
         com.elderlexicon.mod.mind.PhraseCatalog.get();
@@ -466,6 +476,7 @@ public final class SpellGameTests {
             if (evoker.distanceTo(prey) > com.elderlexicon.mod.mind.Reach.THROW - 1.0D) {
                 helper.fail("it has not come near yet: " + evoker.distanceTo(prey));
             }
+            leave(evoker, prey);
         });
     }
 
@@ -484,6 +495,7 @@ public final class SpellGameTests {
             if (!words.contains("ubis")) {
                 helper.fail("it read " + words + " from " + evoker.distanceTo(prey) + " blocks");
             }
+            leave(evoker, prey);
         });
     }
 
@@ -496,11 +508,12 @@ public final class SpellGameTests {
         longFloor(helper, 12);
         Villager prey = helper.spawn(EntityType.VILLAGER, new Vec3(2.5D, 1.0D, 9.5D));
         prey.setNoAi(true);
-        farFrom(helper, prey, "igni", "iactare", "vocant");
+        Sorcerer evoker = farFrom(helper, prey, "igni", "iactare", "vocant");
         helper.succeedWhen(() -> {
             if (prey.isAlive() && prey.getHealth() >= prey.getMaxHealth()) {
                 helper.fail("the villager is not hurt");
             }
+            leave(evoker, prey);
         });
     }
 
@@ -642,6 +655,88 @@ public final class SpellGameTests {
                     .anyMatch(offer -> com.elderlexicon.mod.galdraria.Engravings.has(offer.getResult()));
             if (!engraved) {
                 helper.fail("no engraved wand offered; " + wizard.describe());
+            }
+        });
+    }
+
+    /** All the text of a written book's pages, as plain text (translatable parts by their keys). */
+    private static String bookText(net.minecraft.world.item.ItemStack book) {
+        StringBuilder text = new StringBuilder();
+        net.minecraft.nbt.ListTag pages = book.getOrCreateTag().getList("pages", net.minecraft.nbt.Tag.TAG_STRING);
+        for (int i = 0; i < pages.size(); i++) {
+            text.append(pages.getString(i)).append('\n');
+        }
+        return text.toString();
+    }
+
+    /** A rune guide says what the rune is, sentences that read well, and how it is lived (docs/mago-design.md, 5d). */
+    @GameTest(template = EMPTY)
+    public static void aRuneGuideTellsTheRune(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        net.minecraft.world.item.ItemStack guide = com.elderlexicon.mod.library.RuneGuides.runeGuide("igni")
+                .orElseThrow();
+        String text = bookText(guide);
+        if (!text.contains("o fogo, a energia como calor")) {
+            helper.fail("the guide does not say what igni is: " + text);
+        }
+        if (!text.contains("igni iactare")) {
+            helper.fail("the guide shows no sentence with igni: " + text);
+        }
+        if (!text.contains("guide.elderlexicon.experience.burning")) {
+            helper.fail("the guide does not say how igni is lived: " + text);
+        }
+        net.minecraft.world.item.ItemStack grammar = com.elderlexicon.mod.library.RuneGuides.familyGuide(
+                com.elderlexicon.mod.library.RuneGuides.Family.FILTERS);
+        if (!bookText(grammar).contains("ubis")) {
+            helper.fail("the guide of the filters does not have ubis");
+        }
+        helper.succeed();
+    }
+
+    /** A librarian has guides among what it may offer, at every level of its trade. */
+    @GameTest(template = EMPTY)
+    public static void aLibrarianKeepsGuides(GameTestHelper helper) {
+        Villager librarian = helper.spawn(EntityType.VILLAGER, new Vec3(2.5D, 1.0D, 2.5D));
+        librarian.setNoAi(true);
+        var pool = net.minecraft.world.entity.npc.VillagerTrades.TRADES.get(
+                net.minecraft.world.entity.npc.VillagerProfession.LIBRARIAN);
+        for (int level = 1; level <= 5; level++) {
+            boolean guide = false;
+            for (var listing : pool.get(level)) {
+                net.minecraft.world.item.trading.MerchantOffer offer = listing.getOffer(librarian,
+                        helper.getLevel().getRandom());
+                if (offer != null && com.elderlexicon.mod.library.RuneGuides.subject(offer.getResult()).isPresent()) {
+                    guide = true;
+                }
+            }
+            if (!guide) {
+                helper.fail("no guide among the librarian's trades of level " + level);
+            }
+        }
+        helper.succeed();
+    }
+
+    /** A librarian struck reads the veil: it is lost to the one that hunted it. */
+    @GameTest(template = EMPTY, timeoutTicks = 200, batch = "librarian_veil")
+    public static void aLibrarianVanishesFromItsHunter(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        roomWithAWall(helper);
+        Villager librarian = helper.spawn(EntityType.VILLAGER, new Vec3(1.5D, 1.0D, 1.5D));
+        librarian.setVillagerData(librarian.getVillagerData().setProfession(
+                net.minecraft.world.entity.npc.VillagerProfession.LIBRARIAN));
+        librarian.setVillagerXp(1); // a librarian with no job site and no trade made is no librarian for long
+        net.minecraft.world.entity.monster.Zombie zombie = helper.spawn(EntityType.ZOMBIE, new Vec3(3.5D, 1.0D, 3.5D));
+        zombie.setNoAi(true);
+        zombie.setTarget(librarian);
+        helper.runAtTickTime(5, () -> librarian.hurt(helper.getLevel().damageSources().mobAttack(zombie), 1.0F));
+        boolean[] tranced = {false};
+        helper.onEachTick(() -> tranced[0] |= com.elderlexicon.mod.library.Librarians.inTrance(librarian));
+        helper.succeedWhen(() -> {
+            if (!tranced[0]) {
+                helper.fail("the librarian never read");
+            }
+            if (zombie.getTarget() == librarian) {
+                helper.fail("the zombie still hunts it");
             }
         });
     }

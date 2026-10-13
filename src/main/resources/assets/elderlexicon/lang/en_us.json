@@ -341,5 +341,12 @@
   "phantur.elderlexicon.won.0.1": "And when the world cracks under your feet, remember that I warned you.",
   "phantur.elderlexicon.won.1.0": "You did it.",
   "phantur.elderlexicon.won.1.1": "I should be angry. I am only tired.",
-  "phantur.elderlexicon.won.1.2": "Take the broken dam with you. Use it more carefully than I would."
+  "phantur.elderlexicon.won.1.2": "Take the broken dam with you. Use it more carefully than I would.",
+  "guide.elderlexicon.experience.igni_cold": "feel truly cold;",
+  "guide.elderlexicon.experience.igni_hypothermia": "feel the cold get into the bones;",
+  "guide.elderlexicon.experience.igni_warm": "feel truly warm;",
+  "guide.elderlexicon.experience.igni_boiling": "feel the heat boil within;",
+  "guide.elderlexicon.experience.burning": "burn;",
+  "guide.elderlexicon.experience.freezing": "freeze.",
+  "guide.elderlexicon.unwritten": "This guide cannot say how this rune is lived. Those who know it did not write how they understood it.\n\n"
 }

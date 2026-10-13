@@ -47,6 +47,12 @@ public final class RuneCommand {
                                         StringArgumentType.getString(context, "runa")))))
                 .then(Commands.literal("mente")
                         .executes(context -> mind(context.getSource())))
+                .then(Commands.literal("guia")
+                        .then(Commands.argument("assunto", StringArgumentType.word())
+                                .suggests((context, builder) -> SharedSuggestionProvider.suggest(guideSubjects(),
+                                        builder))
+                                .executes(context -> guide(context.getSource(),
+                                        StringArgumentType.getString(context, "assunto")))))
                 .then(Commands.literal("catalogo")
                         .executes(context -> catalog(context.getSource(), ""))
                         .then(Commands.argument("busca", StringArgumentType.greedyString())
@@ -57,6 +63,32 @@ public final class RuneCommand {
                         .then(Commands.argument("jogador", EntityArgument.player())
                                 .executes(context -> list(context.getSource(),
                                         EntityArgument.getPlayer(context, "jogador"))))));
+    }
+
+    /** What a guide can be of: every rune a librarian keeps guides of, and the four families. */
+    private static List<String> guideSubjects() {
+        List<String> subjects = new java.util.ArrayList<>();
+        for (com.elderlexicon.mod.library.RuneGuides.Family family
+                : com.elderlexicon.mod.library.RuneGuides.Family.values()) {
+            subjects.add(family.id);
+            subjects.addAll(com.elderlexicon.mod.library.RuneGuides.runesOf(family));
+        }
+        return subjects;
+    }
+
+    /** {@code /runas guia <runa|familia>}: the guide a librarian sells of it, in hand. */
+    private static int guide(CommandSourceStack source, String subject) throws
+            com.mojang.brigadier.exceptions.CommandSyntaxException {
+        net.minecraft.world.item.ItemStack book = com.elderlexicon.mod.library.RuneGuides.Family.byId(subject)
+                .map(com.elderlexicon.mod.library.RuneGuides::familyGuide)
+                .or(() -> com.elderlexicon.mod.library.RuneGuides.runeGuide(subject))
+                .orElse(null);
+        if (book == null) {
+            source.sendFailure(Component.literal("Não há guia de " + subject + "."));
+            return 0;
+        }
+        source.getPlayerOrException().getInventory().add(book);
+        return 1;
     }
 
     /** {@code /runas mente}: who the nearest caster (a sorcerer, a wizard) is, what it knows and what it read last. */

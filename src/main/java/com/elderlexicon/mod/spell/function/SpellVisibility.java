@@ -61,6 +61,18 @@ public final class SpellVisibility {
     }
 
     /**
+     * A creature seen less than whole is noticed as much less by others: as much as it is seen (an invisible one, as
+     * the game's invisibility, still a little).
+     */
+    @net.minecraftforge.eventbus.api.SubscribeEvent
+    public static void onNoticed(net.minecraftforge.event.entity.living.LivingEvent.LivingVisibilityEvent event) {
+        Altered altered = ENTITIES.get(event.getEntity().getUUID());
+        if (altered != null && altered.level() < Visibility.SEEN) {
+            event.modifyVisibility(Math.max(0.07D, Visibility.opacity(altered.level())));
+        }
+    }
+
+    /**
      * Sets the sight of everything loaded bearing {@code mark} to {@code level} for {@code seconds} (chronos, or null for
      * the default); returns the UMU owed for all of it.
      */
@@ -113,6 +125,12 @@ public final class SpellVisibility {
         }
         ENTITIES.put(entity.getUUID(), new Altered(level, until(caster, seconds)));
         tell(entity, level);
+        if (level == Visibility.HIDDEN && entity instanceof LivingEntity hidden
+                && entity.level() instanceof ServerLevel world) {
+            // Unseen, it is lost to those hunting it (docs/mago-design.md, 5d).
+            world.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, hidden.getBoundingBox().inflate(32.0D),
+                    mob -> mob.getTarget() == hidden).forEach(mob -> mob.setTarget(null));
+        }
         return owed(mass, level, seconds);
     }
 
