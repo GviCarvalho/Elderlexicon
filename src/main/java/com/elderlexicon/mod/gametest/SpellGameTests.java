@@ -385,7 +385,11 @@ public final class SpellGameTests {
             // Whoever hurt the villager last (a creature of another test may wander in and do it).
             if (wizard.getTarget() == null || wizard.getTarget() != zombie
                     && wizard.getTarget() != villager.getLastHurtByMob()) {
-                helper.fail("the wizard does not fight the one who hurt the villager: " + wizard.getTarget());
+                helper.fail("the wizard does not fight the one who hurt the villager: " + wizard.getTarget()
+                        + "; villager hurt by " + villager.getLastHurtByMob() + " at " + villager.getLastHurtByMobTimestamp()
+                        + " (now " + villager.tickCount + ", wizard " + wizard.tickCount + ", alive " + wizard.isAlive()
+                        + ", at " + wizard.blockPosition() + " in " + helper.getLevel().getBlockState(wizard.blockPosition())
+                        + "), zombie alive " + zombie.isAlive());
             }
         });
     }
@@ -940,6 +944,187 @@ public final class SpellGameTests {
                         .forEach(pos -> level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2));
             }
         });
+    }
+
+    /**
+     * A university drawn whole (docs/mago-design.md, 5g): its houses, and who lives there, each with its rank and chair.
+     * The grounds are far larger than a test's room: what they drew is taken away after.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 200, batch = "university")
+    public static void aUniversityIsBuilt(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        ServerLevel level = helper.getLevel();
+        BlockPos center = helper.absolutePos(new BlockPos(2, 0, 2)).above(12);
+        com.elderlexicon.mod.university.UniversityPiece university =
+                new com.elderlexicon.mod.university.UniversityPiece(center);
+        com.elderlexicon.mod.university.UniversityRoadPiece road =
+                new com.elderlexicon.mod.university.UniversityRoadPiece(center);
+        net.minecraft.world.level.levelgen.structure.BoundingBox all = net.minecraft.world.level.levelgen.structure
+                .BoundingBox.encapsulatingBoxes(List.of(university.getBoundingBox(), road.getBoundingBox())).orElseThrow();
+        net.minecraft.world.phys.AABB area = net.minecraft.world.phys.AABB.of(all);
+        level.getEntitiesOfClass(net.minecraft.world.entity.Entity.class, area,
+                entity -> !(entity instanceof net.minecraft.world.entity.player.Player))
+                .forEach(net.minecraft.world.entity.Entity::discard);
+        // Open air where it stands, and stone under it, as the terrain would be shaped to it.
+        BlockPos.betweenClosed(all.minX(), all.minY() - 6, all.minZ(), all.maxX(), all.maxY(), all.maxZ())
+                .forEach(pos -> level.setBlock(pos, pos.getY() < center.getY() ? Blocks.STONE.defaultBlockState()
+                        : Blocks.AIR.defaultBlockState(), 2));
+        net.minecraft.world.level.levelgen.structure.BoundingBox drawn = new net.minecraft.world.level.levelgen
+                .structure.BoundingBox(all.minX(), all.minY() - 6, all.minZ(), all.maxX(), all.maxY(), all.maxZ());
+        university.postProcess(level, level.structureManager(), level.getChunkSource().getGenerator(), level.getRandom(),
+                drawn, new net.minecraft.world.level.ChunkPos(center), center);
+        road.postProcess(level, level.structureManager(), level.getChunkSource().getGenerator(), level.getRandom(),
+                drawn, new net.minecraft.world.level.ChunkPos(center), center);
+        helper.runAtTickTime(150, () -> {
+            List<com.elderlexicon.mod.wizard.Wizard> wizards = level.getEntitiesOfClass(
+                    com.elderlexicon.mod.wizard.Wizard.class, area);
+            List<Villager> villagers = level.getEntitiesOfClass(Villager.class, area);
+            try {
+                picture(level, all, "university");
+                long rectors = wizards.stream().filter(wizard -> wizard.rank()
+                        .filter(com.elderlexicon.mod.university.Rank.RECTOR::equals).isPresent()).count();
+                java.util.Set<com.elderlexicon.mod.university.Discipline> chairs = new java.util.HashSet<>();
+                wizards.forEach(wizard -> wizard.chair().ifPresent(chairs::add));
+                if (rectors != 1) {
+                    helper.fail(rectors + " rectors");
+                }
+                if (chairs.size() != com.elderlexicon.mod.university.Discipline.values().length) {
+                    helper.fail("chairs held: " + chairs);
+                }
+                if (wizards.stream().anyMatch(wizard -> wizard.casterMind().home().isEmpty() || !wizard.hasCustomName())) {
+                    helper.fail("a wizard of the university with no home or no title");
+                }
+                long librarians = villagers.stream().filter(villager -> villager.getVillagerData().getProfession()
+                        == net.minecraft.world.entity.npc.VillagerProfession.LIBRARIAN).count();
+                long clerics = villagers.stream().filter(villager -> villager.getVillagerData().getProfession()
+                        == net.minecraft.world.entity.npc.VillagerProfession.CLERIC).count();
+                if (librarians < 2 || clerics < 2) {
+                    helper.fail(librarians + " librarians and " + clerics + " clerics");
+                }
+                if (!level.getBlockState(center.offset(-44, 1, -39)).is(Blocks.IRON_DOOR)) {
+                    helper.fail("no iron door to the closed room: " + level.getBlockState(center.offset(-44, 1, -39)));
+                }
+                if (!level.getBlockState(center.offset(37, 1, -23)).is(com.elderlexicon.mod.galdraria.Galdraria.TABLE.get())) {
+                    helper.fail("no table for the master of galdraria: " + level.getBlockState(center.offset(37, 1, -23)));
+                }
+                if (!level.getBlockState(center.offset(0, 1, 62)).isAir()) {
+                    helper.fail("the gate is shut: " + level.getBlockState(center.offset(0, 1, 62)));
+                }
+                net.minecraft.world.level.block.state.BlockState railing = level.getBlockState(center.offset(-52, 9, -30));
+                if (!railing.is(Blocks.DARK_OAK_FENCE) || !railing.getValue(net.minecraft.world.level.block.FenceBlock.NORTH)
+                        || !railing.getValue(net.minecraft.world.level.block.FenceBlock.SOUTH)) {
+                    helper.fail("the railing of the gallery is not joined: " + railing);
+                }
+                if (!level.getBlockState(center.offset(0, 1, 11)).is(Blocks.STONE_BRICKS)) {
+                    helper.fail("the rim of the fountain is not solid: " + level.getBlockState(center.offset(0, 1, 11)));
+                }
+                // Where a monster could be born of the dark inside the walls.
+                List<String> dark = new java.util.ArrayList<>();
+                BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
+                for (int x = -61; x <= 61; x++) {
+                    for (int z = -61; z <= 61; z++) {
+                        for (int y = 1; y <= com.elderlexicon.mod.university.UniversityPiece.TOP_FOR_TESTS; y++) {
+                            at.set(center.getX() + x, center.getY() + y, center.getZ() + z);
+                            if (level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, at) == 0
+                                    && net.minecraft.world.level.NaturalSpawner.isSpawnPositionOk(
+                                    net.minecraft.world.entity.SpawnPlacements.Type.ON_GROUND, level, at,
+                                    EntityType.ZOMBIE)
+                                    && level.noCollision(EntityType.ZOMBIE.getAABB(at.getX() + 0.5D, at.getY(),
+                                    at.getZ() + 0.5D))) {
+                                dark.add(x + "," + y + "," + z + (dark.size() < 40 ? "=" + net.minecraft.core.registries
+                                        .BuiltInRegistries.BLOCK.getKey(level.getBlockState(at.below()).getBlock()).getPath()
+                                        : ""));
+                            }
+                        }
+                    }
+                }
+                System.out.println("[university] dark spots: " + dark.size() + " "
+                        + dark.subList(0, Math.min(80, dark.size())));
+                if (!dark.isEmpty()) {
+                    helper.fail(dark.size() + " dark spots where monsters are born, as "
+                            + dark.subList(0, Math.min(8, dark.size())));
+                }
+                helper.succeed();
+            } finally {
+                level.getEntitiesOfClass(net.minecraft.world.entity.Entity.class, area,
+                                entity -> !(entity instanceof net.minecraft.world.entity.player.Player))
+                        .forEach(net.minecraft.world.entity.Entity::discard);
+                BlockPos.betweenClosed(all.minX(), all.minY() - 6, all.minZ(), all.maxX(), all.maxY(), all.maxZ())
+                        .forEach(pos -> level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2));
+            }
+        });
+    }
+
+    /**
+     * Pictures of what stands in {@code box}, for whoever builds it to look at: from above, and from the south, in the
+     * colours the game's maps give the blocks (saved by the server, in {@code pictures/}).
+     */
+    private static void picture(ServerLevel level, net.minecraft.world.level.levelgen.structure.BoundingBox box,
+                                String name) {
+        int scale = 4;
+        java.awt.image.BufferedImage above = new java.awt.image.BufferedImage(box.getXSpan() * scale,
+                box.getZSpan() * scale, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.image.BufferedImage front = new java.awt.image.BufferedImage(box.getXSpan() * scale,
+                box.getYSpan() * scale, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int x = box.minX(); x <= box.maxX(); x++) {
+            for (int z = box.minZ(); z <= box.maxZ(); z++) {
+                int rgb = 0x87CEEB;
+                for (int y = box.maxY(); y >= box.minY(); y--) {
+                    net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos.set(x, y, z));
+                    if (!state.isAir()) {
+                        rgb = shade(state.getMapColor(level, pos).col, (y - box.minY()) / (double) box.getYSpan());
+                        break;
+                    }
+                }
+                paint(above, (x - box.minX()) * scale, (z - box.minZ()) * scale, scale, rgb);
+            }
+            for (int y = box.minY(); y <= box.maxY(); y++) {
+                int rgb = 0x87CEEB;
+                for (int z = box.maxZ(); z >= box.minZ(); z--) {
+                    net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos.set(x, y, z));
+                    if (!state.isAir()) {
+                        rgb = shade(state.getMapColor(level, pos).col, 1.0D - (box.maxZ() - z) / (double) box.getZSpan());
+                        break;
+                    }
+                }
+                paint(front, (x - box.minX()) * scale, (box.maxY() - y) * scale, scale, rgb);
+            }
+        }
+        try {
+            java.nio.file.Path folder = level.getServer().getServerDirectory().toPath().resolve("pictures");
+            java.nio.file.Files.createDirectories(folder);
+            javax.imageio.ImageIO.write(above, "png", folder.resolve(name + "_above.png").toFile());
+            javax.imageio.ImageIO.write(front, "png", folder.resolve(name + "_south.png").toFile());
+        } catch (java.io.IOException ignored) {
+            // only pictures
+        }
+    }
+
+    private static int shade(int rgb, double light) {
+        double factor = 0.55D + 0.45D * Math.max(0.0D, Math.min(1.0D, light));
+        int r = (int) (((rgb >> 16) & 0xFF) * factor);
+        int g = (int) (((rgb >> 8) & 0xFF) * factor);
+        int b = (int) ((rgb & 0xFF) * factor);
+        return (r << 16) | (g << 8) | b;
+    }
+
+    private static void paint(java.awt.image.BufferedImage image, int x, int y, int scale, int rgb) {
+        for (int i = 0; i < scale; i++) {
+            for (int j = 0; j < scale; j++) {
+                image.setRGB(x + i, y + j, rgb);
+            }
+        }
+    }
+
+    /** The university is a structure of the world. */
+    @GameTest(template = EMPTY)
+    public static void theUniversityIsAStructure(GameTestHelper helper) {
+        if (!helper.getLevel().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE)
+                .containsKey(new net.minecraft.resources.ResourceLocation(ElderLexicon.MODID, "university"))) {
+            helper.fail("no structure university");
+        }
+        helper.succeed();
     }
 
     /** A Sorcerer leaves a Wizard be: the two are neither friends nor foes (docs/mago-design.md, 5b). */

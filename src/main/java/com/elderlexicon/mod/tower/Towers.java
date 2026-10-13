@@ -23,6 +23,13 @@ public final class Towers {
             () -> () -> TowerStructure.CODEC);
     public static final RegistryObject<StructurePieceType> TOWER_PIECE = PIECES.register("caster_tower",
             () -> (context, tag) -> new TowerPiece(tag));
+    /** A university (docs/mago-design.md, 4 and 5g): registered here with the towers, as the casters' other home. */
+    public static final RegistryObject<StructureType<com.elderlexicon.mod.university.UniversityStructure>> UNIVERSITY =
+            TYPES.register("university", () -> () -> com.elderlexicon.mod.university.UniversityStructure.CODEC);
+    public static final RegistryObject<StructurePieceType> UNIVERSITY_PIECE = PIECES.register("university",
+            () -> (context, tag) -> new com.elderlexicon.mod.university.UniversityPiece(tag));
+    public static final RegistryObject<StructurePieceType> UNIVERSITY_ROAD_PIECE = PIECES.register("university_road",
+            () -> (context, tag) -> new com.elderlexicon.mod.university.UniversityRoadPiece(tag));
 
     private Towers() {
     }

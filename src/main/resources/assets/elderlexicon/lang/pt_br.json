@@ -336,5 +336,19 @@
   "guide.elderlexicon.experience.igni_boiling": "sentir o calor ferver por dentro;",
   "guide.elderlexicon.experience.burning": "queimar;",
   "guide.elderlexicon.experience.freezing": "congelar.",
-  "guide.elderlexicon.unwritten": "Este guia não sabe dizer como se vive esta runa. Os que a sabem não escreveram como a entenderam.\n\n"
+  "guide.elderlexicon.unwritten": "Este guia não sabe dizer como se vive esta runa. Os que a sabem não escreveram como a entenderam.\n\n",
+  "university.elderlexicon.rank.auditor": "Auditor",
+  "university.elderlexicon.rank.scriba": "Scriba",
+  "university.elderlexicon.rank.lector": "Lector",
+  "university.elderlexicon.rank.magister": "Magister",
+  "university.elderlexicon.rank.rector": "Rector",
+  "university.elderlexicon.chair.fontes": "Magister das Fontes",
+  "university.elderlexicon.chair.funcoes": "Magister das Funções",
+  "university.elderlexicon.chair.filtros": "Magister dos Filtros",
+  "university.elderlexicon.chair.fatos": "Magister dos Fatos",
+  "university.elderlexicon.chair.galdraria": "Magister da Galdraria",
+  "university.elderlexicon.chair.vita": "Magister da Vita",
+  "university.elderlexicon.chair.nahva": "Magister de Nahvá",
+  "university.elderlexicon.chair.arquivo": "Magister do Arquivo",
+  "university.elderlexicon.chair.reitor": "Rector"
 }

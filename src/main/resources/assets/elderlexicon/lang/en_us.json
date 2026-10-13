@@ -348,5 +348,19 @@
   "guide.elderlexicon.experience.igni_boiling": "feel the heat boil within;",
   "guide.elderlexicon.experience.burning": "burn;",
   "guide.elderlexicon.experience.freezing": "freeze.",
-  "guide.elderlexicon.unwritten": "This guide cannot say how this rune is lived. Those who know it did not write how they understood it.\n\n"
+  "guide.elderlexicon.unwritten": "This guide cannot say how this rune is lived. Those who know it did not write how they understood it.\n\n",
+  "university.elderlexicon.rank.auditor": "Auditor",
+  "university.elderlexicon.rank.scriba": "Scriba",
+  "university.elderlexicon.rank.lector": "Lector",
+  "university.elderlexicon.rank.magister": "Magister",
+  "university.elderlexicon.rank.rector": "Rector",
+  "university.elderlexicon.chair.fontes": "Magister of the Fonts",
+  "university.elderlexicon.chair.funcoes": "Magister of the Functions",
+  "university.elderlexicon.chair.filtros": "Magister of the Filters",
+  "university.elderlexicon.chair.fatos": "Magister of the Facts",
+  "university.elderlexicon.chair.galdraria": "Magister of Galdraria",
+  "university.elderlexicon.chair.vita": "Magister of the Vita",
+  "university.elderlexicon.chair.nahva": "Magister of Nahvá",
+  "university.elderlexicon.chair.arquivo": "Magister of the Archive",
+  "university.elderlexicon.chair.reitor": "Rector"
 }

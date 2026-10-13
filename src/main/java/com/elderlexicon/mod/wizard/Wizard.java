@@ -88,6 +88,11 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
     private boolean arriving;
     /** How far from its house it wanders at peace. */
     private static final int HOUSE_RADIUS = 24;
+    /** Its rank at a university, and its chair, if it has them (docs/mago-design.md, 4 and 5g). */
+    @Nullable
+    private com.elderlexicon.mod.university.Rank rank;
+    @Nullable
+    private com.elderlexicon.mod.university.Discipline chair;
 
     public Wizard(EntityType<? extends AbstractVillager> type, Level level) {
         super(type, level);
@@ -248,6 +253,12 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
         engravedWares.forEach(wand -> wares.add(wand.save(new CompoundTag())));
         saved.put("EngravedWares", wares);
         saved.putBoolean("Arriving", arriving);
+        if (rank != null) {
+            saved.putString("Rank", rank.id());
+        }
+        if (chair != null) {
+            saved.putString("Chair", chair.id());
+        }
         tag.put(MIND_TAG, saved);
     }
 
@@ -258,6 +269,8 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
             CompoundTag saved = tag.getCompound(MIND_TAG);
             casterMind().load(saved);
             arriving = saved.getBoolean("Arriving");
+            rank = com.elderlexicon.mod.university.Rank.byId(saved.getString("Rank")).orElse(null);
+            chair = com.elderlexicon.mod.university.Discipline.byId(saved.getString("Chair")).orElse(null);
             engravedWares.clear();
             net.minecraft.nbt.ListTag wares = saved.getList("EngravedWares", net.minecraft.nbt.Tag.TAG_COMPOUND);
             for (int i = 0; i < wares.size(); i++) {
@@ -390,6 +403,32 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
 
     public String describe() {
         return casterMind().describe();
+    }
+
+    /**
+     * It is of a university (docs/mago-design.md, 4 and 5g): born of the degree its rank asks for, called by its title,
+     * at home where it is now, within {@code radius} blocks.
+     */
+    public void joinUniversity(com.elderlexicon.mod.university.Rank rank,
+                               @Nullable com.elderlexicon.mod.university.Discipline chair, int radius) {
+        this.rank = rank;
+        this.chair = chair;
+        casterMind().setMind(rank.degree(), Personality.draw(getRandom()),
+                rank.degree().draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(), getRandom()));
+        casterMind().home(blockPosition(), radius);
+        setCustomName(Component.translatable(chair == null ? "university.elderlexicon.rank." + rank.id()
+                : "university.elderlexicon.chair." + chair.id()));
+        setPersistenceRequired();
+    }
+
+    /** Its rank at a university, if it has one. */
+    public java.util.Optional<com.elderlexicon.mod.university.Rank> rank() {
+        return java.util.Optional.ofNullable(rank);
+    }
+
+    /** Its chair at a university, if it holds one. */
+    public java.util.Optional<com.elderlexicon.mod.university.Discipline> chair() {
+        return java.util.Optional.ofNullable(chair);
     }
 
     /** It will be born anew where it is placed next, and make that its home (a house saved with it). */

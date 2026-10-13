@@ -4,7 +4,7 @@
 
 **Status:** passos 1 e 2 feitos (13/10/2026): a mente comum, o Mago com as trocas dele (5a a 5c) e o bibliotecário
 (5d); passo 3 feito (13/10/2026): as torres (5e); passo 4 feito (13/10/2026): a casa do mago nas vilas
-(5f). Segue docs/feiticeiro-design.md (seção 10a).
+(5f); passo 5, primeira parte (13/10/2026): a universidade, o lugar e quem mora (5g). Segue docs/feiticeiro-design.md (seção 10a).
 
 A segunda fase dos conjuradores do mod. O Feiticeiro mostrou que uma criatura pode conjurar pelas regras do jogador;
 agora a língua ganha quem a usa sem ser inimigo, e lugares onde ela é ensinada.
@@ -142,7 +142,7 @@ servem a casa: bibliotecários do Arquivo, clérigos da enfermaria, o mercador d
 2. ~~O **bibliotecário** com os guias de runas.~~ Feito (seção 5d).
 3. ~~A **torre do feiticeiro** e a **torre do mago** (peças por código).~~ Feito (seção 5e).
 4. ~~A **casa do mago** nas vilas.~~ Feito (seção 5f).
-5. A **universidade**: primeiro o lugar e quem mora; depois o exame, a mensalidade e os graus; depois o Arquivo e a
+5. A **universidade**: ~~primeiro o lugar e quem mora~~ (feito, seção 5g); depois o exame, a mensalidade e os graus; depois o Arquivo e a
    oficina; por fim a disciplina da casa.
 6. Os outros aldeões (clérigo, armeiro, ferramenteiro).
 
@@ -313,6 +313,70 @@ servem a casa: bibliotecários do Arquivo, clérigos da enfermaria, o mercador d
   nasce de novo (sorteia grau, personalidade e runas; cada vila tem o seu) e faz da casa o seu lar, a até 24 blocos.
   Na vila, ele defende os aldeões (seção 1) e usa a estante, o atril, a galdraria e as poções da casa (seção 5c).
 - Testes: `theWizardHousesAreSavedAsDrawn`, `theWizardsHouseIsInTheVillages`, `aWizardMovesIntoItsHouse`.
+
+## 5g. A universidade: o lugar e quem mora (13/10/2026)
+
+Primeira versão testada pelo autor: saiu pequena demais e mal assentada (sob uma colina, sobre um bloco de terra). Refeita
+no mesmo dia a partir do conceito dele (a universidade de Raynus: muralha, Salão Central gótico, biblioteca, ala de
+pesquisa, torre do observatório, dormitórios, pátio, jardins).
+
+- **Assentada no mundo.** A peça é uma caixa que começa no chão do campus e sobe até a agulha mais alta; a estrutura usa
+  `"terrain_adaptation": "beard_box"`: o próprio gerador de terreno molda a terra à caixa (enche por baixo, escava por
+  dentro, com uma encosta suave de uns 12 blocos em volta), como faz com as cidades antigas. A altura é a da terra sob o
+  campus (amostrada numa grade de 7 por 7, um pouco abaixo da mediana, nunca abaixo do mar), não só a do meio.
+- **Só três no mundo.** O posicionamento é o das fortalezas: `concentric_rings` com `count: 3`, as três no primeiro
+  anel, a uns 1.500 blocos da origem, preferindo os biomas de `has_structure/university` (quase toda terra firme).
+- **O campus**, 113 blocos de muralha a muralha:
+  - **a muralha**: dois blocos de espessura, nove de altura, com o passeio e as ameias; torres redondas nas quatro
+    quinas e no meio dos lados, com seteiras e cones de ardósia; ao sul, **o portão** entre duas torres, com a grade
+    erguida e lanternas sob o lintel;
+  - **o pátio principal**, calçado em andesito e tijolo de pedra, com a **fonte** redonda no meio e quatro **jardins**
+    cercados de sebe, com flores e uma árvore cada; avenidas calçadas até cada porta; gramados com árvores;
+  - **o Salão Central** (norte): uma nave de 41 por 37 com paredes de 20 blocos, contrafortes e janelas altas, telhado
+    íngreme de ardósia, **duas torres com agulhas** diante da fachada, a **rosácea** sobre o portal e a **agulha
+    central** sobre a nave. Dentro: duas fileiras de colunas, o estrado com a cadeira do Rector e um atril, a mesa do
+    conselho com seus bancos, o tapete vermelho, lustres de corrente;
+  - **a Biblioteca** (oeste), o Arquivo: 25 por 49, paredes de 16; fileiras de estantes de quatro de altura, uma
+    **galeria** em volta com guarda-corpo e escada, estantes na galeria, a sala de leitura com mesas e atris com guias,
+    e ao norte a **sala fechada** atrás da porta de ferro (estantes, mesa de encantamento, os baús do Arquivo);
+  - **a Ala de Pesquisa** (leste): dois andares, um corredor no meio e salas dos dois lados; no térreo, a oeste, as sete
+    salas das cadeiras (cada uma com estantes, o atril com o guia da família e o que é do ofício); a leste e no andar de
+    cima, salas de estudo com estantes e mesas;
+  - **a Torre do Observatório** (sudeste): redonda, 28 de altura, escada em caracol, a sala do alto com a mesa de
+    cartografia e uma luneta, sob uma **cúpula de vidro**;
+  - **o dormitório** (dois andares de camas e baús), **o refeitório** (duas mesas compridas, defumadores), **a oficina**
+    (mesas de galdraria, rebolos, baús) e **a enfermaria** (camas, suportes de poções, caldeirões), ao sul.
+- **Quem mora** (cada um em casa onde nasce): **o Rector** no estrado do Salão Central; **os sete Magisters** nas suas
+  salas da Ala de Pesquisa e **o do Arquivo** na Biblioteca; **seis estudantes** (três Auditores, dois Scribas, um
+  Lector) pelo pátio, na biblioteca e no observatório; **dois bibliotecários** na sala de leitura; **dois clérigos** na
+  enfermaria.
+- **O título** é do Mago: o grau (`Rank`: Auditor, Scriba, Lector, Magister, Rector) e a cadeira (`Discipline`) ficam
+  guardados nele, nascem com o grau de mente que pedem (Auditor aprendiz, Scriba e Lector mestres, Magister e Rector
+  anciões) e aparecem como o nome ("Magister das Fontes", "Rector", "Auditor").
+- **Segunda revisão (13/10/2026), depois de o autor testar:**
+  - **as vilas não brigam mais com ela:** o conjunto das vilas do jogo (`minecraft:villages`) ganhou uma zona de
+    exclusão: nenhuma vila nasce a menos de 10 chunks (160 blocos) de uma universidade. Elas ainda podem nascer à vista,
+    fora dos muros. O arquivo do jogo é substituído pelo do mod, igual ao original fora isso (um mod que também mude as
+    vilas pode brigar com ele);
+  - **a entrada nunca fica fechada:** uma segunda peça, a estrada que sai do portão (`UniversityRoadPiece`, 40 blocos,
+    calçada e com postes), tem o terreno moldado a ela também: um corte no morro ou um aterro;
+  - **mais espaço:** muralha a 62 do meio (125 de lado); a Biblioteca e a Ala de Pesquisa afastadas das torres da
+    fachada, que fechavam as portas delas; as portas no meio de salas inteiras; a escada da galeria sai num patamar
+    com uma abertura no guarda-corpo; a porta do observatório para o oeste, que tem espaço;
+  - **a fonte** tem borda maciça de pedra (a água não vaza mais);
+  - **cercas, grades e muros** se juntam aos vizinhos: depois de assentar tudo num chunk, cada um é recalculado
+    pelas formas ao redor (`Masonry.join`);
+  - **luz em tudo:** os forros são de meia-laje (nada nasce em meia-laje, e o sótão escuro não cria mais monstros); a
+    cumeeira e as bordas dos cones de ardósia também; nas salas altas as lanternas descem em correntes até uns seis
+    blocos do chão; lanternas em cada sala da Ala de Pesquisa, sob a galeria, em cada andar das torres e nas paredes
+    do observatório; postes de lanterna pelo pátio, pelos gramados, junto à avenida e ao longo da muralha; lanternas
+    no passeio da muralha. O GameTest conta os lugares onde um monstro poderia nascer no escuro, do chão às agulhas:
+    **nenhum**.
+- **Por dentro:** `UniversityPiece` (o traçado), `Hall` (um prédio: paredes, contrafortes, janelas, andares, telhado,
+  luzes, escadas), `Masonry` (assentar blocos só dentro do chunk, pelo deslocamento do meio). O GameTest
+  `aUniversityIsBuilt` constrói o campus inteiro, confere, e deixa duas imagens (de cima e do sul) em
+  `run/pictures/`, para ver a composição sem abrir o jogo.
+- `/locate structure elderlexicon:university` acha a mais próxima.
 
 ## 6. Perguntas abertas
 
