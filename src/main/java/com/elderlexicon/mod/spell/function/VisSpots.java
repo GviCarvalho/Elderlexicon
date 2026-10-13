@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
+import net.minecraft.world.entity.LivingEntity;
+
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spell.Aspect;
 import com.elderlexicon.mod.spell.Heat;
@@ -47,7 +49,7 @@ public final class VisSpots {
     }
 
     /** {@code umu} of Vis released at {@code at}: its four aspects, each a quarter of it, at once. */
-    static void release(ServerLevel level, ServerPlayer caster, Vec3 at, double umu) {
+    static void release(ServerLevel level, LivingEntity caster, Vec3 at, double umu) {
         light(level, at, umu);
         double mass = umu * Aspect.share(VitaElement.BALANCED, Aspect.MASS);
         double cohesion = umu * Aspect.share(VitaElement.BALANCED, Aspect.COHESION);

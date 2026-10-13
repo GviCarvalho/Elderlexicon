@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.spell.Casters;
+
 import com.elderlexicon.mod.magic.lexicon.Lexicons;
 import com.elderlexicon.mod.magic.lexicon.VerbSpec;
 import com.elderlexicon.mod.spell.AirPressure;
@@ -18,6 +20,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.Containers;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -32,6 +35,7 @@ import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.lang.reflect.Field;
@@ -74,8 +78,8 @@ public final class WorldSources {
         double pulled = pull(context, element, amount, bodyOf(context.player()));
         if (pulled > EPSILON) {
             context.absorbIntoBody(becomes, pulled);
-            context.player().displayClientMessage(Component.literal("Absorveste "
-                    + SpellCostCalculator.formatCost(pulled) + " UMU de " + becomes.runeId() + "."), true);
+            Casters.status(context.player(), Component.literal("Absorveste "
+                    + SpellCostCalculator.formatCost(pulled) + " UMU de " + becomes.runeId() + "."));
         } else {
             nothingFound(context, element);
         }
@@ -122,7 +126,7 @@ public final class WorldSources {
         }
         List<Source> taken = take(context, element, limit, origin == null ? Optional.empty() : origin.place());
         double pulled = taken.stream().mapToDouble(Source::value).sum();
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         ElementOrb orb = null;
         if (spender != null && spender.atOnce() && pulled > EPSILON) {
             // Condensing: it is gathered into one point for as long as the charge takes, then released.
@@ -130,16 +134,16 @@ public final class WorldSources {
             List<Gatherings.Origin> origins = taken.stream()
                     .map(source -> new Gatherings.Origin(source.pos(), source.state(), source.value())).toList();
             int ticks = Charge.ticks(pulled);
-            Gatherings.gather(player.serverLevel(), element, origins, point, ticks);
+            Gatherings.gather(Casters.level(player), element, origins, point, ticks);
             // Converted too (firmo tenet vertere igni quantum chronos 0 iactare): once gathered, the orb is unmade
             // and remade as the new element, which takes its own time.
-            orb = ElementOrb.gathering(player.serverLevel(), player, chain, pulled, element == becomes ? coalIn(taken) : 0,
+            orb = ElementOrb.gathering(Casters.level(player), player, chain, pulled, element == becomes ? coalIn(taken) : 0,
                     point, ticks);
-            player.serverLevel().addFreshEntity(orb);
+            Casters.level(player).addFreshEntity(orb);
         } else {
             Vec3 toward = gatheringPoint(context, spender);
             for (Source source : taken) {
-                flow(player.serverLevel(), element, source, toward);
+                flow(Casters.level(player), element, source, toward);
             }
         }
         if (pulled <= EPSILON) {
@@ -178,7 +182,7 @@ public final class WorldSources {
         List<Source> taken = take(context, element, needed,
                 context.currentAction().flatMap(SpellAction::place));
         for (Source source : taken) {
-            flow(context.player().serverLevel(), element, source, toward);
+            flow(Casters.level(context.player()), element, source, toward);
         }
         return taken.stream().mapToDouble(Source::value).sum();
     }
@@ -189,7 +193,7 @@ public final class WorldSources {
      * otherwise, as the lexicon says of each verb ({@code gathering}).
      */
     static Vec3 gatheringPoint(SpellContext context, SpellAction spender) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         VerbSpec.Gathering gathering = gatheringOf(spender);
         if (gathering == VerbSpec.Gathering.DESTINATION) {
             Optional<MarkSpells.Destination> place = spender.place().isPresent()
@@ -208,10 +212,10 @@ public final class WorldSources {
      * throws it; where it will appear, for a verb that makes it appear; at the hand for anything else.
      */
     public static java.util.function.Supplier<Vec3> orbPoint(SpellContext context, SpellAction spender) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         VerbSpec.Gathering gathering = gatheringOf(spender);
         if (gathering == VerbSpec.Gathering.HAND) {
-            return () -> player.getEyePosition().subtract(0.0D, 0.35D, 0.0D).add(player.getViewVector(1.0F).scale(0.9D));
+            return () -> handOf(player);
         }
         if (gathering == VerbSpec.Gathering.DESTINATION) {
             Vec3 fixed = gatheringPoint(context, spender);
@@ -233,7 +237,7 @@ public final class WorldSources {
         return Lexicons.get().verb(spender.runeId()).map(VerbSpec::gathering).orElse(VerbSpec.Gathering.BODY);
     }
 
-    private static Vec3 bodyOf(ServerPlayer player) {
+    private static Vec3 bodyOf(LivingEntity player) {
         return player.position().add(0.0D, player.getBbHeight() * 0.6D, 0.0D);
     }
 
@@ -245,11 +249,23 @@ public final class WorldSources {
     /** Drains whole sources of {@code element}, nearest to the aim first, until {@code needed} UMU; returns them. */
     private static List<Source> take(SpellContext context, VitaElement element, double needed,
                                      Optional<SpellPlace> from) {
-        ServerPlayer player = context.player();
-        ServerLevel level = player.serverLevel();
+        LivingEntity player = context.player();
+        ServerLevel level = Casters.level(player);
         Optional<Revelation.Kind> kind = kindOf(element);
         if (kind.isEmpty() || needed <= EPSILON) {
             return List.of();
+        }
+        // A living body aimed at is a source (docs/feiticeiro-design.md, 7.4): the aim is enough. What leaves it is a lack,
+        // and the lack hurts it (aqua quantum -10 vocant draws its blood).
+        Optional<LivingEntity> body = from.isPresent() ? Optional.empty() : aimedBody(player, SEARCH_REACH);
+        if (body.isPresent()) {
+            LivingEntity living = body.get();
+            double drawn = Bodies.draw(context, living, element, needed);
+            if (drawn <= EPSILON) {
+                return List.of();
+            }
+            BlockPos at = BlockPos.containing(living.position().add(0.0D, living.getBbHeight() * 0.5D, 0.0D));
+            return List.of(new Source(at, 0.0D, drawn, Blocks.BONE_BLOCK.defaultBlockState()));
         }
         // The mage's hand pulls the source in (or, with an origin written before tenet, it is pulled from around a mark
         // or a place). Asked for an amount, the spirit reaches out as far as it must to find it, up to a limit; asked
@@ -321,6 +337,24 @@ public final class WorldSources {
     private record Source(BlockPos pos, double distanceSq, double value, BlockState state) {
     }
 
+    /**
+     * The living body the mage aims at, within {@code range} and in sight: the entity the aim finds, unless a block stands
+     * before it (the entity search alone looks through walls).
+     */
+    static Optional<LivingEntity> aimedBody(LivingEntity player, double range) {
+        SpellEffects.SpellImpact impact = SpellEffects.findImpact(player, range);
+        if (!(impact.entity() instanceof LivingEntity living) || !living.isAlive()) {
+            return Optional.empty();
+        }
+        Vec3 eye = player.getEyePosition();
+        HitResult block = player.pick(range, 1.0F, false);
+        if (block.getType() == HitResult.Type.BLOCK
+                && block.getLocation().distanceToSqr(eye) < impact.location().distanceToSqr(eye)) {
+            return Optional.empty();
+        }
+        return Optional.of(living);
+    }
+
     private static Optional<Revelation.Kind> kindOf(VitaElement element) {
         return switch (element) {
             case IGNI -> Optional.of(Revelation.Kind.IGNI);
@@ -331,9 +365,36 @@ public final class WorldSources {
         };
     }
 
-    /** Where the mage's hand is: just before the body, at the height of the chest, where the source is pulled in. */
-    public static Vec3 handOf(ServerPlayer player) {
-        return player.getEyePosition().subtract(0.0D, 0.35D, 0.0D).add(player.getViewVector(1.0F).scale(0.9D));
+    /** How far the hand is from the eyes: ahead along the look, out to the side of the hand, down. */
+    private static final double HAND_AHEAD = 0.6D;
+    private static final double HAND_ASIDE = 0.35D;
+    private static final double HAND_DOWN = 0.35D;
+
+    /**
+     * Where the mage's hand is: before it, at its main hand's side and below its eyes, where a caster's focus points and
+     * where a player sees its hand. What comes out of the mage comes out of it, and what it pulls in is pulled into it,
+     * so nothing it casts stands before its eyes.
+     */
+    public static Vec3 handOf(LivingEntity player) {
+        Vec3 ahead = player.getViewVector(1.0F);
+        float yaw = player.getYRot() * ((float) Math.PI / 180.0F);
+        Vec3 aside = new Vec3(-net.minecraft.util.Mth.cos(yaw), 0.0D, -net.minecraft.util.Mth.sin(yaw));
+        if (player.getMainArm() == net.minecraft.world.entity.HumanoidArm.LEFT) {
+            aside = aside.reverse();
+        }
+        // "Down" as the eyes see it: across the look from the side, so it stays below the look when looking up.
+        Vec3 up = new Vec3(-net.minecraft.util.Mth.cos(yaw), 0.0D, -net.minecraft.util.Mth.sin(yaw)).cross(ahead);
+        return player.getEyePosition().add(ahead.scale(HAND_AHEAD)).add(aside.scale(HAND_ASIDE))
+                .add(up.scale(-HAND_DOWN));
+    }
+
+    /**
+     * The way from {@code from} (the hand, or what it holds) to where the mage aims within {@code reach}: what leaves
+     * the hand meets the aim of the eyes there, as a thrown thing meets what one looks at.
+     */
+    public static Vec3 aimFrom(LivingEntity player, Vec3 from, double reach) {
+        Vec3 aimed = SpellEffects.findImpact(player, reach).location().subtract(from);
+        return aimed.lengthSqr() < 1.0D ? player.getViewVector(1.0F) : aimed.normalize();
     }
 
     // ------------------------------------------------------------------ what each source holds, and what it leaves

@@ -116,8 +116,14 @@ public final class SpellDescription {
             return null;
         }
         // A condition says when the line holds (docs/fluxo-design.md); it is no part of what the spell does.
-        List<String> when = written.stream().filter(lexicon()::isCondition).toList();
-        List<String> words = written.stream().filter(word -> !lexicon().isCondition(word)).toList();
+        java.util.Set<Integer> conditionAt = LineConditions.positions(lexicon(), written);
+        List<String> when = conditionAt.isEmpty() ? List.of() : written;
+        List<String> words = new ArrayList<>();
+        for (int i = 0; i < written.size(); i++) {
+            if (!conditionAt.contains(i)) {
+                words.add(written.get(i));
+            }
+        }
         String source = null;
         String mark = null;
         boolean capture = false;
@@ -224,24 +230,25 @@ public final class SpellDescription {
                 Map.of("when", conditions(spell.when()))) + " " + deed(spell));
     }
 
-    /** The conditions of a line in words: side by side they hold together, aut splits them, non turns one around. */
+    /**
+     * The conditions of a line in words: side by side they hold together, aut splits them, non denies one; a measure is
+     * what the body holds, exactly, and a place before cadit is the ground near in a fall.
+     */
     private String conditions(List<String> words) {
         List<String> groups = new ArrayList<>();
         List<String> group = new ArrayList<>();
         boolean negate = false;
-        for (String word : words) {
-            ConditionSpec.Logic logic = lexicon().logicOf(word).orElse(null);
-            if (logic == ConditionSpec.Logic.OR) {
+        for (LineConditions.Item item : LineConditions.parse(lexicon(), words).items()) {
+            if (item.logic() == ConditionSpec.Logic.OR) {
                 if (!group.isEmpty()) {
                     groups.add(String.join(note("describe.and", Map.of()), group));
                 }
                 group = new ArrayList<>();
                 negate = false;
-            } else if (logic == ConditionSpec.Logic.NOT) {
+            } else if (item.logic() == ConditionSpec.Logic.NOT) {
                 negate = !negate;
-            } else if (logic == ConditionSpec.Logic.TRIGGER) {
-                boolean not = negate;
-                group.add(lexicon().rune(word).flatMap(rune -> rune.text(not ? "describe.not" : "describe")).orElse(word));
+            } else {
+                group.add(term(item, words.get(item.at()), negate));
                 negate = false;
             }
         }
@@ -249,6 +256,19 @@ public final class SpellDescription {
             groups.add(String.join(note("describe.and", Map.of()), group));
         }
         return String.join(note("describe.or", Map.of()), groups);
+    }
+
+    private String term(LineConditions.Item item, String word, boolean not) {
+        LineConditions.Term term = item.term();
+        String suffix = not ? ".not" : "";
+        if (LineConditions.MEASURE.equals(term.trigger())) {
+            String element = lexicon().rune(term.source()).map(Rune::name).orElse(term.source());
+            return note("describe.measure" + suffix, Map.of("n", String.valueOf(term.amount()), "element", element));
+        }
+        if (LineConditions.FALLING.equals(term.trigger())) {
+            return note("describe.near" + suffix, Map.of("n", String.valueOf(term.distance())));
+        }
+        return lexicon().rune(word).flatMap(rune -> rune.text(not ? "describe.not" : "describe")).orElse(word);
     }
 
     private String deed(Spell spell) {

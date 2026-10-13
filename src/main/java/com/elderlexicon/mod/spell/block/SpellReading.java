@@ -87,6 +87,9 @@ public final class SpellReading {
 
     private String role(List<String> ids, int at) {
         String rune = ids.get(at);
+        if (!lexicon().isCondition(rune) && LineConditions.positions(lexicon(), ids).contains(at)) {
+            return conditionRole(ids, at);
+        }
         if (lexicon().isReferent(rune)) {
             String what = lexicon().rune(rune).flatMap(found -> found.text("role")).orElseGet(() -> lore(rune));
             return Referents.speak(lexicon(), what + " " + markRole(ids, at));
@@ -101,6 +104,24 @@ public final class SpellReading {
             case FUNCTION -> functionRole(ids, at);
             case CONDITION -> lexicon().rune(rune).flatMap(found -> found.text("role")).orElseGet(() -> lore(rune));
         });
+    }
+
+    /** A word that belongs to a condition: the quantum, number and source of a measure, or the place of a fall. */
+    private String conditionRole(List<String> ids, int at) {
+        String word = ids.get(at);
+        Optional<Rune> rune = lexicon().rune(word);
+        if (word.matches("-?\\d+")) {
+            boolean place = at + 1 < ids.size() && lexicon().filter(ids.get(at + 1))
+                    .map(spec -> spec.parameter() == Parameter.PLACE).orElse(false);
+            return note(place ? "reading.near.number" : "reading.measure.number", Map.of("n", word));
+        }
+        if (rune.flatMap(Rune::filter).map(spec -> spec.parameter() == Parameter.PLACE).orElse(false)) {
+            return note("reading.near.filter", Map.of());
+        }
+        if (rune.flatMap(Rune::filter).isPresent()) {
+            return note("reading.measure.filter", Map.of());
+        }
+        return note("reading.measure.source", Map.of("element", rune.map(Rune::name).orElse(word)));
     }
 
     private String numberRole(List<String> ids, int at) {

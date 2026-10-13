@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.module;
 
+import net.minecraft.world.entity.LivingEntity;
+
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.SpellModule;
 import com.elderlexicon.mod.spelling.item.WandItem;
@@ -20,7 +22,7 @@ public final class SettingReserveModule implements SpellModule {
 
     @Override
     public void apply(SpellContext context) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         if (player == null || context.payableCost() <= EPSILON) {
             return;
         }

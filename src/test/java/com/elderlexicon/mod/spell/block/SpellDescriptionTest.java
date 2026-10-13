@@ -49,6 +49,18 @@ class SpellDescriptionTest {
     }
 
     @Test
+    void measuresAndFallsAreWrittenOut() {
+        SpellDescription.Text armor = new SpellDescription(DICTIONARY, Map.of())
+                .describe(page("non quantum 5 firmo chronos vis quantum 1 vertere firmo"));
+        assertTrue(armor.paragraphs().get(0).startsWith(
+                "Enquanto quem conjura não tem exatamente 5 de terra, a cada segundo: "), armor.paragraphs().toString());
+        SpellDescription.Text boot = new SpellDescription(DICTIONARY, Map.of())
+                .describe(page("3 ubis cadit aura ille ubis impediunt"));
+        assertTrue(boot.paragraphs().get(0).startsWith("Se quem conjura está caindo, com o chão a 3 blocos ou menos: "),
+                boot.paragraphs().toString());
+    }
+
+    @Test
     void theSceneIsSpokenOfByName() {
         SpellDescription.Text text = new SpellDescription(DICTIONARY, Map.of())
                 .describe(page("ferit vis vertere igni ille ubis vocant"));

@@ -1,0 +1,8 @@
+{
+  "type": "elderlexicon:caster_tower",
+  "biomes": "#elderlexicon:has_structure/wizard_tower",
+  "step": "surface_structures",
+  "spawn_overrides": {},
+  "terrain_adaptation": "none",
+  "kind": "wizard"
+}

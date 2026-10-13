@@ -2,7 +2,7 @@
   "_license": "© GviCarvalho – Part of Elderlexicon. The rune structure, nomenclature and texts in this file fall under LICENSE-DOCS.txt (CC BY-NC-ND 4.0).",
   "_about": "The words of the Old Tongue. The engine knows no rune by name: every rune says here what it is, and a spell means what its words compose. See docs/magia-modular-design.md.",
   "defaultSource": "vis",
-  "repertoire": ["igni", "aqua", "aura", "firmo", "impediunt", "vertere", "vocant", "iactare"],
+  "repertoire": [],
   "notes": {
     "reading.empty": "Um passo de tempo em que nada é lido (0,25 s): atrasa o que vem depois.",
     "reading.named": "Lê, neste ponto, o feitiço que ela guarda: {spell}.",
@@ -24,6 +24,15 @@
     "describe.when": "Se {when}:",
     "describe.while": "Enquanto {when}, a cada segundo:",
     "describe.or": " ou ",
+    "describe.measure": "quem conjura tem exatamente {n} de {element}",
+    "describe.measure.not": "quem conjura não tem exatamente {n} de {element}",
+    "describe.near": "quem conjura está caindo, com o chão a {n} blocos ou menos",
+    "describe.near.not": "quem conjura não está caindo com o chão a {n} blocos ou menos",
+    "reading.measure.filter": "Na condição: mede quanto o corpo de quem conjura tem da fonte depois do número, em UMU inteira.",
+    "reading.measure.number": "O quanto da condição: exatamente {n} UMU.",
+    "reading.measure.source": "A fonte medida na condição: {element}, no corpo de quem conjura (a vis é a mana).",
+    "reading.near.number": "A distância da condição: o chão a {n} blocos ou menos, caindo.",
+    "reading.near.filter": "Na condição: a que distância do chão a queda está.",
     "describe.together": "Ao mesmo tempo, em {when} s:",
     "describe.released": "Solto em {when} s.",
     "describe.all": "toda a energia de {element}",
@@ -332,7 +341,7 @@
 
     "ferit": {
       "class": "condition", "glyph": "Q", "translation": "strikes", "name": "golpear", "trigger": "attack",
-      "lore": "Condição: a linha só vale se quem conjura acabou de golpear algo. Em fluxo, o golpe desperta a linha.",
+      "lore": "Fato: a linha só vale se quem conjura acabou de golpear algo. Em fluxo, o golpe desperta a linha.",
       "texts": {
         "role": "Esta linha só vale se quem conjura acabou de golpear algo (no último segundo); em fluxo, o golpe a desperta.",
         "describe": "quem conjura acabou de golpear algo",
@@ -341,7 +350,7 @@
     },
     "patitur": {
       "class": "condition", "glyph": "R", "translation": "suffers", "name": "sofrer", "trigger": "hurt",
-      "lore": "Condição: a linha só vale se quem conjura acabou de ser ferido. Em fluxo, o ferimento desperta a linha.",
+      "lore": "Fato: a linha só vale se quem conjura acabou de ser ferido. Em fluxo, o ferimento desperta a linha.",
       "texts": {
         "role": "Esta linha só vale se quem conjura acabou de ser ferido (no último segundo); em fluxo, o ferimento a desperta.",
         "describe": "quem conjura acabou de ser ferido",
@@ -350,7 +359,7 @@
     },
     "necat": {
       "class": "condition", "glyph": "S", "translation": "kills", "name": "matar", "trigger": "kill",
-      "lore": "Condição: a linha só vale se quem conjura acabou de matar uma criatura. Em fluxo, a morte desperta a linha.",
+      "lore": "Fato: a linha só vale se quem conjura acabou de matar uma criatura. Em fluxo, a morte desperta a linha.",
       "texts": {
         "role": "Esta linha só vale se quem conjura acabou de matar uma criatura (no último segundo); em fluxo, a morte a desperta.",
         "describe": "quem conjura acabou de matar uma criatura",
@@ -359,7 +368,7 @@
     },
     "salit": {
       "class": "condition", "glyph": "T", "translation": "jumps", "name": "pular", "trigger": "jump",
-      "lore": "Condição: a linha só vale se quem conjura acabou de pular. Em fluxo, o pulo desperta a linha.",
+      "lore": "Fato: a linha só vale se quem conjura acabou de pular. Em fluxo, o pulo desperta a linha.",
       "texts": {
         "role": "Esta linha só vale se quem conjura acabou de pular (no último segundo); em fluxo, o pulo a desperta.",
         "describe": "quem conjura acabou de pular",
@@ -368,7 +377,7 @@
     },
     "cadit": {
       "class": "condition", "glyph": "U", "translation": "falls", "name": "cair", "trigger": "land",
-      "lore": "Condição: a linha só vale se quem conjura acabou de aterrissar de uma queda. Em fluxo, a aterrissagem desperta a linha.",
+      "lore": "Fato: a linha só vale se quem conjura acabou de aterrissar de uma queda. Em fluxo, a aterrissagem desperta a linha.",
       "texts": {
         "role": "Esta linha só vale se quem conjura acabou de aterrissar de uma queda (no último segundo); em fluxo, a aterrissagem a desperta.",
         "describe": "quem conjura acabou de aterrissar de uma queda",
@@ -377,7 +386,7 @@
     },
     "frangit": {
       "class": "condition", "glyph": "V", "translation": "breaks", "name": "quebrar", "trigger": "break",
-      "lore": "Condição: a linha só vale se quem conjura acabou de quebrar um bloco. Em fluxo, o bloco quebrado desperta a linha.",
+      "lore": "Fato: a linha só vale se quem conjura acabou de quebrar um bloco. Em fluxo, o bloco quebrado desperta a linha.",
       "texts": {
         "role": "Esta linha só vale se quem conjura acabou de quebrar um bloco (no último segundo); em fluxo, o bloco quebrado a desperta.",
         "describe": "quem conjura acabou de quebrar um bloco",
@@ -386,7 +395,7 @@
     },
     "utitur": {
       "class": "condition", "glyph": "W", "translation": "uses", "name": "usar", "trigger": "use",
-      "lore": "Condição: a linha só vale se quem conjura acabou de usar o que tem na mão. Em fluxo, o uso desperta a linha.",
+      "lore": "Fato: a linha só vale se quem conjura acabou de usar o que tem na mão. Em fluxo, o uso desperta a linha.",
       "texts": {
         "role": "Esta linha só vale se quem conjura acabou de usar o que tem na mão (no último segundo); em fluxo, o uso a desperta.",
         "describe": "quem conjura acabou de usar o que tem na mão",
@@ -395,7 +404,7 @@
     },
     "latet": {
       "class": "condition", "glyph": "X", "translation": "hides", "name": "agachar", "trigger": "sneak",
-      "lore": "Condição: a linha só vale enquanto quem conjura está agachado. Em fluxo, ela desperta quando se agacha.",
+      "lore": "Fato: a linha só vale enquanto quem conjura está agachado. Em fluxo, ela desperta quando se agacha.",
       "texts": {
         "role": "Esta linha só vale enquanto quem conjura está agachado; em fluxo, ela desperta quando se agacha.",
         "describe": "quem conjura está agachado",
@@ -404,7 +413,7 @@
     },
     "currit": {
       "class": "condition", "glyph": "Y", "translation": "runs", "name": "correr", "trigger": "sprint",
-      "lore": "Condição: a linha só vale enquanto quem conjura está correndo. Em fluxo, ela desperta quando começa a correr.",
+      "lore": "Fato: a linha só vale enquanto quem conjura está correndo. Em fluxo, ela desperta quando começa a correr.",
       "texts": {
         "role": "Esta linha só vale enquanto quem conjura está correndo; em fluxo, ela desperta quando começa a correr.",
         "describe": "quem conjura está correndo",
@@ -413,7 +422,7 @@
     },
     "languet": {
       "class": "condition", "glyph": "\uE010", "translation": "languishes", "name": "enfraquecer", "trigger": "low_health",
-      "lore": "Condição: a linha só vale enquanto quem conjura está com pouca vida. Em fluxo, ela desperta quando a vida cai a 30% ou menos.",
+      "lore": "Fato: a linha só vale enquanto quem conjura está com pouca vida. Em fluxo, ela desperta quando a vida cai a 30% ou menos.",
       "texts": {
         "role": "Esta linha só vale enquanto quem conjura está com pouca vida; em fluxo, ela desperta quando a vida cai a 30% ou menos.",
         "describe": "quem conjura está com pouca vida",
@@ -422,7 +431,7 @@
     },
     "ardet": {
       "class": "condition", "glyph": "Z", "translation": "burns", "name": "arder", "trigger": "burning",
-      "lore": "Condição: a linha só vale enquanto quem conjura está em chamas. Em fluxo, ela desperta quando pega fogo.",
+      "lore": "Fato: a linha só vale enquanto quem conjura está em chamas. Em fluxo, ela desperta quando pega fogo.",
       "texts": {
         "role": "Esta linha só vale enquanto quem conjura está em chamas; em fluxo, ela desperta quando pega fogo.",
         "describe": "quem conjura está em chamas",
@@ -431,7 +440,7 @@
     },
     "mergitur": {
       "class": "condition", "glyph": "\uE011", "translation": "sinks", "name": "submergir", "trigger": "underwater",
-      "lore": "Condição: a linha só vale enquanto quem conjura está debaixo d'água. Em fluxo, ela desperta quando mergulha.",
+      "lore": "Fato: a linha só vale enquanto quem conjura está debaixo d'água. Em fluxo, ela desperta quando mergulha.",
       "texts": {
         "role": "Esta linha só vale enquanto quem conjura está debaixo d'água; em fluxo, ela desperta quando mergulha.",
         "describe": "quem conjura está debaixo d'água",
@@ -441,14 +450,14 @@
 
     "aut": {
       "class": "condition", "glyph": "\uE012", "translation": "or", "name": "ou", "logic": "or",
-      "lore": "Condição: separa as condições da linha em grupos; a linha vale se qualquer grupo valer.",
+      "lore": "Fato: separa as condições da linha em grupos; a linha vale se qualquer grupo valer.",
       "texts": {
         "role": "Ou: as condições antes dele e as depois dele são dois grupos, e a linha vale se qualquer um valer (dentro de cada grupo, valem todas juntas)."
       }
     },
     "non": {
       "class": "condition", "glyph": "\uE013", "translation": "not", "name": "não", "logic": "not",
-      "lore": "Condição: vira ao contrário a condição logo depois dela.",
+      "lore": "Fato: vira ao contrário a condição logo depois dela.",
       "texts": {
         "role": "Não: a condição logo depois dele vale quando não acontece."
       }
@@ -456,14 +465,14 @@
 
     "ego": {
       "class": "referent", "glyph": "\uE014", "translation": "I", "name": "eu", "noun": "o próprio conjurador", "refers": "caster",
-      "lore": "Cena: quem conjura. Fica onde ficaria uma marca, sem que ninguém precise ser marcado.",
+      "lore": "Fato: quem conjura. Fica onde ficaria uma marca, sem que ninguém precise ser marcado.",
       "texts": {
         "role": "Quem conjura, no lugar de uma marca."
       }
     },
     "ille": {
       "class": "referent", "glyph": "\uE015", "translation": "that one", "name": "aquele", "noun": "o alvo", "refers": "scene",
-      "lore": "Cena: o outro do acontecimento de que a linha fala (quem foi golpeado, quem feriu, quem morreu, o bloco quebrado, aquilo em que se usou o item).",
+      "lore": "Fato: o outro do acontecimento de que a linha fala (quem foi golpeado, quem feriu, quem morreu, o bloco quebrado, aquilo em que se usou o item).",
       "texts": {
         "role": "O outro do acontecimento mais recente de que a linha fala, no último segundo, no lugar de uma marca."
       }

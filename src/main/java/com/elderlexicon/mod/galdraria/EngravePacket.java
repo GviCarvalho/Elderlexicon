@@ -6,7 +6,10 @@ import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;
 
-/** The mage at the galdraria table carving what they wrote; the table checks the item, the burin and the runes. */
+/**
+ * The line the mage is writing at the galdraria table, sent as it changes (as the anvil sends a name): the table carves
+ * the result anew from it.
+ */
 public record EngravePacket(String text) {
 
     public void encode(FriendlyByteBuf buffer) {
@@ -22,7 +25,7 @@ public record EngravePacket(String text) {
         context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
             if (player != null && player.containerMenu instanceof GaldrariaMenu table && table.stillValid(player)) {
-                table.engrave(player, packet.text());
+                table.setText(packet.text());
             }
         });
         context.setPacketHandled(true);

@@ -1,0 +1,16 @@
+{
+  "structures": [
+    {
+      "structure": "elderlexicon:university",
+      "weight": 1
+    }
+  ],
+  "placement": {
+    "type": "minecraft:concentric_rings",
+    "distance": 24,
+    "spread": 3,
+    "count": 3,
+    "preferred_biomes": "#elderlexicon:has_structure/university",
+    "salt": 592731846
+  }
+}

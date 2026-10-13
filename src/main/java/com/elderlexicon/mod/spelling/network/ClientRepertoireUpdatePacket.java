@@ -45,6 +45,13 @@ public record ClientRepertoireUpdatePacket(List<String> slots) {
                 return;
             }
             SpellingRepertoire repertoire = SpellingRepertoireHelper.get(sender);
+            // Only runes the mage has unlocked go in the repertoire (every rune, in creative).
+            for (String slot : packet.slots) {
+                if (slot != null && !slot.isBlank() && !sender.isCreative() && !repertoire.isUnlocked(slot)) {
+                    SpellingNetwork.syncToPlayer(sender, repertoire);
+                    return;
+                }
+            }
             for (int i = 0; i < SpellingRepertoire.SLOT_COUNT; i++) {
                 repertoire.assignSlot(i, packet.slots.get(i));
             }

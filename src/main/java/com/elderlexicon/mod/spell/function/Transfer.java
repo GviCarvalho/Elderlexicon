@@ -1,5 +1,8 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.spell.Casters;
+
+import com.elderlexicon.mod.magic.matter.Materials;
 import com.elderlexicon.mod.magic.matter.Matter;
 import com.elderlexicon.mod.magic.matter.Qualities;
 import com.elderlexicon.mod.magic.matter.State;
@@ -12,9 +15,11 @@ import com.elderlexicon.mod.vita.VitaSystem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -52,8 +57,8 @@ final class Transfer {
 
     /** Moves matter of the source's state from the world to where the verb puts it. */
     static void fromWorld(SpellContext context, VitaElement element, SpellAction action) {
-        ServerPlayer player = context.player();
-        ServerLevel level = player.serverLevel();
+        LivingEntity player = context.player();
+        ServerLevel level = Casters.level(player);
         Optional<State> state = State.of(element);
         if (state.isEmpty()) {
             MarkSpells.tell(player, "Vis nao tem estado: nao ha materia dela no mundo para mover.");
@@ -84,8 +89,14 @@ final class Transfer {
             MarkSpells.tell(player, "Esse lugar esta em outra dimensao.");
             return;
         }
-        List<Matter> all = take(level, player, BlockPos.containing(around), state.get(),
-                action.quantity().orElse(DEFAULT_UMU));
+        // A living body aimed at gives its own (docs/feiticeiro-design.md, 7.4): the aim is enough.
+        Optional<LivingEntity> body = action.originPlace().isPresent() ? Optional.empty()
+                : WorldSources.aimedBody(player, MarkSpells.SUMMON_RANGE);
+        double wanted = action.quantity().orElse(DEFAULT_UMU);
+        List<Matter> all = body.isPresent()
+                ? fromBody(context, player, body.get(), element, state.get(), wanted,
+                action.handsOn() ? WorldSources.handOf(player) : null)
+                : take(level, player, BlockPos.containing(around), state.get(), wanted);
         double moved = all.stream().mapToDouble(Matter::umu).sum();
         if (moved <= 0.0D) {
             MarkSpells.tell(player, "Nao ha " + element.runeId() + " ao alcance para trazer.");
@@ -126,6 +137,23 @@ final class Transfer {
                 () -> put(context, player, element, rune, landing, taken));
     }
 
+    /**
+     * Matter drawn out of a living body: the primordial of the source, in its state (the water of the blood is water).
+     * What leaves the body is a lack in it, and hurts it. Seen flowing to {@code toward}, when it goes on to a hand.
+     */
+    private static List<Matter> fromBody(SpellContext context, LivingEntity player, LivingEntity body,
+                                         VitaElement element, State state, double wanted, Vec3 toward) {
+        double drawn = Bodies.draw(context, body, element, wanted);
+        if (drawn <= 1.0E-4D) {
+            return List.of();
+        }
+        if (toward != null) {
+            Vec3 from = body.position().add(0.0D, body.getBbHeight() * 0.5D, 0.0D);
+            Gatherings.stream(Casters.level(player), element, from, Blocks.BONE_BLOCK.defaultBlockState(), toward, 10);
+        }
+        return List.of(Matter.of(Materials.get().primordial(element), state, drawn));
+    }
+
     /** What is left of the matter taken once a gem took its share: every portion, in the same proportion. */
     private static List<Matter> leftOver(List<Matter> taken, double moved, double left) {
         if (left <= 1.0E-4D || moved <= 0.0D) {
@@ -144,7 +172,7 @@ final class Transfer {
     }
 
     /** Where the vocant puts things: the place written, or where the mage aims. */
-    private static SpellEffects.SpellImpact destination(ServerPlayer player, Optional<MarkSpells.Destination> written) {
+    private static SpellEffects.SpellImpact destination(LivingEntity player, Optional<MarkSpells.Destination> written) {
         return written.map(MarkSpells.Destination::impact)
                 .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE));
     }
@@ -157,7 +185,7 @@ final class Transfer {
      * Takes up to {@code wanted} UMU of matter in {@code state} from around {@code center}, nearest first: whole blocks
      * and whole items at a time, never what the mage stands in or on.
      */
-    private static List<Matter> take(ServerLevel level, ServerPlayer player, BlockPos center, State state,
+    private static List<Matter> take(ServerLevel level, LivingEntity player, BlockPos center, State state,
                                      double wanted) {
         Vec3 middle = Vec3.atCenterOf(center);
         List<Source> sources = new ArrayList<>();
@@ -223,7 +251,7 @@ final class Transfer {
      * The blocks of matter in {@code state} around {@code center}, nearest first: never what the mage stands in or on.
      * Air is found too, though the air around fills its place at once.
      */
-    static List<BlockPos> nearest(ServerLevel level, ServerPlayer player, BlockPos center, State state) {
+    static List<BlockPos> nearest(ServerLevel level, LivingEntity player, BlockPos center, State state) {
         AABB body = player.getBoundingBox().inflate(0.0D, 1.0D, 0.0D).move(0.0D, -0.5D, 0.0D);
         List<BlockPos> candidates = new ArrayList<>();
         for (BlockPos pos : BlockPos.betweenClosed(center.offset(-REACH, -VERTICAL_REACH, -REACH),
@@ -251,12 +279,12 @@ final class Transfer {
     }
 
     /** Puts what was taken down at {@code impact}; what finds no room goes back to the mage (L1, L3). */
-    private static void put(SpellContext context, ServerPlayer player, VitaElement element, String rune,
+    private static void put(SpellContext context, LivingEntity player, VitaElement element, String rune,
                             SpellEffects.SpellImpact impact, List<Matter> taken) {
         if (!SpellEffects.isPlayerValid(player)) {
             return;
         }
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = Casters.level(player);
         BlockPos spot = spotOf(impact);
         SpellEffects.spawnSummonEffect(player, element, rune, impact);
         double leftover = 0.0D;

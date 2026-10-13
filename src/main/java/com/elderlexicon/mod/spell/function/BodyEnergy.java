@@ -1,5 +1,9 @@
 package com.elderlexicon.mod.spell.function;
 
+import com.elderlexicon.mod.spell.Casters;
+
+import net.minecraft.world.entity.LivingEntity;
+
 import com.elderlexicon.mod.spell.Mana;
 import com.elderlexicon.mod.vita.VitaElement;
 import com.elderlexicon.mod.vita.VitaProfile;
@@ -17,12 +21,12 @@ public final class BodyEnergy {
     }
 
     /** Takes all of {@code element} out of {@code player}'s body and returns how many UMU it was. */
-    public static double drawAll(ServerPlayer player, VitaElement element) {
+    public static double drawAll(LivingEntity player, VitaElement element) {
         return draw(player, element, Double.MAX_VALUE);
     }
 
     /** Takes up to {@code wanted} UMU of {@code element} out of {@code player}'s body; returns how much it took. */
-    public static double draw(ServerPlayer player, VitaElement element, double wanted) {
+    public static double draw(LivingEntity player, VitaElement element, double wanted) {
         if (wanted <= 0.0D) {
             return 0.0D;
         }
@@ -45,16 +49,7 @@ public final class BodyEnergy {
     }
 
     /** The mage's mana, its experience, taken (up to {@code wanted} UMU) and turned into UMU of Vis. */
-    private static double drawMana(ServerPlayer player, double wanted) {
-        double umu = Mana.umuOf(Mana.points(player.experienceLevel, player.experienceProgress));
-        if (umu <= wanted) {
-            player.setExperienceLevels(0);
-            player.setExperiencePoints(0);
-            player.totalExperience = 0;
-            return umu;
-        }
-        // Only a part: that many points of experience are spent.
-        player.giveExperiencePoints(-(int) Math.min(Integer.MAX_VALUE, Math.ceil(wanted * Mana.XP_PER_UMU)));
-        return wanted;
+    private static double drawMana(LivingEntity player, double wanted) {
+        return Casters.takeVis(player, wanted);
     }
 }

@@ -61,6 +61,61 @@ class LineConditionsTest {
         assertFalse(LineConditions.wakesFor(LEXICON, words("igni iactare"), "attack"));
     }
 
+    /** A scene with the body holding {@code firmo} of earth, and the ground {@code below} blocks under a fall. */
+    private static LineConditions.Scene body(double firmo, double below) {
+        return new LineConditions.Scene() {
+            @Override
+            public boolean recent(String trigger) {
+                return false;
+            }
+
+            @Override
+            public double amount(String source) {
+                return "firmo".equals(source) ? firmo : 0.0D;
+            }
+
+            @Override
+            public double groundBelow() {
+                return below;
+            }
+        };
+    }
+
+    @Test
+    void aMeasureIsWhatTheBodyHoldsExactly() {
+        List<String> lacking = words("non quantum 5 firmo chronos vis quantum 1 vertere firmo");
+        assertTrue(LineConditions.holds(LEXICON, lacking, body(3.2D, -1.0D)), "3 is not exactly 5");
+        assertFalse(LineConditions.holds(LEXICON, lacking, body(4.6D, -1.0D)), "4.6 is 5 in whole UMU");
+        assertTrue(LineConditions.holds(LEXICON, lacking, body(7.0D, -1.0D)), "7 is not exactly 5 either");
+        assertEquals(Set.of(0, 1, 2, 3), LineConditions.positions(LEXICON, lacking));
+        assertEquals(4, LineConditions.whileAt(LEXICON, lacking), "the chronos takes its time from the measure");
+        assertEquals(words("non chronos 1 vis quantum 1 vertere firmo"), LineConditions.window(LEXICON, lacking));
+        assertTrue(LineConditions.wakesFor(LEXICON, lacking, LineConditions.MEASURE), "a denied measure wakes too");
+        List<String> plenty = words("quantum 6 firmo chronos firmo quantum 1 vertere vis");
+        assertTrue(LineConditions.holds(LEXICON, plenty, body(6.2D, -1.0D)));
+        assertFalse(LineConditions.holds(LEXICON, plenty, body(5.0D, -1.0D)));
+    }
+
+    @Test
+    void aQuantityBeforeASourceIsAMeasureOnlyBesideTheConditions() {
+        assertEquals(Set.of(0), LineConditions.positions(LEXICON, words("ferit quantum 20 igni iactare")),
+                "after a happening it is still how much fire is thrown");
+        assertTrue(LineConditions.positions(LEXICON, words("quantum 2 firmo surgit")).isEmpty(), "surgit seeks");
+        assertEquals(Set.of(0, 1, 2, 3), LineConditions.positions(LEXICON, words("quantum 5 firmo ferit igni iactare")));
+    }
+
+    @Test
+    void aPlaceBeforeCaditIsTheGroundNearInAFall() {
+        List<String> boot = words("3 ubis cadit aura ille ubis impediunt");
+        assertEquals(Set.of(0, 1, 2), LineConditions.positions(LEXICON, boot));
+        assertTrue(LineConditions.holds(LEXICON, boot, body(0.0D, 2.5D)));
+        assertFalse(LineConditions.holds(LEXICON, boot, body(0.0D, 5.0D)), "the ground still too far");
+        assertFalse(LineConditions.holds(LEXICON, boot, body(0.0D, -1.0D)), "not falling");
+        assertEquals(Set.of(LineConditions.FALLING), LineConditions.triggers(LEXICON, boot));
+        assertTrue(LineConditions.wakesFor(LEXICON, boot, LineConditions.FALLING));
+        assertEquals(Set.of("land"), LineConditions.triggers(LEXICON, words("cadit aura iactare")), "a landing");
+    }
+
     @Test
     void aBareChronosAfterAConditionLastsWhileItHolds() {
         List<String> line = words("latet chronos aura impediunt");

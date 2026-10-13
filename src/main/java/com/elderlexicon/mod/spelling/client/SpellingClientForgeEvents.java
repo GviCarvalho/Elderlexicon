@@ -53,7 +53,8 @@ public final class SpellingClientForgeEvents {
         InputConstants.Key key = InputConstants.getKey(event.getKey(), event.getScanCode());
         ClientSpellingController controller = ClientSpellingController.getInstance();
 
-        if (SpellingKeyMappings.SPELLING_KEY.isActiveAndMatches(key)) {
+        // Before the trance is woken, this is only Minecraft: the keys of magic do nothing (docs/habilidades-design.md).
+        if (SpellingKeyMappings.SPELLING_KEY.isActiveAndMatches(key) && controller.hasTrance()) {
             if (event.getAction() == GLFW.GLFW_PRESS) {
                 controller.handleSpellingKeyPressed(minecraft);
             } else if (event.getAction() == GLFW.GLFW_RELEASE) {
@@ -64,13 +65,14 @@ public final class SpellingClientForgeEvents {
         }
 
         if (SpellingKeyMappings.FLOW_KEY.isActiveAndMatches(key) && event.getAction() == GLFW.GLFW_PRESS
-                && minecraft.screen == null) {
+                && minecraft.screen == null && controller.hasFlow()) {
             SpellingNetwork.sendFlowToggle();
             cancel(event);
             return;
         }
 
-        if (SpellingKeyMappings.REPERTOIRE_KEY.isActiveAndMatches(key) && event.getAction() == GLFW.GLFW_PRESS) {
+        if (SpellingKeyMappings.REPERTOIRE_KEY.isActiveAndMatches(key) && event.getAction() == GLFW.GLFW_PRESS
+                && controller.hasTrance()) {
             controller.openRepertoireEditor(minecraft);
             cancel(event);
             return;

@@ -170,3 +170,11 @@ future "arcane physiology" system.
 - The body drifts back to balance by itself, as the grimoire says (3.2: it "absorbs the energy around it slowly ... until the scale returns to balance"): every second each element moves 10% of the way to its share of the current life (`VitaSystem.RELAX_PER_SECOND`), about 13 seconds from a severe imbalance to balanced.
 - `/vita reset` balances the body for the health the player has now (it used to assume a full 100 UMU, so a hurt player was unbalanced again on the next tick).
 - Note: the code uses 55/38/2/5 while section 2 above says 56/38/2/4.
+
+🏺 9. The body as a chalice (implemented 2026-10-04)
+
+The life now follows the elements, not the other way round: see docs/vita-design.md, "O corpo como cálice". The body
+holds 5 UMU per point of max health; health is the max health times the share of its full that the element most lacking
+holds; what comes into a full body pushes the others out; each hurt takes the life from the element it strikes; healing
+fills what lacks first; the body expels excess but does not move one element into another. This replaces section 8's
+proportional damage and its return to balance.

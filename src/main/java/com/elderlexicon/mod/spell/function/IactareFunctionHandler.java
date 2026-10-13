@@ -1,5 +1,8 @@
 package com.elderlexicon.mod.spell.function;
 
+import net.minecraft.world.entity.LivingEntity;
+import com.elderlexicon.mod.spell.Casters;
+
 import com.elderlexicon.mod.spell.Heat;
 import com.elderlexicon.mod.spell.Pressure;
 import com.elderlexicon.mod.spell.SpellContext;
@@ -26,11 +29,11 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
 
     @Override
     public void execute(SpellContext context, VitaElement element) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         if (!SpellEffects.isPlayerValid(player)) {
             return;
         }
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = Casters.level(player);
         Optional<SpellAction> action = context.currentAction();
         if (action.isPresent() && action.get().image()) {
             ImageSpells.iactare(context, element, action.get());
@@ -114,7 +117,7 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
     }
 
     /** Runs {@code release} once the charge is gathered, if the mage is still there to release it. */
-    private static void released(ServerLevel level, ServerPlayer player, int charge, Runnable release) {
+    private static void released(ServerLevel level, LivingEntity player, int charge, Runnable release) {
         SpellEffects.schedule(level, charge, () -> {
             if (SpellEffects.isPlayerValid(player)) {
                 release.run();
@@ -126,7 +129,7 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
      * Fire thrown: the rush of the flame leaving the hand and the air it tears through, louder and deeper the hotter it
      * is.
      */
-    private static void whoosh(ServerLevel level, ServerPlayer player, double heat) {
+    private static void whoosh(ServerLevel level, LivingEntity player, double heat) {
         double hot = Math.log10(1.0D + Math.max(0.0D, heat));
         float volume = (float) Math.min(2.5D, 0.9D + 0.4D * hot);
         float pitch = (float) Math.max(0.5D, Math.min(1.2D, 1.15D - 0.15D * hot));
@@ -146,12 +149,14 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
      * where it strikes (fire leaves its heat, air bursts or goes off as a bomb); water goes as a jet or a stone of
      * pressed ice, earth as a block with weight, and their orb is spent.
      */
-    private static void releaseCondensed(ServerLevel level, ServerPlayer player, VitaElement element, SpellAction action,
+    private static void releaseCondensed(ServerLevel level, LivingEntity player, VitaElement element, SpellAction action,
                                          int charge) {
         double intensity = action.intensity();
         released(level, player, charge, () -> {
             ElementOrb orb = orbOf(level, action);
-            Vec3 velocity = player.getViewVector(1.0F).scale(ORB_SPEED);
+            // From where the orb was gathered (the hand) toward the aim.
+            Vec3 velocity = (orb == null ? player.getViewVector(1.0F) : WorldSources.aimFrom(player, orb.position(), RANGE))
+                    .scale(ORB_SPEED);
             switch (element) {
                 case IGNI -> {
                     whoosh(level, player, intensity);

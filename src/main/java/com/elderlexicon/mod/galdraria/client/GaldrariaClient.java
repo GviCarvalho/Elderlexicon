@@ -36,7 +36,8 @@ public final class GaldrariaClient {
             event.getToolTip().add(Component.translatable("tooltip.elderlexicon.engraved")
                     .withStyle(ChatFormatting.DARK_PURPLE)
                     .append(Component.literal(written).withStyle(SGA.withColor(ChatFormatting.LIGHT_PURPLE))));
-            event.getToolTip().add(Component.literal(String.join(" ", Engravings.read(written)))
+            event.getToolTip().add(Component.literal(String.join(" ", Engravings.read(written).stream()
+                            .map(word -> word.isEmpty() ? "·" : word).toList()))
                     .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
         });
     }

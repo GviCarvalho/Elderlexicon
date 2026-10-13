@@ -1,5 +1,6 @@
 package com.elderlexicon.mod.ligabis.world;
 
+import com.elderlexicon.mod.spelling.flow.SceneWords;
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.ligabis.Aspect;
 import com.elderlexicon.mod.ligabis.BlockIntegrity;
@@ -337,7 +338,13 @@ public final class LigabisManager {
 
     /** The spell itself: read the aspect and marks, create the links, and mark what the mage is looking at. */
     public void castLink(ServerPlayer player, List<String> lexemes, @Nullable Entity entity, @Nullable BlockPos blockPos) {
-        LigabisGrammar.Result result = LigabisGrammar.parse(lexemes, word -> DICTIONARY.lookup(word).isPresent());
+        // ego and ille are written as the lasting marks of what they point at (docs/fluxo-design.md).
+        SceneWords.Lasting scene = SceneWords.lasting(player, lexemes);
+        if (scene.error() != null) {
+            tell(player, scene.error());
+            return;
+        }
+        LigabisGrammar.Result result = LigabisGrammar.parse(scene.words(), word -> DICTIONARY.lookup(word).isPresent());
         if (!result.ok()) {
             tell(player, result.error());
             return;
@@ -345,6 +352,16 @@ public final class LigabisManager {
         Aspect aspect = result.parsed().aspect();
         List<String> marks = result.parsed().marks();
         ServerLevel level = player.serverLevel();
+
+        if (scene.sceneMarks().contains(marks.get(marks.size() - 1))) {
+            // The last mark is of something of the scene, which bears it already: nothing aimed at is marked.
+            List<Link> added = link(player, aspect, marks);
+            if (added != null) {
+                tell(player, added.isEmpty() ? "Voce entrou num vinculo que ja existia."
+                        : "Vinculo criado: " + describe(added) + ".");
+            }
+            return;
+        }
 
         GolemStructure.Found golemStructure = null;
         String label;
@@ -372,21 +389,9 @@ public final class LigabisManager {
             return;
         }
 
-        List<Link> added = new ArrayList<>();
-        for (Link link : Link.chain(player.getUUID(), aspect, marks)) {
-            if (sameShapeExists(link)) {
-                continue; // an existing link is joined, not duplicated; its owner keeps paying
-            }
-            if (!graph.addLink(link)) {
-                for (Link undo : added) {
-                    graph.removeLink(undo);
-                    data.removeLink(undo);
-                }
-                tell(player, "Esse vinculo faria uma marca ser ancestral de si mesma.");
-                return;
-            }
-            data.addLink(link);
-            added.add(link);
+        List<Link> added = link(player, aspect, marks);
+        if (added == null) {
+            return;
         }
 
         String mark = marks.get(marks.size() - 1);
@@ -405,6 +410,31 @@ public final class LigabisManager {
         }
         tell(player, "Marca '" + mark + "' gravada em " + label + ". "
                 + (added.isEmpty() ? "Voce entrou num vinculo que ja existia." : "Vinculo criado: " + describe(added) + "."));
+    }
+
+    /**
+     * Makes the links of a chain of marks; an existing one is joined, not duplicated (its owner keeps paying). Returns
+     * the links made, or null when one would make a mark its own ancestor (then none is kept).
+     */
+    @Nullable
+    private List<Link> link(ServerPlayer player, Aspect aspect, List<String> marks) {
+        List<Link> added = new ArrayList<>();
+        for (Link link : Link.chain(player.getUUID(), aspect, marks)) {
+            if (sameShapeExists(link)) {
+                continue;
+            }
+            if (!graph.addLink(link)) {
+                for (Link undo : added) {
+                    graph.removeLink(undo);
+                    data.removeLink(undo);
+                }
+                tell(player, "Esse vinculo faria uma marca ser ancestral de si mesma.");
+                return null;
+            }
+            data.addLink(link);
+            added.add(link);
+        }
+        return added;
     }
 
     /** Tears down a valid golem structure and replaces it with the living statue described in the design doc. */

@@ -62,7 +62,29 @@ public class Config
                     + " world's mobGriefing rule)")
             .defineEnum("magic.breaksBlocks", MagicBreaks.MOB_GRIEFING);
 
+    /** How often the sorcerer takes a vanilla evoker's place (docs/feiticeiro-design.md, 7). */
+    private static final ForgeConfigSpec.DoubleValue SORCERER_MANSION_CHANCE = BUILDER
+            .comment("Chance that an evoker of a woodland mansion is a sorcerer (0 to 1)")
+            .defineInRange("sorcerer.mansionChance", 0.5D, 0.0D, 1.0D);
+
+    private static final ForgeConfigSpec.DoubleValue SORCERER_RAID_CHANCE = BUILDER
+            .comment("Chance that an evoker of a raid's first wave is a sorcerer (0 to 1)")
+            .defineInRange("sorcerer.raidChance", 0.1D, 0.0D, 1.0D);
+
+    private static final ForgeConfigSpec.DoubleValue SORCERER_RAID_CHANCE_PER_WAVE = BUILDER
+            .comment("How much the chance grows with each wave after the first")
+            .defineInRange("sorcerer.raidChancePerWave", 0.1D, 0.0D, 1.0D);
+
+    private static final ForgeConfigSpec.DoubleValue SORCERER_OTHER_CHANCE = BUILDER
+            .comment("Chance that any other evoker (spawned by a command or another mod) is a sorcerer (0 to 1)")
+            .defineInRange("sorcerer.otherChance", 0.0D, 0.0D, 1.0D);
+
     static final ForgeConfigSpec SPEC = BUILDER.build();
+
+    public static double sorcererMansionChance = 0.5D;
+    public static double sorcererRaidChance = 0.1D;
+    public static double sorcererRaidChancePerWave = 0.1D;
+    public static double sorcererOtherChance = 0.0D;
 
     public static MagicBreaks magicBreaksBlocks = MagicBreaks.MOB_GRIEFING;
 
@@ -93,5 +115,9 @@ public class Config
         igniVisualWarnings = IGNI_VISUAL_WARNINGS.get();
         igniAudioWarnings = IGNI_AUDIO_WARNINGS.get();
         magicBreaksBlocks = MAGIC_BREAKS_BLOCKS.get();
+        sorcererMansionChance = SORCERER_MANSION_CHANCE.get();
+        sorcererRaidChance = SORCERER_RAID_CHANCE.get();
+        sorcererRaidChancePerWave = SORCERER_RAID_CHANCE_PER_WAVE.get();
+        sorcererOtherChance = SORCERER_OTHER_CHANCE.get();
     }
 }

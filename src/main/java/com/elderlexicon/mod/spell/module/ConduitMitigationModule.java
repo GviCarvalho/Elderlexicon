@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell.module;
 
+import net.minecraft.world.entity.LivingEntity;
+
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.SpellModule;
 import com.elderlexicon.mod.spelling.item.SpellConduitItem;
@@ -17,13 +19,14 @@ public final class ConduitMitigationModule implements SpellModule {
 
     @Override
     public void apply(SpellContext context) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         if (player == null) {
             context.setConduitOverflow(context.payableCost());
             return;
         }
         double payable = context.payableCost();
-        if (payable <= EPSILON) {
+        // In a vivid dream nothing flows through the body (docs/aprendizado-runas-design.md).
+        if (payable <= EPSILON || (player instanceof net.minecraft.server.level.ServerPlayer mage && com.elderlexicon.mod.nahva.Dreams.isDreaming(mage))) {
             context.setConduitOverflow(0.0D);
             return;
         }
@@ -39,13 +42,14 @@ public final class ConduitMitigationModule implements SpellModule {
 
     private double conductThrough(ItemStack stack,
                                   double requested,
-                                  ServerPlayer player,
+                                  LivingEntity player,
                                   List<String> runes) {
         if (requested <= EPSILON || stack.isEmpty()) {
             return requested;
         }
         if (stack.getItem() instanceof SpellConduitItem conduit) {
-            return conduit.conduct(stack, requested, player, runes);
+            return player instanceof net.minecraft.world.entity.player.Player mage
+                    ? conduit.conduct(stack, requested, mage, runes) : requested;
         }
         return requested;
     }

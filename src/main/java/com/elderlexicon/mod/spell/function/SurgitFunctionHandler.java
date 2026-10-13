@@ -1,5 +1,8 @@
 package com.elderlexicon.mod.spell.function;
 
+import net.minecraft.world.entity.LivingEntity;
+import com.elderlexicon.mod.spell.Casters;
+
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.action.SpellAction;
 import com.elderlexicon.mod.spell.sight.Revelation;
@@ -26,7 +29,7 @@ public final class SurgitFunctionHandler implements SpellFunctionHandler {
 
     @Override
     public void execute(SpellContext context, VitaElement element) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         if (!SpellEffects.isPlayerValid(player)) {
             return;
         }
@@ -64,7 +67,8 @@ public final class SurgitFunctionHandler implements SpellFunctionHandler {
         }
         if (mark.isPresent()) {
             // m1 surgit on a body without a kern: the mage's kern goes into it (docs/vita-design.md).
-            Optional<net.minecraft.world.entity.Mob> body = Incorporations.soullessBearing(player, mark.get());
+            Optional<net.minecraft.world.entity.Mob> body = context.mage()
+                    .flatMap(mage -> Incorporations.soullessBearing(mage, mark.get()));
             if (body.isPresent()) {
                 Incorporations.start(context, body.get(),
                         action.get().seconds().isPresent() ? action.get().seconds().getAsDouble() : null);
@@ -82,15 +86,18 @@ public final class SurgitFunctionHandler implements SpellFunctionHandler {
         double seconds = Revelation.seconds(chronos);
         double radius = Revelation.radius(potency, seconds);
         context.addTotalCost(Revelation.cost(radius, seconds));
-        RevelationSight.begin(player, kind, mark.orElse(null), sought, radius, Revelation.ticks(seconds));
+        if (!(player instanceof ServerPlayer mage)) {
+            return; // what is revealed is shown to a player's eyes
+        }
+        RevelationSight.begin(mage, kind, mark.orElse(null), sought, radius, Revelation.ticks(seconds));
 
         if (mark.isEmpty()) {
             return;
         }
         int delay = Math.max(1, Chronos.window(action.get()));
-        SpellEffects.schedule(player.serverLevel(), delay, () -> {
-            if (SpellEffects.isPlayerValid(player)) {
-                ServerSpellingController.getInstance().readMarkedScrolls(player, mark.get());
+        SpellEffects.schedule(Casters.level(player), delay, () -> {
+            if (SpellEffects.isPlayerValid(mage)) {
+                ServerSpellingController.getInstance().readMarkedScrolls(mage, mark.get());
             }
         });
     }

@@ -45,7 +45,9 @@ public final class AstralProjections {
     }
 
     static void start(SpellContext context, Optional<SpellPlace> place, @Nullable Double chronos) {
-        ServerPlayer player = context.player();
+        if (!(context.player() instanceof ServerPlayer player)) {
+            return; // a spirit leaving its body is a player's
+        }
         Optional<MarkSpells.Destination> destination = MarkSpells.destination(context, place, AIM_RANGE);
         if (destination.isEmpty()) {
             return;

@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell;
 
+import net.minecraft.world.entity.LivingEntity;
+
 import com.elderlexicon.mod.command.SpellCostCalculator;
 import com.elderlexicon.mod.parser.Parser;
 import com.elderlexicon.mod.parser.ParserDictionary;
@@ -56,12 +58,12 @@ public final class SpellCastingService {
         this.costProcessor = Objects.requireNonNull(costProcessor, "costProcessor");
     }
 
-    public Result cast(ServerPlayer player, List<String> rawLexemes) {
+    public Result cast(LivingEntity player, List<String> rawLexemes) {
         return cast(player, rawLexemes, 1.0D);
     }
 
     /** @param costFactor what the spell costs as a share of its own cost (a circle read from afar costs more) */
-    public Result cast(ServerPlayer player, List<String> rawLexemes, double costFactor) {
+    public Result cast(LivingEntity player, List<String> rawLexemes, double costFactor) {
         Objects.requireNonNull(player, "player");
         // ego and ille point at the scene of this very casting: they are bound now, as the line is cast.
         List<String> lexemes = com.elderlexicon.mod.spelling.flow.SceneWords.bind(player, sanitizeLexemes(rawLexemes));
@@ -127,8 +129,8 @@ public final class SpellCastingService {
                 actions,
                 actionResult.vertereRequests());
         // Every spell of the world shares one scene, so spells interact whoever cast them and whenever.
-        context.attachScene(WorldScenes.sceneOf(player.serverLevel()));
-        context.setFocusActive(SpellConduitItem.holdsReadyConduit(player));
+        context.attachScene(WorldScenes.sceneOf(Casters.level(player)));
+        context.setFocusActive(SpellConduitItem.holdsReadyConduit(Casters.player(player).orElse(null)));
 
         actionExecutor.execute(context, actions);
         if (costFactor > 1.0D) {
@@ -172,10 +174,29 @@ public final class SpellCastingService {
         }
 
         Component outputComponent = Component.literal(response == null ? "" : response);
+        // Others saw it (docs/feiticeiro-design.md, 4): a sorcerer nearby may write it down.
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new SpellWitnessedEvent(player, sanitizeLexemes(rawLexemes)));
         VitaScoreboardManager.update(player, VitaSystem.fromPlayer(player));
         // Pass actual UMU spent and UMU extra to Result
         return Result.success(outputComponent, warnings, payableCost, environmentalContribution, bodyLoad, primaryElement,
                 context.focusActive());
+    }
+
+    /**
+     * What a sentence's verbs would spend, read without casting it (docs/feiticeiro-design.md, 3.2): empty when it cannot
+     * be read. What it may take from the world, or what drawing out of a body charges, is not counted.
+     */
+    public java.util.OptionalDouble estimateCost(List<String> rawLexemes) {
+        List<String> lexemes = sanitizeLexemes(rawLexemes);
+        if (lexemes.isEmpty()) {
+            return java.util.OptionalDouble.empty();
+        }
+        List<SpellAction> actions = actionEngine.generateActions(lexemes).actions();
+        if (actions.isEmpty()) {
+            return java.util.OptionalDouble.empty();
+        }
+        return java.util.OptionalDouble.of(requiresEnergyConsumption(actions) ? costProcessor.computeTotalCost(actions)
+                : 0.0D);
     }
 
     /** One independent spell of a block, released {@code delaySteps} after the earliest one. */
@@ -194,12 +215,12 @@ public final class SpellCastingService {
      *
      * @param delayedSink receives the result of every spell that starts later than the returned one
      */
-    public Result castBlock(ServerPlayer player, List<TimedSpell> spells, Consumer<Result> delayedSink) {
+    public Result castBlock(LivingEntity player, List<TimedSpell> spells, Consumer<Result> delayedSink) {
         return castBlock(player, spells, delayedSink, 1.0D);
     }
 
     /** @param costFactor what each spell costs as a share of its own cost */
-    public Result castBlock(ServerPlayer player, List<TimedSpell> spells, Consumer<Result> delayedSink,
+    public Result castBlock(LivingEntity player, List<TimedSpell> spells, Consumer<Result> delayedSink,
                             double costFactor) {
         Objects.requireNonNull(player, "player");
         if (spells == null || spells.isEmpty()) {
@@ -241,8 +262,8 @@ public final class SpellCastingService {
         return mergeSimultaneous(immediate, spells.size());
     }
 
-    private static void scheduleLater(ServerPlayer player, int delayTicks, Runnable action) {
-        SpellTicks.schedule(player.server, delayTicks, action);
+    private static void scheduleLater(LivingEntity player, int delayTicks, Runnable action) {
+        SpellTicks.schedule(player.getServer(), delayTicks, action);
     }
 
     private static Result mergeSimultaneous(List<Result> results, int totalSpells) {

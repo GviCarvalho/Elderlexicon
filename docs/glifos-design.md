@@ -62,8 +62,8 @@ em cima à direita, o `T` embaixo à direita, o `C` em cima à esquerda e o `R` 
 | Fonte | embaixo, à direita (4,6) |
 | Verbo | em cima, à direita (4,0) |
 | Filtro | em cima, à esquerda (0,0) |
-| Condição | embaixo, à esquerda (0,6) |
-| Cena (`ego`, `ille`) | no meio da base (2,6), como no `P` |
+| Fato: condição | embaixo, à esquerda (0,6) |
+| Fato: cena (`ego`, `ille`) | no meio da base (2,6), como no `P` |
 
 Os três pixels vizinhos do ponto ficam vazios, para que ele se leia como ponto e não como parte do traço. O corpo do
 glifo ocupa o resto da caixa.

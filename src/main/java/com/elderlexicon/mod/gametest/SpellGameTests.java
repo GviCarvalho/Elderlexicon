@@ -16,6 +16,15 @@ import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.commands.arguments.EntityAnchorArgument;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.animal.Cow;
+import net.minecraft.world.entity.monster.Evoker;
+import net.minecraft.world.entity.npc.Villager;
+import com.elderlexicon.mod.illager.Sorcerer;
+import com.elderlexicon.mod.illager.SorcererGrimoire;
+import com.elderlexicon.mod.spelling.item.GrimoireItem;
+import com.elderlexicon.mod.spell.Casters;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -32,6 +41,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -52,6 +62,16 @@ public final class SpellGameTests {
      * looking at the wall.
      */
     private static ServerPlayer mageBeforeAWall(GameTestHelper helper) {
+        roomWithAWall(helper);
+        ServerPlayer mage = mage(helper);
+        Vec3 at = helper.absoluteVec(new Vec3(2.5D, 1.0D, 0.5D));
+        // Yaw 0 looks south (+z), toward the wall, whichever way the test is rotated in the world.
+        mage.moveTo(at.x, at.y, at.z, facingWall(helper), 0.0F);
+        return mage;
+    }
+
+    /** A floor under the room and a wall of stone at its far end (z = 4). */
+    private static void roomWithAWall(GameTestHelper helper) {
         for (int x = 0; x < 5; x++) {
             for (int z = 0; z < 5; z++) {
                 helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
@@ -60,11 +80,6 @@ public final class SpellGameTests {
                 helper.setBlock(new BlockPos(x, y, 4), Blocks.STONE);
             }
         }
-        ServerPlayer mage = mage(helper);
-        Vec3 at = helper.absoluteVec(new Vec3(2.5D, 1.0D, 0.5D));
-        // Yaw 0 looks south (+z), toward the wall, whichever way the test is rotated in the world.
-        mage.moveTo(at.x, at.y, at.z, facingWall(helper), 0.0F);
-        return mage;
     }
 
     /**
@@ -126,6 +141,1393 @@ public final class SpellGameTests {
             }
         }
         return found.toString();
+    }
+
+    /**
+     * A living body aimed at is a source (docs/feiticeiro-design.md, 7.4): water drawn out of a cow is a lack in its body,
+     * and the life follows the element most lacking, so the cow is hurt.
+     */
+    @GameTest(template = EMPTY)
+    public static void waterDrawnOutOfABodyHurtsIt(GameTestHelper helper) {
+        ServerPlayer mage = mageBeforeAWall(helper);
+        Cow cow = helper.spawn(EntityType.COW, new Vec3(2.5D, 1.0D, 2.5D));
+        cow.setNoAi(true);
+        Vec3 body = cow.position().add(0.0D, cow.getBbHeight() * 0.5D, 0.0D);
+        mage.lookAt(EntityAnchorArgument.Anchor.EYES, body);
+        float before = cow.getHealth();
+        castOrFail(helper, mage, "aqua quantum -10 vocant");
+        helper.succeedWhen(() -> {
+            if (!(cow.getHealth() < before)) {
+                helper.fail("the cow lost no life: " + cow.getHealth() + " of " + before);
+            }
+        });
+    }
+
+    /**
+     * Any living being casts by the same rules (docs/feiticeiro-design.md, 8): an evoker throws earth at the wall as a
+     * player would, and pays from its Anchor of the Hundred, not from experience it does not have.
+     */
+    @GameTest(template = EMPTY)
+    public static void aCreatureCastsAndPaysFromItsAnchor(GameTestHelper helper) {
+        roomWithAWall(helper);
+        Evoker evoker = helper.spawn(EntityType.EVOKER, new Vec3(2.5D, 1.0D, 0.5D));
+        evoker.setNoAi(true);
+        evoker.lookAt(EntityAnchorArgument.Anchor.EYES, helper.absoluteVec(new Vec3(2.5D, 1.5D, 3.5D)));
+        SpellCastingService.Result result = new SpellCastingService().cast(evoker, List.of("firmo", "vocant"));
+        if (result.failed()) {
+            helper.fail("firmo vocant failed: " + result.message().getString());
+        }
+        if (!(Casters.vis(evoker) < Casters.ANCHOR_UMU)) {
+            helper.fail("the evoker paid nothing from its anchor: " + Casters.vis(evoker));
+        }
+        helper.succeedWhen(() -> {
+            if (!anyIn(helper, Blocks.DIRT, 3, 3)) {
+                helper.fail("no earth before the wall");
+            }
+        });
+    }
+
+    /**
+     * The sorcerer reads its grimoire against a villager it hunts (docs/feiticeiro-design.md, stage 2): it stands, the
+     * trance lasts two seconds, and the page it reads hurts the villager.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 300)
+    public static void theSorcererReadsAPageAgainstItsPrey(GameTestHelper helper) {
+        roomWithAWall(helper);
+        Villager villager = helper.spawn(EntityType.VILLAGER, new Vec3(2.5D, 1.0D, 3.5D));
+        villager.setNoAi(true);
+        Sorcerer evoker = huntingOnly(helper, villager);
+        float before = villager.getHealth();
+        helper.succeedWhen(() -> {
+            if (!(villager.getHealth() < before)) {
+                helper.fail("the villager was not hurt");
+            }
+        });
+    }
+
+    /**
+     * A sorcerer that hunts {@code prey} alone: the other tests' mages share the world, and an evoker would turn on
+     * the nearest player.
+     */
+    private static Sorcerer huntingOnly(GameTestHelper helper, Villager prey) {
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 0.5D));
+        evoker.targetSelector.removeAllGoals(goal -> true);
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.ELDER, com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        evoker.setTarget(prey);
+        return evoker;
+    }
+
+    /**
+     * Out of a fight, with nothing to hunt, the sorcerer writes (docs/feiticeiro-design.md, 2.1): its pages are
+     * written in a while, and kept with it when it is saved and loaded again.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 2000)
+    public static void aSorcererAloneWritesItsPages(GameTestHelper helper) {
+        roomWithAWall(helper);
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 1.5D));
+        evoker.targetSelector.removeAllGoals(goal -> true);
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.ELDER, com.elderlexicon.mod.mind.Personality.TRICKSTER,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        helper.succeedWhen(() -> {
+            if (evoker.written().isEmpty()) {
+                helper.fail("nothing written yet");
+            }
+            net.minecraft.nbt.CompoundTag saved = new net.minecraft.nbt.CompoundTag();
+            evoker.saveWithoutId(saved);
+            Sorcerer again = ElderLexicon.SORCERER.get().create(helper.getLevel());
+            again.load(saved);
+            List<String> before = evoker.written().stream().map(com.elderlexicon.mod.mind.Option::name).toList();
+            List<String> after = again.written().stream().map(com.elderlexicon.mod.mind.Option::name).toList();
+            if (!before.equals(after)) {
+                helper.fail("written " + before + ", loaded " + after);
+            }
+            if (again.grimoire().getOrCreateTag().getList("pages", net.minecraft.nbt.Tag.TAG_STRING).size()
+                    < before.size()) {
+                helper.fail("its grimoire does not hold what it wrote");
+            }
+        });
+    }
+
+    /**
+     * A sorcerer that sees a mage cast writes the sentence down (docs/feiticeiro-design.md, 4), leaving out the runes
+     * it does not know, as its spirit would skip them.
+     */
+    @GameTest(template = EMPTY)
+    public static void aSorcererCopiesWhatItSeesCast(GameTestHelper helper) {
+        ServerPlayer mage = mageBeforeAWall(helper);
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(1.5D, 1.0D, 2.5D));
+        evoker.setNoAi(true);
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE, com.elderlexicon.mod.mind.Personality.TRICKSTER,
+                java.util.Set.of("aqua", "iactare", "vocant"));
+        castOrFail(helper, mage, "aqua tenet iactare");
+        List<String> learned = evoker.learned().stream().map(com.elderlexicon.mod.mind.Option::name).toList();
+        if (!learned.contains("aqua iactare")) {
+            helper.fail("it wrote down " + learned + ", not what it could read of 'aqua tenet iactare'");
+        }
+        if (!evoker.grimoire().getOrCreateTag().getList("pages", net.minecraft.nbt.Tag.TAG_STRING)
+                .contains(net.minecraft.nbt.StringTag.valueOf("aqua iactare"))) {
+            helper.fail("its grimoire does not keep the copy");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A mansion's evoker may be a sorcerer (docs/feiticeiro-design.md, 7): it takes the evoker's place where it stood,
+     * and a corner to study in is put beside it. (The chance is made certain for the test, and given back.)
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 60)
+    public static void aMansionsEvokerMayBeASorcerer(GameTestHelper helper) {
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < 5; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+            }
+        }
+        double chance = com.elderlexicon.mod.Config.sorcererMansionChance;
+        com.elderlexicon.mod.Config.sorcererMansionChance = 1.0D;
+        net.minecraft.world.entity.monster.Evoker evoker = EntityType.EVOKER.create(helper.getLevel());
+        Vec3 at = helper.absoluteVec(new Vec3(2.5D, 1.0D, 2.5D));
+        evoker.moveTo(at.x, at.y, at.z, 0.0F, 0.0F);
+        evoker.setPersistenceRequired();
+        evoker.setNoAi(true);
+        helper.getLevel().addFreshEntity(evoker);
+        com.elderlexicon.mod.Config.sorcererMansionChance = chance;
+        helper.succeedWhen(() -> {
+            if (!evoker.isRemoved()) {
+                helper.fail("the evoker is still there");
+            }
+            List<Sorcerer> sorcerers = helper.getLevel().getEntitiesOfClass(Sorcerer.class,
+                    new AABB(at, at).inflate(1.0D));
+            if (sorcerers.isEmpty() || !sorcerers.get(0).isPersistenceRequired()) {
+                helper.fail("no sorcerer kept where it stood");
+            }
+            boolean lectern = false;
+            for (net.minecraft.core.Direction side : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+                lectern |= helper.getLevel().getBlockState(BlockPos.containing(at).relative(side)).is(Blocks.LECTERN);
+            }
+            if (!lectern) {
+                helper.fail("no lectern to study at");
+            }
+        });
+    }
+
+    /**
+     * A sorcerer learns as a mage does (docs/aprendizado-runas-design.md): it lives a rune a few times, and in calm it
+     * dreams it and knows it; its degree follows, and it writes its grimoire again.
+     */
+    @GameTest(template = EMPTY)
+    public static void aSorcererLearnsARuneItLivedByDreamingIt(GameTestHelper helper) {
+        Sorcerer sorcerer = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 2.5D));
+        sorcerer.setNoAi(true);
+        sorcerer.setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE, com.elderlexicon.mod.mind.Personality.CAUTIOUS,
+                java.util.Set.of("igni", "iactare", "vocant"));
+        sorcerer.experience("aqua");
+        sorcerer.experience("aqua");
+        if (sorcerer.dream()) {
+            helper.fail("it dreamed what it barely lived");
+        }
+        // A blow of no energy teaches nothing; water lived once more, and it is enough.
+        sorcerer.hurt(helper.getLevel().damageSources().generic(), 1.0F);
+        sorcerer.experience("aqua");
+        if (!sorcerer.dream() || !sorcerer.known().contains("aqua")) {
+            helper.fail("it did not learn aqua: " + sorcerer.known() + " " + sorcerer.understanding());
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A sorcerer leads its band (docs/feiticeiro-design.md, 7.2): an aggressive one gives every member one mark, a
+     * trickster gives each its own.
+     */
+    @GameTest(template = EMPTY)
+    public static void aSorcererMarksItsBandAsItLikes(GameTestHelper helper) {
+        Sorcerer aggressive = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        aggressive.setNoAi(true);
+        aggressive.setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE, com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                java.util.Set.of("igni", "iactare", "vocant"));
+        List<net.minecraft.world.entity.monster.Vindicator> band = List.of(
+                helper.spawn(EntityType.VINDICATOR, new Vec3(3.5D, 1.0D, 1.5D)),
+                helper.spawn(EntityType.VINDICATOR, new Vec3(3.5D, 1.0D, 3.5D)));
+        band.forEach(member -> member.setNoAi(true));
+        aggressive.markBand();
+        List<String> marks = band.stream().map(member -> com.elderlexicon.mod.spell.function.MarkHelper
+                .markForEntity(member).orElse("")).toList();
+        if (marks.get(0).isEmpty() || !marks.get(0).equals(marks.get(1))) {
+            helper.fail("an aggressive sorcerer gave its band " + marks);
+        }
+        band.forEach(member -> com.elderlexicon.mod.spell.function.MarkHelper.applyMark(member, null));
+        Sorcerer trickster = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(1.5D, 1.0D, 3.5D));
+        trickster.setNoAi(true);
+        trickster.setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE, com.elderlexicon.mod.mind.Personality.TRICKSTER,
+                java.util.Set.of("igni", "iactare", "vocant"));
+        trickster.markBand();
+        List<String> own = band.stream().map(member -> com.elderlexicon.mod.spell.function.MarkHelper
+                .markForEntity(member).orElse("")).toList();
+        if (own.get(0).isEmpty() || own.get(0).equals(own.get(1))) {
+            helper.fail("a trickster gave its band " + own);
+        }
+        helper.succeed();
+    }
+
+    /** A wizard takes up the cause of a villager hurt near it (docs/mago-design.md, 1), as an iron golem would. */
+    @GameTest(template = EMPTY, timeoutTicks = 200, batch = "wizard_defends")
+    public static void aWizardDefendsAHurtVillager(GameTestHelper helper) {
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        Villager villager = helper.spawn(EntityType.VILLAGER, new Vec3(3.5D, 1.0D, 1.5D));
+        villager.setNoAi(true);
+        net.minecraft.world.entity.monster.Zombie zombie = helper.spawn(EntityType.ZOMBIE, new Vec3(3.5D, 1.0D, 3.5D));
+        zombie.setNoAi(true);
+        villager.hurt(helper.getLevel().damageSources().mobAttack(zombie), 1.0F);
+        helper.succeedWhen(() -> {
+            // Whoever hurt the villager last (a creature of another test may wander in and do it).
+            if (wizard.getTarget() == null || wizard.getTarget() != zombie
+                    && wizard.getTarget() != villager.getLastHurtByMob()) {
+                helper.fail("the wizard does not fight the one who hurt the villager: " + wizard.getTarget()
+                        + "; villager hurt by " + villager.getLastHurtByMob() + " at " + villager.getLastHurtByMobTimestamp()
+                        + " (now " + villager.tickCount + ", wizard " + wizard.tickCount + ", alive " + wizard.isAlive()
+                        + ", at " + wizard.blockPosition() + " in " + helper.getLevel().getBlockState(wizard.blockPosition())
+                        + "), zombie alive " + zombie.isAlive());
+            }
+        });
+    }
+
+    /** A wizard hunts no one: one who hurt no one near it is let be, and has its wares (docs/mago-design.md, 1 and 2). */
+    @GameTest(template = EMPTY, timeoutTicks = 100, batch = "wizard_trades")
+    public static void aWizardLetsBeAndTrades(GameTestHelper helper) {
+        ServerPlayer visitor = mageBeforeAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(2.5D, 1.0D, 2.5D));
+        if (wizard.getOffers().isEmpty()) {
+            helper.fail("the wizard has nothing to offer");
+        }
+        if (wizard.getOffers().stream().noneMatch(offer -> offer.getResult().is(ElderLexicon.WAND.get()))) {
+            helper.fail("the wizard offers no wand");
+        }
+        helper.runAtTickTime(60, () -> {
+            // (Another test's sorcerer may hurt a villager near it: then the wizard rightly fights it.)
+            if (wizard.getTarget() == visitor) {
+                helper.fail("the wizard turned on the visitor, who did nothing");
+            }
+            helper.succeed();
+        });
+    }
+
+    /** Whoever hurts a wizard is its foe. */
+    @GameTest(template = EMPTY, timeoutTicks = 100, batch = "wizard_fights")
+    public static void aWizardFightsWhoeverHurtsIt(GameTestHelper helper) {
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        net.minecraft.world.entity.monster.Zombie zombie = helper.spawn(EntityType.ZOMBIE, new Vec3(3.5D, 1.0D, 3.5D));
+        zombie.setNoAi(true);
+        // Hurt a few ticks after it came (a hurt in its very first tick is not told apart from none).
+        helper.runAtTickTime(5, () -> wizard.hurt(helper.getLevel().damageSources().mobAttack(zombie), 1.0F));
+        helper.succeedWhen(() -> {
+            if (wizard.getTarget() != zombie) {
+                helper.fail("the wizard does not fight the one who hurt it: " + wizard.getTarget());
+            }
+        });
+    }
+
+    /** A long strip of floor, {@code length} blocks along z, for those who must walk or aim far. */
+    private static void longFloor(GameTestHelper helper, int length) {
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < length; z++) {
+                helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)), Blocks.STONE.defaultBlockState());
+                for (int y = 1; y < 4; y++) {
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)), Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
+    }
+
+    /**
+     * Takes away what a test on the long floor spawned: it stands beyond the test's bounds, where the test does not
+     * clear it, and would wander into the tests after.
+     */
+    private static void leave(net.minecraft.world.entity.Entity... spawned) {
+        for (net.minecraft.world.entity.Entity entity : spawned) {
+            entity.discard();
+        }
+    }
+
+    /** A sorcerer that knows {@code known} and hunts {@code prey} alone, far down the floor. */
+    private static Sorcerer farFrom(GameTestHelper helper, Villager prey, String... known) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 0.5D));
+        evoker.targetSelector.removeAllGoals(goal -> true);
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE, com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                Set.of(known));
+        evoker.setTarget(prey);
+        return evoker;
+    }
+
+    /**
+     * What it throws gets twenty blocks (docs/feiticeiro-design.md, 3.7): one that cannot write a distance walks up to
+     * a target farther than that, rather than throwing what would fall short.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 400, batch = "reach_walk")
+    public static void aSorcererWalksUpToWhatItCannotReach(GameTestHelper helper) {
+        longFloor(helper, 30);
+        Villager prey = helper.spawn(EntityType.VILLAGER, new Vec3(2.5D, 1.0D, 27.5D));
+        prey.setNoAi(true);
+        Sorcerer evoker = farFrom(helper, prey, "igni", "iactare", "vocant");
+        helper.succeedWhen(() -> {
+            if (evoker.lastChoice().isPresent() && evoker.distanceTo(prey) > com.elderlexicon.mod.mind.Reach.THROW) {
+                helper.fail("it read from " + evoker.distanceTo(prey) + " blocks: " + evoker.lastChoice().get().option().name());
+            }
+            if (evoker.distanceTo(prey) > com.elderlexicon.mod.mind.Reach.THROW - 1.0D) {
+                helper.fail("it has not come near yet: " + evoker.distanceTo(prey));
+            }
+            leave(evoker, prey);
+        });
+    }
+
+    /** One who can write a distance writes it, and throws from where it stands. */
+    @GameTest(template = EMPTY, timeoutTicks = 400, batch = "reach_write")
+    public static void aSorcererWhoKnowsHowWritesTheDistance(GameTestHelper helper) {
+        longFloor(helper, 30);
+        Villager prey = helper.spawn(EntityType.VILLAGER, new Vec3(2.5D, 1.0D, 27.5D));
+        prey.setNoAi(true);
+        Sorcerer evoker = farFrom(helper, prey, "igni", "iactare", "vocant", "ubis");
+        helper.succeedWhen(() -> {
+            if (evoker.lastChoice().isEmpty()) {
+                helper.fail("it read nothing yet (" + evoker.distanceTo(prey) + " blocks away)");
+            }
+            List<String> words = evoker.lastChoice().get().option().words();
+            if (!words.contains("ubis")) {
+                helper.fail("it read " + words + " from " + evoker.distanceTo(prey) + " blocks");
+            }
+            leave(evoker, prey);
+        });
+    }
+
+    /**
+     * What it throws lands (docs/feiticeiro-design.md, 3.8): it keeps looking at its target while the throw runs its two
+     * seconds, so the flow lands on it and not wherever it turned.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 400, batch = "caster_aim")
+    public static void aSorcererHurtsWhatItAimsAt(GameTestHelper helper) {
+        longFloor(helper, 12);
+        Villager prey = helper.spawn(EntityType.VILLAGER, new Vec3(2.5D, 1.0D, 9.5D));
+        prey.setNoAi(true);
+        Sorcerer evoker = farFrom(helper, prey, "igni", "iactare", "vocant");
+        helper.succeedWhen(() -> {
+            if (prey.isAlive() && prey.getHealth() >= prey.getMaxHealth()) {
+                helper.fail("the villager is not hurt");
+            }
+            leave(evoker, prey);
+        });
+    }
+
+    /** A wizard alone, hurt, draws out of the world what it lacks: it heals (docs/feiticeiro-design.md, 3.8). */
+    @GameTest(template = EMPTY, timeoutTicks = 600, batch = "caster_heal")
+    public static void aWoundedWizardHealsItself(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        wizard.targetSelector.removeAllGoals(goal -> true);
+        wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE,
+                com.elderlexicon.mod.mind.Personality.CAUTIOUS, Set.of("aura", "vocant", "quantum"));
+        float[] least = {Float.MAX_VALUE};
+        helper.runAtTickTime(5, () -> com.elderlexicon.mod.vita.VitaSystem.drain(wizard,
+                com.elderlexicon.mod.vita.VitaElement.AURA, 15.0D));
+        helper.succeedWhen(() -> {
+            least[0] = Math.min(least[0], wizard.getHealth());
+            if (least[0] >= wizard.getMaxHealth()) {
+                helper.fail("the wizard was not hurt yet");
+            }
+            if (wizard.getHealth() < least[0] + 1.0F) {
+                helper.fail("not healed: " + wizard.getHealth() + " (least " + least[0] + "); read "
+                        + wizard.casterMind().lastChoice().map(choice -> choice.option().name() + " " + choice.intent())
+                        .orElse("nothing"));
+            }
+        });
+    }
+
+    /** A burning wizard brings water to where it stands and puts the fire out. */
+    @GameTest(template = EMPTY, timeoutTicks = 400, batch = "caster_douse")
+    public static void aBurningWizardPutsItOut(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        wizard.targetSelector.removeAllGoals(goal -> true);
+        wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE,
+                com.elderlexicon.mod.mind.Personality.AGGRESSIVE, Set.of("aqua", "vocant"));
+        helper.runAtTickTime(5, () -> wizard.setRemainingFireTicks(600));
+        helper.succeedWhen(() -> {
+            if (helper.getTick() < 10 || wizard.isOnFire()) {
+                helper.fail("still burning; read " + wizard.casterMind().lastChoice()
+                        .map(choice -> choice.option().name() + " " + choice.intent()).orElse("nothing"));
+            }
+        });
+    }
+
+    /** A foe at hand is kept off: a zone around the caster no creature enters. */
+    @GameTest(template = EMPTY, timeoutTicks = 400, batch = "caster_ward")
+    public static void aCasterWardsAFoeAtHand(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        wizard.targetSelector.removeAllGoals(goal -> true);
+        wizard.goalSelector.removeAllGoals(goal -> !(goal.getClass().getEnclosingClass()
+                == com.elderlexicon.mod.caster.CasterMind.class));
+        wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE,
+                com.elderlexicon.mod.mind.Personality.CAUTIOUS, Set.of("vis", "impediunt", "igni", "iactare"));
+        net.minecraft.world.entity.monster.Zombie zombie = helper.spawn(EntityType.ZOMBIE, new Vec3(3.0D, 1.0D, 1.5D));
+        zombie.setNoAi(true);
+        wizard.setTarget(zombie);
+        boolean[] warded = {false};
+        helper.onEachTick(() -> wizard.casterMind().lastChoice()
+                .filter(choice -> choice.intent() == com.elderlexicon.mod.mind.Intent.WARD)
+                .ifPresent(choice -> warded[0] = true));
+        helper.succeedWhen(() -> {
+            if (!warded[0]) {
+                helper.fail("it did not ward; read " + wizard.casterMind().lastChoice()
+                        .map(choice -> choice.option().name() + " " + choice.intent()).orElse("nothing"));
+            }
+        });
+    }
+
+    /** A wizard is heard: it murmurs now and then, as a villager does. */
+    @GameTest(template = EMPTY, timeoutTicks = 600, batch = "wizard_voice")
+    public static void aWizardIsHeard(GameTestHelper helper) {
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        java.util.List<String> heard = new java.util.ArrayList<>();
+        java.util.function.Consumer<net.minecraftforge.event.PlayLevelSoundEvent.AtPosition> listener = event -> {
+            if (event.getPosition().distanceTo(wizard.position()) < 1.0D && event.getSound() != null) {
+                heard.add(event.getSound().get().getLocation().toString());
+            }
+        };
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener(listener);
+        helper.succeedWhen(() -> {
+            if (heard.isEmpty()) {
+                helper.fail("not a sound from the wizard");
+            }
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.unregister(listener);
+        });
+    }
+
+    /** A wizard of few runes, alone in a room whose far wall is {@code wall}: it writes its pages quickly. */
+    private static com.elderlexicon.mod.wizard.Wizard studentBefore(GameTestHelper helper,
+                                                                     net.minecraft.world.level.block.Block wall) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        for (int x = 0; x < 5; x++) {
+            for (int z = 0; z < 5; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE);
+            }
+            helper.setBlock(new BlockPos(x, 1, 4), wall);
+        }
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(2.5D, 1.0D, 1.5D));
+        wizard.targetSelector.removeAllGoals(goal -> true);
+        wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE,
+                com.elderlexicon.mod.mind.Personality.CAUTIOUS, Set.of("igni", "iactare", "vocant", "quantum"));
+        wizard.casterMind().studySoon();
+        return wizard;
+    }
+
+    /** At the shelves a caster reads what others wrote: sentences in the runes it knows (docs/mago-design.md, 5c). */
+    @GameTest(template = EMPTY, timeoutTicks = 2000, batch = "caster_study")
+    public static void aCasterReadsAtTheShelves(GameTestHelper helper) {
+        com.elderlexicon.mod.wizard.Wizard wizard = studentBefore(helper, Blocks.BOOKSHELF);
+        helper.onEachTick(() -> {
+            if (!wizard.casterMind().written().isEmpty() && helper.getTick() % 100 == 0) {
+                wizard.casterMind().studySoon();
+            }
+        });
+        helper.succeedWhen(() -> {
+            if (wizard.casterMind().studiedSentences().isEmpty()) {
+                helper.fail("nothing read at the shelves; " + wizard.describe());
+            }
+        });
+    }
+
+    /** At the galdraria table a wizard engraves a page of its own into a wand, and sells it. */
+    @GameTest(template = EMPTY, timeoutTicks = 2000, batch = "caster_engrave")
+    public static void aWizardEngravesAWandToSell(GameTestHelper helper) {
+        com.elderlexicon.mod.wizard.Wizard wizard = studentBefore(helper,
+                com.elderlexicon.mod.galdraria.Galdraria.TABLE.get());
+        helper.onEachTick(() -> {
+            if (!wizard.casterMind().written().isEmpty() && helper.getTick() % 100 == 0) {
+                wizard.casterMind().studySoon();
+            }
+        });
+        helper.succeedWhen(() -> {
+            boolean engraved = wizard.getOffers().stream()
+                    .anyMatch(offer -> com.elderlexicon.mod.galdraria.Engravings.has(offer.getResult()));
+            if (!engraved) {
+                helper.fail("no engraved wand offered; " + wizard.describe());
+            }
+        });
+    }
+
+    /** All the text of a written book's pages, as plain text (translatable parts by their keys). */
+    private static String bookText(net.minecraft.world.item.ItemStack book) {
+        StringBuilder text = new StringBuilder();
+        net.minecraft.nbt.ListTag pages = book.getOrCreateTag().getList("pages", net.minecraft.nbt.Tag.TAG_STRING);
+        for (int i = 0; i < pages.size(); i++) {
+            text.append(pages.getString(i)).append('\n');
+        }
+        return text.toString();
+    }
+
+    /** A rune guide says what the rune is, sentences that read well, and how it is lived (docs/mago-design.md, 5d). */
+    @GameTest(template = EMPTY)
+    public static void aRuneGuideTellsTheRune(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        net.minecraft.world.item.ItemStack guide = com.elderlexicon.mod.library.RuneGuides.runeGuide("igni")
+                .orElseThrow();
+        String text = bookText(guide);
+        if (!text.contains("o fogo, a energia como calor")) {
+            helper.fail("the guide does not say what igni is: " + text);
+        }
+        if (!text.contains("igni iactare")) {
+            helper.fail("the guide shows no sentence with igni: " + text);
+        }
+        if (!text.contains("guide.elderlexicon.experience.burning")) {
+            helper.fail("the guide does not say how igni is lived: " + text);
+        }
+        net.minecraft.world.item.ItemStack grammar = com.elderlexicon.mod.library.RuneGuides.familyGuide(
+                com.elderlexicon.mod.library.RuneGuides.Family.FILTERS);
+        if (!bookText(grammar).contains("ubis")) {
+            helper.fail("the guide of the filters does not have ubis");
+        }
+        helper.succeed();
+    }
+
+    /** A librarian has guides among what it may offer, at every level of its trade. */
+    @GameTest(template = EMPTY)
+    public static void aLibrarianKeepsGuides(GameTestHelper helper) {
+        Villager librarian = helper.spawn(EntityType.VILLAGER, new Vec3(2.5D, 1.0D, 2.5D));
+        librarian.setNoAi(true);
+        var pool = net.minecraft.world.entity.npc.VillagerTrades.TRADES.get(
+                net.minecraft.world.entity.npc.VillagerProfession.LIBRARIAN);
+        for (int level = 1; level <= 5; level++) {
+            boolean guide = false;
+            for (var listing : pool.get(level)) {
+                net.minecraft.world.item.trading.MerchantOffer offer = listing.getOffer(librarian,
+                        helper.getLevel().getRandom());
+                if (offer != null && com.elderlexicon.mod.library.RuneGuides.subject(offer.getResult()).isPresent()) {
+                    guide = true;
+                }
+            }
+            if (!guide) {
+                helper.fail("no guide among the librarian's trades of level " + level);
+            }
+        }
+        helper.succeed();
+    }
+
+    /** A librarian struck reads the veil: it is lost to the one that hunted it. */
+    @GameTest(template = EMPTY, timeoutTicks = 200, batch = "librarian_veil")
+    public static void aLibrarianVanishesFromItsHunter(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        roomWithAWall(helper);
+        Villager librarian = helper.spawn(EntityType.VILLAGER, new Vec3(1.5D, 1.0D, 1.5D));
+        librarian.setVillagerData(librarian.getVillagerData().setProfession(
+                net.minecraft.world.entity.npc.VillagerProfession.LIBRARIAN));
+        librarian.setVillagerXp(1); // a librarian with no job site and no trade made is no librarian for long
+        net.minecraft.world.entity.monster.Zombie zombie = helper.spawn(EntityType.ZOMBIE, new Vec3(3.5D, 1.0D, 3.5D));
+        zombie.setNoAi(true);
+        zombie.setTarget(librarian);
+        helper.runAtTickTime(5, () -> librarian.hurt(helper.getLevel().damageSources().mobAttack(zombie), 1.0F));
+        boolean[] tranced = {false};
+        helper.onEachTick(() -> tranced[0] |= com.elderlexicon.mod.library.Librarians.inTrance(librarian));
+        helper.succeedWhen(() -> {
+            if (!tranced[0]) {
+                helper.fail("the librarian never read");
+            }
+            if (zombie.getTarget() == librarian) {
+                helper.fail("the zombie still hunts it");
+            }
+        });
+    }
+
+    /** The towers are structures of the world (docs/mago-design.md, 5e). */
+    @GameTest(template = EMPTY)
+    public static void theTowersAreStructures(GameTestHelper helper) {
+        var structures = helper.getLevel().registryAccess().registryOrThrow(
+                net.minecraft.core.registries.Registries.STRUCTURE);
+        for (String tower : List.of("sorcerer_tower", "wizard_tower")) {
+            if (!structures.containsKey(new net.minecraft.resources.ResourceLocation(ElderLexicon.MODID, tower))) {
+                helper.fail("no structure " + tower);
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A tower drawn whole: its door, its library, its stair, its roof, and its caster at home in it. The tower is larger
+     * than a test's room: what it drew is taken away after.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 100, batch = "tower")
+    public static void aWizardsTowerIsBuilt(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        ServerLevel level = helper.getLevel();
+        BlockPos center = helper.absolutePos(new BlockPos(2, 0, 2)).above(10);
+        com.elderlexicon.mod.tower.TowerPiece tower = new com.elderlexicon.mod.tower.TowerPiece(
+                com.elderlexicon.mod.tower.TowerKind.WIZARD, center, 4);
+        net.minecraft.world.level.levelgen.structure.BoundingBox box = tower.getBoundingBox();
+        // Whatever an earlier run left there is not part of the tower.
+        level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, net.minecraft.world.phys.AABB.of(box))
+                .forEach(net.minecraft.world.entity.Entity::discard);
+        tower.postProcess(level, level.structureManager(), level.getChunkSource().getGenerator(), level.getRandom(),
+                box, new net.minecraft.world.level.ChunkPos(center), center);
+        List<com.elderlexicon.mod.wizard.Wizard> dwellers = level.getEntitiesOfClass(
+                com.elderlexicon.mod.wizard.Wizard.class, net.minecraft.world.phys.AABB.of(box));
+        try {
+            if (!(level.getBlockState(center.offset(0, 1, 5)).getBlock() instanceof net.minecraft.world.level.block.DoorBlock)) {
+                helper.fail("no door: " + level.getBlockState(center.offset(0, 1, 5)));
+            }
+            if (!level.getBlockState(center.offset(0, 6, -3)).is(Blocks.LECTERN)) {
+                helper.fail("no lectern in the library: " + level.getBlockState(center.offset(0, 6, -3)));
+            }
+            if (!level.getBlockState(center.offset(-3, 6, 0)).is(com.elderlexicon.mod.galdraria.Galdraria.TABLE.get())) {
+                helper.fail("no galdraria table in the library");
+            }
+            long shelves = BlockPos.betweenClosedStream(box).filter(pos -> level.getBlockState(pos).is(Blocks.BOOKSHELF))
+                    .count();
+            if (shelves < 20) {
+                helper.fail("a library of " + shelves + " shelves");
+            }
+            if (!level.getBlockState(center.offset(1, 1, 0)).is(Blocks.SPRUCE_PLANKS)) {
+                helper.fail("the stair does not start at the column: " + level.getBlockState(center.offset(1, 1, 0)));
+            }
+            if (!level.getBlockState(center.offset(0, 4 * 5 + 4 + 5 + 1, 0)).is(Blocks.BLUE_TERRACOTTA)) {
+                helper.fail("no roof at the top");
+            }
+            if (dwellers.size() != 1) {
+                helper.fail(dwellers.size() + " wizards in the tower");
+            }
+            if (dwellers.get(0).casterMind().home().isEmpty()) {
+                helper.fail("the wizard has no home");
+            }
+            helper.succeed();
+        } finally {
+            dwellers.forEach(net.minecraft.world.entity.Entity::discard);
+            level.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, net.minecraft.world.phys.AABB.of(box))
+                    .forEach(net.minecraft.world.entity.Entity::discard);
+            BlockPos.betweenClosed(box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ())
+                    .forEach(pos -> level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2));
+        }
+    }
+
+    /**
+     * The Wizard's houses are saved as the code draws them (docs/mago-design.md, 5f): each is drawn, taken as a
+     * structure, and compared with the one the mod carries. One missing or different is saved again into the mod's
+     * resources (when run from the project), and the test asks to be run again.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 100, batch = "wizard_house_saved")
+    public static void theWizardHousesAreSavedAsDrawn(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = helper.absolutePos(new BlockPos(0, 1, 0)).above(20);
+        net.minecraft.core.Vec3i size = new net.minecraft.core.Vec3i(com.elderlexicon.mod.village.WizardHouse.WIDTH,
+                com.elderlexicon.mod.village.WizardHouse.HEIGHT, com.elderlexicon.mod.village.WizardHouse.DEPTH);
+        List<String> saved = new java.util.ArrayList<>();
+        for (com.elderlexicon.mod.village.WizardHouse.Style style
+                : com.elderlexicon.mod.village.WizardHouse.Style.values()) {
+            // Whatever an earlier run left there is not part of the house.
+            level.getEntitiesOfClass(net.minecraft.world.entity.Entity.class, new net.minecraft.world.phys.AABB(origin,
+                            origin.offset(size)).inflate(2.0D), entity -> !(entity instanceof net.minecraft.world.entity.player.Player))
+                    .forEach(net.minecraft.world.entity.Entity::discard);
+            com.elderlexicon.mod.village.WizardHouse.build(level, origin, style);
+            com.elderlexicon.mod.wizard.Wizard wizard = ElderLexicon.WIZARD.get().create(level);
+            BlockPos at = origin.offset(com.elderlexicon.mod.village.WizardHouse.DWELLER);
+            wizard.moveTo(at.getX() + 0.5D, at.getY(), at.getZ() + 0.5D, 180.0F, 0.0F);
+            wizard.setPersistenceRequired();
+            wizard.arriveWithHouse();
+            level.addFreshEntity(wizard);
+            net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate drawn =
+                    new net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate();
+            drawn.fillFromWorld(level, origin, size, true, Blocks.STRUCTURE_VOID);
+            drawn.setAuthor(ElderLexicon.MODID);
+            net.minecraft.nbt.CompoundTag fresh = drawn.save(new net.minecraft.nbt.CompoundTag());
+            wizard.discard();
+            BlockPos.betweenClosed(origin, origin.offset(size).offset(-1, -1, -1))
+                    .forEach(pos -> level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2));
+            int taken = fresh.getList("entities", net.minecraft.nbt.Tag.TAG_COMPOUND).size();
+            if (taken != 1) {
+                helper.fail("the " + style + " house was taken with " + taken + " creatures");
+            }
+            boolean same = level.getStructureManager().get(style.template())
+                    .map(carried -> blocksOf(carried.save(new net.minecraft.nbt.CompoundTag())).equals(blocksOf(fresh)))
+                    .orElse(false);
+            if (!same) {
+                // The project is the first folder up from where the server runs that has the mod's resources.
+                java.nio.file.Path project = level.getServer().getServerDirectory().toPath().toAbsolutePath().normalize();
+                while (project != null && !java.nio.file.Files.isDirectory(project.resolve("src/main/resources"))) {
+                    project = project.getParent();
+                }
+                if (project == null) {
+                    helper.fail("the " + style + " house differs from the saved one, and the project is not here");
+                    return;
+                }
+                java.nio.file.Path file = project.resolve("src/main/resources/data/" + ElderLexicon.MODID
+                        + "/structures/" + style.template().getPath() + ".nbt");
+                try {
+                    java.nio.file.Files.createDirectories(file.getParent());
+                    net.minecraft.nbt.NbtIo.writeCompressed(fresh, file.toFile());
+                    saved.add(style.village());
+                } catch (java.io.IOException exception) {
+                    helper.fail("the " + style + " house could not be saved: " + exception);
+                }
+            }
+        }
+        if (!saved.isEmpty()) {
+            helper.fail("saved again " + saved + ": run the tests again");
+        }
+        helper.succeed();
+    }
+
+    /** What a saved structure is, but for its creatures (they are saved with where and who they were). */
+    private static net.minecraft.nbt.CompoundTag blocksOf(net.minecraft.nbt.CompoundTag structure) {
+        net.minecraft.nbt.CompoundTag blocks = structure.copy();
+        blocks.remove("entities");
+        blocks.remove("DataVersion");
+        return blocks;
+    }
+
+    /** The Wizard's house is among the houses every village may build. */
+    @GameTest(template = EMPTY)
+    public static void theWizardsHouseIsInTheVillages(GameTestHelper helper) {
+        var pools = helper.getLevel().registryAccess().registryOrThrow(
+                net.minecraft.core.registries.Registries.TEMPLATE_POOL);
+        for (com.elderlexicon.mod.village.WizardHouse.Style style
+                : com.elderlexicon.mod.village.WizardHouse.Style.values()) {
+            var pool = pools.get(style.housesPool());
+            if (pool == null || !com.elderlexicon.mod.village.VillageHouses.holds(pool, style)) {
+                helper.fail("the " + style.village() + " villages have no wizard's house");
+            }
+        }
+        helper.succeed();
+    }
+
+    /** A house placed from what was saved: its door, its lectern, and its wizard, born anew and at home there. */
+    @GameTest(template = EMPTY, timeoutTicks = 60, batch = "wizard_house_placed")
+    public static void aWizardMovesIntoItsHouse(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = helper.absolutePos(new BlockPos(0, 1, 0)).above(20);
+        var template = level.getStructureManager().get(
+                com.elderlexicon.mod.village.WizardHouse.Style.PLAINS.template());
+        if (template.isEmpty()) {
+            helper.fail("no plains house saved");
+            return;
+        }
+        template.get().placeInWorld(level, origin, origin,
+                new net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings(),
+                level.getRandom(), 2);
+        net.minecraft.world.phys.AABB house = new net.minecraft.world.phys.AABB(origin,
+                origin.offset(com.elderlexicon.mod.village.WizardHouse.WIDTH, com.elderlexicon.mod.village.WizardHouse.HEIGHT,
+                        com.elderlexicon.mod.village.WizardHouse.DEPTH));
+        helper.runAtTickTime(10, () -> {
+            List<com.elderlexicon.mod.wizard.Wizard> wizards = level.getEntitiesOfClass(
+                    com.elderlexicon.mod.wizard.Wizard.class, house);
+            try {
+                if (wizards.size() != 1) {
+                    helper.fail(wizards.size() + " wizards in the house");
+                }
+                if (wizards.get(0).casterMind().home().isEmpty()) {
+                    helper.fail("the wizard is not at home");
+                }
+                if (!level.getBlockState(origin.offset(2, 1, 6)).is(Blocks.LECTERN)) {
+                    helper.fail("no lectern: " + level.getBlockState(origin.offset(2, 1, 6)));
+                }
+                helper.succeed();
+            } finally {
+                wizards.forEach(net.minecraft.world.entity.Entity::discard);
+                BlockPos.betweenClosed(origin, origin.offset(com.elderlexicon.mod.village.WizardHouse.WIDTH - 1,
+                        com.elderlexicon.mod.village.WizardHouse.HEIGHT - 1,
+                        com.elderlexicon.mod.village.WizardHouse.DEPTH - 1))
+                        .forEach(pos -> level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2));
+            }
+        });
+    }
+
+    /**
+     * A university drawn whole (docs/mago-design.md, 5g): its houses, and who lives there, each with its rank and chair.
+     * The grounds are far larger than a test's room: what they drew is taken away after.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 200, batch = "university")
+    public static void aUniversityIsBuilt(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        ServerLevel level = helper.getLevel();
+        BlockPos center = helper.absolutePos(new BlockPos(2, 0, 2)).above(12);
+        com.elderlexicon.mod.university.UniversityPiece university =
+                new com.elderlexicon.mod.university.UniversityPiece(center);
+        com.elderlexicon.mod.university.UniversityRoadPiece road =
+                new com.elderlexicon.mod.university.UniversityRoadPiece(center);
+        net.minecraft.world.level.levelgen.structure.BoundingBox all = net.minecraft.world.level.levelgen.structure
+                .BoundingBox.encapsulatingBoxes(List.of(university.getBoundingBox(), road.getBoundingBox())).orElseThrow();
+        net.minecraft.world.phys.AABB area = net.minecraft.world.phys.AABB.of(all);
+        level.getEntitiesOfClass(net.minecraft.world.entity.Entity.class, area,
+                entity -> !(entity instanceof net.minecraft.world.entity.player.Player))
+                .forEach(net.minecraft.world.entity.Entity::discard);
+        // Open air where it stands, and stone under it, as the terrain would be shaped to it.
+        BlockPos.betweenClosed(all.minX(), all.minY() - 6, all.minZ(), all.maxX(), all.maxY(), all.maxZ())
+                .forEach(pos -> level.setBlock(pos, pos.getY() < center.getY() ? Blocks.STONE.defaultBlockState()
+                        : Blocks.AIR.defaultBlockState(), 2));
+        net.minecraft.world.level.levelgen.structure.BoundingBox drawn = new net.minecraft.world.level.levelgen
+                .structure.BoundingBox(all.minX(), all.minY() - 6, all.minZ(), all.maxX(), all.maxY(), all.maxZ());
+        university.postProcess(level, level.structureManager(), level.getChunkSource().getGenerator(), level.getRandom(),
+                drawn, new net.minecraft.world.level.ChunkPos(center), center);
+        road.postProcess(level, level.structureManager(), level.getChunkSource().getGenerator(), level.getRandom(),
+                drawn, new net.minecraft.world.level.ChunkPos(center), center);
+        helper.runAtTickTime(150, () -> {
+            List<com.elderlexicon.mod.wizard.Wizard> wizards = level.getEntitiesOfClass(
+                    com.elderlexicon.mod.wizard.Wizard.class, area);
+            List<Villager> villagers = level.getEntitiesOfClass(Villager.class, area);
+            try {
+                picture(level, all, "university");
+                long rectors = wizards.stream().filter(wizard -> wizard.rank()
+                        .filter(com.elderlexicon.mod.university.Rank.RECTOR::equals).isPresent()).count();
+                java.util.Set<com.elderlexicon.mod.university.Discipline> chairs = new java.util.HashSet<>();
+                wizards.forEach(wizard -> wizard.chair().ifPresent(chairs::add));
+                if (rectors != 1) {
+                    helper.fail(rectors + " rectors");
+                }
+                if (chairs.size() != com.elderlexicon.mod.university.Discipline.values().length) {
+                    helper.fail("chairs held: " + chairs);
+                }
+                if (wizards.stream().anyMatch(wizard -> wizard.casterMind().home().isEmpty() || !wizard.hasCustomName())) {
+                    helper.fail("a wizard of the university with no home or no title");
+                }
+                long librarians = villagers.stream().filter(villager -> villager.getVillagerData().getProfession()
+                        == net.minecraft.world.entity.npc.VillagerProfession.LIBRARIAN).count();
+                long clerics = villagers.stream().filter(villager -> villager.getVillagerData().getProfession()
+                        == net.minecraft.world.entity.npc.VillagerProfession.CLERIC).count();
+                if (librarians < 2 || clerics < 2) {
+                    helper.fail(librarians + " librarians and " + clerics + " clerics");
+                }
+                if (!level.getBlockState(center.offset(-44, 1, -39)).is(Blocks.IRON_DOOR)) {
+                    helper.fail("no iron door to the closed room: " + level.getBlockState(center.offset(-44, 1, -39)));
+                }
+                if (!level.getBlockState(center.offset(37, 1, -23)).is(com.elderlexicon.mod.galdraria.Galdraria.TABLE.get())) {
+                    helper.fail("no table for the master of galdraria: " + level.getBlockState(center.offset(37, 1, -23)));
+                }
+                if (!level.getBlockState(center.offset(0, 1, 62)).isAir()) {
+                    helper.fail("the gate is shut: " + level.getBlockState(center.offset(0, 1, 62)));
+                }
+                net.minecraft.world.level.block.state.BlockState railing = level.getBlockState(center.offset(-52, 9, -30));
+                if (!railing.is(Blocks.DARK_OAK_FENCE) || !railing.getValue(net.minecraft.world.level.block.FenceBlock.NORTH)
+                        || !railing.getValue(net.minecraft.world.level.block.FenceBlock.SOUTH)) {
+                    helper.fail("the railing of the gallery is not joined: " + railing);
+                }
+                if (!level.getBlockState(center.offset(0, 1, 11)).is(Blocks.STONE_BRICKS)) {
+                    helper.fail("the rim of the fountain is not solid: " + level.getBlockState(center.offset(0, 1, 11)));
+                }
+                // Where a monster could be born of the dark inside the walls.
+                List<String> dark = new java.util.ArrayList<>();
+                BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
+                for (int x = -61; x <= 61; x++) {
+                    for (int z = -61; z <= 61; z++) {
+                        for (int y = 1; y <= com.elderlexicon.mod.university.UniversityPiece.TOP_FOR_TESTS; y++) {
+                            at.set(center.getX() + x, center.getY() + y, center.getZ() + z);
+                            if (level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, at) == 0
+                                    && net.minecraft.world.level.NaturalSpawner.isSpawnPositionOk(
+                                    net.minecraft.world.entity.SpawnPlacements.Type.ON_GROUND, level, at,
+                                    EntityType.ZOMBIE)
+                                    && level.noCollision(EntityType.ZOMBIE.getAABB(at.getX() + 0.5D, at.getY(),
+                                    at.getZ() + 0.5D))) {
+                                dark.add(x + "," + y + "," + z + (dark.size() < 40 ? "=" + net.minecraft.core.registries
+                                        .BuiltInRegistries.BLOCK.getKey(level.getBlockState(at.below()).getBlock()).getPath()
+                                        : ""));
+                            }
+                        }
+                    }
+                }
+                System.out.println("[university] dark spots: " + dark.size() + " "
+                        + dark.subList(0, Math.min(80, dark.size())));
+                if (!dark.isEmpty()) {
+                    helper.fail(dark.size() + " dark spots where monsters are born, as "
+                            + dark.subList(0, Math.min(8, dark.size())));
+                }
+                helper.succeed();
+            } finally {
+                level.getEntitiesOfClass(net.minecraft.world.entity.Entity.class, area,
+                                entity -> !(entity instanceof net.minecraft.world.entity.player.Player))
+                        .forEach(net.minecraft.world.entity.Entity::discard);
+                BlockPos.betweenClosed(all.minX(), all.minY() - 6, all.minZ(), all.maxX(), all.maxY(), all.maxZ())
+                        .forEach(pos -> level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2));
+            }
+        });
+    }
+
+    /**
+     * Every master can examine (docs/mago-design.md, 4.1): for each discipline, an examination of six questions is made
+     * of the lexicon and of what the house teaches, each with four different answers and one of them right.
+     */
+    @GameTest(template = EMPTY, batch = "council")
+    public static void anExamIsMadeOfTheLexicon(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        for (com.elderlexicon.mod.university.Discipline discipline
+                : com.elderlexicon.mod.university.Discipline.values()) {
+            com.elderlexicon.mod.university.Exam exam = com.elderlexicon.mod.university.Exam.of(discipline, 6,
+                    helper.getLevel().getRandom());
+            if (exam.size() != 6) {
+                helper.fail(discipline + " asks " + exam.size() + " questions");
+            }
+            for (com.elderlexicon.mod.university.Exam.Question question : exam.questions()) {
+                Set<String> answers = new java.util.HashSet<>();
+                question.answers().forEach(answer -> answers.add(answer.getString().toLowerCase(java.util.Locale.ROOT)));
+                if (question.answers().size() != 4 || answers.size() != 4 || question.right() < 0
+                        || question.right() >= 4) {
+                    helper.fail(discipline + ": " + question.prompt().getString() + " " + answers);
+                }
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The house's book (docs/mago-design.md, 4.1 and 4.2): admitted with the fee the examination set (one who missed
+     * nothing is paid), in good standing while the period is paid, examined again when it ends; a master's examination
+     * makes a Scriba, three passed with one perfect a Lector.
+     */
+    @GameTest(template = EMPTY, batch = "council")
+    public static void theHouseKeepsItsStudents(GameTestHelper helper) {
+        com.elderlexicon.mod.university.Enrollments book = com.elderlexicon.mod.university.Enrollments.of(
+                helper.getLevel());
+        UUID who = UUID.randomUUID();
+        long now = 1000L;
+        long period = com.elderlexicon.mod.university.Enrollments.PERIOD;
+        book.examined(who, 2, 6, now);
+        com.elderlexicon.mod.university.Enrollments.Student student = book.student(who);
+        if (student.rank().isPresent() || !student.waiting(now + 10)) {
+            helper.fail("two of six admitted, or let try again at once");
+        }
+        book.examined(who, 4, 6, now + 30000L);
+        now += 30000L;
+        if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.AUDITOR || student.fee() != 12
+                || !student.owes(now) || student.inGoodStanding(now)) {
+            helper.fail("four of six: " + student.rank() + ", fee " + student.fee() + ", owes " + student.owes(now));
+        }
+        book.paid(who, now);
+        if (!student.inGoodStanding(now + period - 1) || student.owes(now + 1)) {
+            helper.fail("paid, and not in good standing");
+        }
+        if (!student.dueForExamination(now + period)) {
+            helper.fail("the period ended, and no new examination is due");
+        }
+        if (com.elderlexicon.mod.university.Enrollments.feeFor(6, 6) >= 0
+                || com.elderlexicon.mod.university.Enrollments.feeFor(5, 6)
+                >= com.elderlexicon.mod.university.Enrollments.feeFor(3, 6)) {
+            helper.fail("the fee does not fall as the examination goes better");
+        }
+        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.FONTES, 3, now);
+        if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.AUDITOR) {
+            helper.fail("three of five made a Scriba");
+        }
+        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.FONTES, 4, now);
+        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.FILTROS, 4, now);
+        if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.SCRIBA || student.mayRead()) {
+            helper.fail("after two passed: " + student.rank() + ", may read " + student.mayRead());
+        }
+        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.NAHVA, 5, now);
+        if (!book.makeLector(who) || student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.LECTOR) {
+            helper.fail("three passed, one perfect, and not a Lector");
+        }
+        book.forget(who);
+        helper.succeed();
+    }
+
+    /**
+     * Before the council and a master, on the dialogue screen (docs/mago-design.md, 4.1): the Rector examines a player
+     * who asks to be admitted; missing nothing, they are admitted and paid instead of paying. A Magister then examines
+     * them in his discipline, and the Auditor is a Scriba. Each master goes back to what it was doing when the talk ends.
+     */
+    @GameTest(template = EMPTY, batch = "council", timeoutTicks = 60)
+    public static void theCouncilAdmitsAPlayer(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        ServerPlayer mage = mage(helper);
+        mage.moveTo(helper.absoluteVec(new Vec3(2.5D, 1.0D, 0.5D)));
+        com.elderlexicon.mod.wizard.Wizard rector = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 3.5D));
+        com.elderlexicon.mod.wizard.Wizard magister = helper.spawn(ElderLexicon.WIZARD.get(),
+                new Vec3(3.5D, 1.0D, 3.5D));
+        rector.joinUniversity(com.elderlexicon.mod.university.Rank.RECTOR,
+                com.elderlexicon.mod.university.Discipline.REITOR, 6);
+        magister.joinUniversity(com.elderlexicon.mod.university.Rank.MAGISTER,
+                com.elderlexicon.mod.university.Discipline.FONTES, 6);
+        com.elderlexicon.mod.university.Enrollments book = com.elderlexicon.mod.university.Enrollments.of(
+                helper.getLevel());
+        try {
+            rector.mobInteract(mage, net.minecraft.world.InteractionHand.MAIN_HAND);
+            if (rector.getTradingPlayer() != mage || com.elderlexicon.mod.dialogue.Dialogue.line(mage).isEmpty()) {
+                helper.fail("the Rector did not turn to talk");
+            }
+            com.elderlexicon.mod.dialogue.Dialogue.choose(mage, 0); // I ask to be admitted.
+            com.elderlexicon.mod.dialogue.Dialogue.choose(mage, 0); // Let us begin.
+            answerRight(helper, mage);
+            com.elderlexicon.mod.university.Enrollments.Student student = book.student(mage.getUUID());
+            long now = helper.getLevel().getServer().overworld().getGameTime();
+            if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.AUDITOR
+                    || !student.inGoodStanding(now) || mage.getInventory().countItem(Items.EMERALD) != 3) {
+                helper.fail("missing nothing: " + student.rank() + ", in good standing " + student.inGoodStanding(now)
+                        + ", emeralds " + mage.getInventory().countItem(Items.EMERALD) + "; "
+                        + com.elderlexicon.mod.dialogue.Dialogue.line(mage).map(line -> line.text().getString()));
+            }
+            com.elderlexicon.mod.dialogue.Dialogue.choose(mage, 0); // Goodbye.
+            if (rector.getTradingPlayer() != null || com.elderlexicon.mod.dialogue.Dialogue.line(mage).isPresent()) {
+                helper.fail("the Rector still holds the talk");
+            }
+            magister.mobInteract(mage, net.minecraft.world.InteractionHand.MAIN_HAND);
+            com.elderlexicon.mod.dialogue.Dialogue.choose(mage, 0); // The examination of the Fonts.
+            answerRight(helper, mage);
+            if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.SCRIBA
+                    || student.passed().getOrDefault(com.elderlexicon.mod.university.Discipline.FONTES, 0) != 5) {
+                helper.fail("passed the Fonts without a mistake: " + student.rank() + ", " + student.passed());
+            }
+            com.elderlexicon.mod.dialogue.Dialogue.choose(mage, 0);
+            helper.succeed();
+        } finally {
+            book.forget(mage.getUUID());
+        }
+    }
+
+    /** Answers right every question of the examination the player sits. */
+    private static void answerRight(GameTestHelper helper, ServerPlayer player) {
+        for (int i = 0; i < 10; i++) {
+            java.util.Optional<com.elderlexicon.mod.university.Exam> exam =
+                    com.elderlexicon.mod.university.Council.sitting(player);
+            if (exam.isEmpty()) {
+                return;
+            }
+            com.elderlexicon.mod.dialogue.Dialogue.choose(player, exam.get().current().orElseThrow().right());
+        }
+        helper.fail("the examination never ended");
+    }
+
+    /**
+     * Among people living in peace, casters do not fight over words (docs/mago-design.md, 5h): two wizards in a
+     * village who fall out do not come to blows; the offended one walks off, and neither talks to the other for a
+     * while.
+     */
+    @GameTest(template = EMPTY, batch = "council")
+    public static void castersKeepThePeaceInAVillage(GameTestHelper helper) {
+        for (int i = 0; i < 3; i++) {
+            helper.spawn(EntityType.VILLAGER, new Vec3(0.5D + 2 * i, 1.0D, 4.5D)).setNoAi(true);
+        }
+        com.elderlexicon.mod.wizard.Wizard one = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        com.elderlexicon.mod.wizard.Wizard other = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(3.5D, 1.0D, 1.5D));
+        for (com.elderlexicon.mod.wizard.Wizard wizard : List.of(one, other)) {
+            wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE,
+                    com.elderlexicon.mod.mind.Personality.AGGRESSIVE, Set.of("igni", "iactare", "vocant"));
+        }
+        helper.runAtTickTime(5, () -> {
+            if (!one.casterMind().civilized()) {
+                helper.fail("villagers about, and it does not know it is in a village");
+            }
+            one.casterMind().fallOut(other.casterMind());
+            if (one.getTarget() != null || other.getTarget() != null
+                    || one.casterMind().quarrelling(other.getUUID())) {
+                helper.fail("they came to blows in a village");
+            }
+            if (!one.casterMind().offended()) {
+                helper.fail("the offended one did not walk off");
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Pictures of what stands in {@code box}, for whoever builds it to look at: from above, and from the south, in the
+     * colours the game's maps give the blocks (saved by the server, in {@code pictures/}).
+     */
+    private static void picture(ServerLevel level, net.minecraft.world.level.levelgen.structure.BoundingBox box,
+                                String name) {
+        int scale = 4;
+        java.awt.image.BufferedImage above = new java.awt.image.BufferedImage(box.getXSpan() * scale,
+                box.getZSpan() * scale, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.image.BufferedImage front = new java.awt.image.BufferedImage(box.getXSpan() * scale,
+                box.getYSpan() * scale, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int x = box.minX(); x <= box.maxX(); x++) {
+            for (int z = box.minZ(); z <= box.maxZ(); z++) {
+                int rgb = 0x87CEEB;
+                for (int y = box.maxY(); y >= box.minY(); y--) {
+                    net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos.set(x, y, z));
+                    if (!state.isAir()) {
+                        rgb = shade(state.getMapColor(level, pos).col, (y - box.minY()) / (double) box.getYSpan());
+                        break;
+                    }
+                }
+                paint(above, (x - box.minX()) * scale, (z - box.minZ()) * scale, scale, rgb);
+            }
+            for (int y = box.minY(); y <= box.maxY(); y++) {
+                int rgb = 0x87CEEB;
+                for (int z = box.maxZ(); z >= box.minZ(); z--) {
+                    net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos.set(x, y, z));
+                    if (!state.isAir()) {
+                        rgb = shade(state.getMapColor(level, pos).col, 1.0D - (box.maxZ() - z) / (double) box.getZSpan());
+                        break;
+                    }
+                }
+                paint(front, (x - box.minX()) * scale, (box.maxY() - y) * scale, scale, rgb);
+            }
+        }
+        try {
+            java.nio.file.Path folder = level.getServer().getServerDirectory().toPath().resolve("pictures");
+            java.nio.file.Files.createDirectories(folder);
+            javax.imageio.ImageIO.write(above, "png", folder.resolve(name + "_above.png").toFile());
+            javax.imageio.ImageIO.write(front, "png", folder.resolve(name + "_south.png").toFile());
+        } catch (java.io.IOException ignored) {
+            // only pictures
+        }
+    }
+
+    private static int shade(int rgb, double light) {
+        double factor = 0.55D + 0.45D * Math.max(0.0D, Math.min(1.0D, light));
+        int r = (int) (((rgb >> 16) & 0xFF) * factor);
+        int g = (int) (((rgb >> 8) & 0xFF) * factor);
+        int b = (int) ((rgb & 0xFF) * factor);
+        return (r << 16) | (g << 8) | b;
+    }
+
+    private static void paint(java.awt.image.BufferedImage image, int x, int y, int scale, int rgb) {
+        for (int i = 0; i < scale; i++) {
+            for (int j = 0; j < scale; j++) {
+                image.setRGB(x + i, y + j, rgb);
+            }
+        }
+    }
+
+    /** The university is a structure of the world. */
+    @GameTest(template = EMPTY)
+    public static void theUniversityIsAStructure(GameTestHelper helper) {
+        if (!helper.getLevel().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE)
+                .containsKey(new net.minecraft.resources.ResourceLocation(ElderLexicon.MODID, "university"))) {
+            helper.fail("no structure university");
+        }
+        helper.succeed();
+    }
+
+    /** A Sorcerer leaves a Wizard be: the two are neither friends nor foes (docs/mago-design.md, 5b). */
+    @GameTest(template = EMPTY, timeoutTicks = 100, batch = "casters_neutral")
+    public static void aSorcererLeavesAWizardBe(GameTestHelper helper) {
+        roomWithAWall(helper);
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(3.5D, 1.0D, 1.5D));
+        helper.runAtTickTime(60, () -> {
+            if (evoker.getTarget() == wizard) {
+                helper.fail("the sorcerer hunts the wizard");
+            }
+            if (wizard.getTarget() == evoker) {
+                helper.fail("the wizard hunts the sorcerer");
+            }
+            helper.succeed();
+        });
+    }
+
+    /** Two casters talk in the Old Tongue (docs/mago-design.md, 5b): what one says, the other hears. */
+    @GameTest(template = EMPTY, timeoutTicks = 300, batch = "casters_talk")
+    public static void twoCastersTalk(GameTestHelper helper) {
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard one = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        com.elderlexicon.mod.wizard.Wizard other = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(3.5D, 1.0D, 1.5D));
+        for (com.elderlexicon.mod.wizard.Wizard wizard : List.of(one, other)) {
+            wizard.targetSelector.removeAllGoals(goal -> true);
+            wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.MASTER,
+                    com.elderlexicon.mod.mind.Personality.CAUTIOUS, Set.of("igni", "aqua", "iactare", "vocant"));
+        }
+        one.casterMind().talkWith(other.casterMind());
+        helper.succeedWhen(() -> {
+            if (!one.casterMind().talking()) {
+                helper.fail("they are not talking");
+            }
+            if (other.casterMind().lastHeard().isEmpty()) {
+                helper.fail("nothing said yet");
+            }
+        });
+    }
+
+    /** Words come to blows: a duel, until one yields; then both let go. */
+    @GameTest(template = EMPTY, timeoutTicks = 200, batch = "casters_quarrel")
+    public static void aQuarrelLastsUntilOneYields(GameTestHelper helper) {
+        roomWithAWall(helper);
+        com.elderlexicon.mod.wizard.Wizard one = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        com.elderlexicon.mod.wizard.Wizard other = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(3.5D, 1.0D, 1.5D));
+        for (com.elderlexicon.mod.wizard.Wizard wizard : List.of(one, other)) {
+            wizard.targetSelector.removeAllGoals(goal -> true);
+            wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE,
+                    com.elderlexicon.mod.mind.Personality.AGGRESSIVE, Set.of("igni", "iactare", "vocant"));
+        }
+        one.casterMind().quarrel(other.casterMind());
+        if (one.getTarget() != other || other.getTarget() != one) {
+            helper.fail("they did not come to blows");
+        }
+        helper.runAtTickTime(10, () -> other.setHealth(other.getMaxHealth() * 0.2F));
+        helper.runAtTickTime(15, () -> {
+            if (one.getTarget() != null || other.getTarget() != null) {
+                helper.fail("still fighting after one yielded: " + one.getTarget() + ", " + other.getTarget());
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The mind weighs what the scene asks (docs/feiticeiro-design.md, 3.3): drawing the water out of a cow is worth more
+     * to a wounded evoker, which heals by it, than to a whole one; and it foresees what the draw takes from the cow.
+     */
+    @GameTest(template = EMPTY)
+    public static void aWoundedMindWantsToDrawMore(GameTestHelper helper) {
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 0.5D));
+        evoker.setNoAi(true);
+        Cow cow = helper.spawn(EntityType.COW, new Vec3(2.5D, 1.0D, 3.5D));
+        cow.setNoAi(true);
+        com.elderlexicon.mod.mind.Option bite = com.elderlexicon.mod.mind.Option.of(
+                com.elderlexicon.mod.mind.PhraseCatalog.imagine(List.of("aqua", "quantum", "-10", "vocant")).orElseThrow());
+        com.elderlexicon.mod.mind.Personality trickster = com.elderlexicon.mod.mind.Personality.TRICKSTER;
+        double whole = com.elderlexicon.mod.mind.Mind.evaluate(new com.elderlexicon.mod.mind.Mind.Scene(evoker, cow, 3.0D,
+                1.0F, 100.0D), trickster, bite).map(com.elderlexicon.mod.mind.Mind.Choice::score).orElse(0.0D);
+        evoker.hurt(helper.getLevel().damageSources().generic(), evoker.getMaxHealth() * 0.6F);
+        float share = evoker.getHealth() / evoker.getMaxHealth();
+        double wounded = com.elderlexicon.mod.mind.Mind.evaluate(new com.elderlexicon.mod.mind.Mind.Scene(evoker, cow,
+                3.0D, share, 100.0D), trickster, bite).map(com.elderlexicon.mod.mind.Mind.Choice::score).orElse(0.0D);
+        if (!(whole > 0.0D)) {
+            helper.fail("drawing out of the cow is worth nothing: " + whole);
+        }
+        if (!(wounded > whole)) {
+            helper.fail("wounded (" + share + ") it is worth " + wounded + ", whole " + whole);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * What the sorcerer leaves is a grimoire like any other (docs/feiticeiro-design.md, 5): its pages as the spirit
+     * reads them, named, with the evoker as their author and the runes it wrote in the glossary.
+     */
+    @GameTest(template = EMPTY)
+    public static void theSorcerersGrimoireIsAGrimoireLikeAnyOther(GameTestHelper helper) {
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 0.5D));
+        // An elder reads every page written by hand.
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.ELDER, com.elderlexicon.mod.mind.Personality.CAUTIOUS,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        ItemStack book = evoker.grimoire();
+        if (!(book.getItem() instanceof GrimoireItem) || book.getTag() == null) {
+            helper.fail("not a grimoire: " + book);
+        }
+        net.minecraft.nbt.ListTag pages = book.getTag().getList("pages", net.minecraft.nbt.Tag.TAG_STRING);
+        if (pages.size() != SorcererGrimoire.get().pages().size()) {
+            helper.fail("the grimoire holds " + pages.size() + " pages");
+        }
+        for (int i = 0; i < pages.size(); i++) {
+            if (com.elderlexicon.mod.spell.block.SpellBlock.parse(pages.getString(i),
+                    com.elderlexicon.mod.spell.block.RuneTokens::normalize).isEmpty()) {
+                helper.fail("page " + i + " has nothing the spirit reads");
+            }
+        }
+        if (!book.getTag().getList(GrimoireItem.GLOSSARY_TAG, net.minecraft.nbt.Tag.TAG_STRING).contains(
+                net.minecraft.nbt.StringTag.valueOf("igni"))) {
+            helper.fail("igni is not in the glossary");
+        }
+        helper.succeed();
+    }
+
+    /** A blow during the trance breaks it (book, cap. 6): the page is not read. */
+    @GameTest(template = EMPTY, timeoutTicks = 300)
+    public static void aBlowBreaksTheSorcerersTrance(GameTestHelper helper) {
+        roomWithAWall(helper);
+        Villager villager = helper.spawn(EntityType.VILLAGER, new Vec3(2.5D, 1.0D, 3.5D));
+        villager.setNoAi(true);
+        Sorcerer evoker = huntingOnly(helper, villager);
+        helper.succeedWhen(() -> {
+            if (!evoker.inTrance()) {
+                helper.fail("not in trance yet");
+            }
+            evoker.hurt(helper.getLevel().damageSources().mobAttack(villager), 1.0F);
+            if (evoker.inTrance()) {
+                helper.fail("the trance held after a blow");
+            }
+        });
+    }
+
+    /** A creature bites as a mage does: the water of a cow, drawn by an evoker, hurts the cow, and the evoker pays. */
+    @GameTest(template = EMPTY)
+    public static void aCreatureDrawsOutOfABody(GameTestHelper helper) {
+        roomWithAWall(helper);
+        Evoker evoker = helper.spawn(EntityType.EVOKER, new Vec3(2.5D, 1.0D, 0.5D));
+        evoker.setNoAi(true);
+        Cow cow = helper.spawn(EntityType.COW, new Vec3(2.5D, 1.0D, 2.5D));
+        cow.setNoAi(true);
+        evoker.lookAt(EntityAnchorArgument.Anchor.EYES, cow.position().add(0.0D, cow.getBbHeight() * 0.5D, 0.0D));
+        float before = cow.getHealth();
+        SpellCastingService.Result result = new SpellCastingService().cast(evoker, List.of("aqua", "quantum", "-10",
+                "vocant"));
+        if (result.failed()) {
+            helper.fail("the bite failed: " + result.message().getString());
+        }
+        helper.succeedWhen(() -> {
+            if (!(cow.getHealth() < before)) {
+                helper.fail("the cow lost no life: " + cow.getHealth() + " of " + before);
+            }
+            if (cow.getLastHurtByMob() != evoker) {
+                helper.fail("the cow does not know the evoker drew its water");
+            }
+            if (!(Casters.vis(evoker) < Casters.ANCHOR_UMU)) {
+                helper.fail("the evoker paid nothing for the life it took");
+            }
+        });
+    }
+
+    /** The hurt a lack makes is the drawer's: the cow turns on the mage who drew its water out. */
+    @GameTest(template = EMPTY)
+    public static void aBodyDrawnFromKnowsWhoDrewIt(GameTestHelper helper) {
+        ServerPlayer mage = mageBeforeAWall(helper);
+        Cow cow = helper.spawn(EntityType.COW, new Vec3(2.5D, 1.0D, 2.5D));
+        cow.setNoAi(true);
+        mage.lookAt(EntityAnchorArgument.Anchor.EYES, cow.position().add(0.0D, cow.getBbHeight() * 0.5D, 0.0D));
+        castOrFail(helper, mage, "aqua quantum -10 vocant");
+        helper.succeedWhen(() -> {
+            if (cow.getLastHurtByMob() != mage) {
+                helper.fail("the cow does not know who drew its water: " + cow.getLastHurtByMob());
+            }
+        });
+    }
+
+    /**
+     * The spirit charges for the life a draw takes, five UMU a point, not for the energy it moves: one UMU of fire out
+     * of a cow (it has one and a half) takes two thirds of its ten points of health, and costs the mage some thirty UMU.
+     */
+    @GameTest(template = EMPTY)
+    public static void drawingOutOfABodyCostsTheLifeItTakes(GameTestHelper helper) {
+        ServerPlayer mage = mageBeforeAWall(helper);
+        mage.giveExperiencePoints(1000);
+        Cow cow = helper.spawn(EntityType.COW, new Vec3(2.5D, 1.0D, 2.5D));
+        cow.setNoAi(true);
+        mage.lookAt(EntityAnchorArgument.Anchor.EYES, cow.position().add(0.0D, cow.getBbHeight() * 0.5D, 0.0D));
+        int before = mage.totalExperience;
+        castOrFail(helper, mage, "igni quantum -1 vocant");
+        int spent = before - mage.totalExperience;
+        if (spent < 250) {
+            helper.fail("the draw cost only " + spent + " points of experience");
+        }
+        helper.succeedWhen(() -> {
+            if (!(cow.getHealth() < 5.0F)) {
+                helper.fail("the cow kept " + cow.getHealth() + " of its life");
+            }
+        });
+    }
+
+    /** Matter moved out of a living body ({@code aqua tenet vocant} at a cow): its water is put down, and it is hurt. */
+    @GameTest(template = EMPTY)
+    public static void waterMovedOutOfABodyIsPutDown(GameTestHelper helper) {
+        ServerPlayer mage = mageBeforeAWall(helper);
+        Cow cow = helper.spawn(EntityType.COW, new Vec3(2.5D, 1.0D, 2.5D));
+        cow.setNoAi(true);
+        mage.lookAt(EntityAnchorArgument.Anchor.EYES, cow.position().add(0.0D, cow.getBbHeight() * 0.5D, 0.0D));
+        float before = cow.getHealth();
+        castOrFail(helper, mage, "aqua tenet vocant");
+        helper.succeedWhen(() -> {
+            if (!(cow.getHealth() < before)) {
+                helper.fail("the cow lost no life: " + cow.getHealth() + " of " + before);
+            }
+            if (!anyIn(helper, Blocks.WATER, 0, 4)) {
+                helper.fail("no water was put down");
+            }
+        });
     }
 
     @GameTest(template = EMPTY)

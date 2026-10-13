@@ -1,6 +1,6 @@
 package com.elderlexicon.mod.vita;
 
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -24,7 +24,7 @@ final class AuraImbalanceEffects {
     private AuraImbalanceEffects() {
     }
 
-    static void apply(ServerPlayer player, VitaData data) {
+    static void apply(LivingEntity player, VitaData data) {
         VitaImbalanceTier tier = data.auraTier();
         switch (tier) {
             case SEVERELY_LOW -> applySeverelyLow(player);
@@ -41,10 +41,10 @@ final class AuraImbalanceEffects {
         }
     }
 
-    private static void applySeverelyLow(ServerPlayer player) {
+    private static void applySeverelyLow(LivingEntity player) {
         applyEffect(player, MobEffects.MOVEMENT_SLOWDOWN, 2, BASE_DURATION);
         applyEffect(player, MobEffects.WEAKNESS, 1, BASE_DURATION);
-        player.getFoodData().addExhaustion(0.08F);
+        VitaSystem.addExhaustion(player, 0.08F);
         player.setSprinting(false);
         player.setAirSupply(Math.max(0, player.getAirSupply() - 4));
         int counter = lowPulse.merge(player.getUUID(), 1, Integer::sum);
@@ -54,22 +54,22 @@ final class AuraImbalanceEffects {
         }
     }
 
-    private static void applySlightlyLow(ServerPlayer player) {
+    private static void applySlightlyLow(LivingEntity player) {
         applyEffect(player, MobEffects.MOVEMENT_SLOWDOWN, 0, BASE_DURATION);
         applyEffect(player, MobEffects.WEAKNESS, 0, BASE_DURATION);
         player.setAirSupply(Math.max(0, player.getAirSupply() - 2));
     }
 
-    private static void applySlightlyHigh(ServerPlayer player) {
+    private static void applySlightlyHigh(LivingEntity player) {
         applyEffect(player, MobEffects.CONFUSION, 0, 40);
-        player.getFoodData().addExhaustion(0.01F);
+        VitaSystem.addExhaustion(player, 0.01F);
     }
 
-    private static void applySeverelyHigh(ServerPlayer player) {
+    private static void applySeverelyHigh(LivingEntity player) {
         applyEffect(player, MobEffects.CONFUSION, 1, BASE_DURATION);
         applyEffect(player, MobEffects.BLINDNESS, 0, 40);
         applyEffect(player, MobEffects.DIG_SLOWDOWN, 0, BASE_DURATION);
-        player.getFoodData().addExhaustion(0.02F);
+        VitaSystem.addExhaustion(player, 0.02F);
         int counter = highPulse.merge(player.getUUID(), 1, Integer::sum);
         if (counter >= SEVERE_HIGH_PULSE) {
             highPulse.put(player.getUUID(), 0);
@@ -77,13 +77,13 @@ final class AuraImbalanceEffects {
         }
     }
 
-    private static void forceDash(ServerPlayer player) {
+    private static void forceDash(LivingEntity player) {
         var look = player.getLookAngle();
         player.push(look.x * 0.4D, 0.1D, look.z * 0.4D);
         player.hurtMarked = true;
     }
 
-    private static void applyEffect(ServerPlayer player, MobEffect effect, int amplifier, int duration) {
+    private static void applyEffect(LivingEntity player, MobEffect effect, int amplifier, int duration) {
         MobEffectInstance existing = player.getEffect(effect);
         if (existing != null && existing.getAmplifier() >= amplifier) {
             player.addEffect(new MobEffectInstance(effect, duration, existing.getAmplifier(), true, false, true));
@@ -92,7 +92,7 @@ final class AuraImbalanceEffects {
         player.addEffect(new MobEffectInstance(effect, duration, amplifier, true, false, true));
     }
 
-    private static void clearTimers(ServerPlayer player) {
+    private static void clearTimers(LivingEntity player) {
         lowPulse.remove(player.getUUID());
         highPulse.remove(player.getUUID());
     }

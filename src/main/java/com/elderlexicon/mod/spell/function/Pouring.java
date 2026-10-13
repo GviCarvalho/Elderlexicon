@@ -1,5 +1,8 @@
 package com.elderlexicon.mod.spell.function;
 
+import net.minecraft.world.entity.LivingEntity;
+import com.elderlexicon.mod.spell.Casters;
+
 import com.elderlexicon.mod.magic.lexicon.Lexicons;
 import com.elderlexicon.mod.magic.lexicon.Template;
 import com.elderlexicon.mod.magic.matter.Composition;
@@ -64,9 +67,9 @@ final class Pouring {
      * {@code aqua vocant} landing in fluid matter: what it brings out of the body is poured in, instead of appearing
      * beside it. False when it does not land in fluid matter, or brings nothing fluid, and appears as it always does.
      */
-    static boolean summon(SpellContext context, ServerPlayer player, String rune, SpellEffects.SpellImpact impact,
+    static boolean summon(SpellContext context, LivingEntity player, String rune, SpellEffects.SpellImpact impact,
                           double umu) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = Casters.level(player);
         Optional<Matter> matter = summoned(rune, umu).filter(summoned -> summoned.state().fluid());
         if (matter.isEmpty()) {
             return false;
@@ -82,7 +85,7 @@ final class Pouring {
     }
 
     /** What found no room, or made no whole block, goes into the mage as energy of the state it was in (L1, L3). */
-    static void keep(SpellContext context, ServerPlayer player, Matter poured, WorldMatter.Placed placed) {
+    static void keep(SpellContext context, LivingEntity player, Matter poured, WorldMatter.Placed placed) {
         if (placed.leftover() <= EPSILON || context.focusActive()) {
             return;
         }
@@ -94,7 +97,7 @@ final class Pouring {
      * The spirit says what the mixture became, when it became something else than what was poured: a natural thing, by
      * its name, or what it is.
      */
-    static void tell(ServerPlayer player, Matter poured, WorldMatter.Placed placed) {
+    static void tell(LivingEntity player, Matter poured, WorldMatter.Placed placed) {
         Optional<Matter> mixture = placed.mixed();
         if (mixture.isEmpty()) {
             return;
@@ -108,7 +111,7 @@ final class Pouring {
     }
 
     /** The spirit says what a mixture is: a natural thing by its name, or else its state and what it is made of. */
-    static void tell(ServerPlayer player, Matter mixture) {
+    static void tell(LivingEntity player, Matter mixture) {
         MarkSpells.tell(player, mixture.substance(Materials.get())
                 .map(substance -> Template.fill(Lexicons.get().note("note.mixture.substance")
                         .orElse("A mistura virou {substance}."), Map.of("substance", substance.name())))

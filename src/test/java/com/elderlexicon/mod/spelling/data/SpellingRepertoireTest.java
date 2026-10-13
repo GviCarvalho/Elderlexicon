@@ -11,8 +11,9 @@ class SpellingRepertoireTest {
     void defaultsPopulateNineSlots() {
         SpellingRepertoire repertoire = new SpellingRepertoire();
         assertEquals(SpellingRepertoire.SLOT_COUNT, repertoire.slots().size());
-        assertTrue(repertoire.runeForSlot(0).isPresent());
-        assertTrue(repertoire.runeForSlot(3).isPresent());
+        // A new mage knows no rune, so they have none in hand (docs/aprendizado-runas-design.md).
+        assertTrue(repertoire.runeForSlot(0).isEmpty());
+        assertTrue(repertoire.runeForSlot(3).isEmpty());
     }
 
     @Test

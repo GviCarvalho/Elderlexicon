@@ -70,7 +70,9 @@ public final class Incorporations {
 
     /** The mage's kern goes into {@code body} for as long as chronos says, paid now. */
     static void start(SpellContext context, Mob body, Double chronos) {
-        ServerPlayer player = context.player();
+        if (!(context.player() instanceof ServerPlayer player)) {
+            return; // a spirit leaving its body is a player's
+        }
         double seconds = SightBond.seconds(chronos);
         int ticks = SightBond.ticks(seconds);
         context.addTotalCost(UMU_PER_SECOND * seconds);

@@ -1,6 +1,7 @@
 package com.elderlexicon.mod.spelling.flow;
 
 import com.elderlexicon.mod.ElderLexicon;
+import com.elderlexicon.mod.spell.block.LineConditions;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -28,6 +29,10 @@ public final class FlowEvents {
 
     /** A fall shorter than this, in blocks, is a step down, not a landing. */
     private static final float LANDING_BLOCKS = 2.0F;
+    /** How near the ground a fall starts waking the lines that wait for it, in flow. */
+    private static final double FALL_WAKE_BLOCKS = 16.0D;
+    /** How often, in flow, the body is looked at for the lines that measure it. */
+    private static final int MEASURE_TICKS = 20;
 
     private FlowEvents() {
     }
@@ -37,6 +42,15 @@ public final class FlowEvents {
         if (event.phase == TickEvent.Phase.END && event.player instanceof ServerPlayer player) {
             for (String state : Happenings.begun(player)) {
                 happen(player, state);
+            }
+            // The body is looked at once a second: the lines that measure it wake, and hold if their measure does.
+            if (player.tickCount % MEASURE_TICKS == 0) {
+                FlowState.happen(player, LineConditions.MEASURE);
+            }
+            // A fall near the ground wakes the lines that wait for it every tick; each fires once a fall.
+            double below = Happenings.fall(player);
+            if (below >= 0.0D && below <= FALL_WAKE_BLOCKS) {
+                FlowState.happen(player, LineConditions.FALLING);
             }
             FlowState.tick(player);
         }
@@ -79,7 +93,9 @@ public final class FlowEvents {
     @SubscribeEvent
     public static void onFall(LivingFallEvent event) {
         if (event.getEntity() instanceof ServerPlayer player && event.getDistance() >= LANDING_BLOCKS) {
-            happen(player, Happenings.LAND);
+            // The ille of a landing is the ground landed on.
+            happen(player, Happenings.LAND, new Happenings.OtherBlock(player.serverLevel(),
+                    player.blockPosition().below()));
         }
     }
 

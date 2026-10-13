@@ -1,9 +1,17 @@
 package com.elderlexicon.mod.spelling.flow;
 
+import com.elderlexicon.mod.magic.lexicon.Lexicons;
+import com.elderlexicon.mod.spell.Mana;
+import com.elderlexicon.mod.spell.block.LineConditions;
+import com.elderlexicon.mod.vita.VitaElement;
+import com.elderlexicon.mod.vita.VitaSystem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
@@ -17,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
 /**
@@ -62,6 +71,13 @@ public final class Happenings {
     private static final Map<UUID, Map<String, Long>> LAST = new ConcurrentHashMap<>();
     private static final Map<UUID, Map<String, Other>> OTHERS = new ConcurrentHashMap<>();
     private static final Map<UUID, Set<String>> HOLDING = new ConcurrentHashMap<>();
+    /** How far below each falling mage the ground is, in blocks (none while not falling). */
+    private static final Map<UUID, Double> GROUND_BELOW = new ConcurrentHashMap<>();
+    /** Which fall each mage is in: a new number each time one begins. */
+    private static final Map<UUID, Long> FALLS = new ConcurrentHashMap<>();
+    private static final AtomicLong NEXT_FALL = new AtomicLong();
+    /** How far below a falling mage the ground is looked for. */
+    public static final int GROUND_REACH = 32;
 
     private Happenings() {
     }
@@ -153,7 +169,73 @@ public final class Happenings {
         return begun;
     }
 
+    /**
+     * Looks at the mage's fall this tick: while falling (two blocks or more already), how far below the ground is, and
+     * the block it is. Returns that distance, or -1 when the mage is not falling or no ground is within reach.
+     */
+    public static double fall(ServerPlayer player) {
+        UUID id = player.getUUID();
+        boolean falling = !player.onGround() && !player.isFallFlying() && !player.getAbilities().flying
+                && player.getDeltaMovement().y < -0.05D && player.fallDistance >= 2.0F && !player.isInWater();
+        if (!falling) {
+            GROUND_BELOW.remove(id);
+            FALLS.remove(id);
+            return -1.0D;
+        }
+        FALLS.computeIfAbsent(id, key -> NEXT_FALL.incrementAndGet());
+        Vec3 feet = player.position();
+        BlockHitResult hit = player.level().clip(new ClipContext(feet, feet.subtract(0.0D, GROUND_REACH, 0.0D),
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.ANY, player));
+        if (hit.getType() != HitResult.Type.BLOCK) {
+            GROUND_BELOW.remove(id);
+            return -1.0D;
+        }
+        double below = feet.y - hit.getLocation().y;
+        GROUND_BELOW.put(id, below);
+        mark(player, LineConditions.FALLING, new OtherBlock(player.serverLevel(), hit.getBlockPos()));
+        return below;
+    }
+
+    /** How far below the falling mage the ground is, in blocks; negative when not falling. */
+    public static double groundBelow(ServerPlayer player) {
+        return GROUND_BELOW.getOrDefault(player.getUUID(), -1.0D);
+    }
+
+    /** Which fall the mage is in, or 0 when not falling. */
+    public static long fallOf(ServerPlayer player) {
+        return FALLS.getOrDefault(player.getUUID(), 0L);
+    }
+
+    /**
+     * The scene the conditions of a line are read in for {@code player} (docs/fluxo-design.md): the happenings and
+     * states, the fall, and the body: how much of each element it holds (the Vita), and of vis, the mana.
+     */
+    public static LineConditions.Scene scene(ServerPlayer player) {
+        return new LineConditions.Scene() {
+            @Override
+            public boolean recent(String trigger) {
+                return Happenings.recent(player, trigger);
+            }
+
+            @Override
+            public double amount(String source) {
+                VitaElement element = Lexicons.get().elementOf(source);
+                if (element.isBalanced()) {
+                    return Mana.umuOf(Mana.points(player.experienceLevel, player.experienceProgress));
+                }
+                return VitaSystem.body(player).getOrDefault(element, 0.0D);
+            }
+
+            @Override
+            public double groundBelow() {
+                return Happenings.groundBelow(player);
+            }
+        };
+    }
+
     public static void forget(ServerPlayer player) {
+        GROUND_BELOW.remove(player.getUUID());
+        FALLS.remove(player.getUUID());
         LAST.remove(player.getUUID());
         OTHERS.remove(player.getUUID());
         HOLDING.remove(player.getUUID());

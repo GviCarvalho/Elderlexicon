@@ -1,5 +1,7 @@
 package com.elderlexicon.mod.spell;
 
+import net.minecraft.world.entity.LivingEntity;
+
 import com.elderlexicon.mod.magic.flow.SpellLedger;
 import com.elderlexicon.mod.parser.Parser;
 import com.elderlexicon.mod.spell.action.SpellAction;
@@ -24,7 +26,7 @@ public final class SpellContext implements SpellLedger {
 
     private static final double EPSILON = 1.0E-4D;
 
-    private final ServerPlayer player;
+    private final LivingEntity player;
     private final List<String> lexemes;
     private List<String> words;
     private final List<SpellAction> actions;
@@ -48,7 +50,7 @@ public final class SpellContext implements SpellLedger {
     /** What the last verb made for the verb after it to act on (R2), until that verb takes it. */
     private Product handedOn;
 
-    public SpellContext(ServerPlayer player,
+    public SpellContext(LivingEntity player,
                         List<String> lexemes,
                         Optional<Parser.PrimarySource> primarySource,
                         VitaElement primaryElement,
@@ -70,8 +72,14 @@ public final class SpellContext implements SpellLedger {
         this.actions = actions == null ? List.of() : List.copyOf(actions);
     }
 
-    public ServerPlayer player() {
+    /** Whoever casts the spell: a player, or any other living being (docs/feiticeiro-design.md, 8). */
+    public LivingEntity player() {
         return player;
+    }
+
+    /** The caster, when it is a player: what only a player has (a client, a grimoire, food) needs it. */
+    public Optional<ServerPlayer> mage() {
+        return Casters.player(player);
     }
 
     /** Stage shared with the other spells released by the same cast. */

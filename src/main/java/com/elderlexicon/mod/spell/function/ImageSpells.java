@@ -1,5 +1,8 @@
 package com.elderlexicon.mod.spell.function;
 
+import net.minecraft.world.entity.LivingEntity;
+import com.elderlexicon.mod.spell.Casters;
+
 import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.action.SpellAction;
 import com.elderlexicon.mod.spell.sight.Illusion;
@@ -46,7 +49,7 @@ public final class ImageSpells {
 
     /** The image of what vocant would bring: an element's matter or light, or what bears a mark. */
     public static void vocant(SpellContext context, VitaElement element, SpellAction action) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         int ticks = Illusion.ticks(chronos(action));
         Optional<MarkSpells.Destination> destination = MarkSpells.destination(context, action.place(), MarkSpells.SUMMON_RANGE);
         if (destination.isEmpty()) {
@@ -57,7 +60,7 @@ public final class ImageSpells {
         Optional<String> mark = action.subjectMark();
         if (mark.isPresent()) {
             int shown = 0;
-            for (MarkTargets.Marked thing : MarkTargets.find(player.server, mark.get())) {
+            for (MarkTargets.Marked thing : MarkTargets.find(player.getServer(), mark.get())) {
                 if (thing.entity != null) {
                     SpellIllusions.showThing(level, thing.entity, destination.get().point(), ticks);
                     shown++;
@@ -84,13 +87,13 @@ public final class ImageSpells {
 
     /** A stream one sees following the aim, that neither burns nor pushes; with a mark, an image of it thrown. */
     public static void iactare(SpellContext context, VitaElement element, SpellAction action) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         if (action.subjectMark().isPresent()) {
             Optional<MarkSpells.Destination> aim = MarkSpells.destination(context, action.place(), MarkSpells.THROW_AIM_RANGE);
             aim.ifPresent(destination -> sendImages(context, action, thing -> destination.point()));
             return;
         }
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = Casters.level(player);
         int ticks = Illusion.ticks(chronos(action));
         double energy = energy(action);
         context.addTotalCost(Illusion.cost(energy, Illusion.seconds(chronos(action))));
@@ -104,9 +107,10 @@ public final class ImageSpells {
                 if (!SpellEffects.isPlayerValid(player)) {
                     return;
                 }
-                Vec3 eye = player.getEyePosition();
-                Vec3 look = player.getLookAngle();
-                for (double along = 1.0D; along <= STREAM_LENGTH; along += 0.5D) {
+                // From the hand toward the aim, not from before the eyes.
+                Vec3 eye = WorldSources.handOf(player);
+                Vec3 look = WorldSources.aimFrom(player, eye, STREAM_LENGTH);
+                for (double along = 0.5D; along <= STREAM_LENGTH; along += 0.5D) {
                     Vec3 at = eye.add(look.scale(along));
                     level.sendParticles(particle.get(), at.x, at.y, at.z, count / 4 + 1, 0.08D, 0.08D, 0.08D, 0.01D);
                 }
@@ -117,7 +121,7 @@ public final class ImageSpells {
     /** Draws the light off the source nearby: it stays, unseen, and its images are gone; with a mark, its image comes. */
     public static void absorb(SpellContext context, VitaElement element, SpellAction action) {
         if (action.subjectMark().isPresent()) {
-            ServerPlayer player = context.player();
+            LivingEntity player = context.player();
             sendImages(context, action, thing -> player.position());
             return;
         }
@@ -127,7 +131,7 @@ public final class ImageSpells {
     /** Pushes the source's image away: it stays, unseen, and its images are gone; with a mark, its image is pushed off. */
     public static void repel(SpellContext context, VitaElement element, SpellAction action) {
         if (action.subjectMark().isPresent()) {
-            ServerPlayer player = context.player();
+            LivingEntity player = context.player();
             sendImages(context, action, thing -> {
                 Vec3 away = thing.position.subtract(player.position());
                 Vec3 unit = away.lengthSqr() < 1.0E-6D ? player.getLookAngle() : away.normalize();
@@ -145,19 +149,19 @@ public final class ImageSpells {
      */
     private static void sendImages(SpellContext context, SpellAction action,
                                    java.util.function.Function<MarkTargets.Marked, Vec3> landing) {
-        ServerPlayer player = context.player();
+        LivingEntity player = context.player();
         String mark = action.subjectMark().orElseThrow();
         double seconds = Illusion.seconds(chronos(action));
         int ticks = Illusion.ticks(chronos(action));
         double energy = action.quantity().orElse(com.elderlexicon.mod.spell.mark.MarkCost.DEFAULT_THROW_ENERGY);
         int sent = 0;
-        for (MarkTargets.Marked thing : MarkTargets.find(player.server, mark)) {
-            if (thing.entity == null || thing.level != player.serverLevel()) {
+        for (MarkTargets.Marked thing : MarkTargets.find(player.getServer(), mark)) {
+            if (thing.entity == null || thing.level != Casters.level(player)) {
                 continue;
             }
             double speed = com.elderlexicon.mod.spell.mark.MarkCost.throwWith(energy, thing.mass,
                     com.elderlexicon.mod.spell.mark.MarkCost.MAX_ENTITY_SPEED).speed();
-            SpellIllusions.showThing(player.serverLevel(), thing.entity, thing.position, landing.apply(thing),
+            SpellIllusions.showThing(Casters.level(player), thing.entity, thing.position, landing.apply(thing),
                     Math.max(0.2D, speed), ticks);
             sent++;
         }
@@ -168,8 +172,8 @@ public final class ImageSpells {
     }
 
     private static void takeLight(SpellContext context, VitaElement element, SpellAction action, boolean towardMage) {
-        ServerPlayer player = context.player();
-        ServerLevel level = player.serverLevel();
+        LivingEntity player = context.player();
+        ServerLevel level = Casters.level(player);
         Revelation.Kind kind = Revelation.Kind.ofSource(context.elementRuneId());
         double seconds = Illusion.seconds(chronos(action));
         Vec3 center = player.position();
@@ -191,8 +195,8 @@ public final class ImageSpells {
 
     /** The source nearby looks like the element written after vertere; it is still what it was. */
     public static void disguise(SpellContext context, SpellAction action) {
-        ServerPlayer player = context.player();
-        ServerLevel level = player.serverLevel();
+        LivingEntity player = context.player();
+        ServerLevel level = Casters.level(player);
         Revelation.Kind kind = Revelation.Kind.ofSource(context.elementRuneId());
         double seconds = Illusion.seconds(chronos(action));
         BlockState look = Invocation.imageMatterOf(action.targetRuneId());
@@ -208,7 +212,7 @@ public final class ImageSpells {
     }
 
     /** Blocks within reach of the mage that carry the element sought. */
-    private static List<BlockPos> sourcesNear(ServerLevel level, ServerPlayer player, Revelation.Kind kind) {
+    private static List<BlockPos> sourcesNear(ServerLevel level, LivingEntity player, Revelation.Kind kind) {
         List<BlockPos> found = new ArrayList<>();
         BlockPos center = player.blockPosition();
         int reach = (int) Math.ceil(Illusion.REACH);

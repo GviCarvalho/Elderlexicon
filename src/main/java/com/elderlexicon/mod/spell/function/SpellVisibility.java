@@ -9,6 +9,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
+import com.elderlexicon.mod.spell.Casters;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ChunkPos;
@@ -59,12 +61,24 @@ public final class SpellVisibility {
     }
 
     /**
+     * A creature seen less than whole is noticed as much less by others: as much as it is seen (an invisible one, as
+     * the game's invisibility, still a little).
+     */
+    @net.minecraftforge.eventbus.api.SubscribeEvent
+    public static void onNoticed(net.minecraftforge.event.entity.living.LivingEvent.LivingVisibilityEvent event) {
+        Altered altered = ENTITIES.get(event.getEntity().getUUID());
+        if (altered != null && altered.level() < Visibility.SEEN) {
+            event.modifyVisibility(Math.max(0.07D, Visibility.opacity(altered.level())));
+        }
+    }
+
+    /**
      * Sets the sight of everything loaded bearing {@code mark} to {@code level} for {@code seconds} (chronos, or null for
      * the default); returns the UMU owed for all of it.
      */
-    public static double apply(ServerPlayer caster, String mark, int level, @Nullable Double seconds) {
+    public static double apply(LivingEntity caster, String mark, int level, @Nullable Double seconds) {
         double owed = 0.0D;
-        for (MarkTargets.Marked thing : MarkTargets.find(caster.server, mark)) {
+        for (MarkTargets.Marked thing : MarkTargets.find(caster.getServer(), mark)) {
             if (thing.entity != null) {
                 owed += applyTo(caster, thing.entity, thing.mass, level, seconds);
             } else if (thing.blockPos != null) {
@@ -78,14 +92,14 @@ public final class SpellVisibility {
      * {@code surgit quantum N} with no mark: the sight of what the mage aims at, within touch (the reach to break or use
      * blocks), a creature or thing before a block. Returns the UMU owed now, or -1 when nothing is aimed at.
      */
-    public static double applyAimed(ServerPlayer caster, int level, @Nullable Double seconds) {
-        double reach = Math.max(1.0D, caster.getBlockReach());
+    public static double applyAimed(LivingEntity caster, int level, @Nullable Double seconds) {
+        double reach = Math.max(1.0D, caster instanceof net.minecraft.world.entity.player.Player mage ? mage.getBlockReach() : 4.5D);
         Vec3 eye = caster.getEyePosition();
         Vec3 end = eye.add(caster.getLookAngle().scale(reach));
-        BlockHitResult block = caster.serverLevel().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
+        BlockHitResult block = Casters.level(caster).clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE, caster));
         double blockDistance = block.getType() == HitResult.Type.MISS ? reach * reach : block.getLocation().distanceToSqr(eye);
-        EntityHitResult entity = ProjectileUtil.getEntityHitResult(caster.serverLevel(), caster, eye, end,
+        EntityHitResult entity = ProjectileUtil.getEntityHitResult(Casters.level(caster), caster, eye, end,
                 caster.getBoundingBox().expandTowards(caster.getLookAngle().scale(reach)).inflate(1.0D),
                 candidate -> !candidate.isSpectator() && candidate != caster);
         if (entity != null && entity.getLocation().distanceToSqr(eye) <= blockDistance) {
@@ -93,28 +107,34 @@ public final class SpellVisibility {
         }
         if (block.getType() == HitResult.Type.BLOCK) {
             BlockPos pos = block.getBlockPos();
-            return applyTo(caster, caster.serverLevel(), pos, MarkTargets.massOf(caster.serverLevel().getBlockState(pos)),
+            return applyTo(caster, Casters.level(caster), pos, MarkTargets.massOf(Casters.level(caster).getBlockState(pos)),
                     level, seconds);
         }
         return -1.0D;
     }
 
     /** Hides the block at {@code pos} for {@code seconds} (an image drawn off or pushed away); returns the UMU owed. */
-    static double hideBlock(ServerPlayer caster, ServerLevel world, BlockPos pos, double seconds) {
+    static double hideBlock(LivingEntity caster, ServerLevel world, BlockPos pos, double seconds) {
         return applyTo(caster, world, pos, MarkTargets.massOf(world.getBlockState(pos)), Visibility.HIDDEN, seconds);
     }
 
-    private static double applyTo(ServerPlayer caster, Entity entity, double mass, int level, @Nullable Double seconds) {
+    private static double applyTo(LivingEntity caster, Entity entity, double mass, int level, @Nullable Double seconds) {
         if (level >= Visibility.SEEN) {
             restore(entity);
             return 0.0D;
         }
         ENTITIES.put(entity.getUUID(), new Altered(level, until(caster, seconds)));
         tell(entity, level);
+        if (level == Visibility.HIDDEN && entity instanceof LivingEntity hidden
+                && entity.level() instanceof ServerLevel world) {
+            // Unseen, it is lost to those hunting it (docs/mago-design.md, 5d).
+            world.getEntitiesOfClass(net.minecraft.world.entity.Mob.class, hidden.getBoundingBox().inflate(32.0D),
+                    mob -> mob.getTarget() == hidden).forEach(mob -> mob.setTarget(null));
+        }
         return owed(mass, level, seconds);
     }
 
-    private static double applyTo(ServerPlayer caster, ServerLevel world, BlockPos pos, double mass, int level,
+    private static double applyTo(LivingEntity caster, ServerLevel world, BlockPos pos, double mass, int level,
                                   @Nullable Double seconds) {
         Place place = new Place(world.dimension(), pos.immutable());
         if (level >= Visibility.SEEN) {
@@ -126,8 +146,8 @@ public final class SpellVisibility {
         return owed(mass, level, seconds);
     }
 
-    private static long until(ServerPlayer caster, @Nullable Double seconds) {
-        return caster.server.getTickCount() + Math.round(Visibility.seconds(seconds) * SECOND_TICKS);
+    private static long until(LivingEntity caster, @Nullable Double seconds) {
+        return caster.getServer().getTickCount() + Math.round(Visibility.seconds(seconds) * SECOND_TICKS);
     }
 
     private static double owed(double mass, int level, @Nullable Double seconds) {
