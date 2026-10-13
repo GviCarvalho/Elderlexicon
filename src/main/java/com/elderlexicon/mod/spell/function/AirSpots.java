@@ -160,8 +160,9 @@ public final class AirSpots {
      * away and blows fire out; pressed into a bomb, it goes off where the aim lands.
      */
     static void blast(ServerLevel level, LivingEntity caster, double pressure) {
-        Vec3 eye = caster.getEyePosition();
-        Vec3 look = caster.getViewVector(1.0F);
+        // It leaves the hand toward the aim.
+        Vec3 eye = WorldSources.handOf(caster);
+        Vec3 look = WorldSources.aimFrom(caster, eye, BLAST_REACH);
         boolean tears = AirPressure.band(pressure).compareTo(AirPressure.Band.GALE) >= 0;
         Vec3 end = eye.add(look.scale(BLAST_REACH));
         for (double travelled = 1.0D; travelled <= BLAST_REACH; travelled += 0.5D) {

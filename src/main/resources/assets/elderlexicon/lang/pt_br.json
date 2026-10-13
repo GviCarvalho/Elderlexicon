@@ -350,5 +350,14 @@
   "university.elderlexicon.chair.vita": "Magister da Vita",
   "university.elderlexicon.chair.nahva": "Magister de Nahvá",
   "university.elderlexicon.chair.arquivo": "Magister do Arquivo",
-  "university.elderlexicon.chair.reitor": "Rector"
+  "university.elderlexicon.chair.reitor": "Rector",
+  "university.elderlexicon.discipline.fontes": "as Fontes",
+  "university.elderlexicon.discipline.funcoes": "as Funções",
+  "university.elderlexicon.discipline.filtros": "os Filtros",
+  "university.elderlexicon.discipline.fatos": "os Fatos",
+  "university.elderlexicon.discipline.galdraria": "a Galdraria",
+  "university.elderlexicon.discipline.vita": "a Vita",
+  "university.elderlexicon.discipline.nahva": "Nahvá",
+  "university.elderlexicon.discipline.arquivo": "o Arquivo",
+  "university.elderlexicon.discipline.reitor": "o Conselho"
 }

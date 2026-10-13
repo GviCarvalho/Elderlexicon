@@ -41,5 +41,9 @@ public final class SpellingClientModBusEvents {
     public static void registerLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
         event.registerLayerDefinition(com.elderlexicon.mod.wizard.client.WizardModel.LAYER,
                 com.elderlexicon.mod.wizard.client.WizardModel::createBodyLayer);
+        event.registerLayerDefinition(com.elderlexicon.mod.caster.client.BeardLayer.LAYER,
+                com.elderlexicon.mod.caster.client.BeardLayer::createLayer);
+        event.registerLayerDefinition(com.elderlexicon.mod.wizard.client.WizardDressLayer.LAYER,
+                com.elderlexicon.mod.wizard.client.WizardDressLayer::createLayer);
     }
 }

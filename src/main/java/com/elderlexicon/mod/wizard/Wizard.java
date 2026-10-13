@@ -55,15 +55,33 @@ import java.util.Set;
  * <p>
  * It trades (docs/mago-design.md, 2): wands, a page of its grimoire torn out, its grimoire whole once it has written it.
  */
-public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.Body {
+public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.Body,
+        com.elderlexicon.mod.dialogue.Dialogue.Listener {
 
     private static final String MIND_TAG = "WizardMind";
     /** What the clients draw of it: its book open in its hands (1), its arms raised in a trance (2). */
     private static final net.minecraft.network.syncher.EntityDataAccessor<Byte> POSE =
             net.minecraft.network.syncher.SynchedEntityData.defineId(Wizard.class,
                     net.minecraft.network.syncher.EntityDataSerializers.BYTE);
+    /**
+     * What the clients draw it by (docs/mago-design.md, 5i): its degree (its beard), where it lives (its robe), and at
+     * a university its rank and chair (its gown, its hat, its stole); -1 for none.
+     */
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Byte> DEGREE =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(Wizard.class,
+                    net.minecraft.network.syncher.EntityDataSerializers.BYTE);
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Byte> DWELLING =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(Wizard.class,
+                    net.minecraft.network.syncher.EntityDataSerializers.BYTE);
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Byte> RANK =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(Wizard.class,
+                    net.minecraft.network.syncher.EntityDataSerializers.BYTE);
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Byte> CHAIR =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(Wizard.class,
+                    net.minecraft.network.syncher.EntityDataSerializers.BYTE);
     private static final byte READING = 1;
     private static final byte CASTING = 2;
+    private static final byte POINTING = 4;
     /** How many wands engraved with its own pages it keeps to sell. */
     private static final int ENGRAVED_WARES = 3;
     /** How near a hurt villager must be for it to take up the villager's cause. */
@@ -88,11 +106,6 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
     private boolean arriving;
     /** How far from its house it wanders at peace. */
     private static final int HOUSE_RADIUS = 24;
-    /** Its rank at a university, and its chair, if it has them (docs/mago-design.md, 4 and 5g). */
-    @Nullable
-    private com.elderlexicon.mod.university.Rank rank;
-    @Nullable
-    private com.elderlexicon.mod.university.Discipline chair;
 
     public Wizard(EntityType<? extends AbstractVillager> type, Level level) {
         super(type, level);
@@ -143,6 +156,10 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
     protected void defineSynchedData() {
         super.defineSynchedData();
         entityData.define(POSE, (byte) 0);
+        entityData.define(DEGREE, (byte) 0);
+        entityData.define(DWELLING, (byte) Dwelling.WILDS.ordinal());
+        entityData.define(RANK, (byte) -1);
+        entityData.define(CHAIR, (byte) -1);
     }
 
     private void pose(byte flag, boolean on) {
@@ -174,6 +191,21 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
     @Override
     public void tranceEnded() {
         pose(CASTING, false);
+    }
+
+    @Override
+    public void releasing(boolean releasing) {
+        pose(POINTING, releasing);
+    }
+
+    @Override
+    public boolean entranced() {
+        return castingSpell();
+    }
+
+    @Override
+    public boolean pointing() {
+        return (entityData.get(POSE) & POINTING) != 0;
     }
 
     @Override
@@ -229,9 +261,18 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
             arriving = false;
             casterMind().reborn();
             casterMind().home(blockPosition(), HOUSE_RADIUS);
+            dwellIn(Dwelling.VILLAGE);
             offers = null;
         }
         casterMind().tick();
+        // Its degree grows as it learns: its beard with it.
+        entityData.set(DEGREE, (byte) casterMind().degree().ordinal());
+        // One it talked or traded with walked away without a word: it goes back to what it was doing.
+        if (getTradingPlayer() instanceof net.minecraft.server.level.ServerPlayer player
+                && !(player.containerMenu instanceof net.minecraft.world.inventory.MerchantMenu)
+                && !com.elderlexicon.mod.dialogue.Dialogue.speaking(player, this)) {
+            setTradingPlayer(null);
+        }
         // Once it wrote its pages, what it has to offer changes: its grimoire, a page of it.
         if (getTradingPlayer() == null && (offeredFor != casterMind().written().size() || waresChanged)) {
             offers = null;
@@ -253,12 +294,9 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
         engravedWares.forEach(wand -> wares.add(wand.save(new CompoundTag())));
         saved.put("EngravedWares", wares);
         saved.putBoolean("Arriving", arriving);
-        if (rank != null) {
-            saved.putString("Rank", rank.id());
-        }
-        if (chair != null) {
-            saved.putString("Chair", chair.id());
-        }
+        saved.putString("Dwelling", dwelling().id());
+        rank().ifPresent(rank -> saved.putString("Rank", rank.id()));
+        chair().ifPresent(chair -> saved.putString("Chair", chair.id()));
         tag.put(MIND_TAG, saved);
     }
 
@@ -269,8 +307,13 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
             CompoundTag saved = tag.getCompound(MIND_TAG);
             casterMind().load(saved);
             arriving = saved.getBoolean("Arriving");
-            rank = com.elderlexicon.mod.university.Rank.byId(saved.getString("Rank")).orElse(null);
-            chair = com.elderlexicon.mod.university.Discipline.byId(saved.getString("Chair")).orElse(null);
+            var rank = com.elderlexicon.mod.university.Rank.byId(saved.getString("Rank"));
+            var chair = com.elderlexicon.mod.university.Discipline.byId(saved.getString("Chair"));
+            entityData.set(RANK, (byte) rank.map(Enum::ordinal).orElse(-1).intValue());
+            entityData.set(CHAIR, (byte) chair.map(Enum::ordinal).orElse(-1).intValue());
+            // One saved before it knew where it lives: of a university if it has a rank, else of the wilds.
+            dwellIn(saved.contains("Dwelling") ? Dwelling.byId(saved.getString("Dwelling"))
+                    : rank.isPresent() ? Dwelling.UNIVERSITY : Dwelling.WILDS);
             engravedWares.clear();
             net.minecraft.nbt.ListTag wares = saved.getList("EngravedWares", net.minecraft.nbt.Tag.TAG_COMPOUND);
             for (int i = 0; i < wares.size(); i++) {
@@ -288,6 +331,12 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
         }
         if (hand == InteractionHand.MAIN_HAND) {
             player.awardStat(net.minecraft.stats.Stats.TALKED_TO_VILLAGER);
+        }
+        // A master of a university talks first: the examinations, the fee, the ranks (docs/mago-design.md, 4.1).
+        if (chair().isPresent() && player instanceof net.minecraft.server.level.ServerPlayer server) {
+            setTradingPlayer(player);
+            com.elderlexicon.mod.university.Council.talk(server, this);
+            return InteractionResult.SUCCESS;
         }
         if (getOffers().isEmpty()) {
             return InteractionResult.sidedSuccess(level().isClientSide());
@@ -411,8 +460,9 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
      */
     public void joinUniversity(com.elderlexicon.mod.university.Rank rank,
                                @Nullable com.elderlexicon.mod.university.Discipline chair, int radius) {
-        this.rank = rank;
-        this.chair = chair;
+        entityData.set(RANK, (byte) rank.ordinal());
+        entityData.set(CHAIR, (byte) (chair == null ? -1 : chair.ordinal()));
+        dwellIn(Dwelling.UNIVERSITY);
         casterMind().setMind(rank.degree(), Personality.draw(getRandom()),
                 rank.degree().draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(), getRandom()));
         casterMind().home(blockPosition(), radius);
@@ -421,14 +471,47 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
         setPersistenceRequired();
     }
 
+    /** A member of a university keeps the peace wherever it is (docs/mago-design.md, 5h). */
+    @Override
+    public boolean keepsThePeace() {
+        return rank().isPresent();
+    }
+
+    /** A talk with {@code player} ended: unless it turned to trading, it goes back to what it was doing. */
+    @Override
+    public void dialogueEnded(net.minecraft.server.level.ServerPlayer player) {
+        if (getTradingPlayer() == player && !(player.containerMenu instanceof net.minecraft.world.inventory.MerchantMenu)) {
+            setTradingPlayer(null);
+        }
+    }
+
     /** Its rank at a university, if it has one. */
     public java.util.Optional<com.elderlexicon.mod.university.Rank> rank() {
-        return java.util.Optional.ofNullable(rank);
+        byte rank = entityData.get(RANK);
+        return rank < 0 ? java.util.Optional.empty()
+                : java.util.Optional.of(com.elderlexicon.mod.university.Rank.values()[rank]);
     }
 
     /** Its chair at a university, if it holds one. */
     public java.util.Optional<com.elderlexicon.mod.university.Discipline> chair() {
-        return java.util.Optional.ofNullable(chair);
+        byte chair = entityData.get(CHAIR);
+        return chair < 0 ? java.util.Optional.empty()
+                : java.util.Optional.of(com.elderlexicon.mod.university.Discipline.values()[chair]);
+    }
+
+    /** Where it lives (docs/mago-design.md, 5i): on the client too, for its robe. */
+    public Dwelling dwelling() {
+        return Dwelling.values()[entityData.get(DWELLING)];
+    }
+
+    /** It lives at {@code dwelling} now, and dresses for it. */
+    public void dwellIn(Dwelling dwelling) {
+        entityData.set(DWELLING, (byte) dwelling.ordinal());
+    }
+
+    @Override
+    public Degree shownDegree() {
+        return Degree.values()[entityData.get(DEGREE)];
     }
 
     /** It will be born anew where it is placed next, and make that its home (a house saved with it). */

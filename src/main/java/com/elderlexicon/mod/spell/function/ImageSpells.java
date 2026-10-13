@@ -107,9 +107,10 @@ public final class ImageSpells {
                 if (!SpellEffects.isPlayerValid(player)) {
                     return;
                 }
-                Vec3 eye = player.getEyePosition();
-                Vec3 look = player.getLookAngle();
-                for (double along = 1.0D; along <= STREAM_LENGTH; along += 0.5D) {
+                // From the hand toward the aim, not from before the eyes.
+                Vec3 eye = WorldSources.handOf(player);
+                Vec3 look = WorldSources.aimFrom(player, eye, STREAM_LENGTH);
+                for (double along = 0.5D; along <= STREAM_LENGTH; along += 0.5D) {
                     Vec3 at = eye.add(look.scale(along));
                     level.sendParticles(particle.get(), at.x, at.y, at.z, count / 4 + 1, 0.08D, 0.08D, 0.08D, 0.01D);
                 }

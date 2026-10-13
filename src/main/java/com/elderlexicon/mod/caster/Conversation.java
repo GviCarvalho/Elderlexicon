@@ -10,7 +10,8 @@ import java.util.List;
  * above the head of who says them, as a reading is, and a player who does not know the runes sees only that they talk,
  * and how it goes: who is pleased, who is not. Who hears learns a little of the runes it does not know.
  * <p>
- * Taken badly too often, it comes to blows ({@link CasterMind#quarrel}): a duel, until one yields. Wizards and Sorcerers
+ * Taken badly too often, it comes to blows ({@link CasterMind#quarrel}): a duel, until one yields; but not among
+ * people living in peace, where the one offended walks off ({@link CasterMind#fallOut}). Wizards and Sorcerers
  * are neither friends nor foes: they talk as any two casters do, and fight only over what is said.
  */
 final class Conversation {
@@ -81,7 +82,7 @@ final class Conversation {
             if (quarrel || --turnsLeft <= 0) {
                 end();
                 if (quarrel) {
-                    listener.quarrel(speaker);
+                    listener.fallOut(speaker);
                 }
                 return;
             }

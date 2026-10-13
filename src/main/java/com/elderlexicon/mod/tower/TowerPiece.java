@@ -393,6 +393,9 @@ public class TowerPiece extends StructurePiece {
         if (caster instanceof RuneCaster runeCaster) {
             runeCaster.casterMind().home(new BlockPos(cx, y0 + 1, cz), HOME_RADIUS);
         }
+        if (caster instanceof com.elderlexicon.mod.wizard.Wizard wizard) {
+            wizard.dwellIn(com.elderlexicon.mod.wizard.Dwelling.TOWER);
+        }
         if (kind != TowerKind.SORCERER) {
             return;
         }

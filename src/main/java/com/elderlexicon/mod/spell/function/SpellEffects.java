@@ -72,8 +72,9 @@ final class SpellEffects {
       Optional<ParticleOptions> particle = resolveParticle(element, elementRuneId);
       if (!particle.isEmpty()) {
          ServerLevel level = Casters.level(player);
-         Vec3 eyePosition = player.getEyePosition();
-         Vec3 lookVector = player.getLookAngle().normalize();
+         // From the hand toward the aim, not from before the eyes.
+         Vec3 eyePosition = WorldSources.handOf(player);
+         Vec3 lookVector = WorldSources.aimFrom(player, eyePosition, 20.0D);
          double step = 0.5D;
          int segments = 16;
          double offsetScale = 0.08D;

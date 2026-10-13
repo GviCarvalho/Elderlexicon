@@ -76,7 +76,7 @@ public final class RuneGuides {
         }
 
         /** The family a rune is of. */
-        static Family of(Rune rune) {
+        public static Family of(Rune rune) {
             return switch (rune.wordClass()) {
                 case SOURCE -> FONTS;
                 case VERB -> FUNCTIONS;
@@ -216,7 +216,7 @@ public final class RuneGuides {
     }
 
     /** What a sentence does, in a few words: by the title the lexicon gives it, or by what its verb does. */
-    static Optional<String> describe(Lexicon lexicon, Phrase phrase) {
+    public static Optional<String> describe(Lexicon lexicon, Phrase phrase) {
         for (Act act : phrase.acts()) {
             for (Aim aim : List.of(Aim.TARGET, Aim.SKY, Aim.AWAY, Aim.FEET)) {
                 if (Mind.serves(act, aim) == null) {

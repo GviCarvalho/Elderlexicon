@@ -19,6 +19,11 @@ import java.util.Optional;
  */
 public class UniversityStructure extends Structure {
 
+    /** The university, as the world's structures name it. */
+    public static final net.minecraft.resources.ResourceKey<Structure> KEY = net.minecraft.resources.ResourceKey.create(
+            net.minecraft.core.registries.Registries.STRUCTURE,
+            new net.minecraft.resources.ResourceLocation(com.elderlexicon.mod.ElderLexicon.MODID, "university"));
+
     public static final Codec<UniversityStructure> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             settingsCodec(instance)).apply(instance, UniversityStructure::new));
 

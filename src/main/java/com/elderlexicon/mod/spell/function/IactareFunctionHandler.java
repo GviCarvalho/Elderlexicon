@@ -154,7 +154,9 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
         double intensity = action.intensity();
         released(level, player, charge, () -> {
             ElementOrb orb = orbOf(level, action);
-            Vec3 velocity = player.getViewVector(1.0F).scale(ORB_SPEED);
+            // From where the orb was gathered (the hand) toward the aim.
+            Vec3 velocity = (orb == null ? player.getViewVector(1.0F) : WorldSources.aimFrom(player, orb.position(), RANGE))
+                    .scale(ORB_SPEED);
             switch (element) {
                 case IGNI -> {
                     whoosh(level, player, intensity);

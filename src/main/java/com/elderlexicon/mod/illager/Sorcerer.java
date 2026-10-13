@@ -58,6 +58,14 @@ public class Sorcerer extends Evoker implements RuneCaster, CasterMind.Body {
     private static final net.minecraft.network.syncher.EntityDataAccessor<Boolean> READING =
             net.minecraft.network.syncher.SynchedEntityData.defineId(Sorcerer.class,
                     net.minecraft.network.syncher.EntityDataSerializers.BOOLEAN);
+    /** Whether it points its focus where it aims, while what it read is released: the clients draw it. */
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Boolean> POINTING =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(Sorcerer.class,
+                    net.minecraft.network.syncher.EntityDataSerializers.BOOLEAN);
+    /** Its degree, for the clients to draw its beard by. */
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Byte> DEGREE =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(Sorcerer.class,
+                    net.minecraft.network.syncher.EntityDataSerializers.BYTE);
     /** How often it looks at its band, to mark the ones it has not marked yet. */
     private static final int BAND_TICKS = 100;
     /** The wand it engraved with a page of its own at a galdraria table, if any. */
@@ -133,6 +141,13 @@ public class Sorcerer extends Evoker implements RuneCaster, CasterMind.Body {
     protected void defineSynchedData() {
         super.defineSynchedData();
         entityData.define(READING, false);
+        entityData.define(DEGREE, (byte) 0);
+        entityData.define(POINTING, false);
+    }
+
+    @Override
+    public com.elderlexicon.mod.mind.Degree shownDegree() {
+        return com.elderlexicon.mod.mind.Degree.values()[entityData.get(DEGREE)];
     }
 
     @Override
@@ -173,6 +188,21 @@ public class Sorcerer extends Evoker implements RuneCaster, CasterMind.Body {
     }
 
     @Override
+    public void releasing(boolean releasing) {
+        entityData.set(POINTING, releasing);
+    }
+
+    @Override
+    public boolean entranced() {
+        return isCastingSpell();
+    }
+
+    @Override
+    public boolean pointing() {
+        return entityData.get(POINTING);
+    }
+
+    @Override
     public boolean mayWrite() {
         return !isCelebrating();
     }
@@ -200,6 +230,8 @@ public class Sorcerer extends Evoker implements RuneCaster, CasterMind.Body {
             return;
         }
         casterMind().tick();
+        // Its degree grows as it learns: its beard with it.
+        entityData.set(DEGREE, (byte) casterMind().degree().ordinal());
         if (tickCount % BAND_TICKS == 0) {
             markBand();
         }

@@ -56,11 +56,12 @@ public final class WaterSpots {
 
     /** Condensed water released as a jet toward the aim: it pushes, puts fire out and, pressed enough, cuts. */
     static void jet(ServerLevel level, LivingEntity caster, double pressure) {
-        Vec3 eye = caster.getEyePosition();
-        Vec3 look = caster.getViewVector(1.0F);
         int cuts = Pressure.cuts(pressure);
         double push = Pressure.push(pressure);
         double jetReach = Pressure.jetReach(pressure);
+        // It leaves the hand toward the aim.
+        Vec3 eye = WorldSources.handOf(caster);
+        Vec3 look = WorldSources.aimFrom(caster, eye, jetReach);
         Vec3 end = eye.add(look.scale(jetReach));
         for (double travelled = 1.0D; travelled <= jetReach; travelled += 0.5D) {
             Vec3 at = eye.add(look.scale(travelled));

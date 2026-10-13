@@ -4,7 +4,7 @@
 
 **Status:** passos 1 e 2 feitos (13/10/2026): a mente comum, o Mago com as trocas dele (5a a 5c) e o bibliotecário
 (5d); passo 3 feito (13/10/2026): as torres (5e); passo 4 feito (13/10/2026): a casa do mago nas vilas
-(5f); passo 5, primeira parte (13/10/2026): a universidade, o lugar e quem mora (5g). Segue docs/feiticeiro-design.md (seção 10a).
+(5f); passo 5, primeira parte (13/10/2026): a universidade, o lugar e quem mora (5g); segunda parte: o exame, a mensalidade, os graus, e conjuradores civilizados (5h); as aparências (5i). Segue docs/feiticeiro-design.md (seção 10a).
 
 A segunda fase dos conjuradores do mod. O Feiticeiro mostrou que uma criatura pode conjurar pelas regras do jogador;
 agora a língua ganha quem a usa sem ser inimigo, e lugares onde ela é ensinada.
@@ -142,8 +142,8 @@ servem a casa: bibliotecários do Arquivo, clérigos da enfermaria, o mercador d
 2. ~~O **bibliotecário** com os guias de runas.~~ Feito (seção 5d).
 3. ~~A **torre do feiticeiro** e a **torre do mago** (peças por código).~~ Feito (seção 5e).
 4. ~~A **casa do mago** nas vilas.~~ Feito (seção 5f).
-5. A **universidade**: ~~primeiro o lugar e quem mora~~ (feito, seção 5g); depois o exame, a mensalidade e os graus; depois o Arquivo e a
-   oficina; por fim a disciplina da casa.
+5. A **universidade**: ~~primeiro o lugar e quem mora~~ (feito, seção 5g); ~~depois o exame, a mensalidade e os graus~~
+   (feito, seção 5h); depois o Arquivo e a oficina; por fim a disciplina da casa.
 6. Os outros aldeões (clérigo, armeiro, ferramenteiro).
 
 ## 5a. Como ficou o passo 1 (12/10/2026)
@@ -377,6 +377,71 @@ pesquisa, torre do observatório, dormitórios, pátio, jardins).
   `aUniversityIsBuilt` constrói o campus inteiro, confere, e deixa duas imagens (de cima e do sul) em
   `run/pictures/`, para ver a composição sem abrir o jogo.
 - `/locate structure elderlexicon:university` acha a mais próxima.
+
+## 5h. O exame, a mensalidade e os graus; a paz entre os conjuradores (13/10/2026)
+
+- **A tela de diálogo** (`dialogue/`): um painel ao pé da tela, com quem fala desenhado num quadro ao lado (olhando
+  para o cursor), o nome dele, a fala escrita aos poucos (um clique ou espaço mostra tudo) e as respostas embaixo,
+  clicáveis ou pelo número (1 a 9). O mundo segue atrás dela (não pausa). Tudo é decidido no servidor: o cliente só
+  mostra a fala e diz qual resposta foi escolhida. Serve para os outros aldeões depois.
+- **Falar com um mestre.** Clicar no Rector ou num Magister abre o diálogo em vez da troca; o mestre para e olha para o
+  jogador enquanto falam. O Magister tem a opção de negociar, que abre a troca de sempre.
+- **O exame** (`Exam`): quatro respostas por pergunta, uma certa. A maioria vem do léxico (o que é a runa X, qual runa
+  diz X, de que família é X, o que faz esta frase), então uma runa que um addon traga também cai no exame; o resto é o
+  que a casa ensina de cada arte (os aspectos das fontes, o que faz uma quantidade negativa, onde vai um filtro, ego e
+  ille, a galdraria, a Vita, como se aprende uma runa, as regras do Arquivo). O Rector pergunta de tudo; cada Magister,
+  da sua disciplina.
+- **A admissão e a mensalidade.** O conselho (o Rector) faz seis perguntas. Menos de três certas: não é admitido, e
+  volta no dia seguinte. Três ou mais: é admitido como **Auditor**, e o exame fixa a mensalidade dos próximos sete
+  dias, paga ao Rector em esmeraldas: 3 certas, 20; 4, 12; 5, 5; **6, a casa paga 3 a ele**. Enquanto não paga, não
+  está em dia. Ao fim dos sete dias, um novo exame fixa a mensalidade do período seguinte; quem não passa nele fica fora
+  de dia até passar.
+- **Os graus.** Um Magister examina quem está em dia, na sua disciplina: cinco perguntas, quatro certas passam, e quem
+  erra volta no dia seguinte. A primeira disciplina faz do Auditor um **Scriba**. Quem passou em três, uma delas sem
+  errar nada, pede ao Rector o grau de **Lector** (aquele mestre o aceita). O livro da casa é um só no mundo
+  (`Enrollments`, salvo com o mundo): quem estuda numa universidade estuda em todas. O que cada grau abre vem com o
+  Arquivo e a oficina.
+- **Conjuradores civilizados.** Numa vila (camas e sinos tomados por aldeões, ou três aldeões a até 32 blocos), no
+  terreno de uma universidade, ou sendo membro de uma (todo Mago com grau), uma conversa que azeda não vira briga:
+  quem se ofendeu dá as costas e se afasta, com a cara fechada, e os dois ficam uns cinco minutos sem conversar. No
+  ermo, a briga continua como antes (seção 5b). Assim a universidade não se esvazia com o tempo.
+- **Para testar:** `/mago matricula ver` (como o jogador está no livro), `/mago matricula vencer` (o período acaba
+  agora, sem esperar sete dias), `/mago matricula esquecer` (sai do livro).
+- Testes: `anExamIsMadeOfTheLexicon`, `theHouseKeepsItsStudents`, `theCouncilAdmitsAPlayer` (o diálogo inteiro com o
+  Rector e um Magister, respondendo certo), `castersKeepThePeaceInAVillage`.
+- **Ainda não:** o pedido prático do exame ("acenda a vela daqui") para quem já conjura.
+
+## 5i. As aparências: a barba, as vestes, os cargos (pedido do autor, 13/10/2026)
+
+- **A barba diz o grau**, de Mago ou de Feiticeiro: aprendiz sem barba; mestre com barba preta média (até um pouco
+  abaixo do queixo, com costeletas); ancião com barba branca longa (desce pelo peito, some atrás das mãos cruzadas) e
+  sobrancelhas brancas. É uma camada própria (`BeardLayer`), presa à cabeça; o grau vai ao cliente por dado
+  sincronizado e cresce junto quando o conjurador aprende runas. **O Feiticeiro usa a barba de mestre de artes
+  marciais de filme antigo:** nada sobre a mandíbula; um bigode que cai em dois fios longos ao lado do nariz e uma
+  barbicha fina no queixo (pretos no mestre; brancos e mais longos no ancião, os fios se abrindo, a barbicha em ponta),
+  e as sobrancelhas do ancião crescem para fora do rosto e caem até as bochechas.
+- **O Mago se veste pelo lugar onde vive** (`Dwelling`, salvo com ele): o **da vila**, túnica azul com ouro e um gorro
+  macio; o **da torre**, índigo semeado de estrelas, bordas de prata e o **chapéu pontudo**; o **dos ermos**, manto de
+  musgo e terra, remendado, barra esfarrapada, **capuz levantado**. Quem não tem casa (ovo, comando) é dos ermos; um
+  salvo antes disso é da universidade se tem cargo, senão dos ermos.
+- **Na universidade, pelo cargo** (`WizardLook`): **Auditor**, beca cinza lisa; **Scriba**, beca azul-tinta, manchas de
+  tinta nos punhos, alça de bolsa, **boina com pena**; **Lector**, beca preta com estola azul e o capuz forrado nas
+  costas; **Magister**, preto e veludo vinho, três faixas douradas nas mangas, **barrete quadrado**, e a **estola e a
+  borla na cor da cátedra** (Fontes laranja, Funções azul, Filtros verde, Fatos amarelo, Galdraria prata, Vita rosa,
+  Nahvá roxo, Arquivo marrom); **Rector**, escarlate com capa de arminho, corrente de ouro e **gorro alto de veludo**.
+- **As poses.** Lendo o grimório (estante, altar, escrevendo), descruza os braços e segura o livro aberto diante do
+  peito, a cabeça inclinada sobre as páginas. No transe, os braços erguidos (como antes) e o **foco na mão direita**;
+  ao soltar o que leu (enquanto as linhas saem e as torneiras correm), **aponta o foco para onde mira**, o braço
+  estendido, o outro ao lado do corpo. O foco é só desenhado: varinha improvisada no aprendiz, varinha feita no mestre
+  e no ancião (cajados e cetros depois). Não é um item na mão, então não conduz nada: o custo do feitiço da criatura
+  não muda (decidido pelo autor em 13/10/2026: fica só visual).
+- **O que sai do conjurador sai da mão**, do jogador e das criaturas (`WorldSources.handOf`): à frente, do lado da mão
+  principal e abaixo dos olhos, onde o jogador vê a própria mão e onde a criatura aponta o foco. O raio do `iactare`, o
+  jato d'água, o sopro de ar, a corrente de luz e as orbes condensadas partem dali **em direção ao ponto que o olhar
+  acerta**, então a mira continua a dos olhos. Quem acerta o quê continua decidido pelos olhos; só o caminho visível
+  mudou. Antes saíam de diante do rosto e cegavam quem conjurava.
+- As texturas saem de `tools/caster_skins.py` (desenhadas pixel a pixel sobre o molde do aldeão; rodar de novo dá os
+  mesmos arquivos). O Feiticeiro continua com a pele do evocador.
 
 ## 6. Perguntas abertas
 

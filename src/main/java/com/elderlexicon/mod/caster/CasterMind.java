@@ -116,6 +116,11 @@ public final class CasterMind {
     static final float YIELD = 0.35F;
     /** How long two who fought keep to themselves before they talk again. */
     private static final int AFTER_QUARREL_TICKS = 6000;
+    /** How often it looks whether it stands among people living in peace. */
+    private static final int CIVIL_LOOK_TICKS = 100;
+    /** How many villagers within how far make a place where people live, claimed beds and bells or not. */
+    private static final int CIVIL_PEOPLE = 3;
+    private static final double CIVIL_REACH = 32.0D;
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final SpellCastingService SPIRIT = new SpellCastingService();
 
@@ -132,6 +137,13 @@ public final class CasterMind {
 
         /** Its trance ended, read or broken. */
         default void tranceEnded() {
+        }
+
+        /**
+         * What it read is being released ({@code true}), or is all out ({@code false}): it points its focus where it
+         * aims while the lines come out (docs/mago-design.md, 5i).
+         */
+        default void releasing(boolean releasing) {
         }
 
         /** How many of its allies carrying {@code mark} are worth bringing to {@code target}. */
@@ -173,6 +185,11 @@ public final class CasterMind {
 
         /** It engraved {@code wand} at a galdraria table: what it does with it. */
         default void engraved(ItemStack wand) {
+        }
+
+        /** Whether it keeps the peace wherever it is (a member of a university does), as in a village. */
+        default boolean keepsThePeace() {
+            return false;
         }
     }
 
@@ -253,6 +270,11 @@ public final class CasterMind {
     private UUID quarrelWith;
     /** What another caster said to it last. */
     private List<String> lastHeard = List.of();
+    /** Whether it stood among people living in peace when it last looked, and when that was. */
+    private boolean civil;
+    private int civilLookedAt = -CIVIL_LOOK_TICKS;
+    /** How long it stays offended after walking off from a talk gone bad. */
+    private int offended;
 
     /** A reading against a target: the health the target had, and when to look at what came of it. */
     /**
@@ -654,6 +676,7 @@ public final class CasterMind {
             }
             if (releaseTicks == 0) {
                 releasingAt = null;
+                body.releasing(false);
             }
         } else if (reading == null && restTicks > 0) {
             restTicks--;
@@ -670,6 +693,9 @@ public final class CasterMind {
         }
         if (quarrelWith != null) {
             quarrelling();
+        }
+        if (offended > 0) {
+            offended--;
         }
         if (conversation != null) {
             if (conversation.ledBy(this)) {
@@ -936,6 +962,7 @@ public final class CasterMind {
         releasingAt = target;
         releasingAim = choice.aim();
         releaseTicks = released;
+        body.releasing(released > 0);
         restTicks = REST_TICKS + owner.getRandom().nextInt(20);
     }
 
@@ -1179,6 +1206,68 @@ public final class CasterMind {
         owner.playSound(SoundEvents.EVOKER_PREPARE_ATTACK, 1.0F, 0.6F);
     }
 
+    /**
+     * It will not take any more from {@code other}. Out in the wild, they come to blows ({@link #quarrel}); among people
+     * living in peace (a village, a university), neither does: the one offended turns its back and walks off, and the
+     * two keep to themselves for a while (docs/mago-design.md, 5h).
+     */
+    public void fallOut(CasterMind other) {
+        if (civilized() || other.civilized()) {
+            walkOff(other);
+        } else {
+            quarrel(other);
+        }
+    }
+
+    /**
+     * Whether it stands among people living in peace: in a village (its claimed beds and bells, or three villagers
+     * near), on a university's grounds, or it keeps the peace anyway.
+     */
+    public boolean civilized() {
+        if (body.keepsThePeace()) {
+            return true;
+        }
+        if (!(owner.level() instanceof ServerLevel server)) {
+            return false;
+        }
+        if (tickCount - civilLookedAt >= CIVIL_LOOK_TICKS) {
+            civilLookedAt = tickCount;
+            net.minecraft.core.BlockPos at = owner.blockPosition();
+            civil = server.isVillage(at) || server.getEntitiesOfClass(net.minecraft.world.entity.npc.Villager.class,
+                    owner.getBoundingBox().inflate(CIVIL_REACH), LivingEntity::isAlive).size() >= CIVIL_PEOPLE
+                    || server.structureManager().getStructureWithPieceAt(at,
+                    com.elderlexicon.mod.university.UniversityStructure.KEY).isValid();
+        }
+        return civil;
+    }
+
+    /** It turns its back on {@code other}, offended, and walks off; neither talks to the other for a while. */
+    private void walkOff(CasterMind other) {
+        annoyance.remove(other.owner.getUUID());
+        other.annoyance.remove(owner.getUUID());
+        talkRest = AFTER_QUARREL_TICKS;
+        other.talkRest = AFTER_QUARREL_TICKS;
+        offended = AFTER_QUARREL_TICKS;
+        if (owner.level() instanceof ServerLevel server) {
+            Vec3 eyes = owner.getEyePosition();
+            server.sendParticles(ParticleTypes.ANGRY_VILLAGER, eyes.x, eyes.y + 0.5D, eyes.z, 4, 0.3D, 0.2D, 0.3D,
+                    0.0D);
+        }
+        body.felt(false);
+        if (owner instanceof net.minecraft.world.entity.PathfinderMob walker) {
+            Vec3 away = net.minecraft.world.entity.ai.util.DefaultRandomPos.getPosAway(walker, 12, 4,
+                    other.owner.position());
+            if (away != null) {
+                owner.getNavigation().moveTo(away.x, away.y, away.z, 0.6D);
+            }
+        }
+    }
+
+    /** How long since it walked off from a talk gone bad: while it lasts, it is still offended (for a test). */
+    public boolean offended() {
+        return offended > 0;
+    }
+
     /** While the quarrel lasts: it ends when the other is gone or another foe took its place, or when one yields. */
     private void quarrelling() {
         LivingEntity target = owner.getTarget();
@@ -1306,6 +1395,7 @@ public final class CasterMind {
                 + understanding + "; Vis " + String.format(Locale.ROOT, "%.1f", Casters.vis(owner))
                 + "; alcance " + String.format(Locale.ROOT, "%.0f", reach()) + " blocos"
                 + (conversation != null ? "; conversando" : "") + (quarrelWith != null ? "; brigando" : "")
+                + (offended > 0 ? "; ofendido" : "")
                 + (annoyance.isEmpty() ? "" : "; irritação " + annoyance.values().stream()
                 .map(value -> String.format(Locale.ROOT, "%.1f", value)).toList())
                 + "; leu por último: " + last;

@@ -252,6 +252,7 @@ public class ElderLexicon {
             SpellingNetwork.register();
             MarkNetwork.register();
             LigabisNetwork.register();
+            com.elderlexicon.mod.dialogue.DialogueNetwork.register();
             DamageMappingConfig.initialize();
             VitaRecoveryConfig.initialize();
         });

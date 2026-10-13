@@ -215,7 +215,7 @@ public final class WorldSources {
         LivingEntity player = context.player();
         VerbSpec.Gathering gathering = gatheringOf(spender);
         if (gathering == VerbSpec.Gathering.HAND) {
-            return () -> player.getEyePosition().subtract(0.0D, 0.35D, 0.0D).add(player.getViewVector(1.0F).scale(0.9D));
+            return () -> handOf(player);
         }
         if (gathering == VerbSpec.Gathering.DESTINATION) {
             Vec3 fixed = gatheringPoint(context, spender);
@@ -365,9 +365,36 @@ public final class WorldSources {
         };
     }
 
-    /** Where the mage's hand is: just before the body, at the height of the chest, where the source is pulled in. */
+    /** How far the hand is from the eyes: ahead along the look, out to the side of the hand, down. */
+    private static final double HAND_AHEAD = 0.6D;
+    private static final double HAND_ASIDE = 0.35D;
+    private static final double HAND_DOWN = 0.35D;
+
+    /**
+     * Where the mage's hand is: before it, at its main hand's side and below its eyes, where a caster's focus points and
+     * where a player sees its hand. What comes out of the mage comes out of it, and what it pulls in is pulled into it,
+     * so nothing it casts stands before its eyes.
+     */
     public static Vec3 handOf(LivingEntity player) {
-        return player.getEyePosition().subtract(0.0D, 0.35D, 0.0D).add(player.getViewVector(1.0F).scale(0.9D));
+        Vec3 ahead = player.getViewVector(1.0F);
+        float yaw = player.getYRot() * ((float) Math.PI / 180.0F);
+        Vec3 aside = new Vec3(-net.minecraft.util.Mth.cos(yaw), 0.0D, -net.minecraft.util.Mth.sin(yaw));
+        if (player.getMainArm() == net.minecraft.world.entity.HumanoidArm.LEFT) {
+            aside = aside.reverse();
+        }
+        // "Down" as the eyes see it: across the look from the side, so it stays below the look when looking up.
+        Vec3 up = new Vec3(-net.minecraft.util.Mth.cos(yaw), 0.0D, -net.minecraft.util.Mth.sin(yaw)).cross(ahead);
+        return player.getEyePosition().add(ahead.scale(HAND_AHEAD)).add(aside.scale(HAND_ASIDE))
+                .add(up.scale(-HAND_DOWN));
+    }
+
+    /**
+     * The way from {@code from} (the hand, or what it holds) to where the mage aims within {@code reach}: what leaves
+     * the hand meets the aim of the eyes there, as a thrown thing meets what one looks at.
+     */
+    public static Vec3 aimFrom(LivingEntity player, Vec3 from, double reach) {
+        Vec3 aimed = SpellEffects.findImpact(player, reach).location().subtract(from);
+        return aimed.lengthSqr() < 1.0D ? player.getViewVector(1.0F) : aimed.normalize();
     }
 
     // ------------------------------------------------------------------ what each source holds, and what it leaves

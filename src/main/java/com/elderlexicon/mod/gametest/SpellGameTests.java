@@ -1056,6 +1056,182 @@ public final class SpellGameTests {
     }
 
     /**
+     * Every master can examine (docs/mago-design.md, 4.1): for each discipline, an examination of six questions is made
+     * of the lexicon and of what the house teaches, each with four different answers and one of them right.
+     */
+    @GameTest(template = EMPTY, batch = "council")
+    public static void anExamIsMadeOfTheLexicon(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        for (com.elderlexicon.mod.university.Discipline discipline
+                : com.elderlexicon.mod.university.Discipline.values()) {
+            com.elderlexicon.mod.university.Exam exam = com.elderlexicon.mod.university.Exam.of(discipline, 6,
+                    helper.getLevel().getRandom());
+            if (exam.size() != 6) {
+                helper.fail(discipline + " asks " + exam.size() + " questions");
+            }
+            for (com.elderlexicon.mod.university.Exam.Question question : exam.questions()) {
+                Set<String> answers = new java.util.HashSet<>();
+                question.answers().forEach(answer -> answers.add(answer.getString().toLowerCase(java.util.Locale.ROOT)));
+                if (question.answers().size() != 4 || answers.size() != 4 || question.right() < 0
+                        || question.right() >= 4) {
+                    helper.fail(discipline + ": " + question.prompt().getString() + " " + answers);
+                }
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The house's book (docs/mago-design.md, 4.1 and 4.2): admitted with the fee the examination set (one who missed
+     * nothing is paid), in good standing while the period is paid, examined again when it ends; a master's examination
+     * makes a Scriba, three passed with one perfect a Lector.
+     */
+    @GameTest(template = EMPTY, batch = "council")
+    public static void theHouseKeepsItsStudents(GameTestHelper helper) {
+        com.elderlexicon.mod.university.Enrollments book = com.elderlexicon.mod.university.Enrollments.of(
+                helper.getLevel());
+        UUID who = UUID.randomUUID();
+        long now = 1000L;
+        long period = com.elderlexicon.mod.university.Enrollments.PERIOD;
+        book.examined(who, 2, 6, now);
+        com.elderlexicon.mod.university.Enrollments.Student student = book.student(who);
+        if (student.rank().isPresent() || !student.waiting(now + 10)) {
+            helper.fail("two of six admitted, or let try again at once");
+        }
+        book.examined(who, 4, 6, now + 30000L);
+        now += 30000L;
+        if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.AUDITOR || student.fee() != 12
+                || !student.owes(now) || student.inGoodStanding(now)) {
+            helper.fail("four of six: " + student.rank() + ", fee " + student.fee() + ", owes " + student.owes(now));
+        }
+        book.paid(who, now);
+        if (!student.inGoodStanding(now + period - 1) || student.owes(now + 1)) {
+            helper.fail("paid, and not in good standing");
+        }
+        if (!student.dueForExamination(now + period)) {
+            helper.fail("the period ended, and no new examination is due");
+        }
+        if (com.elderlexicon.mod.university.Enrollments.feeFor(6, 6) >= 0
+                || com.elderlexicon.mod.university.Enrollments.feeFor(5, 6)
+                >= com.elderlexicon.mod.university.Enrollments.feeFor(3, 6)) {
+            helper.fail("the fee does not fall as the examination goes better");
+        }
+        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.FONTES, 3, now);
+        if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.AUDITOR) {
+            helper.fail("three of five made a Scriba");
+        }
+        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.FONTES, 4, now);
+        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.FILTROS, 4, now);
+        if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.SCRIBA || student.mayRead()) {
+            helper.fail("after two passed: " + student.rank() + ", may read " + student.mayRead());
+        }
+        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.NAHVA, 5, now);
+        if (!book.makeLector(who) || student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.LECTOR) {
+            helper.fail("three passed, one perfect, and not a Lector");
+        }
+        book.forget(who);
+        helper.succeed();
+    }
+
+    /**
+     * Before the council and a master, on the dialogue screen (docs/mago-design.md, 4.1): the Rector examines a player
+     * who asks to be admitted; missing nothing, they are admitted and paid instead of paying. A Magister then examines
+     * them in his discipline, and the Auditor is a Scriba. Each master goes back to what it was doing when the talk ends.
+     */
+    @GameTest(template = EMPTY, batch = "council", timeoutTicks = 60)
+    public static void theCouncilAdmitsAPlayer(GameTestHelper helper) {
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        ServerPlayer mage = mage(helper);
+        mage.moveTo(helper.absoluteVec(new Vec3(2.5D, 1.0D, 0.5D)));
+        com.elderlexicon.mod.wizard.Wizard rector = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 3.5D));
+        com.elderlexicon.mod.wizard.Wizard magister = helper.spawn(ElderLexicon.WIZARD.get(),
+                new Vec3(3.5D, 1.0D, 3.5D));
+        rector.joinUniversity(com.elderlexicon.mod.university.Rank.RECTOR,
+                com.elderlexicon.mod.university.Discipline.REITOR, 6);
+        magister.joinUniversity(com.elderlexicon.mod.university.Rank.MAGISTER,
+                com.elderlexicon.mod.university.Discipline.FONTES, 6);
+        com.elderlexicon.mod.university.Enrollments book = com.elderlexicon.mod.university.Enrollments.of(
+                helper.getLevel());
+        try {
+            rector.mobInteract(mage, net.minecraft.world.InteractionHand.MAIN_HAND);
+            if (rector.getTradingPlayer() != mage || com.elderlexicon.mod.dialogue.Dialogue.line(mage).isEmpty()) {
+                helper.fail("the Rector did not turn to talk");
+            }
+            com.elderlexicon.mod.dialogue.Dialogue.choose(mage, 0); // I ask to be admitted.
+            com.elderlexicon.mod.dialogue.Dialogue.choose(mage, 0); // Let us begin.
+            answerRight(helper, mage);
+            com.elderlexicon.mod.university.Enrollments.Student student = book.student(mage.getUUID());
+            long now = helper.getLevel().getServer().overworld().getGameTime();
+            if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.AUDITOR
+                    || !student.inGoodStanding(now) || mage.getInventory().countItem(Items.EMERALD) != 3) {
+                helper.fail("missing nothing: " + student.rank() + ", in good standing " + student.inGoodStanding(now)
+                        + ", emeralds " + mage.getInventory().countItem(Items.EMERALD) + "; "
+                        + com.elderlexicon.mod.dialogue.Dialogue.line(mage).map(line -> line.text().getString()));
+            }
+            com.elderlexicon.mod.dialogue.Dialogue.choose(mage, 0); // Goodbye.
+            if (rector.getTradingPlayer() != null || com.elderlexicon.mod.dialogue.Dialogue.line(mage).isPresent()) {
+                helper.fail("the Rector still holds the talk");
+            }
+            magister.mobInteract(mage, net.minecraft.world.InteractionHand.MAIN_HAND);
+            com.elderlexicon.mod.dialogue.Dialogue.choose(mage, 0); // The examination of the Fonts.
+            answerRight(helper, mage);
+            if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.SCRIBA
+                    || student.passed().getOrDefault(com.elderlexicon.mod.university.Discipline.FONTES, 0) != 5) {
+                helper.fail("passed the Fonts without a mistake: " + student.rank() + ", " + student.passed());
+            }
+            com.elderlexicon.mod.dialogue.Dialogue.choose(mage, 0);
+            helper.succeed();
+        } finally {
+            book.forget(mage.getUUID());
+        }
+    }
+
+    /** Answers right every question of the examination the player sits. */
+    private static void answerRight(GameTestHelper helper, ServerPlayer player) {
+        for (int i = 0; i < 10; i++) {
+            java.util.Optional<com.elderlexicon.mod.university.Exam> exam =
+                    com.elderlexicon.mod.university.Council.sitting(player);
+            if (exam.isEmpty()) {
+                return;
+            }
+            com.elderlexicon.mod.dialogue.Dialogue.choose(player, exam.get().current().orElseThrow().right());
+        }
+        helper.fail("the examination never ended");
+    }
+
+    /**
+     * Among people living in peace, casters do not fight over words (docs/mago-design.md, 5h): two wizards in a
+     * village who fall out do not come to blows; the offended one walks off, and neither talks to the other for a
+     * while.
+     */
+    @GameTest(template = EMPTY, batch = "council")
+    public static void castersKeepThePeaceInAVillage(GameTestHelper helper) {
+        for (int i = 0; i < 3; i++) {
+            helper.spawn(EntityType.VILLAGER, new Vec3(0.5D + 2 * i, 1.0D, 4.5D)).setNoAi(true);
+        }
+        com.elderlexicon.mod.wizard.Wizard one = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(1.5D, 1.0D, 1.5D));
+        com.elderlexicon.mod.wizard.Wizard other = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(3.5D, 1.0D, 1.5D));
+        for (com.elderlexicon.mod.wizard.Wizard wizard : List.of(one, other)) {
+            wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE,
+                    com.elderlexicon.mod.mind.Personality.AGGRESSIVE, Set.of("igni", "iactare", "vocant"));
+        }
+        helper.runAtTickTime(5, () -> {
+            if (!one.casterMind().civilized()) {
+                helper.fail("villagers about, and it does not know it is in a village");
+            }
+            one.casterMind().fallOut(other.casterMind());
+            if (one.getTarget() != null || other.getTarget() != null
+                    || one.casterMind().quarrelling(other.getUUID())) {
+                helper.fail("they came to blows in a village");
+            }
+            if (!one.casterMind().offended()) {
+                helper.fail("the offended one did not walk off");
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
      * Pictures of what stands in {@code box}, for whoever builds it to look at: from above, and from the south, in the
      * colours the game's maps give the blocks (saved by the server, in {@code pictures/}).
      */

@@ -18,15 +18,16 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 
 /**
- * A caster reading or writing in its grimoire (docs/mago-design.md, 5c): the book open in its hands, before its chest,
- * the pages turning, as the enchanting table's book turns them. Only drawn, nothing in the world: it costs no
+ * A caster reading or writing in its grimoire (docs/mago-design.md, 5c): the book open in its hands, held out before
+ * its chest and tilted up toward its eyes ({@link ReadingPose}), the pages turning, as the enchanting table's book turns
+ * them. Only drawn, nothing in the world: it costs no
  * particles.
  */
 public class GrimoireBookLayer<T extends LivingEntity, M extends EntityModel<T>> extends RenderLayer<T, M> {
 
-    /** Where the book is held, in the model's space: chest high, a little before the crossed arms. */
-    private static final float HEIGHT = 0.38F;
-    private static final float AHEAD = -0.42F;
+    /** Where the book is held, in the model's space: on the hands, before the chest (blocks below the neck, ahead). */
+    private static final float HEIGHT = 0.34F;
+    private static final float AHEAD = -0.55F;
     private static final float SIZE = 0.55F;
 
     private final BookModel book;
@@ -47,8 +48,8 @@ public class GrimoireBookLayer<T extends LivingEntity, M extends EntityModel<T>>
         // Back out of the model's flipped space: up is up, ahead is -z.
         pose.scale(-1.0F, -1.0F, 1.0F);
         // The book's pages face +x and its spine runs up: turned so the pages face the reader, then tilted back so
-        // they face up toward its eyes, the spine running away from it.
-        pose.mulPose(Axis.XP.rotationDegrees(-67.5F));
+        // they face up toward its bent head, as one holds a book to read it.
+        pose.mulPose(Axis.XP.rotationDegrees(-55.0F));
         pose.mulPose(Axis.YP.rotationDegrees(-90.0F));
         pose.scale(SIZE, SIZE, SIZE);
         float turning = ageInTicks * 0.04F;

@@ -23,6 +23,18 @@ public interface RuneCaster {
     }
 
     /**
+     * Its degree as the clients see it: how long its beard is (docs/mago-design.md, 5i). An apprentice has none, a
+     * master a black one, an elder a long white one.
+     */
+    com.elderlexicon.mod.mind.Degree shownDegree();
+
+    /** Whether it is in its trance, its arms raised: on the client too. */
+    boolean entranced();
+
+    /** Whether it points its focus where it aims, while what it read is released: on the client too. */
+    boolean pointing();
+
+    /**
      * A mage cast where casters could see it (docs/feiticeiro-design.md, 4): each that sees it understands the runes of
      * it a little more and writes the sentence down, as much of it as it can read. A caster learns from another caster
      * too: two who fight teach each other.

@@ -20,7 +20,9 @@ import java.util.function.Consumer;
  * {@code /mago}: gives or takes the mage's abilities by hand (docs/habilidades-design.md), for testing.
  * {@code /mago transe}, {@code /mago fluxo}, {@code /mago nenhuma}, {@code /mago ilha} (to the mage's island, as if
  * dead) and {@code /mago torre} (to the infinite tower: from the island by its road, or straight away), each with optional
- * players; and {@code /mago sala <sala>}, which makes the next climb begin with that room. For operators.
+ * players; {@code /mago sala <sala>}, which makes the next climb begin with that room; and {@code /mago matricula}
+ * ({@code ver}, {@code vencer}: the period ends now, {@code esquecer}: struck off the university's book), to try the
+ * university (docs/mago-design.md, 5h). For operators.
  */
 public final class MageCommand {
 
@@ -35,6 +37,11 @@ public final class MageCommand {
                 .then(ability("nenhuma", player -> MageAbilities.revoke(player, true)))
                 .then(ability("ilha", player -> com.elderlexicon.mod.nahva.Dreams.enterKern(player)))
                 .then(ability("torre", player -> com.elderlexicon.mod.nahva.Dreams.enterTower(player)))
+                .then(Commands.literal("matricula")
+                        .then(Commands.literal("ver").executes(context -> enrollment(context.getSource(), "ver")))
+                        .then(Commands.literal("vencer").executes(context -> enrollment(context.getSource(), "vencer")))
+                        .then(Commands.literal("esquecer")
+                                .executes(context -> enrollment(context.getSource(), "esquecer"))))
                 .then(Commands.literal("sala")
                         .then(Commands.argument("sala", StringArgumentType.word())
                                 .suggests((context, builder) -> SharedSuggestionProvider.suggest(
@@ -50,6 +57,27 @@ public final class MageCommand {
                                             + " pela sala \"" + room + "\"."), true);
                                     return 1;
                                 }))));
+    }
+
+    private static int enrollment(CommandSourceStack source, String what)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        com.elderlexicon.mod.university.Enrollments book = com.elderlexicon.mod.university.Enrollments.of(
+                player.serverLevel());
+        long now = player.getServer().overworld().getGameTime();
+        switch (what) {
+            case "vencer" -> book.endPeriod(player.getUUID(), now);
+            case "esquecer" -> book.forget(player.getUUID());
+            default -> {
+            }
+        }
+        String said = book.find(player.getUUID()).map(student -> "Grau: " + student.rank().map(Enum::name)
+                .orElse("nenhum") + "; mensalidade " + student.fee() + "; "
+                + (student.inGoodStanding(now) ? "em dia por mais " + (student.paidUntil() - now) / 20 + " s"
+                : student.owes(now) ? "devendo o período" : student.dueForExamination(now) ? "exame do período pendente"
+                : "não admitido") + "; disciplinas " + student.passed()).orElse("Fora do livro da universidade.");
+        source.sendSuccess(() -> Component.literal(said), false);
+        return 1;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> ability(String name, Consumer<ServerPlayer> action) {
