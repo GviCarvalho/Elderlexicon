@@ -39,7 +39,7 @@ public final class Train {
         String foe = options.getOrDefault("foe", "zombie");
         int episodes = Integer.parseInt(options.getOrDefault("episodes", "200000"));
         long seed = Long.parseLong(options.getOrDefault("seed", "13"));
-        Calibration cal = Calibration.zombie();
+        Calibration cal = Calibration.of(foe);
         if (options.containsKey("foe-speed") || options.containsKey("caster-speed")) {
             cal = cal.withSpeeds(Double.parseDouble(options.getOrDefault("foe-speed", "" + cal.foeSpeed())),
                     Double.parseDouble(options.getOrDefault("caster-speed", "" + cal.casterSpeed())));

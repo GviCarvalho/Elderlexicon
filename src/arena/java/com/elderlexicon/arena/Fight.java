@@ -41,8 +41,10 @@ final class Fight {
     private static final double UMU_PER_HP = 5.0D;
     /** How far getting away throws the caster (a guess: ego iactare, ten UMU). */
     private static final double THROWN = 6.0D;
-    /** How a foe's speed is guessed in the world (Threat.PER_SPEED times a zombie's 0.23). */
-    private static final double GUESSED = 0.23D * Threat.PER_SPEED;
+    /** How long a leap lasts, how fast it goes, and how long until the next one. */
+    private static final int LEAP = 8;
+    private static final double LEAP_SPEED = 0.35D;
+    private static final int LEAP_REST = 20;
     /** After how long backing away without getting farther it is cornered, and for how long. */
     private static final int STUCK = 30;
     private static final int CORNERED = 60;
@@ -72,6 +74,17 @@ final class Fight {
     private int stuck;
     private double farthest;
     int cornered;
+    /** Whether the caster walked this tick (an arrow misses one walking more often). */
+    private boolean walked;
+    /** A spider's leap, and its rest after one. */
+    private int leap;
+    private int leapRest;
+    /** A bow: how long it still waits, how long it has drawn (-1: it does not), since its last arrow (-1: none seen). */
+    private int attackTime;
+    private int drawn = -1;
+    private int sinceShot = -1;
+    /** The arrows in flight: when each lands, and whether it hits. */
+    private final java.util.List<int[]> arrows = new java.util.ArrayList<>();
 
     /** What it chose, read and broke: for the one who looks at the fight. */
     int readings;
@@ -91,6 +104,9 @@ final class Fight {
         this.health = health * cal.casterHealth();
         this.vis = vis * VIS;
         this.foeHealth = foeHealth * cal.foeHealth();
+        if (cal.bow() != null) {
+            attackTime = random.nextInt(cal.bow().interval() + 1);
+        }
     }
 
     double distance() {
@@ -107,8 +123,16 @@ final class Fight {
 
     /** What the caster sees, as the world shows it to the mind (CasterMind.situation). */
     Situation seen() {
-        double speed = veiled > 0 ? 0.0D : GUESSED;
-        return new Situation(distance(), Threat.ticksToBlow(distance(), Threat.BLOW, speed) / TRANCE,
+        double speed = Math.max(cal.guessed(), cal.foeSpeed());
+        double ticks;
+        if (veiled > 0) {
+            ticks = Double.POSITIVE_INFINITY;
+        } else if (cal.bow() != null) {
+            ticks = Threat.ticksToArrow(distance(), speed, drawn, sinceShot, cal.bow().interval());
+        } else {
+            ticks = Threat.ticksToBlow(distance(), Math.max(Threat.BLOW, cal.foeReach()), speed);
+        }
+        return new Situation(distance(), ticks / TRANCE,
                 health / cal.casterHealth(), vis / VIS, foeHealth / cal.foeHealth(), rest == 0);
     }
 
@@ -190,6 +214,7 @@ final class Fight {
 
     private void step() {
         tick++;
+        walked = false;
         vis = Math.min(VIS, vis + VIS_PER_TICK);
         if (cornered > 0) {
             cornered--;
@@ -222,6 +247,7 @@ final class Fight {
         }
         cx = clamp(cx + sign * dx / length * cal.casterSpeed());
         cz = clamp(cz + sign * dz / length * cal.casterSpeed());
+        walked = true;
         if (moving == Stance.BACK_OFF) {
             // Along the wall when the way back is shut: it slides, as a walker does.
             double now = distance();
@@ -239,33 +265,102 @@ final class Fight {
         if (foeCooldown > 0) {
             foeCooldown--;
         }
+        if (sinceShot >= 0) {
+            sinceShot++;
+        }
+        for (java.util.Iterator<int[]> flying = arrows.iterator(); flying.hasNext(); ) {
+            int[] arrow = flying.next();
+            if (arrow[0] <= tick) {
+                flying.remove();
+                if (arrow[1] == 1) {
+                    struck(cal.bow().damage());
+                }
+            }
+        }
         if (veiled > 0) {
             veiled--;
+            drawn = -1;
             return; // it lost the caster: it stands, looking
         }
         if (warded > 0) {
             warded--;
         }
+        if (cal.bow() != null) {
+            archer(cal.bow());
+        } else {
+            melee();
+        }
+    }
+
+    private void melee() {
         double dx = cx - fx;
         double dz = cz - fz;
         double length = Math.hypot(dx, dz);
         double keep = warded > 0 ? Math.max(cal.foeReach(), wardRadius) : cal.foeReach() * 0.8D;
+        if (leapRest > 0) {
+            leapRest--;
+        }
+        if (cal.leaps() && leap == 0 && leapRest == 0 && length >= 2.0D && length <= 4.0D
+                && random.nextInt(5) == 0) {
+            leap = LEAP;
+            leapRest = LEAP + LEAP_REST;
+        }
+        double speed = cal.foeSpeed();
+        if (leap > 0) {
+            leap--;
+            speed = LEAP_SPEED;
+        }
         if (length > keep) {
-            double stepLength = Math.min(cal.foeSpeed(), length - keep);
-            fx = clamp(fx + dx / length * stepLength);
-            fz = clamp(fz + dz / length * stepLength);
+            walk(dx, dz, length, Math.min(speed, length - keep));
         }
         if (distance() <= cal.foeReach() && foeCooldown == 0) {
             foeCooldown = cal.foeCooldown();
-            health -= cal.foeDamage();
-            if (reading != null) {
-                // A blow closes the crack: nothing is read, nothing is spent.
-                reading = null;
-                trance = 0;
-                rest = BROKEN_REST;
-                moving = Stance.WAIT;
-                broken++;
+            struck(cal.foeDamage());
+        }
+    }
+
+    /** A skeleton: it keeps within its bow's reach, backs off when too near, draws, waits, and lets fly. */
+    private void archer(Calibration.Bow bow) {
+        double dx = cx - fx;
+        double dz = cz - fz;
+        double length = Math.max(1.0E-6D, Math.hypot(dx, dz));
+        if (length > bow.reach()) {
+            walk(dx, dz, length, Math.min(cal.foeSpeed(), length - bow.reach()));
+        } else if (length < bow.reach() * 0.75D) {
+            walk(dx, dz, length, -cal.foeSpeed() * 0.5D);
+        }
+        if (distance() > bow.reach()) {
+            drawn = -1;
+            return;
+        }
+        if (drawn >= 0) {
+            if (++drawn >= bow.draw()) {
+                drawn = -1;
+                attackTime = bow.interval();
+                sinceShot = 0;
+                double at = distance();
+                boolean hits = random.nextDouble() < bow.hit(at, walked);
+                arrows.add(new int[]{tick + (int) Math.ceil(at / bow.arrowSpeed()), hits ? 1 : 0});
             }
+        } else if (--attackTime <= 0) {
+            drawn = 0;
+        }
+    }
+
+    private void walk(double dx, double dz, double length, double stepLength) {
+        fx = clamp(fx + dx / length * stepLength);
+        fz = clamp(fz + dz / length * stepLength);
+    }
+
+    /** It takes a blow, or an arrow: one in its trance closes the crack, and nothing is read, nothing spent. */
+    private void struck(double damage) {
+        health -= damage;
+        if (reading != null) {
+            reading = null;
+            trance = 0;
+            rest = BROKEN_REST;
+            moving = Stance.WAIT;
+            broken++;
         }
     }
 

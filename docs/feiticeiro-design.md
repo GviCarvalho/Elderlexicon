@@ -252,8 +252,8 @@ Os anciãos aprendem a lutar **fora do jogo**, numa arena, e o que aprendem fica
 - **A doutrina** é um JSON em `data/elderlexicon/doctrines/<inimigo>.json`. Ele guarda os degraus, quanto cada
   postura vale em cada situação vista pelo menos 30 vezes, e como foi treinado (lutas, sementes, velocidades,
   vitórias). Dá para abrir e ler o que o ancião "pensa".
-- **No jogo.** Só o **ancião** segue doutrina, e só contra um inimigo para o qual há uma (por enquanto, zumbis e
-  parentes: husk, afogado). A cada meio segundo livre ele pergunta à doutrina o que fazer. Se for ler, a mente
+- **No jogo.** Só o **ancião** segue doutrina, e só contra um inimigo para o qual há uma (zumbis e parentes,
+  aranhas e aranhas de caverna, esqueletos e errantes com arco: seção 3.11). A cada meio segundo livre ele pergunta à doutrina o que fazer. Se for ler, a mente
   escolhe a melhor frase para aquela intenção. Se for recuar ou aproximar, os objetivos de movimento obedecem. Numa
   situação que a doutrina nunca viu, ele luta como na 3.9.
 - **Treinar:** `gradlew trainDoctrines --args="--foe zombie --episodes 300000 --half 40 --install"`. Sem `--install`, o
@@ -273,6 +273,44 @@ Os anciãos aprendem a lutar **fora do jogo**, numa arena, e o que aprendem fica
 - **Limites.** A arena não tem quinas, buracos, água nem empurrão. O resultado de cada frase é a previsão da mente
   (`Mind.potency`, `Mind.person`), e não o efeito de verdade. Por isso o que ela aprende precisa ser conferido no
   jogo (GameTest `anElderFollowsItsDoctrine`).
+
+### 3.11 Aranhas e esqueletos (pedido do autor, 13/10/2026)
+
+Cada inimigo pede da arena uma coisa diferente.
+
+- **Aranha.** Corpo a corpo, como o zumbi, porém mais rápida (0,18 bloco por tick, medido), larga (o golpe alcança
+  cerca de 2,9 blocos, contra 1,4 do zumbi) e salta quando está de 2 a 4 blocos. O jogo agora calcula o alcance do
+  golpe pela largura da criatura, como o próprio vanilla (`blowOf`). Para o zumbi, nada muda.
+- **Esqueleto.** O perigo é a flecha, não ele chegar. O arco tem um ciclo: espera 40 ticks depois de uma flecha (20 no
+  difícil), puxa 20 e solta. A flecha voa 1,6 bloco por tick. O mago vê o esqueleto puxar o arco
+  (`isUsingItem`) e percebe quando ele solta, e daí calcula quando vem a próxima flecha (`Threat.ticksToArrow`). Isso
+  entra na situação da doutrina no mesmo lugar do "tempo até o golpe".
+- **A regra da 3.9 não espera flechas.** Na arena, esperar uma janela entre flechas deixava o ancião sem doutrina
+  *pior* que antes (vencia 65%, contra 77%): ele tomava flechadas enquanto esperava. Por isso, sem doutrina, o
+  tempo até o golpe só vale contra quem vem bater.
+- **Como a flecha acerta** é um chute, a ajustar jogando: 90% a 5 blocos, 60% a 15, e 70% disso contra quem anda.
+  O dano é 3,5.
+
+Resultados na arena (80 × 80, 1 milhão de lutas de treino; 3000 lutas, mesmos começos):
+
+| | vence (sorteadas) | vence (frescas) |
+|---|---|---|
+| aranha, como antes | 9% | 0% |
+| aranha, ancião só com a 3.9 | 82% | 73% |
+| aranha, ancião com doutrina | 87% | 83% |
+| esqueleto, como antes (igual à 3.9) | 81% | 77% |
+| esqueleto, ancião com doutrina | 99,9% | 99% |
+
+- **O que a doutrina do esqueleto aprendeu:** lê (`tirar` ou `ferir`) logo depois de uma flecha, quando faltam de
+  1 a 1,5 transe para a próxima, e se move quando a flecha está para vir. Os 99% dependem do chute de que a flecha
+  erra mais quem anda: se no jogo não for assim, o número cai.
+- **No jogo:** as GameTests `anElderFightsASpiderByItsDoctrine` e `anElderFightsASkeletonByItsDoctrine` passam,
+  junto com a do husk. Em duas rodadas, o ancião venceu as três lutas em poucos segundos, perdendo no máximo 4 de
+  24 de vida: com o idioma quase todo, ele tira a vida do corpo do inimigo de longe. Essas lutas são curtas demais para pôr à prova o ritmo da doutrina. A
+  GameTest `theArenaIsSetByTheWorldForSpidersAndSkeletons` mede a aranha e o arco: 6 flechas em 360 ticks, cerca de
+  23 ticks puxando cada uma.
+- **Treinar:** `gradlew trainDoctrines --args="--foe spider --episodes 1000000 --half 40 --install"` (e
+  `--foe skeleton`).
 
 ## 4. O que o evocador sabe
 

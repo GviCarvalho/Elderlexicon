@@ -520,6 +520,32 @@ public final class SpellGameTests {
      */
     @GameTest(template = EMPTY, timeoutTicks = 900, batch = "doctrine")
     public static void anElderFollowsItsDoctrine(GameTestHelper helper) {
+        net.minecraft.world.entity.monster.Husk husk = helper.spawn(EntityType.HUSK, new Vec3(2.5D, 1.0D, 8.5D));
+        anElderFights(helper, husk);
+    }
+
+    /** An elder fights a spider by its doctrine: one that leaps, and whose blow reaches farther (3.11). */
+    @GameTest(template = EMPTY, timeoutTicks = 900, batch = "doctrine_spider")
+    public static void anElderFightsASpiderByItsDoctrine(GameTestHelper helper) {
+        net.minecraft.world.entity.monster.Spider spider = helper.spawn(EntityType.SPIDER, new Vec3(2.5D, 1.0D, 8.5D));
+        // A spider in daylight loses its taste for a fight now and then: this one keeps it.
+        spider.goalSelector.removeAllGoals(goal -> goal instanceof net.minecraft.world.entity.ai.goal.MeleeAttackGoal);
+        spider.goalSelector.addGoal(4, new net.minecraft.world.entity.ai.goal.MeleeAttackGoal(spider, 1.0D, true));
+        anElderFights(helper, spider);
+    }
+
+    /** An elder fights a skeleton by its doctrine: it reads between its arrows (3.11). */
+    @GameTest(template = EMPTY, timeoutTicks = 1200, batch = "doctrine_skeleton")
+    public static void anElderFightsASkeletonByItsDoctrine(GameTestHelper helper) {
+        net.minecraft.world.entity.monster.Skeleton skeleton = helper.spawn(EntityType.SKELETON,
+                new Vec3(2.5D, 1.0D, 2.5D));
+        skeleton.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        skeleton.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+        anElderFights(helper, skeleton);
+    }
+
+    /** An elder sorcerer and {@code foe} hunt each other alone: the elder asks its doctrine, and is not beaten. */
+    private static void anElderFights(GameTestHelper helper, net.minecraft.world.entity.Mob foe) {
         longFloor(helper, 40);
         com.elderlexicon.mod.mind.PhraseCatalog.get();
         Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 14.5D));
@@ -527,25 +553,80 @@ public final class SpellGameTests {
         evoker.setMind(com.elderlexicon.mod.mind.Degree.ELDER, com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
                 com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
                         helper.getLevel().getRandom()));
-        net.minecraft.world.entity.monster.Husk husk = helper.spawn(EntityType.HUSK, new Vec3(2.5D, 1.0D, 8.5D));
-        husk.targetSelector.removeAllGoals(goal -> true);
-        husk.setTarget(evoker);
-        evoker.setTarget(husk);
+        foe.targetSelector.removeAllGoals(goal -> true);
+        foe.setTarget(evoker);
+        evoker.setTarget(foe);
+        String name = foe.getType().getDescriptionId();
         boolean[] followed = new boolean[1];
         helper.onEachTick(() -> {
             followed[0] |= evoker.casterMind().stance().isPresent();
             if (!evoker.isAlive() || evoker.getHealth() < evoker.getMaxHealth() * 0.25F) {
-                helper.fail("the husk beat it: " + evoker.getHealth() + " left");
+                helper.fail("the " + name + " beat it: " + evoker.getHealth() + " left");
             }
         });
         helper.succeedWhen(() -> {
             if (!followed[0]) {
                 helper.fail("it never asked its doctrine");
             }
-            if (husk.isAlive()) {
-                helper.fail("the husk lives: " + husk.getHealth() + " (" + evoker.distanceTo(husk) + " blocks apart)");
+            if (foe.isAlive()) {
+                helper.fail("the " + name + " lives: " + foe.getHealth() + " (" + evoker.distanceTo(foe)
+                        + " blocks apart)");
             }
-            leave(evoker, husk);
+            com.mojang.logging.LogUtils.getLogger().info("DOCTRINE {} beaten, the elder kept {} of {}", name,
+                    evoker.getHealth(), evoker.getMaxHealth());
+            leave(evoker, foe);
+        });
+    }
+
+    /**
+     * What the arena is set by, for a spider and a skeleton: how fast each comes for its prey (the skeleton, until it
+     * stands within its bow's reach), in blocks a tick, and how long the skeleton draws and waits between two arrows.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 400, batch = "calibration_more")
+    public static void theArenaIsSetByTheWorldForSpidersAndSkeletons(GameTestHelper helper) {
+        longFloor(helper, 40);
+        Villager prey = helper.spawn(EntityType.VILLAGER, new Vec3(2.5D, 1.0D, 38.5D));
+        prey.setNoAi(true);
+        prey.setInvulnerable(true);
+        net.minecraft.world.entity.monster.Spider spider = helper.spawn(EntityType.SPIDER, new Vec3(1.0D, 1.0D, 1.5D));
+        spider.targetSelector.removeAllGoals(goal -> true);
+        spider.goalSelector.removeAllGoals(goal -> goal instanceof net.minecraft.world.entity.ai.goal.LeapAtTargetGoal);
+        spider.setTarget(prey);
+        net.minecraft.world.entity.monster.Skeleton skeleton = helper.spawn(EntityType.SKELETON,
+                new Vec3(3.5D, 1.0D, 1.5D));
+        skeleton.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        skeleton.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+        skeleton.targetSelector.removeAllGoals(goal -> true);
+        skeleton.setTarget(prey);
+        double[] from = new double[2];
+        int[] shots = new int[1];
+        int[] drawn = new int[2];
+        boolean[] was = new boolean[1];
+        helper.onEachTick(() -> {
+            boolean drawing = skeleton.isUsingItem();
+            if (drawing) {
+                drawn[0]++;
+            }
+            if (was[0] && !drawing) {
+                shots[0]++;
+            }
+            was[0] = drawing;
+        });
+        helper.runAfterDelay(20, () -> {
+            from[0] = spider.getZ();
+            from[1] = skeleton.getZ();
+        });
+        double[] speeds = new double[2];
+        helper.runAfterDelay(60, () -> {
+            speeds[0] = (spider.getZ() - from[0]) / 40.0D;
+            speeds[1] = (skeleton.getZ() - from[1]) / 40.0D;
+        });
+        helper.runAfterDelay(380, () -> {
+            com.mojang.logging.LogUtils.getLogger().info(
+                    "CALIBRATION spider={} skeleton={} (blocks a tick); skeleton shot {} arrows, drew {} ticks, "
+                            + "{} from the prey", speeds[0], speeds[1], shots[0], drawn[0], skeleton.distanceTo(prey));
+            leave(prey, spider, skeleton);
+            helper.succeed();
         });
     }
 

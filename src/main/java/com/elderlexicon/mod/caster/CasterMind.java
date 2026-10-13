@@ -234,6 +234,9 @@ public final class CasterMind {
     private UUID threatOf;
     @Nullable
     private Vec3 threatWas;
+    /** Its foe's bow, as it watches it: how long it has drawn (-1: it does not), since its last arrow (-1: none seen). */
+    private int foeDrawn = -1;
+    private int foeSinceShot = -1;
     /** What it read last, against whom, and how many times in a row: what an old hand tires of. */
     @Nullable
     private String lastRead;
@@ -608,7 +611,17 @@ public final class CasterMind {
     /** The kind of foe a doctrine is learned against, as the arena names it; null for one it has none for. */
     @Nullable
     static String kindOf(LivingEntity target) {
-        return target instanceof net.minecraft.world.entity.monster.Zombie ? "zombie" : null;
+        if (target instanceof net.minecraft.world.entity.monster.Zombie) {
+            return "zombie";
+        }
+        if (target instanceof net.minecraft.world.entity.monster.Spider) {
+            return "spider";
+        }
+        if (target instanceof net.minecraft.world.entity.monster.AbstractSkeleton
+                && target.isHolding(stack -> stack.getItem() instanceof net.minecraft.world.item.BowItem)) {
+            return "skeleton";
+        }
+        return null;
     }
 
     /** The doctrine it fights {@code target} by: an elder's, against a kind of foe the arena taught. */
@@ -620,9 +633,7 @@ public final class CasterMind {
     /** What it sees of a fight with {@code target}, as the arena saw it. */
     private Doctrine.Situation situation(LivingEntity target) {
         double distance = owner.distanceTo(target);
-        double blow = closesIn(target) ? Threat.ticksToBlow(distance, blowOf(target), speedOf(target))
-                : Double.POSITIVE_INFINITY;
-        return new Doctrine.Situation(distance, blow / TRANCE_TICKS,
+        return new Doctrine.Situation(distance, ticksToHarm(target) / TRANCE_TICKS,
                 owner.getHealth() / Math.max(1.0F, owner.getMaxHealth()), Casters.vis(owner) / Casters.ANCHOR_UMU,
                 target.getHealth() / Math.max(1.0F, target.getMaxHealth()), restTicks == 0);
     }
@@ -689,8 +700,35 @@ public final class CasterMind {
         return target.getUUID().equals(threatOf) ? threat.speed(guessed) : guessed;
     }
 
-    private static double blowOf(LivingEntity target) {
-        return target instanceof net.minecraft.world.entity.player.Player ? Threat.PERSON_BLOW : Threat.BLOW;
+    /** How far {@code target}'s blow reaches: a creature's, as wide as it is (a spider's farther), as vanilla works it out. */
+    private double blowOf(LivingEntity target) {
+        if (target instanceof net.minecraft.world.entity.player.Player) {
+            return Threat.PERSON_BLOW;
+        }
+        double wide = target.getBbWidth() * 2.0D;
+        return Math.max(Threat.BLOW, Math.sqrt(wide * wide + owner.getBbWidth()));
+    }
+
+    /** Whether {@code target} shoots it with a bow (a skeleton): its arrows come as its bow is drawn. */
+    private boolean shootsAt(LivingEntity target) {
+        return target instanceof Mob mob && mob.getTarget() == owner
+                && target instanceof net.minecraft.world.entity.monster.RangedAttackMob
+                && target.isHolding(stack -> stack.getItem() instanceof net.minecraft.world.item.BowItem);
+    }
+
+    /**
+     * In how many ticks {@code target} could hurt it: its blow, when it comes to strike; its arrow, when it shoots
+     * (docs/feiticeiro-design.md, 3.11); never, else.
+     */
+    private double ticksToHarm(LivingEntity target) {
+        double distance = owner.distanceTo(target);
+        if (shootsAt(target)) {
+            int interval = owner.level().getDifficulty() == net.minecraft.world.Difficulty.HARD
+                    ? Threat.BOW_INTERVAL / 2 : Threat.BOW_INTERVAL;
+            return Threat.ticksToArrow(distance, speedOf(target), foeDrawn, foeSinceShot, interval);
+        }
+        return closesIn(target) ? Threat.ticksToBlow(distance, blowOf(target), speedOf(target))
+                : Double.POSITIVE_INFINITY;
     }
 
     /**
@@ -702,6 +740,7 @@ public final class CasterMind {
         if (distance < memory.safeDistance(target.getUUID())) {
             return false;
         }
+        // Only a blow is waited out: waiting out arrows, it is shot while it waits (a doctrine knows when to read).
         double foresight = degree().foresight();
         return foresight <= 0.0D || !closesIn(target)
                 || Threat.ticksToBlow(distance, blowOf(target), speedOf(target)) >= TRANCE_TICKS * foresight;
@@ -734,16 +773,25 @@ public final class CasterMind {
             return;
         }
         Vec3 now = target.position();
+        boolean drawing = target.isUsingItem() && shootsAt(target);
         if (!target.getUUID().equals(threatOf) || threatWas == null) {
             threat.forget();
             threatOf = target.getUUID();
+            foeSinceShot = -1;
         } else {
+            // It stopped drawing: it let fly.
+            if (foeDrawn >= 0 && !drawing) {
+                foeSinceShot = 0;
+            } else if (foeSinceShot >= 0) {
+                foeSinceShot++;
+            }
             Vec3 toward = owner.position().subtract(now).multiply(1.0D, 0.0D, 1.0D);
             if (toward.lengthSqr() > 1.0E-6D) {
                 threat.saw(now.subtract(threatWas).multiply(1.0D, 0.0D, 1.0D).dot(toward.normalize()));
             }
         }
         threatWas = now;
+        foeDrawn = drawing ? target.getTicksUsingItem() : -1;
     }
 
     /** How far around its hand it looks for an energy to draw in. */

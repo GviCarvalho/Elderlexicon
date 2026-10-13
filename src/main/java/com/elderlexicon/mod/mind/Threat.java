@@ -14,6 +14,14 @@ public final class Threat {
     public static final double PER_SPEED = 0.5D;
     /** How fast a person comes at a run (5.6 blocks a second). */
     public static final double PERSON_SPEED = 0.28D;
+    /**
+     * A bow, as a skeleton draws it (normal difficulty): it shoots within fifteen blocks, waits forty ticks after an
+     * arrow (twenty in hard), draws for twenty, and the arrow flies a block and six tenths a tick.
+     */
+    public static final double BOW_REACH = 15.0D;
+    public static final int BOW_INTERVAL = 40;
+    public static final int BOW_DRAW = 20;
+    public static final double ARROW_SPEED = 1.6D;
     /** How much of what it saw a foe come a tick weighs against what it saw before (a running mean). */
     private static final double FRESH = 0.3D;
 
@@ -40,6 +48,22 @@ public final class Threat {
             return Double.POSITIVE_INFINITY;
         }
         return Math.max(0.0D, distance - blow) / speed;
+    }
+
+    /**
+     * In how many ticks an arrow from a foe with a bow lands, {@code distance} away: it draws, or waits since its last
+     * arrow ({@code drawn} the ticks it has drawn, -1 when it does not draw; {@code sinceShot} the ticks since its last
+     * arrow, -1 when it never saw one: then it may draw at once), or first comes within its bow's reach at {@code speed}.
+     */
+    public static double ticksToArrow(double distance, double speed, int drawn, int sinceShot, int interval) {
+        double flight = distance / ARROW_SPEED;
+        if (drawn >= 0) {
+            return Math.max(0, BOW_DRAW - drawn) + flight;
+        }
+        double coming = distance <= BOW_REACH ? 0.0D
+                : speed > 1.0E-6D ? (distance - BOW_REACH) / speed : Double.POSITIVE_INFINITY;
+        double waiting = sinceShot < 0 ? 0.0D : Math.max(0, interval - sinceShot);
+        return Math.max(coming, waiting) + BOW_DRAW + flight;
     }
 
     /**
