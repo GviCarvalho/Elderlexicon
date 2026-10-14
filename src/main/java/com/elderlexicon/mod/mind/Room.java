@@ -32,6 +32,32 @@ public final class Room {
     private Room() {
     }
 
+    /**
+     * The way to walk around a foe at ({@code fx}, {@code fz}), standing at ({@code x}, {@code z}): square to the line
+     * between them, on the side {@code side} (1 or -1) while it has room there, else on the other, if it has more there
+     * (docs/feiticeiro-design.md, 3.16).
+     */
+    public static Way aside(Ground ground, double x, double z, double fx, double fz, int side) {
+        double ax = x - fx;
+        double az = z - fz;
+        double length = Math.hypot(ax, az);
+        if (length < 1.0E-6D) {
+            ax = 1.0D;
+            az = 0.0D;
+        } else {
+            ax /= length;
+            az /= length;
+        }
+        double dx = -az * side;
+        double dz = ax * side;
+        double room = free(ground, x, z, dx, dz);
+        if (room >= CORNERED) {
+            return new Way(dx, dz, room);
+        }
+        double other = free(ground, x, z, -dx, -dz);
+        return other > room ? new Way(-dx, -dz, other) : new Way(dx, dz, room);
+    }
+
     /** How far it could walk from ({@code x}, {@code z}) along ({@code dx}, {@code dz}), a unit step, up to {@link #SIGHT}. */
     public static double free(Ground ground, double x, double z, double dx, double dz) {
         double walked = 0.0D;

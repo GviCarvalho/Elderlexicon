@@ -658,7 +658,7 @@ public final class CasterMind {
             return;
         }
         Set<Doctrine.Stance> possible = java.util.EnumSet.of(Doctrine.Stance.BACK_OFF, Doctrine.Stance.CLOSE_IN,
-                Doctrine.Stance.WAIT);
+                Doctrine.Stance.WAIT, Doctrine.Stance.CIRCLE);
         Map<Intent, Mind.Choice> best = restTicks == 0 && owner.hasLineOfSight(target)
                 ? Mind.bestByIntent(scene(target), personality(), readable(target), learnedAgainst(target)) : Map.of();
         for (Doctrine.Stance each : Doctrine.Stance.values()) {
@@ -1820,6 +1820,8 @@ public final class CasterMind {
         private int repath;
         private int stuck;
         private double farthest;
+        /** Which way it walks around the foe, when it does: 1 or -1. */
+        private int side = 1;
 
         KeepDistanceGoal(double speed, double floor) {
             this.speed = speed;
@@ -1844,9 +1846,27 @@ public final class CasterMind {
                 return false;
             }
             if (stance != null) {
-                return stance == Doctrine.Stance.BACK_OFF;
+                return stance == Doctrine.Stance.BACK_OFF || stance == Doctrine.Stance.CIRCLE;
             }
             return cornered == 0 && owner.distanceTo(target) < wantedDistance(target, floor) + past;
+        }
+
+        /** Its doctrine says to walk around the foe: aside of it, a few steps at a time, keeping to one side. */
+        private void circle(LivingEntity target) {
+            if (--repath > 0) {
+                return;
+            }
+            repath = 5;
+            Room.Way way = Room.aside(ground(), owner.getX(), owner.getZ(), target.getX(), target.getZ(), side);
+            if (way.room() < Room.CORNERED) {
+                return;
+            }
+            // The side it went is the side it keeps, until there is no room there.
+            Vec3 toward = owner.position().subtract(target.position());
+            side = way.dz() * toward.x - way.dx() * toward.z >= 0.0D ? 1 : -1;
+            double far = Math.min(way.room(), 3.0D);
+            owner.getNavigation().moveTo(owner.getX() + way.dx() * far, owner.getY(), owner.getZ() + way.dz() * far,
+                    speed);
         }
 
         @Override
@@ -1869,6 +1889,10 @@ public final class CasterMind {
                 return;
             }
             owner.getLookControl().setLookAt(target, 30.0F, 30.0F);
+            if (stance == Doctrine.Stance.CIRCLE) {
+                circle(target);
+                return;
+            }
             double distance = owner.distanceTo(target);
             if (distance > farthest + 0.5D) {
                 farthest = distance;

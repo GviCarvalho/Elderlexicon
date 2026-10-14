@@ -82,6 +82,8 @@ final class Fight {
     private int stuck;
     private double farthest;
     private Room.Way backWay;
+    private Room.Way circleWay;
+    private int side = 1;
     int cornered;
     /** Whether the caster walked this tick, and which way (an arrow strikes one walking as measured, 3.15). */
     private boolean walked;
@@ -152,7 +154,7 @@ final class Fight {
 
     /** What it can do now: read for whatever a sentence serves now and it can pay, after its rest; always move. */
     Set<Stance> possible() {
-        Set<Stance> possible = EnumSet.of(Stance.BACK_OFF, Stance.CLOSE_IN, Stance.WAIT);
+        Set<Stance> possible = EnumSet.of(Stance.BACK_OFF, Stance.CLOSE_IN, Stance.WAIT, Stance.CIRCLE);
         if (rest > 0) {
             return possible;
         }
@@ -279,6 +281,24 @@ final class Fight {
                 stepX = cx - wasX;
                 stepZ = cz - wasZ;
             }
+            return;
+        }
+        if (moving == Stance.CIRCLE) {
+            // Around the foe, aside of it, keeping to one side while there is room there (as the world does, 3.16).
+            if (tick % 5 == 0 || circleWay == null) {
+                circleWay = Room.aside(hall::open, cx, cz, fx, fz, side);
+                side = circleWay.dz() * (cx - fx) - circleWay.dx() * (cz - fz) >= 0.0D ? 1 : -1;
+            }
+            if (circleWay.room() < Room.CORNERED) {
+                return;
+            }
+            double wasX = cx;
+            double wasZ = cz;
+            cx = hall.clampX(cx + circleWay.dx() * cal.casterSpeed());
+            cz = hall.clampZ(cz + circleWay.dz() * cal.casterSpeed());
+            walked = true;
+            stepX = cx - wasX;
+            stepZ = cz - wasZ;
             return;
         }
         // Backing off: the way with the most room, looked for again as often as the world repaths.

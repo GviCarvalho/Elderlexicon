@@ -466,8 +466,31 @@ era.
 Com isso, contra o esqueleto (3000 lutas frescas): como antes 98% em campo aberto, 84% na sala de 16 × 16, 62% na de
 10 × 10; com a doutrina, 100% em todos os cenários, terminando com 21 a 23 de vida.
 
-**O que isso sugere:** a doutrina só anda de lado quando o recuo pelo melhor caminho a leva para lá (3.12). Uma
-postura própria de "andar de lado" (circular em volta do inimigo, como um jogador faz) seria quase imune a flechas.
+**O que isso sugeria:** uma postura própria de andar de lado, circulando o inimigo como um jogador faz (3.16).
+
+### 3.16 Circular (pedido do autor, 14/10/2026)
+
+Uma postura nova, `CIRCLE`: o mago anda em volta do inimigo, na perpendicular à linha entre os dois.
+
+- **Para que lado.** Para o lado em que estava indo, enquanto houver espaço ali (1,5 bloco livre); senão, para o
+  outro, se ele tiver mais (`Room.aside`, o mesmo olhar de espaço do recuo, 3.12). No jogo, o objetivo que recua
+  também circula quando a doutrina manda, a passos de 3 blocos, refazendo o caminho a cada quarto de segundo. Na
+  arena, cada passo dele conta como "de lado" para as flechas (3.15).
+- **Só pela doutrina.** A regra da 3.9, sem doutrina, não circula. As doutrinas que não conhecem a postura nunca a
+  escolhem (ela vale o mínimo nelas).
+
+Resultados na arena (3000 lutas frescas; doutrina sem círculo → com círculo):
+
+| | campo aberto | sala 16 × 16 | sala 10 × 10 | corredor 5 × 40 |
+|---|---|---|---|---|
+| zumbi | 99,9% → 100% | 79% → **97%** | 8% vence, 92% morre → 3% vence, 54% morre | 75% → 78% |
+| aranha | 99,4% → 99,9% | 0% → 0% | 0% → 0% | 2% → 4% |
+| esqueleto | 100% → 100% (vida no fim 21 → 23) | 100% → 100% (21 → 24) | 100% → 100% | 100% → 100% |
+
+- **Contra o zumbi numa sala,** circular é o que faltava: ele anda em volta, o zumbi corta por dentro e nunca o
+  alcança, e o mago lê quando abre distância. Na sala de 10 × 10, ainda não ganha, mas sobrevive em quase metade das
+  lutas, que acabam empatadas.
+- **Contra a aranha em lugar fechado,** nada muda: ela é rápida demais para isso.
 
 ## 4. O que o evocador sabe
 

@@ -31,7 +31,9 @@ public final class Doctrine {
     /** What it can do at a moment it is free to choose. */
     public enum Stance {
         STRIKE(Intent.STRIKE), DRAW(Intent.DRAW), WARD(Intent.WARD), FLEE(Intent.FLEE), HEAL(Intent.HEAL),
-        VEIL(Intent.VEIL), BACK_OFF(null), CLOSE_IN(null), WAIT(null);
+        VEIL(Intent.VEIL), BACK_OFF(null), CLOSE_IN(null), WAIT(null),
+        /** It walks around the foe, aside of it: an arrow aimed where it stood seldom finds it (3.16). */
+        CIRCLE(null);
 
         private final Intent intent;
 
