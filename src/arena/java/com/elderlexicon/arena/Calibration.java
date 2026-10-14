@@ -35,13 +35,17 @@ public record Calibration(String foe, double foeSpeed, double guessed, double fo
      * @param hitNear    how often an arrow lands on one standing still within five blocks
      * @param hitFar     and at the bow's reach
      * @param moving     how much of that is left against one walking
+     * @param measured   how often it strikes, as measured in the world (3.15); null: the guesses above
      */
     public record Bow(double reach, int interval, int draw, double arrowSpeed, double damage, double hitNear,
-                      double hitFar, double moving) {
+                      double hitFar, double moving, Arrows measured) {
 
-        double hit(double distance, boolean walking) {
+        double hit(double distance, Arrows.Motion motion) {
+            if (measured != null) {
+                return measured.hit(distance, motion);
+            }
             double share = Math.max(0.0D, Math.min(1.0D, (distance - 5.0D) / (reach - 5.0D)));
-            return (hitNear + (hitFar - hitNear) * share) * (walking ? moving : 1.0D);
+            return (hitNear + (hitFar - hitNear) * share) * (motion == Arrows.Motion.STILL ? 1.0D : moving);
         }
     }
 
@@ -73,7 +77,7 @@ public record Calibration(String foe, double foeSpeed, double guessed, double fo
      */
     public static Calibration skeleton() {
         return new Calibration("skeleton", 0.125D, 0.25D * Threat.PER_SPEED, reachOf(0.6D), 2.0D, 20, 20.0D, false,
-                new Bow(15.0D, 40, 20, 1.6D, 3.5D, 0.9D, 0.6D, 0.7D), SORCERER, SORCERER_HEALTH, 0.9D,
+                new Bow(15.0D, 40, 20, 1.6D, 3.5D, 0.9D, 0.6D, 0.7D, null), SORCERER, SORCERER_HEALTH, 0.9D,
                 Damage.FORESEEN, 16.0D);
     }
 
@@ -94,6 +98,17 @@ public record Calibration(String foe, double foeSpeed, double guessed, double fo
     /** How near one unseen it still notices. */
     double noticesHidden() {
         return follow * 0.07D;
+    }
+
+    /** As this, its bow striking as measured (nothing changes for one with no bow, or when nothing was measured). */
+    public Calibration withArrows(Arrows measured) {
+        if (bow == null || measured == null) {
+            return this;
+        }
+        Bow aimed = new Bow(bow.reach(), bow.interval(), bow.draw(), bow.arrowSpeed(), bow.damage(), bow.hitNear(),
+                bow.hitFar(), bow.moving(), measured);
+        return new Calibration(foe, foeSpeed, guessed, foeReach, foeDamage, foeCooldown, foeHealth, leaps, aimed,
+                casterSpeed, casterHealth, hit, damage, follow);
     }
 
     public Calibration withDamage(Damage measured) {

@@ -778,12 +778,12 @@ public final class SpellGameTests {
     /**
      * Which of the fire it reads sets the caster itself burning, and from how far (docs/feiticeiro-design.md, 3.14):
      * each sentence read at a husk six, twelve and twenty blocks off, by a fresh sorcerer; logged ("SELFBURN ...").
-     * The flames it leaves (blocks of light) linger where the tests after are set: it runs only when the environment
-     * asks for it ({@code ELDERLEXICON_CALIBRATE}), as the damage it measures alongside.
+     * The flames it leaves (blocks of light) linger where the tests after are set, and spoil them: it runs only when
+     * the environment asks for it ({@code ELDERLEXICON_PROBE}), not even with the calibration.
      */
     @GameTest(template = EMPTY, timeoutTicks = 1400, batch = "self_burn")
     public static void whatFireSetsTheCasterBurning(GameTestHelper helper) {
-        if (System.getenv("ELDERLEXICON_CALIBRATE") == null) {
+        if (System.getenv("ELDERLEXICON_PROBE") == null) {
             helper.succeed();
             return;
         }
@@ -840,6 +840,232 @@ public final class SpellGameTests {
             }
         }
         helper.runAfterDelay(at + 5, helper::succeed);
+    }
+
+    /** The ways a caster moves while an arrow comes, as the arena knows them: standing, backing off, walking up, aside. */
+    private static final String[] ARROW_MOTIONS = {"still", "away", "toward", "side"};
+    /** How far the skeleton shoots from, how many arrows at each, how fast a caster walks (a sorcerer backing off). */
+    private static final double[] ARROW_DISTANCES = {5.0D, 10.0D, 15.0D};
+    private static final int ARROWS_EACH = 24;
+    private static final double WALK = 0.345D;
+    /** How long after an arrow is loosed it is looked whether it struck. */
+    private static final int ARROW_LANDS = 25;
+
+    /**
+     * How often a skeleton's arrow strikes a caster standing, backing off, walking up or walking aside, five, ten and
+     * fifteen blocks off (docs/feiticeiro-design.md, 3.15): four lanes at once, a skeleton that cannot walk at the head
+     * of each, a sorcerer with no mind of its own moved by hand at a sorcerer's pace from the moment the bow is drawn to
+     * when the arrow lands, placed so it stands at the distance when the arrow is loosed. Struck is hurt; it is healed
+     * between arrows. Written to {@code arena-calibration/arrows-skeleton.json}, for the arena (src/arena/calibration).
+     * It takes minutes: it runs only when the environment asks for it ({@code ELDERLEXICON_CALIBRATE}).
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 7000, batch = "arrows")
+    public static void howOftenAnArrowStrikes(GameTestHelper helper) {
+        if (System.getenv("ELDERLEXICON_CALIBRATE") == null) {
+            helper.succeed();
+            return;
+        }
+        int lanes = ARROW_MOTIONS.length;
+        int width = 16;
+        int length = 32;
+        for (int x = 0; x < lanes * width; x++) {
+            for (int z = 0; z < length; z++) {
+                helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)),
+                        Blocks.STONE.defaultBlockState());
+                for (int y = 1; y < 5; y++) {
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)),
+                            Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
+        Runnable tearDown = () -> helper.getLevel().getEntitiesOfClass(net.minecraft.world.entity.Entity.class,
+                new AABB(helper.absolutePos(BlockPos.ZERO)).expandTowards(lanes * width, 6, length).inflate(2.0D),
+                entity -> entity instanceof net.minecraft.world.entity.projectile.AbstractArrow
+                        || entity instanceof net.minecraft.world.entity.monster.Skeleton
+                        || entity instanceof Sorcerer).forEach(net.minecraft.world.entity.Entity::discard);
+        com.google.gson.JsonArray shotsTaken = new com.google.gson.JsonArray();
+        class Lane {
+            final String motion;
+            final double x;
+            final net.minecraft.world.entity.monster.Skeleton skeleton;
+            final Sorcerer target;
+            int stage;
+            int shots;
+            final int[][] tally = new int[ARROW_DISTANCES.length][2];
+            boolean drawing;
+            int moving;
+            int landsIn = -1;
+            float before;
+            double vx;
+            double vz;
+            int sideSign = 1;
+            double loosedAt;
+
+            Lane(int index) {
+                motion = ARROW_MOTIONS[index];
+                x = index * width + width / 2.0D;
+                skeleton = helper.spawn(EntityType.SKELETON, new Vec3(x, 1.0D, 1.5D));
+                skeleton.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+                skeleton.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+                // The sun wears its helmet through in a few minutes, and then burns it: it does not burn.
+                skeleton.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                        net.minecraft.world.effect.MobEffects.FIRE_RESISTANCE, 1000000, 0, false, false));
+                skeleton.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED)
+                        .setBaseValue(0.0D);
+                skeleton.targetSelector.removeAllGoals(goal -> true);
+                target = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(x, 1.0D, 1.5D + ARROW_DISTANCES[0]));
+                target.setNoAi(true);
+                skeleton.setTarget(target);
+            }
+
+            /** Whether it measured all it had to, or cannot go on (its skeleton or its target is gone). */
+            boolean done() {
+                return stage >= ARROW_DISTANCES.length || !skeleton.isAlive() || !target.isAlive();
+            }
+
+            /** Where it rests between arrows, and where it starts when the bow is drawn, so it is at the distance then. */
+            void rest() {
+                place(x, 1.5D + ARROW_DISTANCES[stage]);
+            }
+
+            void place(double px, double pz) {
+                Vec3 at = helper.absoluteVec(new Vec3(px, 1.0D, pz));
+                target.moveTo(at.x, at.y, at.z, 180.0F, 0.0F);
+                target.setDeltaMovement(Vec3.ZERO);
+            }
+
+            void tick() {
+                if (done() || !skeleton.isAlive() || !target.isAlive()) {
+                    return;
+                }
+                boolean now = skeleton.isUsingItem();
+                double distance = ARROW_DISTANCES[stage];
+                double lead = WALK * 20.0D;
+                if (now && !drawing) {
+                    // The bow is drawn: it starts where walking brings it to the distance as the arrow is loosed.
+                    before = target.getHealth();
+                    vx = 0.0D;
+                    vz = 0.0D;
+                    double startX = x;
+                    double startZ = 1.5D + distance;
+                    switch (motion) {
+                        case "away" -> {
+                            // Never behind the skeleton: near, it is loosed a little farther than asked.
+                            startZ = Math.max(3.5D, startZ - lead);
+                            vz = WALK;
+                        }
+                        case "toward" -> {
+                            startZ += lead;
+                            vz = -WALK;
+                        }
+                        case "side" -> {
+                            sideSign = -sideSign;
+                            startX -= sideSign * lead;
+                            vx = sideSign * WALK;
+                        }
+                        default -> {
+                        }
+                    }
+                    place(startX, startZ);
+                    moving = 20 + ARROW_LANDS;
+                }
+                if (!now && drawing) {
+                    landsIn = ARROW_LANDS;
+                    loosedAt = target.distanceTo(skeleton);
+                }
+                drawing = now;
+                if (moving > 0) {
+                    moving--;
+                    Vec3 here = helper.relativeVec(target.position());
+                    place(here.x + vx, here.z + vz);
+                }
+                if (landsIn > 0 && --landsIn == 0) {
+                    boolean struck = target.getHealth() < before;
+                    tally[stage][0]++;
+                    tally[stage][1] += struck ? 1 : 0;
+                    com.google.gson.JsonObject shot = new com.google.gson.JsonObject();
+                    shot.addProperty("motion", motion);
+                    shot.addProperty("distance", Math.round(loosedAt * 100.0D) / 100.0D);
+                    shot.addProperty("struck", struck);
+                    shotsTaken.add(shot);
+                    target.setHealth(target.getMaxHealth());
+                    target.clearFire();
+                    if (++shots >= ARROWS_EACH) {
+                        shots = 0;
+                        stage++;
+                    }
+                    if (!done()) {
+                        rest();
+                    }
+                }
+            }
+        }
+        List<Lane> all = new java.util.ArrayList<>();
+        for (int i = 0; i < lanes; i++) {
+            all.add(new Lane(i));
+        }
+        boolean[] over = new boolean[1];
+        int[] ticks = new int[1];
+        helper.onEachTick(() -> {
+            if (over[0]) {
+                return;
+            }
+            all.forEach(Lane::tick);
+            ticks[0]++;
+            if (ticks[0] % 500 == 0) {
+                for (Lane lane : all) {
+                    com.mojang.logging.LogUtils.getLogger().info("ARROWS progress t{} {}: stage {} shot {}, skeleton {}, "
+                                    + "target {}, drawing {}, sees {}", ticks[0], lane.motion, lane.stage, lane.shots,
+                            lane.skeleton.isAlive() ? "alive" : "dead", lane.target.isAlive() ? "alive" : "dead",
+                            lane.skeleton.isUsingItem(), lane.skeleton.hasLineOfSight(lane.target));
+                }
+            }
+            // Near the end of its time it writes what it has, and takes it all away, done or not: skeletons left
+            // shooting would spoil the tests after.
+            boolean outOfTime = ticks[0] >= 6900;
+            if (!outOfTime && !all.stream().allMatch(Lane::done)) {
+                return;
+            }
+            over[0] = true;
+            com.google.gson.JsonObject root = new com.google.gson.JsonObject();
+            root.addProperty("foe", "skeleton");
+            root.addProperty("walk", WALK);
+            root.add("distances", new com.google.gson.Gson().toJsonTree(ARROW_DISTANCES));
+            com.google.gson.JsonObject motions = new com.google.gson.JsonObject();
+            for (Lane lane : all) {
+                com.google.gson.JsonArray shares = new com.google.gson.JsonArray();
+                StringBuilder line = new StringBuilder();
+                for (int stage = 0; stage < ARROW_DISTANCES.length; stage++) {
+                    int[] counted = lane.tally[stage];
+                    shares.add(counted[0] == 0 ? 0.0D : counted[1] / (double) counted[0]);
+                    line.append(String.format(java.util.Locale.ROOT, " %.0f blocks: %d of %d;", ARROW_DISTANCES[stage],
+                            counted[1], counted[0]));
+                }
+                motions.add(lane.motion, shares);
+                if (lane.stage < ARROW_DISTANCES.length) {
+                    line.append(" cut short: its ").append(lane.skeleton.isAlive() ? "target" : "skeleton")
+                            .append(" died");
+                }
+                com.mojang.logging.LogUtils.getLogger().info("ARROWS {}:{}", lane.motion, line);
+            }
+            root.add("hit", motions);
+            root.add("shots", shotsTaken);
+            root.addProperty("complete", !outOfTime);
+            tearDown.run();
+            try {
+                java.nio.file.Path file = java.nio.file.Path.of("arena-calibration", "arrows-skeleton.json");
+                java.nio.file.Files.createDirectories(file.getParent());
+                java.nio.file.Files.writeString(file, new com.google.gson.GsonBuilder().setPrettyPrinting().create()
+                        .toJson(root));
+                if (outOfTime) {
+                    helper.fail("out of time: what was measured is written, but not all of it");
+                } else {
+                    helper.succeed();
+                }
+            } catch (java.io.IOException exception) {
+                helper.fail("could not write what was measured: " + exception);
+            }
+        });
     }
 
     /** How long one reading is watched: its throw runs two seconds, and then what it set burning burns a while. */

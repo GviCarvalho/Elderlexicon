@@ -83,8 +83,10 @@ final class Fight {
     private double farthest;
     private Room.Way backWay;
     int cornered;
-    /** Whether the caster walked this tick (an arrow misses one walking more often). */
+    /** Whether the caster walked this tick, and which way (an arrow strikes one walking as measured, 3.15). */
     private boolean walked;
+    private double stepX;
+    private double stepZ;
     /** A spider's leap, and its rest after one. */
     private int leap;
     private int leapRest;
@@ -269,9 +271,13 @@ final class Fight {
             double dz = fz - cz;
             double length = Math.max(1.0E-6D, Math.hypot(dx, dz));
             if (length > cal.foeReach() + 0.5D) {
+                double wasX = cx;
+                double wasZ = cz;
                 cx = hall.clampX(cx + dx / length * cal.casterSpeed());
                 cz = hall.clampZ(cz + dz / length * cal.casterSpeed());
                 walked = true;
+                stepX = cx - wasX;
+                stepZ = cz - wasZ;
             }
             return;
         }
@@ -284,9 +290,13 @@ final class Fight {
             moving = Stance.WAIT;
             return;
         }
+        double wasX = cx;
+        double wasZ = cz;
         cx = hall.clampX(cx + backWay.dx() * cal.casterSpeed());
         cz = hall.clampZ(cz + backWay.dz() * cal.casterSpeed());
         walked = true;
+        stepX = cx - wasX;
+        stepZ = cz - wasZ;
         double now = distance();
         if (now > farthest + 0.5D) {
             farthest = now;
@@ -380,7 +390,9 @@ final class Fight {
                 attackTime = bow.interval();
                 sinceShot = 0;
                 double at = distance();
-                boolean hits = random.nextDouble() < bow.hit(at, walked);
+                Arrows.Motion motion = Arrows.Motion.of(walked, stepX, stepZ, (cx - fx) / Math.max(1.0E-6D, at),
+                        (cz - fz) / Math.max(1.0E-6D, at));
+                boolean hits = random.nextDouble() < bow.hit(at, motion);
                 arrows.add(new int[]{tick + (int) Math.ceil(at / bow.arrowSpeed()), hits ? 1 : 0});
             }
         } else if (--attackTime <= 0) {

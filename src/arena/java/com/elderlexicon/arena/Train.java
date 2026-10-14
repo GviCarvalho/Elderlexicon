@@ -50,7 +50,8 @@ public final class Train {
         Fight.sensible = options.containsKey("sensible");
         // What the elder's sentences do to this foe, as the GameTests measured it (3.13); --foreseen: as the mind guesses.
         if (!options.containsKey("foreseen")) {
-            cal = cal.withDamage(Damage.of(Path.of(options.getOrDefault("calibration", "src/arena/calibration")), foe));
+            Path measured = Path.of(options.getOrDefault("calibration", "src/arena/calibration"));
+            cal = cal.withDamage(Damage.of(measured, foe)).withArrows(Arrows.of(measured));
         }
         Set<String> known = Degree.ELDER.draw(Lexicons.builtIn(), RandomSource.create(seed));
         // The mind that chooses the sentences: cautious by default, for it never pays in flesh (3.13). A doctrine is
@@ -61,7 +62,9 @@ public final class Train {
         System.out.printf(Locale.ROOT, "Arena: %s, %d sentences the elder can read, foe %.3f b/t, caster %.3f b/t, %s%n",
                 foe, repertoire.size(), cal.foeSpeed(), cal.casterSpeed(),
                 openOnly ? "open ground only" : "open ground, halls and corridors");
-        System.out.println("Damage: " + cal.damage() + "; the mind choosing sentences: " + personality.id());
+        System.out.println("Damage: " + cal.damage() + "; the mind choosing sentences: " + personality.id()
+                + (cal.bow() == null ? "" : "; arrows: " + (cal.bow().measured() == null ? "guessed"
+                : cal.bow().measured().toString())));
 
         if (options.containsKey("show")) {
             for (double distance : new double[]{2.0D, 5.0D, 9.0D, 15.0D}) {

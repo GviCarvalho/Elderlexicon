@@ -288,8 +288,8 @@ Cada inimigo pede da arena uma coisa diferente.
 - **A regra da 3.9 não espera flechas.** Na arena, esperar uma janela entre flechas deixava o ancião sem doutrina
   *pior* que antes (vencia 65%, contra 77%): ele tomava flechadas enquanto esperava. Por isso, sem doutrina, o
   tempo até o golpe só vale contra quem vem bater.
-- **Como a flecha acerta** é um chute, a ajustar jogando: 90% a 5 blocos, 60% a 15, e 70% disso contra quem anda.
-  O dano é 3,5.
+- **Como a flecha acerta** era um chute: 90% a 5 blocos, 60% a 15, e 70% disso contra quem anda. Medido depois
+  (3.15). O dano é 3,5.
 
 Resultados na arena (80 × 80, 1 milhão de lutas de treino; 3000 lutas, mesmos começos):
 
@@ -414,9 +414,7 @@ Resultados com o dano medido (3000 lutas frescas; ancião só com a 3.9 → com 
 estava na mente, não na calibração (3.14). Corrigida a mente, as doutrinas calibradas venceram as quatro lutas de
 teste em quatro rodadas seguidas, sem queimaduras, terminando com 19 a 22 de vida de 24.
 
-O que falta: medir quanto a flecha acerta quem anda. A doutrina do esqueleto avança quando a flecha está para vir,
-porque a arena supõe que andar faz a flecha errar mais; no jogo, o esqueleto já acertou o mago andando várias vezes
-seguidas.
+Quanto a flecha acerta quem anda foi medido depois (3.15).
 
 ### 3.14 O fogo que o mago lê contra si (pedido do autor, 14/10/2026)
 
@@ -435,8 +433,41 @@ era.
   está: **por que o fogo trazido fere quem lê, e não o alvo, é uma pergunta para o motor** (`VocantFunctionHandler`),
   se não for o que se quer.
 - **A sonda deixa chamas no mundo** (blocos de luz) onde os testes seguintes são montados, e derrubava 8 a 10 testes
-  de fogo e matéria. Por isso ela só roda com `ELDERLEXICON_CALIBRATE`, como a medição de dano.
+  de fogo e matéria. Por isso ela só roda com `ELDERLEXICON_PROBE` (nem a calibração a liga).
 - **Queimadura legítima:** um esqueleto em chamas atira flechas em chamas, e isso também incendeia o mago.
+
+### 3.15 Quanto a flecha acerta (pedido do autor, 14/10/2026)
+
+- **A medição.** A GameTest `howOftenAnArrowStrikes` (só com `ELDERLEXICON_CALIBRATE`) monta quatro raias lado a
+  lado. Em cada uma, um esqueleto que não anda (velocidade zero, mas mira e atira) atira num Feiticeiro inerte, que é
+  movido à mão a 0,345 bloco por tick, o passo de quem recua. O movimento começa quando o arco é puxado e vai até a
+  flecha chegar, e a partida é escolhida para que, no disparo, ele esteja a 5, 10 ou 15 blocos. Uma raia por
+  movimento: parado, recuando, avançando, de lado. Acertou é perdeu vida; ele é curado entre uma flecha e outra.
+  Tudo vai para `arena-calibration/arrows-skeleton.json`, flecha por flecha, com a distância real no disparo.
+- **O resultado** (três rodadas somadas, `src/arena/calibration/arrows-skeleton.json`):
+
+  | movimento do mago | 5 blocos | 10 blocos | 15 blocos |
+  |---|---|---|---|
+  | parado | 93% | 50% | 27% |
+  | recuando | 42% | 37% | 13% |
+  | avançando | 90% | 42% | 28% |
+  | de lado | 8% | 3% | 0% |
+
+  O chute errou para os dois lados. Parado, o mago leva **bem menos** flechas de longe (27% a 15 blocos, não 60%).
+  Avançar quase não protege. **Andar de lado é quase imune**: o esqueleto mira onde o mago está, não onde vai estar.
+- **A arena** classifica o movimento do mago no instante do disparo, pela direção do passo em relação à flecha
+  (`Arrows.Motion`): parado, recuando, avançando ou de lado. Entre as distâncias medidas, interpola.
+- **O esqueleto da raia de lado morreu cedo** em duas das três rodadas, e não foi o sol (na terceira ele tinha
+  resistência a fogo). Por isso essa raia tem menos flechas (48, 36 e 12). A causa ficou sem explicação.
+- **Medir mexe no mundo.** As medições de dano leem frases de fogo e deixam chamas onde os testes seguintes são
+  montados: numa rodada com `ELDERLEXICON_CALIBRATE`, os testes de chama podem falhar. A suíte normal, sem a
+  variável, não roda nada disso.
+
+Com isso, contra o esqueleto (3000 lutas frescas): como antes 98% em campo aberto, 84% na sala de 16 × 16, 62% na de
+10 × 10; com a doutrina, 100% em todos os cenários, terminando com 21 a 23 de vida.
+
+**O que isso sugere:** a doutrina só anda de lado quando o recuo pelo melhor caminho a leva para lá (3.12). Uma
+postura própria de "andar de lado" (circular em volta do inimigo, como um jogador faz) seria quase imune a flechas.
 
 ## 4. O que o evocador sabe
 
