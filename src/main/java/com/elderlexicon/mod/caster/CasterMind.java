@@ -612,6 +612,9 @@ public final class CasterMind {
     /** The kind of foe a doctrine is learned against, as the arena names it; null for one it has none for. */
     @Nullable
     static String kindOf(LivingEntity target) {
+        if (target instanceof RuneCaster) {
+            return "caster";
+        }
         if (target instanceof net.minecraft.world.entity.monster.Zombie) {
             return "zombie";
         }
@@ -628,7 +631,12 @@ public final class CasterMind {
     /** The doctrine it fights {@code target} by: an elder's, against a kind of foe the arena taught. */
     private Optional<Doctrine> doctrineAgainst(LivingEntity target) {
         String kind = kindOf(target);
-        return degree() == Degree.ELDER && kind != null ? Doctrine.of(kind) : Optional.empty();
+        if (degree() != Degree.ELDER || kind == null) {
+            return Optional.empty();
+        }
+        // Against another caster, the doctrine of its own temper: one who pays in flesh fights otherwise (3.17).
+        Optional<Doctrine> own = Doctrine.of(kind + "-" + personality().id());
+        return own.isPresent() ? own : Doctrine.of(kind);
     }
 
     /** What it sees of a fight with {@code target}, as the arena saw it. */
@@ -650,7 +658,9 @@ public final class CasterMind {
         }
         stance = null;
         stanceChoice = null;
-        if (target == null || !target.isAlive() || conversation != null) {
+        // Burning, it puts the fire out first: no doctrine has a stance for that, and the mind weighs it above all
+        // (docs/feiticeiro-design.md, 3.17).
+        if (target == null || !target.isAlive() || conversation != null || owner.isOnFire()) {
             return;
         }
         Optional<Doctrine> doctrine = doctrineAgainst(target);
@@ -737,6 +747,12 @@ public final class CasterMind {
      */
     private double ticksToHarm(LivingEntity target) {
         double distance = owner.distanceTo(target);
+        if (target instanceof RuneCaster other && other.casterMind().owner.getTarget() == owner) {
+            // Another caster: its trance shows above its head; what it reads comes when the trance ends (3.17).
+            CasterMind mind = other.casterMind();
+            return Threat.ticksToReading(mind.reading != null, mind.tranceTicks, mind.releaseTicks > 0,
+                    mind.restTicks, TRANCE_TICKS);
+        }
         if (shootsAt(target)) {
             int interval = owner.level().getDifficulty() == net.minecraft.world.Difficulty.HARD
                     ? Threat.BOW_INTERVAL / 2 : Threat.BOW_INTERVAL;

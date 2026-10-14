@@ -67,6 +67,21 @@ public final class Threat {
     }
 
     /**
+     * In how many ticks what a caster reads reaches one it reads against (docs/feiticeiro-design.md, 3.17): what is left
+     * of its trance when it is in one ({@code tranceTicks} into it); at once while its lines are released; else its rest
+     * and then a whole trance.
+     */
+    public static double ticksToReading(boolean inTrance, int tranceTicks, boolean releasing, int rest, int trance) {
+        if (inTrance) {
+            return Math.max(0, trance - tranceTicks);
+        }
+        if (releasing) {
+            return 0.0D;
+        }
+        return Math.max(0, rest) + trance;
+    }
+
+    /**
      * How far a foe whose blow reaches {@code blow}, coming at {@code speed}, must stand for a trance of {@code ticks}
      * to end, {@code margin} times over, before it strikes.
      */

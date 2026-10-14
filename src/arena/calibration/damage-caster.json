@@ -1,0 +1,161 @@
+{
+  "foe": "caster",
+  "health": 24.0,
+  "times": 3,
+  "readings": [
+    {
+      "sentence": "firmo quantum 20 iactare",
+      "intent": "STRIKE",
+      "element": "FIRMO",
+      "arena": 8.0,
+      "world": 8.0,
+      "measured": 6.577777862548828,
+      "killed": false,
+      "each": [
+        6.577777862548828,
+        6.577777862548828,
+        6.577777862548828
+      ]
+    },
+    {
+      "sentence": "aura quantum -10 vocant quantum 20 iactare",
+      "intent": "DRAW",
+      "element": "AURA",
+      "arena": 7.263157894736842,
+      "world": 7.2631578947368425,
+      "measured": 9.529824256896973,
+      "killed": false,
+      "each": [
+        9.529824256896973,
+        9.529824256896973,
+        9.529824256896973
+      ]
+    },
+    {
+      "sentence": "firmo quantum 20 iactare surgit ego quantum 0",
+      "intent": "STRIKE",
+      "element": "FIRMO",
+      "arena": 8.0,
+      "world": 8.0,
+      "measured": 6.577777862548828,
+      "killed": false,
+      "each": [
+        6.577777862548828,
+        6.577777862548828,
+        6.577777862548828
+      ]
+    },
+    {
+      "sentence": "aqua quantum -10 vocant quantum 20 iactare",
+      "intent": "STRIKE",
+      "element": "AQUA",
+      "arena": 7.636363636363636,
+      "world": 7.636363636363637,
+      "measured": 9.325252532958984,
+      "killed": false,
+      "each": [
+        9.325252532958984,
+        9.325252532958984,
+        9.325252532958984
+      ]
+    },
+    {
+      "sentence": "igni tenet quantum 20 iactare surgit ego quantum 0",
+      "intent": "STRIKE",
+      "element": "IGNI",
+      "arena": 28.0,
+      "world": 0.0,
+      "measured": 24.0,
+      "killed": true,
+      "each": [
+        24.0,
+        24.0,
+        24.0
+      ]
+    },
+    {
+      "sentence": "firmo quantum -10 vocant quantum 20 iactare",
+      "intent": "DRAW",
+      "element": "FIRMO",
+      "arena": 28.0,
+      "world": 0.0,
+      "measured": 24.0,
+      "killed": true,
+      "each": [
+        24.0,
+        24.0,
+        24.0
+      ]
+    },
+    {
+      "sentence": "igni tenet quantum 20 iactare",
+      "intent": "STRIKE",
+      "element": "IGNI",
+      "arena": 28.0,
+      "world": 0.0,
+      "measured": 24.0,
+      "killed": true,
+      "each": [
+        24.0,
+        24.0,
+        24.0
+      ]
+    },
+    {
+      "sentence": "firmo iactare",
+      "intent": "STRIKE",
+      "element": "FIRMO",
+      "arena": 4.0,
+      "world": 4.0,
+      "measured": 3.2888965606689453,
+      "killed": false,
+      "each": [
+        3.2888965606689453,
+        3.2888965606689453,
+        3.2888965606689453
+      ]
+    },
+    {
+      "sentence": "igni iactare",
+      "intent": "STRIKE",
+      "element": "IGNI",
+      "arena": 4.0,
+      "world": 4.0,
+      "measured": 6.577783584594727,
+      "killed": false,
+      "each": [
+        6.577783584594727,
+        6.577783584594727,
+        6.577783584594727
+      ]
+    },
+    {
+      "sentence": "aqua iactare",
+      "intent": "STRIKE",
+      "element": "AQUA",
+      "arena": 2.0,
+      "world": 2.0,
+      "measured": 3.2888965606689453,
+      "killed": false,
+      "each": [
+        3.2888965606689453,
+        3.2888965606689453,
+        3.2888965606689453
+      ]
+    },
+    {
+      "sentence": "aura iactare",
+      "intent": "STRIKE",
+      "element": "AURA",
+      "arena": 1.0,
+      "world": 1.0,
+      "measured": 2.466665267944336,
+      "killed": false,
+      "each": [
+        2.466665267944336,
+        2.466665267944336,
+        2.466665267944336
+      ]
+    }
+  ]
+}

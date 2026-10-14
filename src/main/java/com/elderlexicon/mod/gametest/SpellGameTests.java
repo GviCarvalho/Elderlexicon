@@ -689,10 +689,20 @@ public final class SpellGameTests {
      */
     private static void anElderFights(GameTestHelper helper, net.minecraft.world.entity.Mob foe, Vec3 at,
                                       Runnable tearDown, int timeout) {
+        anElderFights(helper, foe, at, tearDown, timeout, com.elderlexicon.mod.mind.Personality.AGGRESSIVE, 0.25F);
+    }
+
+    /**
+     * As above, the elder of {@code temper}; beaten when its life falls below {@code beaten} of the whole (in a duel,
+     * where both bleed, only dead is beaten).
+     */
+    private static void anElderFights(GameTestHelper helper, net.minecraft.world.entity.Mob foe, Vec3 at,
+                                      Runnable tearDown, int timeout, com.elderlexicon.mod.mind.Personality temper,
+                                      float beaten) {
         com.elderlexicon.mod.mind.PhraseCatalog.get();
         Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), at);
         evoker.targetSelector.removeAllGoals(goal -> true);
-        evoker.setMind(com.elderlexicon.mod.mind.Degree.ELDER, com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.ELDER, temper,
                 com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
                         helper.getLevel().getRandom()));
         foe.targetSelector.removeAllGoals(goal -> true);
@@ -731,7 +741,7 @@ public final class SpellGameTests {
                         evoker.getHealth(), evoker.casterMind().describeFight());
             }
             String failed = null;
-            if (!evoker.isAlive() || evoker.getHealth() < evoker.getMaxHealth() * 0.25F) {
+            if (!evoker.isAlive() || evoker.getHealth() < evoker.getMaxHealth() * beaten) {
                 failed = "the " + name + " beat it: " + evoker.getHealth() + " left";
             } else if (!foe.isAlive() && !followed[0]) {
                 failed = "it never asked its doctrine";
@@ -767,6 +777,21 @@ public final class SpellGameTests {
     @GameTest(template = EMPTY, timeoutTicks = 6000, batch = "damage_spider")
     public static void whatTheElderDoesToASpider(GameTestHelper helper) {
         measureDamage(helper, EntityType.SPIDER, "spider");
+    }
+
+    /** As {@link #whatTheElderDoesToAHusk}, at another caster: a sorcerer with no mind of its own (3.17). */
+    @GameTest(template = EMPTY, timeoutTicks = 6000, batch = "damage_caster")
+    public static void whatTheElderDoesToACaster(GameTestHelper helper) {
+        measureDamage(helper, ElderLexicon.SORCERER.get(), "caster");
+    }
+
+    /**
+     * Whether the environment asks to measure {@code what} ({@code ELDERLEXICON_CALIBRATE}: 1 for everything, or the
+     * names, by commas: zombie, spider, skeleton, caster, arrows).
+     */
+    private static boolean calibrating(String what) {
+        String asked = System.getenv("ELDERLEXICON_CALIBRATE");
+        return asked != null && (asked.equals("1") || List.of(asked.split(",")).contains(what));
     }
 
     /** As {@link #whatTheElderDoesToAHusk}, at a skeleton (with a helmet: the sun burns it). */
@@ -861,7 +886,7 @@ public final class SpellGameTests {
      */
     @GameTest(template = EMPTY, timeoutTicks = 7000, batch = "arrows")
     public static void howOftenAnArrowStrikes(GameTestHelper helper) {
-        if (System.getenv("ELDERLEXICON_CALIBRATE") == null) {
+        if (!calibrating("arrows")) {
             helper.succeed();
             return;
         }
@@ -1084,7 +1109,7 @@ public final class SpellGameTests {
      */
     private static <T extends net.minecraft.world.entity.Mob> void measureDamage(GameTestHelper helper,
             EntityType<T> kind, String foe) {
-        if (System.getenv("ELDERLEXICON_CALIBRATE") == null) {
+        if (!calibrating(foe)) {
             helper.succeed();
             return;
         }
@@ -1252,6 +1277,24 @@ public final class SpellGameTests {
         caster.lookAt(EntityAnchorArgument.Anchor.EYES, middle);
         caster.setYHeadRot(caster.getYRot());
         caster.setYBodyRot(caster.getYRot());
+    }
+
+    /**
+     * Two casters (docs/feiticeiro-design.md, 3.17): an aggressive elder sorcerer, following its temper's doctrine,
+     * against an aggressive master wizard who knows the same runes and follows none. The elder lives, the wizard does
+     * not. Not required: no doctrine against casters is installed yet, for the arena's caster is not the world's (it
+     * neither backs off nor sets fire where one stands); this says how far from it they are.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 1200, batch = "doctrine_duel", required = false)
+    public static void anElderBeatsAnotherCaster(GameTestHelper helper) {
+        longFloor(helper, 40);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(2.5D, 1.0D, 4.5D));
+        wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.MASTER,
+                com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        anElderFights(helper, wizard, new Vec3(2.5D, 1.0D, 16.5D), () -> {
+        }, 1200, com.elderlexicon.mod.mind.Personality.AGGRESSIVE, 0.0F);
     }
 
     /**

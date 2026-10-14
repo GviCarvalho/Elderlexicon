@@ -492,6 +492,37 @@ Resultados na arena (3000 lutas frescas; doutrina sem círculo → com círculo)
   lutas, que acabam empatadas.
 - **Contra a aranha em lugar fechado,** nada muda: ela é rápida demais para isso.
 
+### 3.17 Mago contra mago (pedido do autor, 14/10/2026)
+
+- **O transe do outro é a ameaça.** Contra outro conjurador, o "tempo até o golpe" é quanto falta para o transe dele
+  acabar (o transe aparece sobre a cabeça), zero enquanto ele solta as linhas, ou o descanso dele mais um transe
+  inteiro (`Threat.ticksToReading`).
+- **Dano medido contra um Feiticeiro** (`whatTheElderDoesToACaster`; `ELDERLEXICON_CALIBRATE=caster` mede só isso):
+  ferir forte 6,6, tirar 9,3 a 9,5, e as frases de desespero matam (24).
+- **A arena ganhou um oponente que lê.** Lê ferir, tirar ou curar com o mesmo transe, descanso e Vis, e anda até o
+  mago quando nada do que lê o alcança. Um golpe quebra o transe dele como o dele quebra o do mago. Não usa barreira,
+  fuga nem sumir, não recua e não põe fogo.
+- **Quem é ferido reencontra quem o feriu, mesmo invisível** (o `HurtByTargetGoal` do jogo ignora a invisibilidade).
+  A arena achava que `sumir` despistava até quem estava sendo ferido; corrigido para todos os inimigos. As doutrinas
+  de zumbi, aranha e esqueleto quase não mudaram com isso.
+- **Doutrina por temperamento.** Contra outro mago, o agressivo, ferido, fica desesperado e mata de uma vez; o
+  cauteloso nunca. Por isso a doutrina contra magos é de um temperamento (`caster-<temperamento>.json`), treinada
+  contra oponentes de temperamento sorteado (`--personality`, `--foe-personality`), e o ancião segue a do seu.
+
+  | temperamento | sem doutrina | com doutrina (arena) |
+  |---|---|---|
+  | agressivo | 63–79% | 97–100% |
+  | trapaceiro | 24–49% | 81–100% (termina com 4 de vida) |
+  | cauteloso | 13–21% | 0–15%: pior |
+
+- **Não instaladas.** No jogo, um ancião agressivo com a doutrina perdeu as quatro lutas contra um Mago mestre
+  agressivo. O Mago de verdade recua e põe fogo no chão sob os pés do ancião, e ele queimava por segundos; nada
+  disso existe no oponente da arena. A GameTest `anElderBeatsAnotherCaster` fica, não obrigatória, para medir a
+  distância. Para instalar, o oponente da arena precisa recuar e incendiar como o do mundo.
+- **Pegando fogo, o mago larga a doutrina.** Nenhuma postura dela é "apagar o fogo": com a doutrina, ele não se
+  apagava. Agora, em chamas, a mente decide. Mesmo assim, na luta registrada, ela leu ferir em vez de sair do fogo;
+  sair de um bloco em chamas é o próximo passo.
+
 ## 4. O que o evocador sabe
 
 - **Repertório por grau.** Aprendiz (2 ou 3 runas), mestre (6 a 8), ancião (quase o léxico inteiro). Cada evocador

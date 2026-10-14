@@ -59,6 +59,18 @@ public final class Train {
         // hard pressed: a cautious elder never does, and would wait for it to the end.
         Personality personality = Personality.byId(options.getOrDefault("personality", "cautious"));
         Repertoire repertoire = new Repertoire(known, personality);
+        // Another caster as the foe reads as an elder of the temper asked (--foe-personality), or, mixed (the default),
+        // of a temper drawn for each fight, as one met in the world (3.17).
+        String foeTemper = options.getOrDefault("foe-personality", "mixed");
+        java.util.List<Repertoire> foes = new java.util.ArrayList<>();
+        if (cal.reads()) {
+            for (Personality temper : Personality.values()) {
+                if (foeTemper.equals("mixed") || temper.id().equals(foeTemper)) {
+                    foes.add(new Repertoire(known, temper));
+                }
+            }
+        }
+        Fight.foeRepertoires = foes;
         System.out.printf(Locale.ROOT, "Arena: %s, %d sentences the elder can read, foe %.3f b/t, caster %.3f b/t, %s%n",
                 foe, repertoire.size(), cal.foeSpeed(), cal.casterSpeed(),
                 openOnly ? "open ground only" : "open ground, halls and corridors");
@@ -101,6 +113,9 @@ public final class Train {
         trained.addProperty("foeSpeed", cal.foeSpeed());
         trained.addProperty("casterSpeed", cal.casterSpeed());
         trained.addProperty("personality", personality.id());
+        if (cal.reads()) {
+            trained.addProperty("foePersonality", foeTemper);
+        }
         trained.addProperty("hurtWeight", Fight.hurtWeight);
         trained.addProperty("damage", cal.damage().toString());
         trained.addProperty("halls", !openOnly);
@@ -144,11 +159,13 @@ public final class Train {
 
         Path out = Path.of(options.getOrDefault("out", "build/doctrines"));
         Files.createDirectories(out);
-        Path file = out.resolve(foe + ".json");
+        // Against another caster, a doctrine is a temper's: what one who pays in flesh can do, one who never does cannot.
+        String name = cal.reads() ? foe + "-" + personality.id() : foe;
+        Path file = out.resolve(name + ".json");
         Files.writeString(file, doctrine.toJson(), StandardCharsets.UTF_8);
         System.out.println("Written: " + file.toAbsolutePath() + " (" + kept.size() + " situations)");
         if (options.containsKey("install")) {
-            Path installed = Path.of("src/main/resources/data/elderlexicon/doctrines").resolve(foe + ".json");
+            Path installed = Path.of("src/main/resources/data/elderlexicon/doctrines").resolve(name + ".json");
             Files.createDirectories(installed.getParent());
             Files.writeString(installed, doctrine.toJson(), StandardCharsets.UTF_8);
             System.out.println("Installed: " + installed.toAbsolutePath());

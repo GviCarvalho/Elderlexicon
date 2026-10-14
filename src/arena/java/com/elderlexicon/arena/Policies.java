@@ -36,11 +36,12 @@ final class Policies {
      */
     static Fight.Policy elder() {
         return (fight, seen, possible) -> {
-            // It keeps off only one that comes to strike: one with a bow follows it anyway.
-            double wanted = fight.cal.bow() != null ? 0.0D : Threat.safeDistance(Math.max(Threat.BLOW,
+            // It keeps off only one that comes to strike: one with a bow, or one that reads, follows it anyway.
+            double wanted = fight.cal.bow() != null || fight.cal.reads() ? 0.0D : Threat.safeDistance(Math.max(Threat.BLOW,
                     fight.cal.foeReach()), Math.max(fight.cal.guessed(), fight.cal.foeSpeed()), Fight.TRANCE,
                     Degree.ELDER.foresight());
-            boolean safe = fight.cal.bow() != null || seen.trancesToBlow() >= Degree.ELDER.foresight();
+            boolean safe = fight.cal.bow() != null || fight.cal.reads()
+                    || seen.trancesToBlow() >= Degree.ELDER.foresight();
             Optional<Mind.Choice> best = fight.bestOfAll();
             if ((safe || fight.cornered > 0) && best.isPresent() && possible.contains(stanceOf(best.get()))) {
                 return stanceOf(best.get());

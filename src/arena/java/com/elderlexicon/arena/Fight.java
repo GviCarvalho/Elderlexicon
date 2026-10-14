@@ -100,9 +100,23 @@ final class Fight {
     /** The arrows in flight: when each lands, and whether it hits. */
     private final java.util.List<int[]> arrows = new java.util.ArrayList<>();
 
+    /**
+     * Another caster as the foe (3.17): what it reads, how far into its trance, its lines still released, its rest, its
+     * Vis, whether it walked this tick; and the mind that chooses its sentences (aggressive: it pays in flesh).
+     */
+    static java.util.List<Repertoire> foeRepertoires = java.util.List.of();
+    private Repertoire foeRepertoire;
+    private Mind.Choice foeReading;
+    private int foeTrance;
+    private int foeRelease;
+    private int foeRest = FIRST_REST;
+    private double foeVis = VIS;
+    private boolean foeWalked;
+
     /** What it chose, read and broke: for the one who looks at the fight. */
     int readings;
     int broken;
+    int foeBroken;
 
     Fight(Calibration cal, Hall hall, Repertoire repertoire, Random random, double distance, double health, double vis,
           double foeHealth) {
@@ -123,6 +137,10 @@ final class Fight {
         }
         // As in the world (CasterMind.REST_TICKS): a fight finds it resting, not with a reading ready.
         rest = FIRST_REST;
+        // Another caster is of one temper or another, drawn for each fight when several are asked.
+        if (!foeRepertoires.isEmpty()) {
+            foeRepertoire = foeRepertoires.get(random.nextInt(foeRepertoires.size()));
+        }
     }
 
     double distance() {
@@ -143,6 +161,8 @@ final class Fight {
         double ticks;
         if (veiled > 0) {
             ticks = Double.POSITIVE_INFINITY;
+        } else if (cal.reads()) {
+            ticks = Threat.ticksToReading(foeReading != null, foeTrance, foeRelease > 0, foeRest, TRANCE);
         } else if (cal.bow() != null) {
             ticks = Threat.ticksToArrow(distance(), speed, drawn, sinceShot, cal.bow().interval());
         } else {
@@ -356,10 +376,90 @@ final class Fight {
         if (warded > 0) {
             warded--;
         }
-        if (cal.bow() != null) {
+        if (cal.reads()) {
+            duelist();
+        } else if (cal.bow() != null) {
             archer(cal.bow());
         } else {
             melee();
+        }
+    }
+
+    /**
+     * Another caster: it reads what strikes, draws or heals best now, as an aggressive elder would, with the trance, the
+     * lines released and the rest any caster has; it walks up when nothing it reads gets there.
+     */
+    private void duelist() {
+        foeWalked = false;
+        foeVis = Math.min(VIS, foeVis + VIS_PER_TICK);
+        if (foeReading != null) {
+            if (++foeTrance >= TRANCE) {
+                foeCast(foeReading);
+            }
+            return;
+        }
+        if (foeRelease > 0) {
+            foeRelease--;
+            return;
+        }
+        if (foeRest > 0) {
+            foeRest--;
+            return;
+        }
+        Mind.Choice best = null;
+        double foeShare = foeHealth / cal.foeHealth();
+        for (Intent intent : new Intent[]{Intent.STRIKE, Intent.DRAW, Intent.HEAL}) {
+            Optional<Mind.Choice> choice = foeRepertoire.best(intent, distance(), foeShare, foeVis);
+            if (choice.isPresent() && (best == null || choice.get().score() > best.score())) {
+                best = choice.get();
+            }
+        }
+        if (best != null && (best.intent() != Intent.HEAL || foeShare < 0.9D)) {
+            foeReading = best;
+            foeTrance = 0;
+            return;
+        }
+        double dx = cx - fx;
+        double dz = cz - fz;
+        double length = Math.max(1.0E-6D, Math.hypot(dx, dz));
+        if (length > 4.0D) {
+            walk(dx, dz, length, Math.min(cal.foeSpeed(), length - 4.0D));
+            foeWalked = true;
+        }
+    }
+
+    /** What the other caster read comes out: it strikes, or draws out of the caster, or heals itself. */
+    private void foeCast(Mind.Choice choice) {
+        foeReading = null;
+        foeTrance = 0;
+        double spent = choice.option().cost();
+        switch (choice.intent()) {
+            case STRIKE -> {
+                if (!walked || random.nextDouble() < cal.hit()) {
+                    struck(cal.damage().harm(choice));
+                }
+            }
+            case DRAW -> {
+                struck(cal.damage().harm(choice));
+                spent += choice.harm() * UMU_PER_HP;
+                foeHealth = Math.min(cal.foeHealth(), foeHealth + Math.max(0.0D, choice.healed()));
+            }
+            case HEAL -> foeHealth = Math.min(cal.foeHealth(), foeHealth + choice.healed());
+            default -> {
+            }
+        }
+        foeVis = Math.max(0.0D, foeVis - spent);
+        foeRelease = choice.option().lastStep() * 5 + Math.max(channel(choice.option()), 6);
+        foeRest = 20 + random.nextInt(20);
+    }
+
+    /** It was struck: another caster in its trance has it broken, and nothing is read. */
+    private void foeStruck() {
+        if (foeReading != null) {
+            foeReading = null;
+            foeTrance = 0;
+            foeRest = BROKEN_REST;
+            foeBroken++;
         }
     }
 
@@ -422,7 +522,7 @@ final class Fight {
 
     /** Whether the foe is on the move now: it comes, or keeps its distance, unless it stands lost or at hand. */
     private boolean foeWalking() {
-        return veiled == 0 && distance() > cal.foeReach();
+        return cal.reads() ? foeWalked : veiled == 0 && distance() > cal.foeReach();
     }
 
     private void walk(double dx, double dz, double length, double stepLength) {
@@ -444,6 +544,7 @@ final class Fight {
 
     private void cast(Mind.Choice choice) {
         Option option = choice.option();
+        double foeAtStart = foeHealth;
         reading = null;
         trance = 0;
         moving = Stance.WAIT;
@@ -492,6 +593,13 @@ final class Fight {
         // Harm read alongside what it read for (a ward that also throws): it lands too.
         if (choice.intent() != Intent.STRIKE && choice.intent() != Intent.DRAW && choice.harm() > 0.0D) {
             foeHealth -= cal.damage().harm(choice);
+        }
+        if (foeHealth < foeAtStart) {
+            // What strikes the other caster in its trance breaks it, as any blow.
+            foeStruck();
+            // One hurt turns on who hurt it, seen or not (vanilla's HurtByTargetGoal ignores invisibility): what the
+            // caster read to vanish, if it hurt too, did not hide it (3.17).
+            veiled = 0;
         }
         vis = Math.max(0.0D, vis - spent);
         release = option.lastStep() * 5 + Math.max(channel(option), 6);
