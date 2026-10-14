@@ -410,16 +410,33 @@ Resultados com o dano medido (3000 lutas frescas; ancião só com a 3.9 → com 
 | aranha | 99% → 99% | 0% → 0% | 4% → 2% |
 | esqueleto | 79% → 100% | 67% → 100% | 69% → 100% |
 
-**Ainda não instaladas.** No jogo, em duas rodadas, as doutrinas calibradas venceram tudo na primeira; na segunda, o
-ancião morreu queimado numa luta em campo aberto. Ele avançou por onde as próprias frases de fogo tinham incendiado o
-chão, e passou a luta tentando se apagar. Isso é da mente no jogo, não da calibração, mas a doutrina nova avança
-mais e se expõe mais. As doutrinas instaladas continuam as de 3.10 e 3.11.
+**Instaladas depois da 3.14.** Na primeira tentativa, o ancião morreu queimado numa luta em campo aberto; a causa
+estava na mente, não na calibração (3.14). Corrigida a mente, as doutrinas calibradas venceram as quatro lutas de
+teste em quatro rodadas seguidas, sem queimaduras, terminando com 19 a 22 de vida de 24.
 
-O que falta, por ordem:
-1. Não andar por fogo: o caminho até o inimigo (`approachGoal`) e o recuo devem evitar blocos em chamas.
-2. Medir quanto a flecha acerta quem anda. A doutrina do esqueleto avança quando a flecha está para vir, porque a
-   arena supõe que andar faz a flecha errar mais; no jogo, o esqueleto acertou o mago andando várias vezes seguidas.
-3. Então instalar as doutrinas calibradas e validar de novo.
+O que falta: medir quanto a flecha acerta quem anda. A doutrina do esqueleto avança quando a flecha está para vir,
+porque a arena supõe que andar faz a flecha errar mais; no jogo, o esqueleto já acertou o mago andando várias vezes
+seguidas.
+
+### 3.14 O fogo que o mago lê contra si (pedido do autor, 14/10/2026)
+
+Numa luta de teste, o ancião morreu queimado. Parecia que ele andava pelo fogo que suas frases deixavam no chão; não
+era.
+
+- **Ele não anda pelo fogo.** As GameTests `aCasterWalksAroundFire` e `aCasterDoesNotWalkThroughFire` põem uma faixa
+  de fogo eterno entre um Feiticeiro e o alvo. Com uma passagem de lado, ele dá a volta e chega perto; sem passagem,
+  fica do lado de fora. O caminho do Minecraft já evita fogo; nada precisou mudar ali.
+- **Ele se queimava lendo.** As lutas de doutrina agora registram no log o momento em que o ancião pega fogo: onde
+  estava, as chamas em volta (nenhuma), a última fonte de dano e a última frase lida (`BURNING ...`). Era sempre
+  `igni quantum 20 24 ubis vocant`, "fogo levado a 24 blocos", lida contra um husk a 12 ou 20 blocos.
+- **`igni ... vocant` não fere quem é mirado.** A GameTest `whatFireSetsTheCasterBurning` leu cada variante contra um
+  husk a 6, 12 e 20 blocos: o husk não perdeu nada em nenhuma, e quem leu perdeu de 1 a 4 de vida. A mente contava
+  "fogo trazido para onde se mira" como golpe (`Mind.intentOf`); deixou de contar. O motor de feitiços ficou como
+  está: **por que o fogo trazido fere quem lê, e não o alvo, é uma pergunta para o motor** (`VocantFunctionHandler`),
+  se não for o que se quer.
+- **A sonda deixa chamas no mundo** (blocos de luz) onde os testes seguintes são montados, e derrubava 8 a 10 testes
+  de fogo e matéria. Por isso ela só roda com `ELDERLEXICON_CALIBRATE`, como a medição de dano.
+- **Queimadura legítima:** um esqueleto em chamas atira flechas em chamas, e isso também incendeia o mago.
 
 ## 4. O que o evocador sabe
 

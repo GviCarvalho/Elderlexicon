@@ -464,6 +464,93 @@ public final class SpellGameTests {
     }
 
     /**
+     * A caster walks around fire, not through it (docs/feiticeiro-design.md, 3.14): a strip of fire burns across its way
+     * to what it hunts, with a gap at one side; it goes by the gap, comes near enough to read, and never catches fire.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 600, batch = "fire_detour")
+    public static void aCasterWalksAroundFire(GameTestHelper helper) {
+        fireAcrossTheWay(helper, true);
+    }
+
+    /**
+     * Fire across the whole of its way: it does not walk through, though it cannot come near (3.14). Fire it set at
+     * what it hunts is fire like any other.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 600, batch = "fire_wall")
+    public static void aCasterDoesNotWalkThroughFire(GameTestHelper helper) {
+        fireAcrossTheWay(helper, false);
+    }
+
+    /**
+     * A sorcerer that throws twenty blocks hunts a villager thirty off, with a strip of everlasting fire across the way:
+     * with a gap at one side ({@code gap}), it goes by it and comes near; with none, it waits outside the fire. Either
+     * way it never catches fire.
+     */
+    private static void fireAcrossTheWay(GameTestHelper helper, boolean gap) {
+        // Nine wide, thirty-two long; a strip of everlasting fire (on netherrack) across it at twelve, but for the
+        // last two blocks of one side when there is a gap.
+        for (int x = 0; x < 9; x++) {
+            for (int z = 0; z < 32; z++) {
+                boolean strip = z >= 11 && z <= 13 && (x < 7 || !gap);
+                helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)),
+                        strip ? Blocks.NETHERRACK.defaultBlockState() : Blocks.STONE.defaultBlockState());
+                for (int y = 1; y < 4; y++) {
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)),
+                            y == 1 && strip ? Blocks.FIRE.defaultBlockState() : Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
+        Villager prey = helper.spawn(EntityType.VILLAGER, new Vec3(3.5D, 1.0D, 30.5D));
+        prey.setNoAi(true);
+        prey.setInvulnerable(true);
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(3.5D, 1.0D, 2.5D));
+        evoker.targetSelector.removeAllGoals(goal -> true);
+        // It throws twenty blocks and cannot write a distance: it must walk past the fire to read.
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE, com.elderlexicon.mod.mind.Personality.CAUTIOUS,
+                Set.of("igni", "iactare", "vocant"));
+        evoker.setTarget(prey);
+        // The fire is put out when the test ends, either way: everlasting, it would burn into the tests after.
+        Runnable putOut = () -> {
+            leave(evoker, prey);
+            for (int x = 0; x < 9; x++) {
+                for (int z = 11; z <= 13; z++) {
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 1, z)),
+                            Blocks.AIR.defaultBlockState());
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)),
+                            Blocks.STONE.defaultBlockState());
+                }
+            }
+        };
+        int[] ticks = new int[1];
+        boolean[] over = new boolean[1];
+        helper.onEachTick(() -> {
+            if (over[0]) {
+                return;
+            }
+            ticks[0]++;
+            String failed = null;
+            if (evoker.isOnFire() || helper.getLevel().getBlockState(evoker.blockPosition()).is(Blocks.FIRE)) {
+                failed = "it walked into the fire, at " + evoker.blockPosition();
+            } else if (ticks[0] >= 590) {
+                if (gap) {
+                    failed = "it has not come near: " + evoker.distanceTo(prey) + " blocks, at "
+                            + evoker.blockPosition();
+                }
+            } else if (!gap || evoker.distanceTo(prey) > com.elderlexicon.mod.mind.Reach.THROW - 1.0D) {
+                return;
+            }
+            over[0] = true;
+            putOut.run();
+            if (failed != null) {
+                helper.fail(failed);
+            } else {
+                helper.succeed();
+            }
+        });
+    }
+
+    /**
      * What it throws gets twenty blocks (docs/feiticeiro-design.md, 3.7): one that cannot write a distance walks up to
      * a target farther than that, rather than throwing what would fall short.
      */
@@ -615,10 +702,29 @@ public final class SpellGameTests {
         boolean[] followed = new boolean[1];
         int[] ticks = new int[1];
         boolean[] over = new boolean[1];
+        boolean[] burning = new boolean[1];
         helper.onEachTick(() -> {
             if (over[0]) {
                 return;
             }
+            if (evoker.isOnFire() && !burning[0]) {
+                // What set it burning: where it stands, the flames near, what it reads, what last hurt it.
+                BlockPos feet = evoker.blockPosition();
+                long flames = BlockPos.betweenClosedStream(feet.offset(-3, -1, -3), feet.offset(3, 2, 3))
+                        .filter(pos -> helper.getLevel().getBlockState(pos).is(net.minecraft.tags.BlockTags.FIRE))
+                        .count();
+                net.minecraft.world.damagesource.DamageSource last = evoker.getLastDamageSource();
+                com.mojang.logging.LogUtils.getLogger().info(
+                        "BURNING {} t{}: at {} in {}, {} flames within 3, foe {} blocks off and {}, last hurt by {}; "
+                                + "read last: {}; {}",
+                        name, ticks[0], feet, helper.getLevel().getBlockState(feet), flames, evoker.distanceTo(foe),
+                        foe.isOnFire() ? "burning" : "not burning", last == null ? "nothing" : last.getMsgId()
+                                + (last.getEntity() == null ? "" : " of " + last.getEntity().getType().getDescriptionId()),
+                        evoker.casterMind().lastChoice().map(choice -> "\"" + choice.option().name() + "\" for "
+                                + choice.intent() + " looking " + choice.aim()).orElse("nothing"),
+                        evoker.casterMind().describeFight());
+            }
+            burning[0] = evoker.isOnFire();
             followed[0] |= evoker.casterMind().stance().isPresent();
             if (++ticks[0] % 20 == 0 && evoker.isAlive()) {
                 com.mojang.logging.LogUtils.getLogger().info("FIGHT {} t{} life {}: {}", name, ticks[0],
@@ -667,6 +773,73 @@ public final class SpellGameTests {
     @GameTest(template = EMPTY, timeoutTicks = 6000, batch = "damage_skeleton")
     public static void whatTheElderDoesToASkeleton(GameTestHelper helper) {
         measureDamage(helper, EntityType.SKELETON, "skeleton");
+    }
+
+    /**
+     * Which of the fire it reads sets the caster itself burning, and from how far (docs/feiticeiro-design.md, 3.14):
+     * each sentence read at a husk six, twelve and twenty blocks off, by a fresh sorcerer; logged ("SELFBURN ...").
+     * The flames it leaves (blocks of light) linger where the tests after are set: it runs only when the environment
+     * asks for it ({@code ELDERLEXICON_CALIBRATE}), as the damage it measures alongside.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 1400, batch = "self_burn")
+    public static void whatFireSetsTheCasterBurning(GameTestHelper helper) {
+        if (System.getenv("ELDERLEXICON_CALIBRATE") == null) {
+            helper.succeed();
+            return;
+        }
+        longFloor(helper, 24);
+        List<String> sentences = List.of("igni quantum 20 24 ubis vocant", "igni quantum 20 16 ubis vocant",
+                "igni quantum 20 vocant", "igni tenet quantum 20 iactare", "igni quantum 20 iactare");
+        double[] distances = {6.0D, 12.0D, 20.0D};
+        int at = 1;
+        for (String sentence : sentences) {
+            for (double distance : distances) {
+                int start = at;
+                Object[] pair = new Object[2];
+                helper.runAfterDelay(start, () -> {
+                    for (int x = 0; x < 5; x++) {
+                        for (int z = 0; z < 24; z++) {
+                            for (int y = 1; y < 4; y++) {
+                                helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)),
+                                        Blocks.AIR.defaultBlockState());
+                            }
+                        }
+                    }
+                    Sorcerer caster = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 1.5D));
+                    caster.setNoAi(true);
+                    net.minecraft.world.entity.monster.Husk husk = helper.spawn(EntityType.HUSK,
+                            new Vec3(2.5D, 1.0D, 1.5D + distance));
+                    husk.setNoAi(true);
+                    pair[0] = caster;
+                    pair[1] = husk;
+                    aimFrom(caster, husk);
+                    new SpellCastingService().castBlock(caster, List.of(new SpellCastingService.TimedSpell(
+                            List.of(sentence.split(" ")), 0)), later -> {
+                    });
+                });
+                boolean[] burned = new boolean[1];
+                for (int tick = 1; tick < 60; tick++) {
+                    helper.runAfterDelay(start + tick, () -> {
+                        if (pair[0] instanceof Sorcerer caster && pair[1] instanceof net.minecraft.world.entity.LivingEntity husk) {
+                            burned[0] |= caster.isOnFire();
+                            if (husk.isAlive()) {
+                                aimFrom(caster, husk);
+                            }
+                        }
+                    });
+                }
+                helper.runAfterDelay(start + 70, () -> {
+                    Sorcerer caster = (Sorcerer) pair[0];
+                    net.minecraft.world.entity.LivingEntity husk = (net.minecraft.world.entity.LivingEntity) pair[1];
+                    com.mojang.logging.LogUtils.getLogger().info(
+                            "SELFBURN sentence={} distance={} casterBurned={} casterLife={} huskLife={}", sentence,
+                            distance, burned[0], caster.getHealth(), husk.isAlive() ? husk.getHealth() : 0.0F);
+                    leave(caster, husk);
+                });
+                at += 80;
+            }
+        }
+        helper.runAfterDelay(at + 5, helper::succeed);
     }
 
     /** How long one reading is watched: its throw runs two seconds, and then what it set burning burns a while. */

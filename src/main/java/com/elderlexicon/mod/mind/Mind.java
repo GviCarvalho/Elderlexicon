@@ -357,8 +357,8 @@ public final class Mind {
     /**
      * What an act serves looking {@code aim}, by what its verb does (its operation), never by its rune:
      * <ul>
-     *   <li>at the target: throwing at the aim hurts (so does fire made where the aim is, and Vis condensed), drawing in
-     *       from the aim draws out of a body, what carries a mark brought there calls the band;</li>
+     *   <li>at the target: throwing at the aim hurts (so does Vis condensed; fire brought where it looks does not,
+     *       3.14), drawing in from the aim draws out of a body, what carries a mark brought there calls the band;</li>
      *   <li>at the sky: drawing in, at no body, draws out of the world into the caster, and heals it;</li>
      *   <li>away: the caster thrown ({@code ego iactare}) gets away;</li>
      *   <li>at its feet: water brought there puts out the fire on it;</li>
@@ -398,9 +398,9 @@ public final class Mind {
             return Intent.STRIKE;
         }
         if (operation.equals("manifest") && !act.reversed() && act.toward() == Act.Toward.AIM && act.mark() == null) {
-            if (act.element() == VitaElement.IGNI) {
-                return Intent.STRIKE;
-            }
+            // Fire brought where it looks hurts no creature looked at: measured, a husk six to twenty blocks off lost
+            // nothing, and the one reading it lost life and caught fire in a fight (docs/feiticeiro-design.md, 3.14).
+            // It is no strike.
             if (act.element() == VitaElement.AQUA) {
                 return Intent.DOUSE;
             }
