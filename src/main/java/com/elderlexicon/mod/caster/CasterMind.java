@@ -666,7 +666,7 @@ public final class CasterMind {
                 possible.add(each);
             }
         }
-        doctrine.get().choose(situation(target), possible).ifPresent(chosen -> {
+        doctrine.get().decide(situation(target), possible).ifPresent(chosen -> {
             stance = chosen;
             stanceChoice = chosen.intent() == null ? null : best.get(chosen.intent());
         });

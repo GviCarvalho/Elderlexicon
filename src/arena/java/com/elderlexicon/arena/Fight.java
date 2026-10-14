@@ -24,6 +24,9 @@ import java.util.Set;
  */
 final class Fight {
 
+    /** Whether only what is sensible is weighed (Doctrine.sensible), in learning and in following. */
+    static boolean sensible;
+
     /** What chooses a stance when the caster is free. */
     interface Policy {
         Stance choose(Fight fight, Situation seen, Set<Stance> possible);
@@ -47,6 +50,8 @@ final class Fight {
     private static final int LEAP = 8;
     private static final double LEAP_SPEED = 0.35D;
     private static final int LEAP_REST = 20;
+    /** How long a foe takes to find again one unseen it still notices (its target goals look twice a second). */
+    private static final int NOTICE_TICKS = 10;
     /** After how long backing away without getting farther it is cornered, and for how long. */
     private static final int STUCK = 30;
     private static final int CORNERED = 60;
@@ -83,6 +88,7 @@ final class Fight {
     /** A spider's leap, and its rest after one. */
     private int leap;
     private int leapRest;
+    private int noticing;
     /** A bow: how long it still waits, how long it has drawn (-1: it does not), since its last arrow (-1: none seen). */
     private int attackTime;
     private int drawn = -1;
@@ -174,7 +180,7 @@ final class Fight {
         while (!over()) {
             if (free() && (tick % DECIDE_EVERY == 0 || moving == null)) {
                 seen = seen();
-                possible = possible();
+                possible = sensible ? com.elderlexicon.mod.mind.Doctrine.sensible(seen, possible()) : possible();
                 if (chosen) {
                     policy.reward(this, reward(foeBefore, before), seen, possible, false);
                 }
@@ -187,7 +193,9 @@ final class Fight {
         }
         if (chosen) {
             double end = won() ? 1.0D : health <= 0.0D ? -1.0D : 0.0D;
-            policy.reward(this, reward(foeBefore, before) + end, seen(), possible(), true);
+            Situation last = seen();
+            policy.reward(this, reward(foeBefore, before) + end, last,
+                    sensible ? com.elderlexicon.mod.mind.Doctrine.sensible(last, possible()) : possible(), true);
         }
     }
 
@@ -308,8 +316,13 @@ final class Fight {
         if (veiled > 0) {
             veiled--;
             drawn = -1;
-            return; // it lost the caster: it stands, looking
+            // It lost the caster: it stands, looking; but one unseen at hand it still notices, and finds again.
+            if (distance() <= cal.noticesHidden() && ++noticing >= NOTICE_TICKS) {
+                veiled = 0;
+            }
+            return;
         }
+        noticing = 0;
         if (warded > 0) {
             warded--;
         }
@@ -375,6 +388,11 @@ final class Fight {
         }
     }
 
+    /** Whether the foe is on the move now: it comes, or keeps its distance, unless it stands lost or at hand. */
+    private boolean foeWalking() {
+        return veiled == 0 && distance() > cal.foeReach();
+    }
+
     private void walk(double dx, double dz, double length, double stepLength) {
         fx = hall.clampX(fx + dx / length * stepLength);
         fz = hall.clampZ(fz + dz / length * stepLength);
@@ -400,12 +418,13 @@ final class Fight {
         double spent = option.cost();
         switch (choice.intent()) {
             case STRIKE -> {
-                if (random.nextDouble() < cal.hit()) {
-                    foeHealth -= choice.harm();
+                // What was measured, on one standing still; one walking is missed now and then.
+                if (!foeWalking() || random.nextDouble() < cal.hit()) {
+                    foeHealth -= cal.damage().harm(choice);
                 }
             }
             case DRAW -> {
-                foeHealth -= choice.harm();
+                foeHealth -= cal.damage().harm(choice);
                 spent += choice.harm() * UMU_PER_HP;
                 health = Math.min(cal.casterHealth(), health + Math.max(0.0D, choice.healed()));
             }
@@ -440,7 +459,7 @@ final class Fight {
         }
         // Harm read alongside what it read for (a ward that also throws): it lands too.
         if (choice.intent() != Intent.STRIKE && choice.intent() != Intent.DRAW && choice.harm() > 0.0D) {
-            foeHealth -= choice.harm();
+            foeHealth -= cal.damage().harm(choice);
         }
         vis = Math.max(0.0D, vis - spent);
         release = option.lastStep() * 5 + Math.max(channel(option), 6);

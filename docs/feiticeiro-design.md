@@ -364,6 +364,63 @@ salas):
   escalava a parede e sumia de vista. As lutas de doutrina registram no log, a cada segundo, o que o ancião vê e
   decide (`describeFight`). Testes de unidade: `RoomTest`.
 
+### 3.13 O dano medido (pedido do autor, 13/10/2026)
+
+A arena usava como dano de cada frase a previsão da mente (`Mind.potency` para arremessos, um chute "a ajustar
+jogando"; `Mind.person` para tirar, o corpo de uma pessoa). Agora ela usa o que foi medido no jogo.
+
+- **A medição.** As GameTests `whatTheElderDoesToAHusk`, `...ToASpider` e `...ToASkeleton` montam uma lista: as
+  frases que o ancião da arena lê para ferir e para tirar (perto e longe, inteiro, ferido e desesperado, com Vis cheia
+  e pouca) e os arremessos simples de cada energia. Um Feiticeiro novo lê cada frase num alvo parado a 6 blocos, 3
+  vezes, e fica a mediana. Tudo vai para `run/arena-calibration/damage-<inimigo>.json`, com o previsto ao lado.
+  A distância não muda nada (6 e 12 blocos deram o mesmo). A medição leva minutos, então só roda com a variável de
+  ambiente `ELDERLEXICON_CALIBRATE` definida; sem ela, os testes passam na hora.
+- **A arena usa a tabela** (`src/arena/calibration`, `Damage`). Frase medida faz o que foi medido. Frase não medida
+  faz o previsto vezes a mediana de medido/previsto das medidas da mesma intenção e energia. `--foreseen` volta ao
+  previsto.
+
+O que a medição mostrou (dano em pontos de vida; previsto pela arena → medido):
+
+| frase | husk (20) | aranha (16) | esqueleto (20) |
+|---|---|---|---|
+| `firmo quantum 20 iactare` | 8 → 7,5 | 8 → 13,6 | 8 → 7,8 |
+| `aqua quantum -10 vocant quantum 20 iactare` | 7,6 → 13,7 | 7,6 → 13,1 | 7,6 → mata |
+| `firmo quantum -10 vocant quantum 20 iactare` | 28 → 14,3 | 28 → mata | 28 → 10,3 |
+| `igni tenet quantum 20 iactare` (só desesperado) | 28 → mata | 28 → mata | 28 → mata |
+| `igni iactare` / `aqua iactare` / `aura iactare` | 4 / 2 / 1 → 6,8 / 4 / 2,8 | → 7,1 / 4 / 3 | → 6 / 4 / 2,9 |
+
+O arremesso de terra está bem previsto, menos contra a aranha. Tirar (com o arremesso que vem junto) faz quase o
+dobro do previsto. Fogo, água e ar fazem de 1,7 a 2,8 vezes mais que o chute. **No jogo, `Mind.potency` erra do
+mesmo jeito**, o que puxa os conjuradores para a terra; corrigi-lo muda o equilíbrio de todos, e fica para decidir.
+
+- **A mente que treina é a cautelosa** (`--personality`). O rastreamento mostrou que a doutrina, treinada com um
+  ancião agressivo, planejava apanhar até ficar desesperado e então pagar com a carne o golpe letal. O cauteloso
+  nunca fica desesperado: ele seguiria esse plano até morrer. Treinada com a mente cautelosa, a doutrina não conta
+  com o desespero e vence o mesmo tanto, terminando com mais vida.
+- **`sumir` como no mod.** Quem foi despistado ainda nota um invisível a 7% do seu alcance de visão (zumbi: 2,5
+  blocos; aranha e esqueleto: 1,1), e o reencontra. A arena tratava `sumir` como perder o mago de vez.
+- **Esperar encostado.** Uma regra "com o inimigo a menos de 3 blocos e espaço para recuar, nunca esperar nem
+  aproximar" (`--sensible`) piorou a doutrina na arena nas duas vezes em que foi testada. Fica como opção, desligada.
+
+Resultados com o dano medido (3000 lutas frescas; ancião só com a 3.9 → com doutrina):
+
+| | campo aberto | sala 16 × 16 | corredor 5 × 40 |
+|---|---|---|---|
+| zumbi | 99% → 99,9% (23 de vida no fim) | 16% → 79% | 32% → 75% |
+| aranha | 99% → 99% | 0% → 0% | 4% → 2% |
+| esqueleto | 79% → 100% | 67% → 100% | 69% → 100% |
+
+**Ainda não instaladas.** No jogo, em duas rodadas, as doutrinas calibradas venceram tudo na primeira; na segunda, o
+ancião morreu queimado numa luta em campo aberto. Ele avançou por onde as próprias frases de fogo tinham incendiado o
+chão, e passou a luta tentando se apagar. Isso é da mente no jogo, não da calibração, mas a doutrina nova avança
+mais e se expõe mais. As doutrinas instaladas continuam as de 3.10 e 3.11.
+
+O que falta, por ordem:
+1. Não andar por fogo: o caminho até o inimigo (`approachGoal`) e o recuo devem evitar blocos em chamas.
+2. Medir quanto a flecha acerta quem anda. A doutrina do esqueleto avança quando a flecha está para vir, porque a
+   arena supõe que andar faz a flecha errar mais; no jogo, o esqueleto acertou o mago andando várias vezes seguidas.
+3. Então instalar as doutrinas calibradas e validar de novo.
+
 ## 4. O que o evocador sabe
 
 - **Repertório por grau.** Aprendiz (2 ou 3 runas), mestre (6 a 8), ancião (quase o léxico inteiro). Cada evocador

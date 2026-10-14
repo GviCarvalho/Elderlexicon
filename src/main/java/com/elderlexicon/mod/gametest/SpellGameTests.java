@@ -521,25 +521,19 @@ public final class SpellGameTests {
     @GameTest(template = EMPTY, timeoutTicks = 900, batch = "doctrine")
     public static void anElderFollowsItsDoctrine(GameTestHelper helper) {
         net.minecraft.world.entity.monster.Husk husk = helper.spawn(EntityType.HUSK, new Vec3(2.5D, 1.0D, 8.5D));
-        anElderFights(helper, husk);
+        anElderFights(helper, husk, 900);
     }
 
     /** An elder fights a spider by its doctrine: one that leaps, and whose blow reaches farther (3.11). */
     @GameTest(template = EMPTY, timeoutTicks = 900, batch = "doctrine_spider")
     public static void anElderFightsASpiderByItsDoctrine(GameTestHelper helper) {
         // A field walled and roofed at forty: a spider knocked back neither falls off a narrow floor nor climbs out.
-        walledFloor(helper, 40);
-        for (int x = 0; x <= 41; x++) {
-            for (int z = 0; z <= 41; z++) {
-                helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 4, z)),
-                        Blocks.STONE.defaultBlockState());
-            }
-        }
+        Runnable tearDown = walledFloor(helper, 40, true);
         net.minecraft.world.entity.monster.Spider spider = helper.spawn(EntityType.SPIDER, new Vec3(20.5D, 1.0D, 14.5D));
         // A spider in daylight loses its taste for a fight now and then: this one keeps it.
         spider.goalSelector.removeAllGoals(goal -> goal instanceof net.minecraft.world.entity.ai.goal.MeleeAttackGoal);
         spider.goalSelector.addGoal(4, new net.minecraft.world.entity.ai.goal.MeleeAttackGoal(spider, 1.0D, true));
-        anElderFights(helper, spider, new Vec3(20.5D, 1.0D, 22.5D));
+        anElderFights(helper, spider, new Vec3(20.5D, 1.0D, 22.5D), tearDown, 900);
     }
 
     /** An elder fights a skeleton by its doctrine: it reads between its arrows (3.11). */
@@ -549,13 +543,14 @@ public final class SpellGameTests {
                 new Vec3(2.5D, 1.0D, 2.5D));
         skeleton.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         skeleton.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
-        anElderFights(helper, skeleton);
+        anElderFights(helper, skeleton, 1200);
     }
 
     /** An elder sorcerer and {@code foe} hunt each other alone: the elder asks its doctrine, and is not beaten. */
-    private static void anElderFights(GameTestHelper helper, net.minecraft.world.entity.Mob foe) {
+    private static void anElderFights(GameTestHelper helper, net.minecraft.world.entity.Mob foe, int timeout) {
         longFloor(helper, 40);
-        anElderFights(helper, foe, new Vec3(2.5D, 1.0D, 14.5D));
+        anElderFights(helper, foe, new Vec3(2.5D, 1.0D, 14.5D), () -> {
+        }, timeout);
     }
 
     /**
@@ -566,27 +561,47 @@ public final class SpellGameTests {
      */
     @GameTest(template = EMPTY, timeoutTicks = 900, batch = "doctrine_hall", required = false)
     public static void anElderFightsAHuskInAHall(GameTestHelper helper) {
-        walledFloor(helper, 16);
+        Runnable tearDown = walledFloor(helper, 16, false);
         net.minecraft.world.entity.monster.Husk husk = helper.spawn(EntityType.HUSK, new Vec3(8.5D, 1.0D, 5.5D));
-        anElderFights(helper, husk, new Vec3(8.5D, 1.0D, 11.5D));
+        anElderFights(helper, husk, new Vec3(8.5D, 1.0D, 11.5D), tearDown, 900);
     }
 
-    /** Floor {@code inside} blocks a side, walled three high around it: the inside runs from 1 to {@code inside}. */
-    private static void walledFloor(GameTestHelper helper, int inside) {
+    /**
+     * Floor {@code inside} blocks a side, walled three high around it (and roofed, if {@code roofed}): the inside runs
+     * from 1 to {@code inside}. It reaches past the test's bounds, where the test does not clear it, and would stand
+     * between the casters of the tests after: what it returns tears the walls and the roof down again.
+     */
+    private static Runnable walledFloor(GameTestHelper helper, int inside, boolean roofed) {
         for (int x = 0; x <= inside + 1; x++) {
             for (int z = 0; z <= inside + 1; z++) {
                 boolean wall = x == 0 || z == 0 || x == inside + 1 || z == inside + 1;
                 helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)),
                         Blocks.STONE.defaultBlockState());
-                for (int y = 1; y < 4; y++) {
+                for (int y = 1; y < 5; y++) {
+                    boolean solid = y < 4 ? wall : roofed;
                     helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)),
-                            wall ? Blocks.STONE.defaultBlockState() : Blocks.AIR.defaultBlockState());
+                            solid ? Blocks.STONE.defaultBlockState() : Blocks.AIR.defaultBlockState());
                 }
             }
         }
+        return () -> {
+            for (int x = 0; x <= inside + 1; x++) {
+                for (int z = 0; z <= inside + 1; z++) {
+                    for (int y = 1; y < 5; y++) {
+                        helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)),
+                                Blocks.AIR.defaultBlockState());
+                    }
+                }
+            }
+        };
     }
 
-    private static void anElderFights(GameTestHelper helper, net.minecraft.world.entity.Mob foe, Vec3 at) {
+    /**
+     * The fight ends here, whoever wins, a little before {@code timeout}: what was built for it is torn down, and both
+     * are taken away, either way.
+     */
+    private static void anElderFights(GameTestHelper helper, net.minecraft.world.entity.Mob foe, Vec3 at,
+                                      Runnable tearDown, int timeout) {
         com.elderlexicon.mod.mind.PhraseCatalog.get();
         Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), at);
         evoker.targetSelector.removeAllGoals(goal -> true);
@@ -599,28 +614,245 @@ public final class SpellGameTests {
         String name = foe.getType().getDescriptionId();
         boolean[] followed = new boolean[1];
         int[] ticks = new int[1];
+        boolean[] over = new boolean[1];
         helper.onEachTick(() -> {
+            if (over[0]) {
+                return;
+            }
             followed[0] |= evoker.casterMind().stance().isPresent();
             if (++ticks[0] % 20 == 0 && evoker.isAlive()) {
                 com.mojang.logging.LogUtils.getLogger().info("FIGHT {} t{} life {}: {}", name, ticks[0],
                         evoker.getHealth(), evoker.casterMind().describeFight());
             }
+            String failed = null;
             if (!evoker.isAlive() || evoker.getHealth() < evoker.getMaxHealth() * 0.25F) {
-                helper.fail("the " + name + " beat it: " + evoker.getHealth() + " left");
+                failed = "the " + name + " beat it: " + evoker.getHealth() + " left";
+            } else if (!foe.isAlive() && !followed[0]) {
+                failed = "it never asked its doctrine";
+            } else if (ticks[0] >= timeout - 5 && foe.isAlive()) {
+                failed = "the " + name + " lives: " + foe.getHealth() + " (" + evoker.distanceTo(foe) + " blocks apart)";
             }
-        });
-        helper.succeedWhen(() -> {
-            if (!followed[0]) {
-                helper.fail("it never asked its doctrine");
+            if (failed == null && foe.isAlive()) {
+                return;
             }
-            if (foe.isAlive()) {
-                helper.fail("the " + name + " lives: " + foe.getHealth() + " (" + evoker.distanceTo(foe)
-                        + " blocks apart)");
-            }
-            com.mojang.logging.LogUtils.getLogger().info("DOCTRINE {} beaten, the elder kept {} of {}", name,
-                    evoker.getHealth(), evoker.getMaxHealth());
+            over[0] = true;
             leave(evoker, foe);
+            tearDown.run();
+            if (failed != null) {
+                helper.fail(failed);
+            } else {
+                com.mojang.logging.LogUtils.getLogger().info("DOCTRINE {} beaten, the elder kept {} of {}", name,
+                        evoker.getHealth(), evoker.getMaxHealth());
+                helper.succeed();
+            }
         });
+    }
+
+    /**
+     * What the elder's sentences really do to a husk (docs/feiticeiro-design.md, 3.13): each is read at a husk standing
+     * still, and what it lost is written to the log next to what the mind foresaw, so the arena can be set by it.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 6000, batch = "damage_husk")
+    public static void whatTheElderDoesToAHusk(GameTestHelper helper) {
+        measureDamage(helper, EntityType.HUSK, "zombie");
+    }
+
+    /** As {@link #whatTheElderDoesToAHusk}, at a spider. */
+    @GameTest(template = EMPTY, timeoutTicks = 6000, batch = "damage_spider")
+    public static void whatTheElderDoesToASpider(GameTestHelper helper) {
+        measureDamage(helper, EntityType.SPIDER, "spider");
+    }
+
+    /** As {@link #whatTheElderDoesToAHusk}, at a skeleton (with a helmet: the sun burns it). */
+    @GameTest(template = EMPTY, timeoutTicks = 6000, batch = "damage_skeleton")
+    public static void whatTheElderDoesToASkeleton(GameTestHelper helper) {
+        measureDamage(helper, EntityType.SKELETON, "skeleton");
+    }
+
+    /** How long one reading is watched: its throw runs two seconds, and then what it set burning burns a while. */
+    private static final int DAMAGE_TICKS = 100;
+    /** How many times each sentence is read: what is kept is the middle one. */
+    private static final int DAMAGE_TIMES = 3;
+
+    /**
+     * Reads, one after another, the sentences the arena's elder reads (the best to strike and to draw, near and far,
+     * whole, wounded and desperate, full of Vis and short of it) and the plain throws of each energy, each by a fresh
+     * sorcerer at a fresh {@code kind} standing still six blocks off (how far made no difference); logs what each did
+     * ("DAMAGE ..."), what the arena foresaw (a person's body) and what the mind foresees in the world (this body's
+     * Vita), and writes it all to {@code arena-calibration/damage-<foe>.json}, for the arena (src/arena/calibration).
+     * Each is read {@link #DAMAGE_TIMES} times: what is kept is the middle one. It takes minutes: it runs only when the
+     * environment asks for it ({@code ELDERLEXICON_CALIBRATE}), and passes at once otherwise.
+     */
+    private static <T extends net.minecraft.world.entity.Mob> void measureDamage(GameTestHelper helper,
+            EntityType<T> kind, String foe) {
+        if (System.getenv("ELDERLEXICON_CALIBRATE") == null) {
+            helper.succeed();
+            return;
+        }
+        longFloor(helper, 24);
+        com.elderlexicon.mod.mind.PhraseCatalog catalog = com.elderlexicon.mod.mind.PhraseCatalog.get();
+        Set<String> known = com.elderlexicon.mod.mind.Degree.learnable(com.elderlexicon.mod.magic.lexicon.Lexicons.get());
+        List<com.elderlexicon.mod.mind.Option> all = com.elderlexicon.mod.mind.Mind.worthWeighing(
+                catalog.readableBy(known).stream().map(com.elderlexicon.mod.mind.Option::of).toList());
+        java.util.Map<String, com.elderlexicon.mod.mind.Option> read = new java.util.LinkedHashMap<>();
+        for (double distance : new double[]{3.0D, 6.0D, 10.0D, 15.0D}) {
+            for (double health : new double[]{1.0D, 0.6D, 0.4D}) {
+              for (double vis : new double[]{100.0D, 60.0D, 30.0D}) {
+                for (com.elderlexicon.mod.mind.Intent intent : new com.elderlexicon.mod.mind.Intent[]{
+                        com.elderlexicon.mod.mind.Intent.STRIKE, com.elderlexicon.mod.mind.Intent.DRAW}) {
+                    com.elderlexicon.mod.mind.Mind.Choice best = null;
+                    for (com.elderlexicon.mod.mind.Option option : all) {
+                        java.util.Optional<com.elderlexicon.mod.mind.Mind.Choice> choice =
+                                com.elderlexicon.mod.mind.Mind.evaluate(arenaScene(distance, health, vis),
+                                        com.elderlexicon.mod.mind.Personality.AGGRESSIVE, option,
+                                        com.elderlexicon.mod.mind.Mind.person(1.0D - health));
+                        if (choice.isPresent() && choice.get().intent() == intent
+                                && (best == null || choice.get().score() > best.score())) {
+                            best = choice.get();
+                        }
+                    }
+                    if (best != null) {
+                        read.putIfAbsent(best.option().name(), best.option());
+                    }
+                }
+              }
+            }
+        }
+        for (String plain : List.of("firmo iactare", "igni iactare", "aqua iactare", "aura iactare")) {
+            com.elderlexicon.mod.mind.PhraseCatalog.imagine(List.of(plain.split(" ")))
+                    .map(com.elderlexicon.mod.mind.Option::of).ifPresent(option -> read.putIfAbsent(plain, option));
+        }
+        List<Object[]> trials = new java.util.ArrayList<>();
+        for (int time = 0; time < DAMAGE_TIMES; time++) {
+            for (com.elderlexicon.mod.mind.Option option : read.values()) {
+                trials.add(new Object[]{option, 6.0D});
+            }
+        }
+        com.google.gson.JsonArray found = new com.google.gson.JsonArray();
+        float[] whole = new float[1];
+        for (int i = 0; i < trials.size(); i++) {
+            com.elderlexicon.mod.mind.Option option = (com.elderlexicon.mod.mind.Option) trials.get(i)[0];
+            double distance = (double) trials.get(i)[1];
+            int at = 1 + i * (DAMAGE_TICKS + 10);
+            Object[] pair = new Object[2];
+            float[] before = new float[1];
+            helper.runAfterDelay(at, () -> {
+                // A clean lane: what the last reading left (fire, earth) is cleared.
+                for (int x = 0; x < 5; x++) {
+                    for (int z = 0; z < 24; z++) {
+                        for (int y = 1; y < 5; y++) {
+                            helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)),
+                                    Blocks.AIR.defaultBlockState());
+                        }
+                        helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)),
+                                Blocks.STONE.defaultBlockState());
+                    }
+                }
+                Sorcerer caster = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 1.5D));
+                caster.setNoAi(true);
+                T target = helper.spawn(kind, new Vec3(2.5D, 1.0D, 1.5D + distance));
+                target.setNoAi(true);
+                if (kind == EntityType.SKELETON) {
+                    target.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD,
+                            new ItemStack(Items.LEATHER_HELMET));
+                }
+                pair[0] = caster;
+                pair[1] = target;
+                before[0] = target.getHealth();
+                whole[0] = target.getMaxHealth();
+                aimFrom(caster, target);
+                double live = com.elderlexicon.mod.mind.Mind.evaluate(new com.elderlexicon.mod.mind.Mind.Scene(
+                                caster, target, distance, 1.0F, 100.0D), com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                        option).map(com.elderlexicon.mod.mind.Mind.Choice::harm).orElse(0.0D);
+                // What the arena foresees of it (desperate, so whatever it costs is weighed).
+                java.util.Optional<com.elderlexicon.mod.mind.Mind.Choice> foreseen =
+                        com.elderlexicon.mod.mind.Mind.evaluate(arenaScene(distance, 0.3D, 100.0D),
+                                com.elderlexicon.mod.mind.Personality.AGGRESSIVE, option,
+                                com.elderlexicon.mod.mind.Mind.person(0.0D));
+                pair[0] = new Object[]{caster, live, foreseen.map(com.elderlexicon.mod.mind.Mind.Choice::harm)
+                        .orElse(0.0D), foreseen.map(choice -> choice.intent().name()).orElse("")};
+                new SpellCastingService().castBlock(caster, option.lines().stream()
+                        .map(line -> new SpellCastingService.TimedSpell(line.words(), line.delaySteps())).toList(),
+                        later -> {
+                        });
+            });
+            for (int tick = 1; tick < 60; tick++) {
+                helper.runAfterDelay(at + tick, () -> {
+                    if (pair[0] instanceof Object[] held && held[0] instanceof Sorcerer caster
+                            && pair[1] instanceof net.minecraft.world.entity.LivingEntity target && target.isAlive()) {
+                        aimFrom(caster, target);
+                    }
+                });
+            }
+            helper.runAfterDelay(at + DAMAGE_TICKS, () -> {
+                Object[] held = (Object[]) pair[0];
+                Sorcerer caster = (Sorcerer) held[0];
+                T target = kind.tryCast((net.minecraft.world.entity.Entity) pair[1]);
+                boolean killed = !target.isAlive();
+                double done = before[0] - (killed ? 0.0F : target.getHealth());
+                com.mojang.logging.LogUtils.getLogger().info(
+                        "DAMAGE foe={} distance={} measured={} killed={} arena={} world={} health={} sentence={}", foe,
+                        distance, done, killed, held[2], held[1], before[0], option.name());
+                com.google.gson.JsonObject entry = new com.google.gson.JsonObject();
+                entry.addProperty("sentence", option.name());
+                entry.addProperty("intent", (String) held[3]);
+                entry.addProperty("element", option.acts().isEmpty() ? "" : option.acts().get(0).element().name());
+                entry.addProperty("arena", (double) held[2]);
+                entry.addProperty("world", (double) held[1]);
+                entry.addProperty("measured", done);
+                entry.addProperty("killed", killed);
+                found.add(entry);
+                leave(caster, target);
+            });
+        }
+        helper.runAfterDelay(2 + trials.size() * (DAMAGE_TICKS + 10), () -> {
+            com.google.gson.JsonObject root = new com.google.gson.JsonObject();
+            root.addProperty("foe", foe);
+            root.addProperty("health", (double) whole[0]);
+            root.addProperty("times", DAMAGE_TIMES);
+            // The middle of what each sentence did, and whether it ever killed.
+            java.util.Map<String, List<com.google.gson.JsonObject>> bySentence = new java.util.LinkedHashMap<>();
+            for (com.google.gson.JsonElement element : found) {
+                com.google.gson.JsonObject entry = element.getAsJsonObject();
+                bySentence.computeIfAbsent(entry.get("sentence").getAsString(), k -> new java.util.ArrayList<>())
+                        .add(entry);
+            }
+            com.google.gson.JsonArray kept = new com.google.gson.JsonArray();
+            bySentence.values().forEach(entries -> {
+                List<Double> done = entries.stream().map(entry -> entry.get("measured").getAsDouble()).sorted()
+                        .toList();
+                com.google.gson.JsonObject middle = entries.get(0).deepCopy();
+                middle.addProperty("measured", done.get(done.size() / 2));
+                middle.add("each", new com.google.gson.Gson().toJsonTree(done));
+                middle.addProperty("killed", entries.stream().anyMatch(entry -> entry.get("killed").getAsBoolean()));
+                kept.add(middle);
+            });
+            root.add("readings", kept);
+            try {
+                java.nio.file.Path file = java.nio.file.Path.of("arena-calibration", "damage-" + foe + ".json");
+                java.nio.file.Files.createDirectories(file.getParent());
+                java.nio.file.Files.writeString(file, new com.google.gson.GsonBuilder().setPrettyPrinting().create()
+                        .toJson(root));
+            } catch (java.io.IOException exception) {
+                helper.fail("could not write what was measured: " + exception);
+            }
+            helper.succeed();
+        });
+    }
+
+    /** What the arena's elder sees, {@code distance} off, its life at {@code health}, its Vis, on open ground. */
+    private static com.elderlexicon.mod.mind.Mind.Scene arenaScene(double distance, double health, double vis) {
+        return new com.elderlexicon.mod.mind.Mind.Scene(null, null, distance, (float) health, vis, mark -> 0.0D,
+                false, element -> element == com.elderlexicon.mod.vita.VitaElement.AURA
+                || element == com.elderlexicon.mod.vita.VitaElement.FIRMO);
+    }
+
+    /** {@code caster} looks at the middle of {@code target}, as a mind aims. */
+    private static void aimFrom(net.minecraft.world.entity.Mob caster, net.minecraft.world.entity.LivingEntity target) {
+        Vec3 middle = target.position().add(0.0D, target.getBbHeight() * 0.5D, 0.0D);
+        caster.lookAt(EntityAnchorArgument.Anchor.EYES, middle);
+        caster.setYHeadRot(caster.getYRot());
+        caster.setYBodyRot(caster.getYRot());
     }
 
     /**

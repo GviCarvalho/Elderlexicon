@@ -47,11 +47,21 @@ public final class Train {
         // --open: only open ground, as the first doctrines were learned (3.10); else halls and corridors too (3.12).
         boolean openOnly = options.containsKey("open");
         Fight.hurtWeight = Double.parseDouble(options.getOrDefault("hurt", "2"));
+        Fight.sensible = options.containsKey("sensible");
+        // What the elder's sentences do to this foe, as the GameTests measured it (3.13); --foreseen: as the mind guesses.
+        if (!options.containsKey("foreseen")) {
+            cal = cal.withDamage(Damage.of(Path.of(options.getOrDefault("calibration", "src/arena/calibration")), foe));
+        }
         Set<String> known = Degree.ELDER.draw(Lexicons.builtIn(), RandomSource.create(seed));
-        Repertoire repertoire = new Repertoire(known, Personality.AGGRESSIVE);
+        // The mind that chooses the sentences: cautious by default, for it never pays in flesh (3.13). A doctrine is
+        // followed by elders of every temper, and one learned by an aggressive mind counts on paying in flesh when
+        // hard pressed: a cautious elder never does, and would wait for it to the end.
+        Personality personality = Personality.byId(options.getOrDefault("personality", "cautious"));
+        Repertoire repertoire = new Repertoire(known, personality);
         System.out.printf(Locale.ROOT, "Arena: %s, %d sentences the elder can read, foe %.3f b/t, caster %.3f b/t, %s%n",
                 foe, repertoire.size(), cal.foeSpeed(), cal.casterSpeed(),
                 openOnly ? "open ground only" : "open ground, halls and corridors");
+        System.out.println("Damage: " + cal.damage() + "; the mind choosing sentences: " + personality.id());
 
         if (options.containsKey("show")) {
             for (double distance : new double[]{2.0D, 5.0D, 9.0D, 15.0D}) {
@@ -87,6 +97,11 @@ public final class Train {
         trained.addProperty("seed", seed);
         trained.addProperty("foeSpeed", cal.foeSpeed());
         trained.addProperty("casterSpeed", cal.casterSpeed());
+        trained.addProperty("personality", personality.id());
+        trained.addProperty("hurtWeight", Fight.hurtWeight);
+        trained.addProperty("damage", cal.damage().toString());
+        trained.addProperty("halls", !openOnly);
+        trained.addProperty("sensible", Fight.sensible);
         Doctrine doctrine = new Doctrine(foe, learning.steps, kept, trained);
 
         System.out.println("Against " + TRIALS + " fights each, same starts (won / lost / life left / trances broken):");

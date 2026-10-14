@@ -134,6 +134,35 @@ public final class Doctrine {
         return EnumSet.allOf(Stance.class);
     }
 
+    /** How near a foe is at hand. */
+    public static final double AT_HAND = 3.0D;
+
+    /**
+     * What is worth weighing of {@code possible}, where the doctrine says it is (a doctrine learned so says
+     * {@code "sensible": true}): with a foe at hand and room to give ground, waiting or walking nearer never is. What a
+     * fight seldom shows, a table learns badly; this it need not learn (3.13).
+     */
+    public static Set<Stance> sensible(Situation seen, Set<Stance> possible) {
+        if (seen.distance() >= AT_HAND || seen.room() < Room.CORNERED) {
+            return possible;
+        }
+        Set<Stance> left = EnumSet.noneOf(Stance.class);
+        left.addAll(possible);
+        left.remove(Stance.WAIT);
+        left.remove(Stance.CLOSE_IN);
+        return left.isEmpty() ? possible : left;
+    }
+
+    /** Whether this doctrine was learned weighing only what is {@link #sensible}: then it chooses so too. */
+    public boolean learnedSensibly() {
+        return trained.has("sensible") && trained.get("sensible").getAsBoolean();
+    }
+
+    /** The stance worth most in {@code seen}, among the ones it can take now and as it learned to weigh them. */
+    public Optional<Stance> decide(Situation seen, Set<Stance> possible) {
+        return choose(seen, learnedSensibly() ? sensible(seen, possible) : possible);
+    }
+
     // ------------------------------------------------------------------ the file
 
     public String toJson() {
