@@ -22,7 +22,7 @@ import java.util.Set;
  * what each stance is worth in each situation; then it is set against the casters as they were and as they are with no
  * doctrine, and what it learned is written as a doctrine the mod carries.
  * <pre>
- * gradlew trainDoctrines --args="--foe zombie --episodes 200000 --install"
+ * gradlew trainDoctrines --args="--foe zombie --episodes 1000000 --install"
  * </pre>
  */
 public final class Train {
@@ -44,13 +44,14 @@ public final class Train {
             cal = cal.withSpeeds(Double.parseDouble(options.getOrDefault("foe-speed", "" + cal.foeSpeed())),
                     Double.parseDouble(options.getOrDefault("caster-speed", "" + cal.casterSpeed())));
         }
-        if (options.containsKey("half")) {
-            cal = cal.withHalf(Double.parseDouble(options.get("half")));
-        }
+        // --open: only open ground, as the first doctrines were learned (3.10); else halls and corridors too (3.12).
+        boolean openOnly = options.containsKey("open");
+        Fight.hurtWeight = Double.parseDouble(options.getOrDefault("hurt", "2"));
         Set<String> known = Degree.ELDER.draw(Lexicons.builtIn(), RandomSource.create(seed));
         Repertoire repertoire = new Repertoire(known, Personality.AGGRESSIVE);
-        System.out.printf(Locale.ROOT, "Arena: %s, %d sentences the elder can read, foe %.3f b/t, caster %.3f b/t, walls at %.0f%n",
-                foe, repertoire.size(), cal.foeSpeed(), cal.casterSpeed(), cal.half());
+        System.out.printf(Locale.ROOT, "Arena: %s, %d sentences the elder can read, foe %.3f b/t, caster %.3f b/t, %s%n",
+                foe, repertoire.size(), cal.foeSpeed(), cal.casterSpeed(),
+                openOnly ? "open ground only" : "open ground, halls and corridors");
 
         if (options.containsKey("show")) {
             for (double distance : new double[]{2.0D, 5.0D, 9.0D, 15.0D}) {
@@ -68,7 +69,7 @@ public final class Train {
         long started = System.currentTimeMillis();
         for (int episode = 0; episode < episodes; episode++) {
             learning.explore = Math.max(0.02D, 0.3D * (1.0D - episode / (double) episodes));
-            fight(cal, repertoire, random).run(learning);
+            fight(cal, openOnly ? Hall.OPEN : Hall.draw(random), repertoire, random).run(learning);
             if ((episode + 1) % Math.max(1, episodes / 10) == 0) {
                 System.out.printf(Locale.ROOT, "  %d fights, %d situations, %.0f s%n", episode + 1,
                         learning.worth.size(), (System.currentTimeMillis() - started) / 1000.0D);
@@ -88,19 +89,39 @@ public final class Train {
         trained.addProperty("casterSpeed", cal.casterSpeed());
         Doctrine doctrine = new Doctrine(foe, learning.steps, kept, trained);
 
-        for (boolean fresh : new boolean[]{false, true}) {
-            System.out.println("Against " + TRIALS + " fights each, same starts, "
-                    + (fresh ? "fresh (whole, full of Vis, the foe 6 to 16 blocks off):" : "drawn as in training:"));
-            Result before = trial(cal, repertoire, Policies.before(), seed, fresh);
-            Result elder = trial(cal, repertoire, Policies.elder(), seed, fresh);
-            Result taught = trial(cal, repertoire, Policies.following(doctrine), seed, fresh);
-            System.out.println("  as before 3.9      " + before);
-            System.out.println("  elder, no doctrine " + elder);
-            System.out.println("  elder, doctrine    " + taught);
-            String suffix = fresh ? "Fresh" : "Drawn";
-            trained.addProperty("wonBefore" + suffix, before.wonShare());
-            trained.addProperty("wonElder" + suffix, elder.wonShare());
-            trained.addProperty("wonDoctrine" + suffix, taught.wonShare());
+        System.out.println("Against " + TRIALS + " fights each, same starts (won / lost / life left / trances broken):");
+        System.out.printf(Locale.ROOT, "  %-34s %-28s %-28s %-28s%n", "", "as before 3.9", "elder, no doctrine",
+                "elder, doctrine");
+        Hall[] halls = {null, Hall.OPEN, Hall.FIELD, Hall.ROOM, Hall.SMALL, Hall.CORRIDOR};
+        for (Hall hall : halls) {
+            boolean fresh = hall != null;
+            Result before = trial(cal, hall, repertoire, Policies.before(), seed, fresh, openOnly);
+            Result elder = trial(cal, hall, repertoire, Policies.elder(), seed, fresh, openOnly);
+            Result taught = trial(cal, hall, repertoire, Policies.following(doctrine), seed, fresh, openOnly);
+            String where = fresh ? "fresh, " + hall.name() : "drawn as in training";
+            System.out.printf(Locale.ROOT, "  %-34s %-28s %-28s %-28s%n", where, before, elder, taught);
+            trained.addProperty("won " + where + ", before", before.wonShare());
+            trained.addProperty("won " + where + ", elder", elder.wonShare());
+            trained.addProperty("won " + where + ", doctrine", taught.wonShare());
+        }
+
+        // --trace N: N fresh fights in a hall 16 x 16 by the doctrine, each choice it made (to see what it does).
+        int traced = Integer.parseInt(options.getOrDefault("trace", "0"));
+        for (int i = 0; i < traced; i++) {
+            Random trace = new Random(seed * 31L + i);
+            Fight fight = new Fight(cal, Hall.ROOM, repertoire, trace, 6.0D + trace.nextDouble() * 10.0D, 1.0D, 1.0D,
+                    1.0D);
+            Fight.Policy follow = Policies.following(doctrine);
+            System.out.println("Fight " + (i + 1) + ":");
+            fight.run((f, seen, possible) -> {
+                com.elderlexicon.mod.mind.Doctrine.Stance chosen = follow.choose(f, seen, possible);
+                System.out.printf(Locale.ROOT,
+                        "  t%4d  %4.1f blocks  room %2.0f  blow %4.2f  life %4.1f  foe %4.1f  %s%s -> %s%n", f.tick,
+                        seen.distance(), seen.room(), Math.min(9.99D, seen.trancesToBlow()), f.health, f.foeHealth,
+                        seen.ready() ? "ready" : "rest ", f.cornered > 0 ? " cornered" : "", chosen);
+                return chosen;
+            });
+            System.out.println(fight.won() ? "  won" : fight.health <= 0.0D ? "  lost" : "  time ran out");
         }
 
         Path out = Path.of(options.getOrDefault("out", "build/doctrines"));
@@ -117,8 +138,8 @@ public final class Train {
     }
 
     /** A fight from a start drawn at random: how far, how whole each one, how much Vis. */
-    private static Fight fight(Calibration cal, Repertoire repertoire, Random random) {
-        return new Fight(cal, repertoire, random, 2.0D + random.nextDouble() * 14.0D,
+    private static Fight fight(Calibration cal, Hall hall, Repertoire repertoire, Random random) {
+        return new Fight(cal, hall, repertoire, random, 2.0D + random.nextDouble() * 14.0D,
                 0.4D + random.nextDouble() * 0.6D, 0.3D + random.nextDouble() * 0.7D,
                 0.4D + random.nextDouble() * 0.6D);
     }
@@ -130,13 +151,14 @@ public final class Train {
 
         @Override
         public String toString() {
-            return String.format(Locale.ROOT, "won %5.1f%%  lost %5.1f%%  life left %4.1f  %5.0f ticks  %.2f trances broken",
-                    100.0D * won / fights, 100.0D * lost / fights, healthLeft, ticks, broken);
+            return String.format(Locale.ROOT, "%5.1f%% / %5.1f%% / %4.1f / %.2f", 100.0D * won / fights,
+                    100.0D * lost / fights, healthLeft, broken);
         }
     }
 
-    private static Result trial(Calibration cal, Repertoire repertoire, Fight.Policy policy, long seed,
-                                boolean fresh) {
+    /** Fights from the same starts: fresh ones in {@code hall}, or drawn as in training (hall null). */
+    private static Result trial(Calibration cal, Hall hall, Repertoire repertoire, Fight.Policy policy, long seed,
+                                boolean fresh, boolean openOnly) {
         int won = 0;
         int lost = 0;
         double health = 0.0D;
@@ -144,8 +166,8 @@ public final class Train {
         double broken = 0.0D;
         for (int i = 0; i < TRIALS; i++) {
             Random random = new Random(seed * 7919L + i);
-            Fight fight = fresh ? new Fight(cal, repertoire, random, 6.0D + random.nextDouble() * 10.0D, 1.0D, 1.0D,
-                    1.0D) : fight(cal, repertoire, random);
+            Fight fight = fresh ? new Fight(cal, hall, repertoire, random, 6.0D + random.nextDouble() * 10.0D, 1.0D,
+                    1.0D, 1.0D) : fight(cal, openOnly ? Hall.OPEN : Hall.draw(random), repertoire, random);
             fight.run(policy);
             won += fight.won() ? 1 : 0;
             lost += fight.health <= 0.0D ? 1 : 0;

@@ -47,26 +47,32 @@ public final class Doctrine {
 
     /**
      * What it sees at a moment: how far the foe stands, in how many trances its blow comes (infinite: it does not come),
-     * its own share of life and of Vis, the foe's share of life, and whether it is rested enough to read.
+     * its own share of life and of Vis, the foe's share of life, whether it is rested enough to read, and how much room
+     * it has to give ground ({@link Room}, blocks).
      */
     public record Situation(double distance, double trancesToBlow, double health, double vis, double foeHealth,
-                            boolean ready) {
+                            boolean ready, double room) {
     }
 
-    /** The steps a situation is seen in: the edges between them, for each thing seen. */
-    public record Steps(double[] distance, double[] trancesToBlow, double[] health, double[] vis, double[] foeHealth) {
+    /**
+     * The steps a situation is seen in: the edges between them, for each thing seen. A doctrine learned before room
+     * was seen has no edges for it, and does not see it.
+     */
+    public record Steps(double[] distance, double[] trancesToBlow, double[] health, double[] vis, double[] foeHealth,
+                        double[] room) {
 
-        /** The steps the first doctrines were learned with. */
+        /** The steps doctrines are learned with: room is cornered, tight or open (3.12). */
         public static Steps standard() {
             return new Steps(new double[]{2.5D, 4.5D, 7.0D, 10.0D, 14.0D, 20.0D}, new double[]{0.5D, 1.0D, 1.5D},
-                    new double[]{0.4D, 0.7D}, new double[]{0.15D, 0.4D}, new double[]{0.35D, 0.7D});
+                    new double[]{0.4D, 0.7D}, new double[]{0.15D, 0.4D}, new double[]{0.35D, 0.7D},
+                    new double[]{Room.CORNERED + 1.5D, 8.0D});
         }
 
         /** The situation, in steps: its key. */
         public String key(Situation seen) {
             return step(distance, seen.distance()) + "." + step(trancesToBlow, seen.trancesToBlow()) + "."
                     + step(health, seen.health()) + "." + step(vis, seen.vis()) + "." + step(foeHealth, seen.foeHealth())
-                    + "." + (seen.ready() ? 1 : 0);
+                    + "." + (seen.ready() ? 1 : 0) + (room.length == 0 ? "" : "." + step(room, seen.room()));
         }
 
         private static int step(double[] edges, double value) {
@@ -144,6 +150,7 @@ public final class Doctrine {
         edges.add("health", GSON.toJsonTree(steps.health()));
         edges.add("vis", GSON.toJsonTree(steps.vis()));
         edges.add("foeHealth", GSON.toJsonTree(steps.foeHealth()));
+        edges.add("room", GSON.toJsonTree(steps.room()));
         root.add("steps", edges);
         root.add("trained", trained);
         JsonObject values = new JsonObject();
@@ -164,7 +171,8 @@ public final class Doctrine {
         Steps steps = new Steps(GSON.fromJson(edges.get("distance"), double[].class),
                 GSON.fromJson(edges.get("trancesToBlow"), double[].class),
                 GSON.fromJson(edges.get("health"), double[].class), GSON.fromJson(edges.get("vis"), double[].class),
-                GSON.fromJson(edges.get("foeHealth"), double[].class));
+                GSON.fromJson(edges.get("foeHealth"), double[].class),
+                edges.has("room") ? GSON.fromJson(edges.get("room"), double[].class) : new double[0]);
         // The stances as the file names them: one it does not know is left out, one it lacks is worth nothing.
         JsonArray names = root.getAsJsonArray("stances");
         int[] order = new int[names.size()];

@@ -527,11 +527,19 @@ public final class SpellGameTests {
     /** An elder fights a spider by its doctrine: one that leaps, and whose blow reaches farther (3.11). */
     @GameTest(template = EMPTY, timeoutTicks = 900, batch = "doctrine_spider")
     public static void anElderFightsASpiderByItsDoctrine(GameTestHelper helper) {
-        net.minecraft.world.entity.monster.Spider spider = helper.spawn(EntityType.SPIDER, new Vec3(2.5D, 1.0D, 8.5D));
+        // A field walled and roofed at forty: a spider knocked back neither falls off a narrow floor nor climbs out.
+        walledFloor(helper, 40);
+        for (int x = 0; x <= 41; x++) {
+            for (int z = 0; z <= 41; z++) {
+                helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 4, z)),
+                        Blocks.STONE.defaultBlockState());
+            }
+        }
+        net.minecraft.world.entity.monster.Spider spider = helper.spawn(EntityType.SPIDER, new Vec3(20.5D, 1.0D, 14.5D));
         // A spider in daylight loses its taste for a fight now and then: this one keeps it.
         spider.goalSelector.removeAllGoals(goal -> goal instanceof net.minecraft.world.entity.ai.goal.MeleeAttackGoal);
         spider.goalSelector.addGoal(4, new net.minecraft.world.entity.ai.goal.MeleeAttackGoal(spider, 1.0D, true));
-        anElderFights(helper, spider);
+        anElderFights(helper, spider, new Vec3(20.5D, 1.0D, 22.5D));
     }
 
     /** An elder fights a skeleton by its doctrine: it reads between its arrows (3.11). */
@@ -547,8 +555,40 @@ public final class SpellGameTests {
     /** An elder sorcerer and {@code foe} hunt each other alone: the elder asks its doctrine, and is not beaten. */
     private static void anElderFights(GameTestHelper helper, net.minecraft.world.entity.Mob foe) {
         longFloor(helper, 40);
+        anElderFights(helper, foe, new Vec3(2.5D, 1.0D, 14.5D));
+    }
+
+    /**
+     * An elder fights a husk shut in a hall sixteen blocks a side (docs/feiticeiro-design.md, 3.12): it backs away the
+     * way with room, not into the wall behind it. Not required yet: no doctrine wins it in the world (3.12), and this
+     * says how far from it they are. (In a hall of ten, the arena gives it one fight in three: a caster with two
+     * seconds of trance does not belong there with a zombie.)
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 900, batch = "doctrine_hall", required = false)
+    public static void anElderFightsAHuskInAHall(GameTestHelper helper) {
+        walledFloor(helper, 16);
+        net.minecraft.world.entity.monster.Husk husk = helper.spawn(EntityType.HUSK, new Vec3(8.5D, 1.0D, 5.5D));
+        anElderFights(helper, husk, new Vec3(8.5D, 1.0D, 11.5D));
+    }
+
+    /** Floor {@code inside} blocks a side, walled three high around it: the inside runs from 1 to {@code inside}. */
+    private static void walledFloor(GameTestHelper helper, int inside) {
+        for (int x = 0; x <= inside + 1; x++) {
+            for (int z = 0; z <= inside + 1; z++) {
+                boolean wall = x == 0 || z == 0 || x == inside + 1 || z == inside + 1;
+                helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)),
+                        Blocks.STONE.defaultBlockState());
+                for (int y = 1; y < 4; y++) {
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)),
+                            wall ? Blocks.STONE.defaultBlockState() : Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
+    }
+
+    private static void anElderFights(GameTestHelper helper, net.minecraft.world.entity.Mob foe, Vec3 at) {
         com.elderlexicon.mod.mind.PhraseCatalog.get();
-        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 14.5D));
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), at);
         evoker.targetSelector.removeAllGoals(goal -> true);
         evoker.setMind(com.elderlexicon.mod.mind.Degree.ELDER, com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
                 com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
@@ -558,8 +598,13 @@ public final class SpellGameTests {
         evoker.setTarget(foe);
         String name = foe.getType().getDescriptionId();
         boolean[] followed = new boolean[1];
+        int[] ticks = new int[1];
         helper.onEachTick(() -> {
             followed[0] |= evoker.casterMind().stance().isPresent();
+            if (++ticks[0] % 20 == 0 && evoker.isAlive()) {
+                com.mojang.logging.LogUtils.getLogger().info("FIGHT {} t{} life {}: {}", name, ticks[0],
+                        evoker.getHealth(), evoker.casterMind().describeFight());
+            }
             if (!evoker.isAlive() || evoker.getHealth() < evoker.getMaxHealth() * 0.25F) {
                 helper.fail("the " + name + " beat it: " + evoker.getHealth() + " left");
             }

@@ -6,6 +6,7 @@ import com.elderlexicon.mod.mind.Doctrine.Stance;
 import com.elderlexicon.mod.mind.Intent;
 import com.elderlexicon.mod.mind.Mind;
 import com.elderlexicon.mod.mind.Option;
+import com.elderlexicon.mod.mind.Room;
 import com.elderlexicon.mod.mind.Threat;
 import com.elderlexicon.mod.spell.Barrier;
 
@@ -36,6 +37,7 @@ final class Fight {
     static final int MAX_TICKS = 1200;
     static final int DECIDE_EVERY = 10;
     private static final int BROKEN_REST = 30;
+    private static final int FIRST_REST = 20;
     private static final double VIS = 100.0D;
     private static final double VIS_PER_TICK = 0.5D / 20.0D;
     private static final double UMU_PER_HP = 5.0D;
@@ -50,6 +52,7 @@ final class Fight {
     private static final int CORNERED = 60;
 
     final Calibration cal;
+    final Hall hall;
     final Repertoire repertoire;
     private final Random random;
 
@@ -73,6 +76,7 @@ final class Fight {
     private int veiled;
     private int stuck;
     private double farthest;
+    private Room.Way backWay;
     int cornered;
     /** Whether the caster walked this tick (an arrow misses one walking more often). */
     private boolean walked;
@@ -90,23 +94,25 @@ final class Fight {
     int readings;
     int broken;
 
-    Fight(Calibration cal, Repertoire repertoire, Random random, double distance, double health, double vis,
+    Fight(Calibration cal, Hall hall, Repertoire repertoire, Random random, double distance, double health, double vis,
           double foeHealth) {
         this.cal = cal;
+        this.hall = hall;
         this.repertoire = repertoire;
         this.random = random;
-        double h = cal.half() - 1.0D;
-        cx = (random.nextDouble() * 2.0D - 1.0D) * h;
-        cz = (random.nextDouble() * 2.0D - 1.0D) * h;
+        cx = hall.clampX((random.nextDouble() * 2.0D - 1.0D) * hall.halfX());
+        cz = hall.clampZ((random.nextDouble() * 2.0D - 1.0D) * hall.halfZ());
         double angle = random.nextDouble() * Math.PI * 2.0D;
-        fx = clamp(cx + Math.cos(angle) * distance);
-        fz = clamp(cz + Math.sin(angle) * distance);
+        fx = hall.clampX(cx + Math.cos(angle) * distance);
+        fz = hall.clampZ(cz + Math.sin(angle) * distance);
         this.health = health * cal.casterHealth();
         this.vis = vis * VIS;
         this.foeHealth = foeHealth * cal.foeHealth();
         if (cal.bow() != null) {
             attackTime = random.nextInt(cal.bow().interval() + 1);
         }
+        // As in the world (CasterMind.REST_TICKS): a fight finds it resting, not with a reading ready.
+        rest = FIRST_REST;
     }
 
     double distance() {
@@ -133,7 +139,7 @@ final class Fight {
             ticks = Threat.ticksToBlow(distance(), Math.max(Threat.BLOW, cal.foeReach()), speed);
         }
         return new Situation(distance(), ticks / TRANCE,
-                health / cal.casterHealth(), vis / VIS, foeHealth / cal.foeHealth(), rest == 0);
+                health / cal.casterHealth(), vis / VIS, foeHealth / cal.foeHealth(), rest == 0, way().room());
     }
 
     /** What it can do now: read for whatever a sentence serves now and it can pay, after its rest; always move. */
@@ -185,8 +191,14 @@ final class Fight {
         }
     }
 
+    /**
+     * How much a point of its own life lost weighs against one taken from the foe (each as a share of the whole): more
+     * than one, and it does not let itself be beaten to be desperate enough to pay in flesh (3.12).
+     */
+    static double hurtWeight = 2.0D;
+
     private double reward(double foeBefore, double before) {
-        return (foeBefore - foeHealth) / cal.foeHealth() - (before - health) / cal.casterHealth();
+        return (foeBefore - foeHealth) / cal.foeHealth() - hurtWeight * (before - health) / cal.casterHealth();
     }
 
     private boolean free() {
@@ -208,6 +220,7 @@ final class Fight {
         if (stance == Stance.BACK_OFF && moving != Stance.BACK_OFF) {
             stuck = 0;
             farthest = distance();
+            backWay = null;
         }
         moving = stance;
     }
@@ -234,30 +247,45 @@ final class Fight {
         foe();
     }
 
+    /** The way it would back off now, and how much room there is that way (as in the world: Room). */
+    Room.Way way() {
+        return Room.away(hall::open, cx, cz, fx, fz);
+    }
+
     private void move() {
         if (moving == null || moving == Stance.WAIT) {
             return;
         }
-        double dx = cx - fx;
-        double dz = cz - fz;
-        double length = Math.max(1.0E-6D, Math.hypot(dx, dz));
-        double sign = moving == Stance.BACK_OFF ? 1.0D : -1.0D;
-        if (moving == Stance.CLOSE_IN && length <= cal.foeReach() + 0.5D) {
+        if (moving == Stance.CLOSE_IN) {
+            double dx = fx - cx;
+            double dz = fz - cz;
+            double length = Math.max(1.0E-6D, Math.hypot(dx, dz));
+            if (length > cal.foeReach() + 0.5D) {
+                cx = hall.clampX(cx + dx / length * cal.casterSpeed());
+                cz = hall.clampZ(cz + dz / length * cal.casterSpeed());
+                walked = true;
+            }
             return;
         }
-        cx = clamp(cx + sign * dx / length * cal.casterSpeed());
-        cz = clamp(cz + sign * dz / length * cal.casterSpeed());
+        // Backing off: the way with the most room, looked for again as often as the world repaths.
+        if (backWay == null || tick % DECIDE_EVERY == 0) {
+            backWay = way();
+        }
+        if (backWay.room() < Room.CORNERED) {
+            cornered = CORNERED;
+            moving = Stance.WAIT;
+            return;
+        }
+        cx = hall.clampX(cx + backWay.dx() * cal.casterSpeed());
+        cz = hall.clampZ(cz + backWay.dz() * cal.casterSpeed());
         walked = true;
-        if (moving == Stance.BACK_OFF) {
-            // Along the wall when the way back is shut: it slides, as a walker does.
-            double now = distance();
-            if (now > farthest + 0.5D) {
-                farthest = now;
-                stuck = 0;
-            } else if (++stuck >= STUCK) {
-                cornered = CORNERED;
-                stuck = 0;
-            }
+        double now = distance();
+        if (now > farthest + 0.5D) {
+            farthest = now;
+            stuck = 0;
+        } else if (++stuck >= STUCK) {
+            cornered = CORNERED;
+            stuck = 0;
         }
     }
 
@@ -348,8 +376,8 @@ final class Fight {
     }
 
     private void walk(double dx, double dz, double length, double stepLength) {
-        fx = clamp(fx + dx / length * stepLength);
-        fz = clamp(fz + dz / length * stepLength);
+        fx = hall.clampX(fx + dx / length * stepLength);
+        fz = hall.clampZ(fz + dz / length * stepLength);
     }
 
     /** It takes a blow, or an arrow: one in its trance closes the crack, and nothing is read, nothing spent. */
@@ -391,14 +419,14 @@ final class Fight {
                 }
                 double length = Math.max(1.0E-6D, distance());
                 if (length < wardRadius) {
-                    fx = clamp(cx + (fx - cx) / length * wardRadius);
-                    fz = clamp(cz + (fz - cz) / length * wardRadius);
+                    fx = hall.clampX(cx + (fx - cx) / length * wardRadius);
+                    fz = hall.clampZ(cz + (fz - cz) / length * wardRadius);
                 }
             }
             case FLEE -> {
                 double length = Math.max(1.0E-6D, distance());
-                cx = clamp(cx + (cx - fx) / length * THROWN);
-                cz = clamp(cz + (cz - fz) / length * THROWN);
+                cx = hall.clampX(cx + (cx - fx) / length * THROWN);
+                cz = hall.clampZ(cz + (cz - fz) / length * THROWN);
             }
             case VEIL -> {
                 for (Act act : option.acts()) {
@@ -434,9 +462,5 @@ final class Fight {
             longest = Math.max(longest, ticks);
         }
         return Math.min(longest, 200);
-    }
-
-    private double clamp(double value) {
-        return Math.max(-cal.half(), Math.min(cal.half(), value));
     }
 }

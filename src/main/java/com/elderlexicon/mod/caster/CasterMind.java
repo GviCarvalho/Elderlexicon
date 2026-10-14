@@ -16,6 +16,7 @@ import com.elderlexicon.mod.mind.Phrase;
 import com.elderlexicon.mod.mind.PhraseCatalog;
 import com.elderlexicon.mod.mind.Preparation;
 import com.elderlexicon.mod.mind.Reach;
+import com.elderlexicon.mod.mind.Room;
 import com.elderlexicon.mod.mind.Threat;
 import com.elderlexicon.mod.mind.Variations;
 import com.elderlexicon.mod.parser.ParserDictionary;
@@ -635,7 +636,7 @@ public final class CasterMind {
         double distance = owner.distanceTo(target);
         return new Doctrine.Situation(distance, ticksToHarm(target) / TRANCE_TICKS,
                 owner.getHealth() / Math.max(1.0F, owner.getMaxHealth()), Casters.vis(owner) / Casters.ANCHOR_UMU,
-                target.getHealth() / Math.max(1.0F, target.getMaxHealth()), restTicks == 0);
+                target.getHealth() / Math.max(1.0F, target.getMaxHealth()), restTicks == 0, roomAgainst(target).room());
     }
 
     /**
@@ -669,6 +670,20 @@ public final class CasterMind {
             stance = chosen;
             stanceChoice = chosen.intent() == null ? null : best.get(chosen.intent());
         });
+    }
+
+    /** How a fight looks to it now, for the one who watches it (a GameTest, a command). */
+    public String describeFight() {
+        LivingEntity target = owner.getTarget();
+        if (target == null) {
+            return "no foe";
+        }
+        Doctrine.Situation seen = situation(target);
+        String key = doctrineAgainst(target).map(doctrine -> doctrine.steps().key(seen)).orElse("-");
+        return String.format(Locale.ROOT, "%.1f blocks, %.2f trances to harm, room %.0f, %s%s%s, rest %d, key %s",
+                seen.distance(), seen.trancesToBlow(), seen.room(), stance == null ? "no stance" : stance.name(),
+                reading != null ? ", reading " + reading.intent() : releaseTicks > 0 ? ", releasing" : "",
+                cornered > 0 ? ", cornered" : "", restTicks, key);
     }
 
     /** What its doctrine says to do now, if it follows one and it knows the situation. */
@@ -759,6 +774,39 @@ public final class CasterMind {
         }
         double reach = reach();
         return reach > 0.0D ? Math.min(wanted, reach - Math.min(6.0D, reach * 0.25D) - 1.0D) : wanted;
+    }
+
+    /** The way it would back off from {@code target}, and how much room it has that way (docs/feiticeiro-design.md, 3.12). */
+    private Room.Way roomAgainst(LivingEntity target) {
+        return Room.away(ground(), owner.getX(), owner.getZ(), target.getX(), target.getZ());
+    }
+
+    /**
+     * Where it can stand, at the height it stands: nothing in its feet nor its head, no fluid nor fire, and ground under
+     * it (or a block down); a block up it can step onto.
+     */
+    private Room.Ground ground() {
+        net.minecraft.world.level.Level level = owner.level();
+        int y = owner.getBlockY();
+        return (x, z) -> {
+            net.minecraft.core.BlockPos feet = net.minecraft.core.BlockPos.containing(x, y, z);
+            if (passable(level, feet) && passable(level, feet.above())) {
+                return solid(level, feet.below()) || passable(level, feet.below()) && solid(level, feet.below(2));
+            }
+            return solid(level, feet) && passable(level, feet.above()) && passable(level, feet.above(2));
+        };
+    }
+
+    private static boolean passable(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos) {
+        net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos);
+        return state.getCollisionShape(level, pos).isEmpty() && state.getFluidState().isEmpty()
+                && !state.is(net.minecraft.tags.BlockTags.FIRE);
+    }
+
+    private static boolean solid(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos) {
+        net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos);
+        return !state.getCollisionShape(level, pos).isEmpty()
+                && !state.is(net.minecraft.world.level.block.Blocks.MAGMA_BLOCK);
     }
 
     /** It watches its foe come: how far it came toward it this tick. */
@@ -1817,7 +1865,7 @@ public final class CasterMind {
         @Override
         public void tick() {
             LivingEntity target = owner.getTarget();
-            if (target == null || !(owner instanceof net.minecraft.world.entity.PathfinderMob walker)) {
+            if (target == null) {
                 return;
             }
             owner.getLookControl().setLookAt(target, 30.0F, 30.0F);
@@ -1831,14 +1879,15 @@ public final class CasterMind {
             }
             if (--repath <= 0) {
                 repath = 10;
-                Vec3 away = net.minecraft.world.entity.ai.util.DefaultRandomPos.getPosAway(walker, 16, 7,
-                        target.position());
-                if (away == null) {
-                    Vec3 from = owner.position().subtract(target.position()).multiply(1.0D, 0.0D, 1.0D);
-                    away = owner.position().add(from.lengthSqr() < 1.0E-6D ? new Vec3(1.0D, 0.0D, 0.0D)
-                            : from.normalize().scale(8.0D));
+                // The way with the most room, not the corner straight behind it; none: it is cornered.
+                Room.Way way = roomAgainst(target);
+                if (way.room() < Room.CORNERED) {
+                    cornered = CORNERED_TICKS;
+                    return;
                 }
-                owner.getNavigation().moveTo(away.x, away.y, away.z, speed);
+                double far = Math.min(way.room(), 8.0D);
+                owner.getNavigation().moveTo(owner.getX() + way.dx() * far, owner.getY(), owner.getZ() + way.dz() * far,
+                        speed);
             }
         }
     }

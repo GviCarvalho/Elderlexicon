@@ -256,11 +256,11 @@ Os anciãos aprendem a lutar **fora do jogo**, numa arena, e o que aprendem fica
   aranhas e aranhas de caverna, esqueletos e errantes com arco: seção 3.11). A cada meio segundo livre ele pergunta à doutrina o que fazer. Se for ler, a mente
   escolhe a melhor frase para aquela intenção. Se for recuar ou aproximar, os objetivos de movimento obedecem. Numa
   situação que a doutrina nunca viu, ele luta como na 3.9.
-- **Treinar:** `gradlew trainDoctrines --args="--foe zombie --episodes 300000 --half 40 --install"`. Sem `--install`, o
+- **Treinar:** `gradlew trainDoctrines --args="--foe zombie --episodes 1000000 --open"`. Sem `--open`, treina também em salas (3.12), o que ainda não deve ser instalado. Sem `--install`, o
   arquivo vai para `build/doctrines`. `--show` lista as frases que a mente escolheria para cada intenção. Mudou a
   potência, o custo ou o alcance das runas: treina-se de novo.
 - **As paredes importam.** Numa arena de 24 × 24, o ancião recuava até o canto e perdia 82% das lutas, com ou sem
-  doutrina. Em campo aberto (`--half 40`, 80 × 80), que é como a doutrina atual foi treinada:
+  doutrina. Em campo aberto (80 × 80), como as primeiras doutrinas foram treinadas:
 
   | 3000 lutas, mesmos começos | vence (sorteadas) | vence (frescas) | transes quebrados |
   |---|---|---|---|
@@ -309,8 +309,60 @@ Resultados na arena (80 × 80, 1 milhão de lutas de treino; 3000 lutas, mesmos 
   24 de vida: com o idioma quase todo, ele tira a vida do corpo do inimigo de longe. Essas lutas são curtas demais para pôr à prova o ritmo da doutrina. A
   GameTest `theArenaIsSetByTheWorldForSpidersAndSkeletons` mede a aranha e o arco: 6 flechas em 360 ticks, cerca de
   23 ticks puxando cada uma.
-- **Treinar:** `gradlew trainDoctrines --args="--foe spider --episodes 1000000 --half 40 --install"` (e
+- **Treinar:** `gradlew trainDoctrines --args="--foe spider --episodes 1000000 --install"` (e
   `--foe skeleton`).
+
+### 3.12 O sentido de parede (pedido do autor, 13/10/2026)
+
+Até aqui, o mago recuava sempre em linha reta para longe do inimigo, e a doutrina não sabia onde ficavam as paredes.
+Em lugar fechado, ele recuava até o canto e morria lá.
+
+- **Quanto espaço há (`Room`).** O mago olha 5 direções a partir da que se afasta do inimigo (reto, ±45° e ±90°) e
+  mede quantos blocos poderia andar em cada uma, até 12. No jogo, um bloco é andável se não há nada no pé nem na
+  cabeça, nenhum líquido nem fogo, e há chão embaixo (ou um degrau abaixo); ele também sobe um degrau. Na arena,
+  conta só a parede da sala. O código é o mesmo nos dois lados.
+- **Recuar pelo melhor caminho.** Ele vai pela direção com mais espaço; reto para trás vale 2 blocos a mais que de
+  lado, porque ganha mais distância. Se nenhuma direção tem 1,5 bloco livre, ele se sabe **encurralado** na hora, em
+  vez de empurrar a parede por 1,5 s antes de perceber. Isso vale para todo conjurador, com doutrina ou sem.
+- **A doutrina pode ver o espaço:** encurralado (menos de 3 blocos), apertado (3 a 8) ou aberto. As doutrinas que
+  não aprenderam com esse dado continuam sendo lidas, sem ele.
+- **A arena treina em salas.** Cada luta de treino acontece em campo aberto (40% das vezes) ou numa sala de lados
+  sorteados entre 5 e 32 blocos, o que inclui corredores (`Hall`). A luta começa com o mago descansando (20 ticks),
+  como no jogo. `--open` treina só em campo aberto, `--hurt` diz quanto pesa a vida perdida (padrão 2), e
+  `--trace N` imprime as decisões de N lutas numa sala.
+
+**O que a arena mostrou** (3000 lutas frescas por cenário; ancião só com a 3.9 → ancião com doutrina treinada em
+salas):
+
+| | campo aberto | sala 16 × 16 | sala 10 × 10 | corredor 5 × 40 |
+|---|---|---|---|---|
+| zumbi | 99% → 100% | 4% → 89% | 0% → 32% | 28% → 78% |
+| aranha | 99% → 100% | 0% → 0% | 0% → 0% | 4% → 28% |
+| esqueleto | 77% → 100% | 63% → 100% | 47% → 100% | 65% → 100% |
+
+**Mas essas doutrinas não foram instaladas.** No jogo, elas se saíram pior que as anteriores:
+
+- **Pagar com a carne de propósito.** O rastreamento (`--trace`) mostrou que, em sala, a doutrina deixa o zumbi
+  bater até a vida cair abaixo de 45%. Assim o mago agressivo fica desesperado e pode pagar com a carne o `tirar`
+  letal, que custa uns 100 UMU. Na arena funciona; no jogo, o ancião passava do ponto e morria. Pesar em dobro a
+  vida perdida (`--hurt 2`) acaba com isso em campo aberto (ele termina com 22 de vida em vez de 9), mas não em sala,
+  onde é a única saída que a arena enxerga.
+- **A diferença está no dano.** No jogo, o ancião mata um husk com um ou dois `ferir`; a arena supõe 8 de dano por
+  arremesso (`Mind.potency`, um chute "a ajustar jogando"). Com o dano subestimado, as lutas da arena ficam longas, as
+  paredes pesam muito mais e a doutrina aprende saídas desesperadas que no jogo só atrapalham. **Antes de treinar
+  doutrinas para salas, é preciso medir o dano de verdade** (uma GameTest que compare o que cada frase faz com o que a
+  mente previu) e calibrar a arena com isso.
+- **O que ficou no jogo:** o recuo pelo melhor caminho e as doutrinas anteriores (só campo aberto, 3.10 e 3.11). Com
+  eles, o ancião venceu as quatro lutas de teste, **inclusive a da sala de 16 × 16**, nas duas rodadas, quase sempre
+  sem perder vida.
+- **Aranha em lugar fechado é perdida na arena:** a 8 blocos, ela chega em cerca de 28 ticks, menos que os 40 do
+  transe, e seu golpe alcança quase 3 blocos. Se isso se confirmar no jogo, a resposta não está na mente, e sim em ler
+  mais depressa (varinhas gravadas, `docs/varinhas-design.md`) ou em ter algo preparado antes da luta.
+- **Escapar do canto passando pelo inimigo** (de lado, a mais de 90°) ainda não está entre as direções olhadas.
+- **GameTests:** `anElderFightsAHuskInAHall` (sala de 16 × 16, **não obrigatória** enquanto nenhuma doutrina de sala
+  estiver instalada) e a da aranha, agora num campo de 40 × 40 com teto: sem o teto, a aranha arremessada pelo golpe
+  escalava a parede e sumia de vista. As lutas de doutrina registram no log, a cada segundo, o que o ancião vê e
+  decide (`describeFight`). Testes de unidade: `RoomTest`.
 
 ## 4. O que o evocador sabe
 

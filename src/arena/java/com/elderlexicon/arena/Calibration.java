@@ -17,12 +17,11 @@ import com.elderlexicon.mod.mind.Threat;
  * @param bow          how it shoots, if it shoots; null for one that only strikes
  * @param casterSpeed  how fast the caster backs away or walks up
  * @param casterHealth its life
- * @param half         half the side of the arena: walls beyond it
  * @param hit          how often what is thrown lands (a flow runs three and a half blocks a tick: it seldom misses)
  */
 public record Calibration(String foe, double foeSpeed, double guessed, double foeReach, double foeDamage,
                           int foeCooldown, double foeHealth, boolean leaps, Bow bow, double casterSpeed,
-                          double casterHealth, double half, double hit) {
+                          double casterHealth, double hit) {
 
     /**
      * How a foe shoots, as a skeleton's bow goal does: within {@code reach} it waits {@code interval}, draws for
@@ -56,13 +55,13 @@ public record Calibration(String foe, double foeSpeed, double guessed, double fo
     /** A zombie (or a husk) against a sorcerer (measured 13/10/2026). */
     public static Calibration zombie() {
         return new Calibration("zombie", 0.114D, 0.23D * Threat.PER_SPEED, reachOf(0.6D), 3.0D, 20, 20.0D, false,
-                null, SORCERER, SORCERER_HEALTH, 12.0D, 0.9D);
+                null, SORCERER, SORCERER_HEALTH, 0.9D);
     }
 
     /** A spider: faster, wider (its blow reaches farther), and it leaps (measured 13/10/2026). */
     public static Calibration spider() {
         return new Calibration("spider", 0.18D, 0.3D * Threat.PER_SPEED, reachOf(1.4D), 2.0D, 20, 16.0D, true, null,
-                SORCERER, SORCERER_HEALTH, 12.0D, 0.9D);
+                SORCERER, SORCERER_HEALTH, 0.9D);
     }
 
     /**
@@ -71,7 +70,7 @@ public record Calibration(String foe, double foeSpeed, double guessed, double fo
      */
     public static Calibration skeleton() {
         return new Calibration("skeleton", 0.125D, 0.25D * Threat.PER_SPEED, reachOf(0.6D), 2.0D, 20, 20.0D, false,
-                new Bow(15.0D, 40, 20, 1.6D, 3.5D, 0.9D, 0.6D, 0.7D), SORCERER, SORCERER_HEALTH, 12.0D, 0.9D);
+                new Bow(15.0D, 40, 20, 1.6D, 3.5D, 0.9D, 0.6D, 0.7D), SORCERER, SORCERER_HEALTH, 0.9D);
     }
 
     public static Calibration of(String foe) {
@@ -83,13 +82,8 @@ public record Calibration(String foe, double foeSpeed, double guessed, double fo
         };
     }
 
-    public Calibration withHalf(double half) {
-        return new Calibration(foe, foeSpeed, guessed, foeReach, foeDamage, foeCooldown, foeHealth, leaps, bow,
-                casterSpeed, casterHealth, half, hit);
-    }
-
     public Calibration withSpeeds(double foe, double caster) {
         return new Calibration(this.foe, foe, guessed, foeReach, foeDamage, foeCooldown, foeHealth, leaps, bow, caster,
-                casterHealth, half, hit);
+                casterHealth, hit);
     }
 }
