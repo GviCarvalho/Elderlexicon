@@ -597,6 +597,24 @@ gravava varinhas ou lia nas estantes. Cada validação virava loteria.
   mestre nas duas rodadas. As quatro derrotas de 3.17 tinham interferência de outros testes; o que lá se concluiu
   sobre o duelo precisa ser medido de novo.
 
+### 3.21 A doutrina de duelo, posta à prova (pedido do autor, 15/10/2026)
+
+Com as lutas isoladas (3.20), as doutrinas de duelo foram retreinadas com a mente atual (3.19) e postas no jogo.
+
+- **Na arena:** o ancião agressivo vai de 61–70% para 94–100% de vitórias contra magos de temperamento sorteado; o
+  trapaceiro, de 36–49% para 85–100%. Os dois terminam com pouca vida (9 e 4 de 24).
+- **O que elas aprenderam:** o rastreamento mostra o plano de sempre num duelo de agressivos: encostar, deixar o
+  outro bater até ficar abaixo de 45% (desesperado), e então ler o golpe que mata de uma vez. Na arena, quem se
+  desespera primeiro mata.
+- **No jogo, perderam tudo:** com a doutrina, o ancião perdeu as 6 lutas (3 agressivo, 3 trapaceiro) contra um Mago
+  mestre agressivo. Sem doutrina, o agressivo venceu 3 de 4 (terminando com 18 de vida na que se registrou); o
+  trapaceiro, 0 de 2 (uma derrota, um empate por tempo). **Não instaladas.** O Mago de verdade recua, põe fogo e lê
+  com o próprio ritmo; o plano de esperar o desespero perto dele não sobrevive a isso.
+- **As GameTests de duelo** (`anElderBeatsAnotherCaster`, `aTricksterElderBeatsAnotherCaster`, opcionais) agora medem
+  se o ancião vence, sem exigir doutrina.
+- **O que falta para uma doutrina de duelo servir:** um oponente na arena que se pareça com o Mago (recua, mantém
+  distância, incendeia, usa barreira e sumir); hoje ele só anda até o alcance e lê ferir, tirar ou curar.
+
 ## 4. O que o evocador sabe
 
 - **Repertório por grau.** Aprendiz (2 ou 3 runas), mestre (6 a 8), ancião (quase o léxico inteiro). Cada evocador

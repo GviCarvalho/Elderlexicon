@@ -839,7 +839,7 @@ public final class SpellGameTests {
      * {@code timeout}, and the isle is closed, either way.
      */
     private static void anElderFights(Isle isle, net.minecraft.world.entity.Mob foe, Vec3 at, int timeout) {
-        anElderFights(isle, foe, at, timeout, com.elderlexicon.mod.mind.Personality.AGGRESSIVE, 0.25F);
+        anElderFights(isle, foe, at, timeout, com.elderlexicon.mod.mind.Personality.AGGRESSIVE, 0.25F, true);
     }
 
     /**
@@ -847,7 +847,8 @@ public final class SpellGameTests {
      * where both bleed, only dead is beaten).
      */
     private static void anElderFights(Isle isle, net.minecraft.world.entity.Mob foe, Vec3 at, int timeout,
-                                      com.elderlexicon.mod.mind.Personality temper, float beaten) {
+                                      com.elderlexicon.mod.mind.Personality temper, float beaten,
+                                      boolean byDoctrine) {
         GameTestHelper helper = isle.helper;
         com.elderlexicon.mod.mind.PhraseCatalog.get();
         Sorcerer evoker = isle.spawn(ElderLexicon.SORCERER.get(), at);
@@ -893,7 +894,7 @@ public final class SpellGameTests {
             String failed = null;
             if (!evoker.isAlive() || evoker.getHealth() < evoker.getMaxHealth() * beaten) {
                 failed = "the " + name + " beat it: " + evoker.getHealth() + " left";
-            } else if (!foe.isAlive() && !followed[0]) {
+            } else if (byDoctrine && !foe.isAlive() && !followed[0]) {
                 failed = "it never asked its doctrine";
             } else if (ticks[0] >= timeout - 5 && foe.isAlive()) {
                 failed = "the " + name + " lives: " + foe.getHealth() + " (" + evoker.distanceTo(foe) + " blocks apart)";
@@ -1443,14 +1444,25 @@ public final class SpellGameTests {
      */
     @GameTest(template = EMPTY, timeoutTicks = 1200, batch = "doctrine_duel", required = false)
     public static void anElderBeatsAnotherCaster(GameTestHelper helper) {
+        duel(helper, com.elderlexicon.mod.mind.Personality.AGGRESSIVE);
+    }
+
+    /** As {@link #anElderBeatsAnotherCaster}, the elder a trickster, following its own temper's doctrine. */
+    @GameTest(template = EMPTY, timeoutTicks = 1200, batch = "doctrine_duel_trickster", required = false)
+    public static void aTricksterElderBeatsAnotherCaster(GameTestHelper helper) {
+        duel(helper, com.elderlexicon.mod.mind.Personality.TRICKSTER);
+    }
+
+    /** An elder of {@code temper} against an aggressive master wizard who knows the same runes, on an isle. */
+    private static void duel(GameTestHelper helper, com.elderlexicon.mod.mind.Personality temper) {
         Isle isle = new Isle(helper, 5, 40).floor();
         com.elderlexicon.mod.wizard.Wizard wizard = isle.spawn(ElderLexicon.WIZARD.get(), new Vec3(2.5D, 1.0D, 4.5D));
         wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.MASTER,
                 com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
                 com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
                         helper.getLevel().getRandom()));
-        anElderFights(isle, wizard, new Vec3(2.5D, 1.0D, 16.5D), 1200, com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
-                0.0F);
+        // No doctrine against casters is installed (3.21): what is measured is whether it wins.
+        anElderFights(isle, wizard, new Vec3(2.5D, 1.0D, 16.5D), 1200, temper, 0.0F, false);
     }
 
     /**
