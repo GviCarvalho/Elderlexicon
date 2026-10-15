@@ -919,19 +919,19 @@ public final class SpellGameTests {
      * What the elder's sentences really do to a husk (docs/feiticeiro-design.md, 3.13): each is read at a husk standing
      * still, and what it lost is written to the log next to what the mind foresaw, so the arena can be set by it.
      */
-    @GameTest(template = EMPTY, timeoutTicks = 6000, batch = "damage_husk")
+    @GameTest(template = EMPTY, timeoutTicks = 9000, batch = "damage_husk")
     public static void whatTheElderDoesToAHusk(GameTestHelper helper) {
         measureDamage(helper, EntityType.HUSK, "zombie");
     }
 
     /** As {@link #whatTheElderDoesToAHusk}, at a spider. */
-    @GameTest(template = EMPTY, timeoutTicks = 6000, batch = "damage_spider")
+    @GameTest(template = EMPTY, timeoutTicks = 9000, batch = "damage_spider")
     public static void whatTheElderDoesToASpider(GameTestHelper helper) {
         measureDamage(helper, EntityType.SPIDER, "spider");
     }
 
     /** As {@link #whatTheElderDoesToAHusk}, at another caster: a sorcerer with no mind of its own (3.17). */
-    @GameTest(template = EMPTY, timeoutTicks = 6000, batch = "damage_caster")
+    @GameTest(template = EMPTY, timeoutTicks = 9000, batch = "damage_caster")
     public static void whatTheElderDoesToACaster(GameTestHelper helper) {
         measureDamage(helper, ElderLexicon.SORCERER.get(), "caster");
     }
@@ -946,7 +946,7 @@ public final class SpellGameTests {
     }
 
     /** As {@link #whatTheElderDoesToAHusk}, at a skeleton (with a helmet: the sun burns it). */
-    @GameTest(template = EMPTY, timeoutTicks = 6000, batch = "damage_skeleton")
+    @GameTest(template = EMPTY, timeoutTicks = 9000, batch = "damage_skeleton")
     public static void whatTheElderDoesToASkeleton(GameTestHelper helper) {
         measureDamage(helper, EntityType.SKELETON, "skeleton");
     }
@@ -1247,6 +1247,8 @@ public final class SpellGameTests {
 
     /** How long one reading is watched: its throw runs two seconds, and then what it set burning burns a while. */
     private static final int DAMAGE_TICKS = 100;
+    /** How long after a reading what it did at once is taken: its lines are out (the longest page, a second). */
+    private static final int EARLY_TICKS = 30;
     /** How many times each sentence is read: what is kept is the middle one. */
     private static final int DAMAGE_TIMES = 3;
 
@@ -1294,9 +1296,22 @@ public final class SpellGameTests {
               }
             }
         }
-        for (String plain : List.of("firmo iactare", "igni iactare", "aqua iactare", "aura iactare")) {
+        // The plainest, and what the duels in the world showed read (3.22).
+        for (String plain : List.of("firmo iactare", "igni iactare", "aqua iactare", "aura iactare",
+                "igni quantum 20 iactare", "igni impediunt quantum 20 iactare", "firmo tenet quantum 20 iactare",
+                "igni tenet chronos 0 impediunt quantum 20 iactare", "firmo chronos 0 impediunt quantum 20 iactare")) {
             com.elderlexicon.mod.mind.PhraseCatalog.imagine(List.of(plain.split(" ")))
                     .map(com.elderlexicon.mod.mind.Option::of).ifPresent(option -> read.putIfAbsent(plain, option));
+        }
+        // The pages of the grimoire, which casters read first.
+        for (com.elderlexicon.mod.illager.SorcererGrimoire.Page page
+                : com.elderlexicon.mod.illager.SorcererGrimoire.get().pages()) {
+            com.elderlexicon.mod.spell.block.SpellBlock block = page.block();
+            List<com.elderlexicon.mod.mind.Option.Line> lines = block.lines().stream()
+                    .map(line -> new com.elderlexicon.mod.mind.Option.Line(line.runeIds(), block.delaySteps(line)))
+                    .toList();
+            com.elderlexicon.mod.mind.Option.page(page.name(), lines)
+                    .ifPresent(option -> read.putIfAbsent(page.name(), option));
         }
         List<Object[]> trials = new java.util.ArrayList<>();
         for (int time = 0; time < DAMAGE_TIMES; time++) {
@@ -1312,6 +1327,7 @@ public final class SpellGameTests {
             int at = 1 + i * (DAMAGE_TICKS + 10);
             Object[] pair = new Object[2];
             float[] before = new float[1];
+            float[] early = new float[1];
             helper.runAfterDelay(at, () -> {
                 // A clean lane: what the last reading left (fire, earth) is cleared.
                 for (int x = 0; x < 5; x++) {
@@ -1361,6 +1377,12 @@ public final class SpellGameTests {
                     }
                 });
             }
+            helper.runAfterDelay(at + EARLY_TICKS, () -> {
+                // What it did at once, before what it set burning burns on (3.22).
+                if (pair[1] instanceof net.minecraft.world.entity.LivingEntity target) {
+                    early[0] = before[0] - (target.isAlive() ? target.getHealth() : 0.0F);
+                }
+            });
             helper.runAfterDelay(at + DAMAGE_TICKS, () -> {
                 Object[] held = (Object[]) pair[0];
                 Sorcerer caster = (Sorcerer) held[0];
@@ -1379,6 +1401,8 @@ public final class SpellGameTests {
                 entry.addProperty("world", (double) held[1]);
                 entry.addProperty("measured", done);
                 entry.addProperty("killed", killed);
+                entry.addProperty("early", (double) early[0]);
+                entry.addProperty("burning", !killed && target.isOnFire());
                 // What it cost the one who read it: the Vis spent, and the life it lost (3.19).
                 entry.addProperty("visSpent", (double) held[4] - Casters.vis(caster));
                 entry.addProperty("lifeLost", (float) held[5] - caster.getHealth());
@@ -1406,6 +1430,11 @@ public final class SpellGameTests {
                 middle.addProperty("measured", done.get(done.size() / 2));
                 middle.add("each", new com.google.gson.Gson().toJsonTree(done));
                 middle.addProperty("killed", entries.stream().anyMatch(entry -> entry.get("killed").getAsBoolean()));
+                List<Double> early = entries.stream().map(entry -> entry.get("early").getAsDouble()).sorted()
+                        .toList();
+                middle.addProperty("early", early.get(early.size() / 2));
+                middle.addProperty("burning", entries.stream().filter(entry -> entry.get("burning").getAsBoolean())
+                        .count() * 2 > entries.size());
                 kept.add(middle);
             });
             root.add("readings", kept);
@@ -1439,8 +1468,8 @@ public final class SpellGameTests {
     /**
      * Two casters (docs/feiticeiro-design.md, 3.17): an aggressive elder sorcerer, following its temper's doctrine,
      * against an aggressive master wizard who knows the same runes and follows none. The elder lives, the wizard does
-     * not. Not required: no doctrine against casters is installed yet, for the arena's caster is not the world's (it
-     * neither backs off nor sets fire where one stands); this says how far from it they are.
+     * not. Not required: a duel goes on luck too (3.22: with the doctrines learned against the arena's wizard, the elder
+     * won fourteen of sixteen measured, and lost one).
      */
     @GameTest(template = EMPTY, timeoutTicks = 1200, batch = "doctrine_duel", required = false)
     public static void anElderBeatsAnotherCaster(GameTestHelper helper) {
@@ -1461,8 +1490,116 @@ public final class SpellGameTests {
                 com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
                 com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
                         helper.getLevel().getRandom()));
-        // No doctrine against casters is installed (3.21): what is measured is whether it wins.
-        anElderFights(isle, wizard, new Vec3(2.5D, 1.0D, 16.5D), 1200, temper, 0.0F, false);
+        anElderFights(isle, wizard, new Vec3(2.5D, 1.0D, 16.5D), 1200, temper, 0.0F, true);
+    }
+
+    /**
+     * How a duel goes in the world (docs/feiticeiro-design.md, 3.22), to set the arena's other caster by: an elder of no
+     * doctrine against a master wizard, as {@link #duel}; every sentence either reads is logged ("DUEL ... READ"), how
+     * each stands every second ("DUEL ... SEES"), and how it ended ("DUEL ... END"). It takes minutes: it runs only when
+     * the environment asks for it ({@code ELDERLEXICON_CALIBRATE}: duels).
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels1")
+    public static void howAnAggressiveElderDuels1(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.AGGRESSIVE, 1);
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels2")
+    public static void howAnAggressiveElderDuels2(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.AGGRESSIVE, 2);
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels3")
+    public static void howAnAggressiveElderDuels3(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.AGGRESSIVE, 3);
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels4")
+    public static void howAnAggressiveElderDuels4(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.AGGRESSIVE, 4);
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels5")
+    public static void howATricksterElderDuels1(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.TRICKSTER, 5);
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels6")
+    public static void howATricksterElderDuels2(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.TRICKSTER, 6);
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels7")
+    public static void howATricksterElderDuels3(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.TRICKSTER, 7);
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels8")
+    public static void howATricksterElderDuels4(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.TRICKSTER, 8);
+    }
+
+    private static void measureDuel(GameTestHelper helper, com.elderlexicon.mod.mind.Personality temper, int number) {
+        if (!calibrating("duels")) {
+            helper.succeed();
+            return;
+        }
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        Isle isle = new Isle(helper, 5, 40).floor();
+        com.elderlexicon.mod.wizard.Wizard wizard = isle.spawn(ElderLexicon.WIZARD.get(), new Vec3(2.5D, 1.0D, 4.5D));
+        wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.MASTER,
+                com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        Sorcerer elder = isle.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 16.5D));
+        elder.targetSelector.removeAllGoals(goal -> true);
+        elder.setMind(com.elderlexicon.mod.mind.Degree.ELDER, temper,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        wizard.targetSelector.removeAllGoals(goal -> true);
+        wizard.setTarget(elder);
+        elder.setTarget(wizard);
+        String name = "DUEL " + number + " " + temper.id();
+        org.slf4j.Logger log = com.mojang.logging.LogUtils.getLogger();
+        Object[] last = new Object[2];
+        int[] ticks = new int[1];
+        boolean[] over = new boolean[1];
+        helper.onEachTick(() -> {
+            if (over[0]) {
+                return;
+            }
+            ticks[0]++;
+            com.elderlexicon.mod.caster.RuneCaster[] both = {elder, wizard};
+            String[] who = {"elder", "wizard"};
+            for (int i = 0; i < 2; i++) {
+                com.elderlexicon.mod.mind.Mind.Choice choice = both[i].casterMind().lastChoice().orElse(null);
+                if (choice != null && choice != last[i]) {
+                    last[i] = choice;
+                    net.minecraft.world.entity.LivingEntity self = (net.minecraft.world.entity.LivingEntity) both[i];
+                    log.info("{} READ {} t{} \"{}\" for {} at {} blocks, life {} / other {}, Vis {}, harm {}", name,
+                            who[i], ticks[0], choice.option().name(), choice.intent(),
+                            String.format(java.util.Locale.ROOT, "%.1f", elder.distanceTo(wizard)), self.getHealth(),
+                            i == 0 ? wizard.getHealth() : elder.getHealth(), Casters.vis(self),
+                            String.format(java.util.Locale.ROOT, "%.1f", choice.harm()));
+                }
+            }
+            if (ticks[0] % 20 == 0 && elder.isAlive() && wizard.isAlive()) {
+                log.info("{} SEES t{} elder {}{}: {}", name, ticks[0], elder.getHealth(),
+                        elder.isOnFire() ? " burning" : "", elder.casterMind().describeFight());
+                log.info("{} SEES t{} wizard {}{}{}: {}", name, ticks[0], wizard.getHealth(),
+                        wizard.isOnFire() ? " burning" : "", wizard.isInvisible() ? " unseen" : "",
+                        wizard.casterMind().describeFight());
+            }
+            if (elder.isAlive() && wizard.isAlive() && ticks[0] < 1200) {
+                return;
+            }
+            over[0] = true;
+            log.info("{} END t{}: {}, elder {}, wizard {}", name, ticks[0],
+                    !elder.isAlive() ? "the wizard won" : !wizard.isAlive() ? "the elder won" : "neither",
+                    elder.isAlive() ? elder.getHealth() : 0.0F, wizard.isAlive() ? wizard.getHealth() : 0.0F);
+            isle.close();
+            helper.succeed();
+        });
     }
 
     /**

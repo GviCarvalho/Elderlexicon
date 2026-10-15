@@ -51,7 +51,7 @@ public final class Train {
         // What the elder's sentences do to this foe, as the GameTests measured it (3.13); --foreseen: as the mind guesses.
         if (!options.containsKey("foreseen")) {
             Path measured = Path.of(options.getOrDefault("calibration", "src/arena/calibration"));
-            cal = cal.withDamage(Damage.of(measured, foe)).withArrows(Arrows.of(measured));
+            cal = cal.withDamage(Damage.of(measured, cal.foe())).withArrows(Arrows.of(measured));
         }
         Set<String> known = Degree.ELDER.draw(Lexicons.builtIn(), RandomSource.create(seed));
         // The mind that chooses the sentences: cautious by default, for it never pays in flesh (3.13). A doctrine is
@@ -89,6 +89,19 @@ public final class Train {
             }
         }
 
+        if (options.containsKey("rank")) {
+            double at = Double.parseDouble(options.get("rank"));
+            for (double vis : new double[]{90.0D, 60.0D}) {
+                System.out.printf(Locale.ROOT, "  the best of each intent at %.0f blocks, whole, %.0f Vis:%n", at, vis);
+                for (com.elderlexicon.mod.mind.Intent intent : com.elderlexicon.mod.mind.Intent.values()) {
+                    for (com.elderlexicon.mod.mind.Mind.Choice choice : repertoire.ranked(intent, at, 1.0D, vis)) {
+                        System.out.printf(Locale.ROOT, "    %-7s %-55s score %5.2f harm %4.1f cost %4.1f%n", intent,
+                                choice.option().name(), choice.score(), choice.harm(), choice.option().cost());
+                    }
+                }
+            }
+        }
+
         Random random = new Random(seed);
         Policies.Learning learning = new Policies.Learning(random);
         long started = System.currentTimeMillis();
@@ -120,7 +133,7 @@ public final class Train {
         trained.addProperty("damage", cal.damage().toString());
         trained.addProperty("halls", !openOnly);
         trained.addProperty("sensible", Fight.sensible);
-        Doctrine doctrine = new Doctrine(foe, learning.steps, kept, trained);
+        Doctrine doctrine = new Doctrine(cal.foe(), learning.steps, kept, trained);
 
         System.out.println("Against " + TRIALS + " fights each, same starts (won / lost / life left / trances broken):");
         System.out.printf(Locale.ROOT, "  %-34s %-28s %-28s %-28s%n", "", "as before 3.9", "elder, no doctrine",
@@ -142,16 +155,19 @@ public final class Train {
         int traced = Integer.parseInt(options.getOrDefault("trace", "0"));
         for (int i = 0; i < traced; i++) {
             Random trace = new Random(seed * 31L + i);
-            Fight fight = new Fight(cal, Hall.ROOM, repertoire, trace, 6.0D + trace.nextDouble() * 10.0D, 1.0D, 1.0D,
+            Fight fight = new Fight(cal, options.containsKey("trace-corridor") ? Hall.CORRIDOR : Hall.ROOM, repertoire, trace, 6.0D + trace.nextDouble() * 10.0D, 1.0D, 1.0D,
                     1.0D);
-            Fight.Policy follow = Policies.following(doctrine);
+            Fight.Policy follow = options.getOrDefault("trace-policy", "doctrine").equals("elder") ? Policies.elder()
+                    : Policies.following(doctrine);
             System.out.println("Fight " + (i + 1) + ":");
             fight.run((f, seen, possible) -> {
                 com.elderlexicon.mod.mind.Doctrine.Stance chosen = follow.choose(f, seen, possible);
                 System.out.printf(Locale.ROOT,
-                        "  t%4d  %4.1f blocks  room %2.0f  blow %4.2f  life %4.1f  foe %4.1f  %s%s -> %s%n", f.tick,
+                        "  t%4d  %4.1f blocks  room %2.0f  blow %4.2f  life %4.1f  foe %4.1f  %s%s%s -> %s   [foe %s, last %s]%n", f.tick,
                         seen.distance(), seen.room(), Math.min(9.99D, seen.trancesToBlow()), f.health, f.foeHealth,
-                        seen.ready() ? "ready" : "rest ", f.cornered > 0 ? " cornered" : "", chosen);
+                        seen.ready() ? "ready" : "rest ", f.cornered > 0 ? " cornered" : "", f.inFire > 0 ? " in fire" : f.burning > 0 ? " burning" : "", chosen,
+                        (f.foeReading != null ? "reading " + f.foeReading.intent() : f.foeInFire > 0 ? "in fire" : "-") + (f.foeBurning > 0 ? ", burning" : ""),
+                        f.foeLastRead);
                 return chosen;
             });
             System.out.println(fight.won() ? "  won" : fight.health <= 0.0D ? "  lost" : "  time ran out");
@@ -160,7 +176,7 @@ public final class Train {
         Path out = Path.of(options.getOrDefault("out", "build/doctrines"));
         Files.createDirectories(out);
         // Against another caster, a doctrine is a temper's: what one who pays in flesh can do, one who never does cannot.
-        String name = cal.reads() ? foe + "-" + personality.id() : foe;
+        String name = cal.reads() ? cal.foe() + "-" + personality.id() : cal.foe();
         Path file = out.resolve(name + ".json");
         Files.writeString(file, doctrine.toJson(), StandardCharsets.UTF_8);
         System.out.println("Written: " + file.toAbsolutePath() + " (" + kept.size() + " situations)");

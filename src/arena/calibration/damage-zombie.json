@@ -15,7 +15,9 @@
         7.502220153808594,
         7.502220153808594,
         7.502220153808594
-      ]
+      ],
+      "visSpent": 10.5,
+      "lifeLost": 0.0
     },
     {
       "sentence": "aura quantum -10 vocant quantum 20 iactare",
@@ -29,7 +31,9 @@
         12.874327659606934,
         12.874327659606934,
         12.874327659606934
-      ]
+      ],
+      "visSpent": 45.982758620689665,
+      "lifeLost": 3.2258072
     },
     {
       "sentence": "firmo quantum 20 iactare surgit ego quantum 0",
@@ -43,7 +47,9 @@
         7.502220153808594,
         7.502220153808594,
         7.502220153808594
-      ]
+      ],
+      "visSpent": 12.900000000000006,
+      "lifeLost": 0.0
     },
     {
       "sentence": "aqua quantum -10 vocant quantum 20 iactare",
@@ -71,7 +77,9 @@
         20.0,
         20.0,
         20.0
-      ]
+      ],
+      "visSpent": 97.5,
+      "lifeLost": 1.2464199
     },
     {
       "sentence": "firmo quantum -10 vocant quantum 20 iactare",
@@ -85,7 +93,9 @@
         14.335307121276855,
         14.335307121276855,
         14.335307121276855
-      ]
+      ],
+      "visSpent": 44.83333333333334,
+      "lifeLost": 2.1052628
     },
     {
       "sentence": "igni tenet quantum 20 iactare",
@@ -99,7 +109,9 @@
         20.0,
         20.0,
         20.0
-      ]
+      ],
+      "visSpent": 97.5,
+      "lifeLost": 0.76642036
     },
     {
       "sentence": "firmo iactare",
@@ -113,7 +125,9 @@
         3.7155590057373047,
         3.7155590057373047,
         3.7155590057373047
-      ]
+      ],
+      "visSpent": 0.5,
+      "lifeLost": 0.0
     },
     {
       "sentence": "igni iactare",
@@ -127,7 +141,9 @@
         6.826669692993164,
         6.826669692993164,
         6.826669692993164
-      ]
+      ],
+      "visSpent": 0.5,
+      "lifeLost": 0.0
     },
     {
       "sentence": "aqua iactare",
@@ -141,7 +157,9 @@
         4.000001907348633,
         4.000001907348633,
         4.000001907348633
-      ]
+      ],
+      "visSpent": 0.5,
+      "lifeLost": 0.0
     },
     {
       "sentence": "aura iactare",
@@ -155,7 +173,9 @@
         2.7800045013427734,
         2.7800045013427734,
         2.7800045013427734
-      ]
+      ],
+      "visSpent": 0.5,
+      "lifeLost": 0.0
     }
   ]
 }

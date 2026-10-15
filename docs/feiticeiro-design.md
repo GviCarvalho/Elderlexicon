@@ -615,6 +615,49 @@ Com as lutas isoladas (3.20), as doutrinas de duelo foram retreinadas com a ment
 - **O que falta para uma doutrina de duelo servir:** um oponente na arena que se pareça com o Mago (recua, mantém
   distância, incendeia, usa barreira e sumir); hoje ele só anda até o alcance e lê ferir, tirar ou curar.
 
+### 3.22 O Mago fiel na arena (pedido do autor, 15/10/2026)
+
+Antes de mexer na arena, o duelo do mundo foi medido: `ELDERLEXICON_CALIBRATE=duels` põe oito duelos (quatro anciãos
+agressivos, quatro trapaceiros, sem doutrina) contra um Mago mestre agressivo, cada um na sua ilha e no seu lote, e
+registra cada frase lida pelos dois (`DUEL ... READ`), como cada um está a cada segundo (`SEES`) e o fim (`END`). Sem
+doutrina o ancião venceu 11 de 16. O que os registros mostraram:
+
+- **A página favorita não faz nada.** "salva de fogo" e "lança de fogo" (as páginas do grimório que a mente mais quer,
+  prevendo 12 e 4 de dano) tiraram 0 de um alvo parado a 6 blocos, e 0,9 nos duelos. Os dois abrem o duelo com ela.
+- **Frases com `tenet` matam de uma vez.** "firmo tenet quantum 20 iactare" mata um conjurador inteiro gastando 31 de
+  Vis; "igni tenet chronos 0 impediunt quantum 20 iactare", gastando 97,5. A mente prevê 8 a 20 de dano para elas e as
+  pontua igual a uma dúzia de frases comuns (11,08); a sorte do grau decide qual sai.
+- **O fogo queima por muito tempo.** "igni ... iactare" com quantidade deixa o alvo queimando 20 segundos ou mais, a
+  0,8 de vida por segundo: o fogo no corpo (3.19) acende de novo depois de apagado. Apagar quase nunca resolve: o
+  ancião leu "aqua tenet ... vocant" quatro vezes numa pedra seca e morreu queimando.
+- **Os duelos se afastam:** 20 a 40 blocos, lendo com `ubis`.
+
+A arena passou a ter:
+
+- **O Mago como o mundo o roda** (`Calibration.Mage`, `Fight.mage`): lê sempre que está livre, entre as duas
+  melhores com a sorte do mestre (`Mind.choose`); recua de quem está a menos de 5 blocos (7 depois de ter o transe
+  quebrado duas vezes, `Memory.SAFE_DISTANCE`) pelo caminho com mais espaço; anda até o outro só quando nada que lê
+  chega lá. Barreira (empurra e não deixa entrar o elemento dela), fuga (`THROWN`), véu (some e não é mirado), e o
+  fogo que cai (sai dele antes de ler, 3.18) valem para os dois lados.
+- **As páginas do grimório** no repertório (`Repertoire.pages`), e **frases escritas mais longe** (`Reach.farther`).
+- **O que falta de Vis sai do corpo**, como no `SpellCostModule` (5 UMU por ponto de vida): antes a arena não cobrava,
+  e ler desesperado saía de graça. **O custo medido** (`visSpent`, `lifeLost`) vale quando há.
+- **O dano medido de uma vez** (`early`, nos primeiros 30 ticks) e **a queima** (`burning`) à parte: 20 segundos a 0,8.
+  Uma frase não medida usa a medida da parente sem a barreira nem o salto (`Damage.kin`).
+- **Memória, cansaço e sorte** dos dois (`Memory`, `Degree.habit`, `Degree.luck`): o que não fez nada duas vezes não é
+  lido de novo, e entre as que valem igual a sorte escolhe.
+- **Quem lê primeiro no mesmo tick** é sorteado (antes, o ancião sempre quebrava o transe do outro).
+
+**Resultado.** Treinadas contra esse Mago (300 mil lutas cada), as doutrinas `caster-aggressive` e `caster-trickster`
+vencem 94% em campo aberto e 62% no corredor de 5 × 40 na arena (sem doutrina, 38% e 40%). **No jogo, em 16 duelos
+medidos, o ancião com doutrina venceu 14, empatou 1 (por tempo, à frente) e perdeu 1**, quase sempre com 21 a 24 de
+vida; sem doutrina, 11 de 16. Ele aprendeu a se afastar para mais de 20 blocos logo no começo e lutar de longe com
+`ubis`. **Instaladas.** Os testes de duelo voltam a exigir a doutrina; continuam opcionais (um duelo também é sorte).
+
+A arena ainda dá ao Mago mais do que o mundo (sem doutrina o ancião vence 35–40% nela e 69% no jogo). Ficam para depois,
+porque são da mente e não da arena: a mente prever o que a página de fogo e as frases com `tenet` fazem de verdade, e
+não ler `aqua tenet` para apagar onde não há água.
+
 ## 4. O que o evocador sabe
 
 - **Repertório por grau.** Aprendiz (2 ou 3 runas), mestre (6 a 8), ancião (quase o léxico inteiro). Cada evocador
