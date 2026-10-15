@@ -131,6 +131,7 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
         goalSelector.addGoal(0, new FloatGoal(this));
         goalSelector.addGoal(1, new TradeWithPlayerGoal(this));
         goalSelector.addGoal(1, new LookAtTradingPlayerGoal(this));
+        goalSelector.addGoal(0, casterMind().escapeFireGoal(0.9D));
         goalSelector.addGoal(2, casterMind().tranceGoal());
         goalSelector.addGoal(3, casterMind().keepDistanceGoal(0.7D, KEEPS_AWAY));
         goalSelector.addGoal(4, casterMind().approachGoal(0.6D));

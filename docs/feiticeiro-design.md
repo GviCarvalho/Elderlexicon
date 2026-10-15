@@ -521,7 +521,26 @@ Resultados na arena (3000 lutas frescas; doutrina sem círculo → com círculo)
   distância. Para instalar, o oponente da arena precisa recuar e incendiar como o do mundo.
 - **Pegando fogo, o mago larga a doutrina.** Nenhuma postura dela é "apagar o fogo": com a doutrina, ele não se
   apagava. Agora, em chamas, a mente decide. Mesmo assim, na luta registrada, ela leu ferir em vez de sair do fogo;
-  sair de um bloco em chamas é o próximo passo.
+  sair de um bloco em chamas veio depois (3.18).
+
+### 3.18 Sair do fogo (pedido do autor, 14/10/2026)
+
+- **Primeiro sair.** Um objetivo novo, acima de todos (`escapeFireGoal`): parado num bloco em chamas (no pé ou na
+  cabeça) ou na lava, o mago vai até o chão seguro mais próximo, sem chama ao lado. Entre os pontos seguros, escolhe
+  o de menos chamas no caminho (encostado numa parede de fogo, volta por onde veio; no meio de um braseiro, sai pelo
+  lado mais curto), e então o mais próximo. Vai em linha reta, sem procurar caminho: de dentro do fogo, não há.
+- **Não abre o transe dentro do fogo.** E, se o fogo vem enquanto lê, quem prevê o que vem (mestre, ancião) larga o
+  transe e sai; o aprendiz continua lendo, e queimando.
+- **O caminho nunca passa pelo fogo.** O andar do Minecraft só evita fogo e atravessa quando não há outro caminho;
+  para um conjurador, fogo é intransponível e estar ao lado dele custa o dobro.
+- **GameTest** `anElderStepsOutOfFire`: um ancião posto no meio de um braseiro de 3 × 3 sai em 11 a 12 ticks e
+  fica fora. As de 3.14 (contornar e não atravessar uma faixa de fogo) continuam passando.
+- **Encontrado no caminho, não resolvido: encher-se demais.** Numa luta contra o esqueleto, depois de ler duas vezes
+  `firmo quantum -10 vocant` (tirar terra do alvo) estando inteiro, o ancião passou a perder quase 5 de vida por
+  segundo com dano de "lava", sem lava por perto, e perdeu. A sonda (`ELDERLEXICON_PROBE`) mostra que cada leitura de
+  tirar custa de 1,6 a 4,4 de vida a quem lê, sem fonte de dano: é o Vita. A suspeita é que tirar sem precisar
+  enche o corpo além da conta, e o Vita castiga isso como calor. A mente não conhece esse risco: para ela, tirar só
+  faz bem a quem tira. É o próximo passo.
 
 ## 4. O que o evocador sabe
 

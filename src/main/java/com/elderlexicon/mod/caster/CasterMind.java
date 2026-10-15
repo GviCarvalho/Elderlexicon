@@ -313,6 +313,10 @@ public final class CasterMind {
     public CasterMind(Mob owner, Body body) {
         this.owner = owner;
         this.body = body;
+        // A caster never walks a way through fire, and keeps well off it (docs/feiticeiro-design.md, 3.18): the game's
+        // walker only shuns it, and goes through when there is no other way.
+        owner.setPathfindingMalus(net.minecraft.world.level.pathfinder.BlockPathTypes.DAMAGE_FIRE, -1.0F);
+        owner.setPathfindingMalus(net.minecraft.world.level.pathfinder.BlockPathTypes.DANGER_FIRE, 16.0F);
     }
 
     // ------------------------------------------------------------------ who it is
@@ -1210,6 +1214,13 @@ public final class CasterMind {
 
     /** One tick of the trance: the words come one by one; at the end, the spirit reads them. */
     private void holdTrance(@Nullable LivingEntity target) {
+        // Fire does not break a trance; one who sees what comes (a master, an elder) breaks it itself, and gets out
+        // (docs/feiticeiro-design.md, 3.18). An apprentice reads on, burning.
+        if (standingInFire() && degree().foresight() > 0.0D) {
+            endTrance(false);
+            restTicks = BROKEN_REST_TICKS / 3;
+            return;
+        }
         Option option = reading.option();
         tranceTicks++;
         body.tranceHeld(Math.max(1, TRANCE_TICKS - tranceTicks));
@@ -1742,6 +1753,129 @@ public final class CasterMind {
      * it ({@link #wantedDistance}), no nearer than {@code floor} in any case. When it cannot get farther, it is cornered,
      * and reads where it stands.
      */
+    public Goal escapeFireGoal(double speed) {
+        return new EscapeFireGoal(speed);
+    }
+
+    /** Whether it stands in fire: flames where its feet or its head are, or lava. */
+    public boolean standingInFire() {
+        if (owner.isInLava()) {
+            return true;
+        }
+        net.minecraft.core.BlockPos feet = owner.blockPosition();
+        return owner.level().getBlockState(feet).is(net.minecraft.tags.BlockTags.FIRE)
+                || owner.level().getBlockState(feet.above()).is(net.minecraft.tags.BlockTags.FIRE);
+    }
+
+    /**
+     * Where the nearest ground out of the fire is, within {@code reach}: room to stand (as {@link #ground()} sees it,
+     * which keeps out of flames) and no flame beside it; of those, the one with the fewest flames on the way there (back
+     * the way it came, not across a wall of fire), and then the nearest.
+     */
+    @Nullable
+    private Vec3 outOfTheFire(int reach) {
+        Room.Ground ground = ground();
+        Vec3 best = null;
+        int fewest = Integer.MAX_VALUE;
+        for (int distance = 1; distance <= reach; distance++) {
+            for (int step = 0; step < 16; step++) {
+                double angle = Math.PI * 2.0D * step / 16.0D;
+                double x = owner.getX() + Math.cos(angle) * distance;
+                double z = owner.getZ() + Math.sin(angle) * distance;
+                if (!ground.open(x, z) || flamesBeside(x, z)) {
+                    continue;
+                }
+                int flames = flamesOnTheWay(x, z);
+                if (flames < fewest) {
+                    fewest = flames;
+                    best = new Vec3(x, owner.getY(), z);
+                }
+            }
+            if (fewest == 0) {
+                break; // none nearer will do better
+            }
+        }
+        return best;
+    }
+
+    /** How many blocks of flame stand on the straight way to ({@code x}, {@code z}), past the one it stands in. */
+    private int flamesOnTheWay(double x, double z) {
+        double dx = x - owner.getX();
+        double dz = z - owner.getZ();
+        double length = Math.hypot(dx, dz);
+        Set<net.minecraft.core.BlockPos> burning = new HashSet<>();
+        net.minecraft.core.BlockPos here = owner.blockPosition();
+        for (double along = 0.5D; along < length; along += 0.5D) {
+            net.minecraft.core.BlockPos at = net.minecraft.core.BlockPos.containing(owner.getX() + dx / length * along,
+                    owner.getY(), owner.getZ() + dz / length * along);
+            if (!at.equals(here) && (owner.level().getBlockState(at).is(net.minecraft.tags.BlockTags.FIRE)
+                    || owner.level().getBlockState(at.above()).is(net.minecraft.tags.BlockTags.FIRE))) {
+                burning.add(at.immutable());
+            }
+        }
+        return burning.size();
+    }
+
+    private boolean flamesBeside(double x, double z) {
+        net.minecraft.core.BlockPos at = net.minecraft.core.BlockPos.containing(x, owner.getY(), z);
+        for (net.minecraft.core.BlockPos near : net.minecraft.core.BlockPos.betweenClosed(at.offset(-1, 0, -1),
+                at.offset(1, 1, 1))) {
+            if (owner.level().getBlockState(near).is(net.minecraft.tags.BlockTags.FIRE)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Gets out of the fire it stands in, before anything else (docs/feiticeiro-design.md, 3.18): to the nearest ground
+     * with no flame beside it.
+     */
+    private final class EscapeFireGoal extends Goal {
+
+        private static final int REACH = 6;
+        private final double speed;
+        private int repath;
+        private int ticks;
+        @Nullable
+        private Vec3 out;
+
+        EscapeFireGoal(double speed) {
+            this.speed = speed;
+            setFlags(EnumSet.of(Flag.MOVE));
+        }
+
+        @Override
+        public boolean canUse() {
+            return reading == null && standingInFire();
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return ticks < 60 && (standingInFire() || out != null && owner.distanceToSqr(out) > 0.25D);
+        }
+
+        @Override
+        public void start() {
+            repath = 0;
+            ticks = 0;
+        }
+
+        @Override
+        public void tick() {
+            ticks++;
+            if (--repath <= 0) {
+                repath = 10;
+                out = outOfTheFire(REACH);
+            }
+            // Straight there: a way is never found through fire, and it stands in it.
+            if (out != null) {
+                owner.getNavigation().stop();
+                owner.getMoveControl().setWantedPosition(out.x, out.y, out.z, speed);
+            }
+        }
+    }
+
     public Goal keepDistanceGoal(double speed, double floor) {
         return new KeepDistanceGoal(speed, floor);
     }
@@ -2343,6 +2477,9 @@ public final class CasterMind {
             LivingEntity target = owner.getTarget();
             if (reading != null || releaseTicks > 0 || restTicks > 0) {
                 return false;
+            }
+            if (standingInFire()) {
+                return false; // out of the fire first (3.18)
             }
             if (target == null || !target.isAlive()) {
                 // With no foe: hurt, or burning, it reads for itself (docs/feiticeiro-design.md, 3.8).

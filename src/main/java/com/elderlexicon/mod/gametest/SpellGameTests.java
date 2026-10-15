@@ -482,6 +482,72 @@ public final class SpellGameTests {
     }
 
     /**
+     * A caster that finds itself in fire gets out first (docs/feiticeiro-design.md, 3.18): an elder set down in the
+     * middle of a patch of everlasting fire, a villager to hunt twelve blocks off, is out of it within two seconds and
+     * keeps out.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 300, batch = "fire_escape")
+    public static void anElderStepsOutOfFire(GameTestHelper helper) {
+        for (int x = 0; x < 9; x++) {
+            for (int z = 0; z < 20; z++) {
+                boolean patch = x >= 3 && x <= 5 && z >= 3 && z <= 5;
+                helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)),
+                        patch ? Blocks.NETHERRACK.defaultBlockState() : Blocks.STONE.defaultBlockState());
+                for (int y = 1; y < 4; y++) {
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)),
+                            y == 1 && patch ? Blocks.FIRE.defaultBlockState() : Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
+        Villager prey = helper.spawn(EntityType.VILLAGER, new Vec3(4.5D, 1.0D, 16.5D));
+        prey.setNoAi(true);
+        prey.setInvulnerable(true);
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(4.5D, 1.0D, 4.5D));
+        evoker.targetSelector.removeAllGoals(goal -> true);
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.ELDER, com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        evoker.setTarget(prey);
+        Runnable putOut = () -> {
+            leave(evoker, prey);
+            for (int x = 3; x <= 5; x++) {
+                for (int z = 3; z <= 5; z++) {
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 1, z)),
+                            Blocks.AIR.defaultBlockState());
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)),
+                            Blocks.STONE.defaultBlockState());
+                }
+            }
+        };
+        int[] ticks = new int[1];
+        int[] outFor = new int[1];
+        boolean[] over = new boolean[1];
+        helper.onEachTick(() -> {
+            if (over[0]) {
+                return;
+            }
+            ticks[0]++;
+            boolean in = evoker.casterMind().standingInFire();
+            outFor[0] = in ? 0 : outFor[0] + 1;
+            String failed = null;
+            if (in && ticks[0] > 40) {
+                failed = "still in the fire after two seconds, at " + evoker.blockPosition();
+            } else if (outFor[0] < 60) {
+                return;
+            }
+            over[0] = true;
+            putOut.run();
+            if (failed != null) {
+                helper.fail(failed);
+            } else {
+                com.mojang.logging.LogUtils.getLogger().info("ESCAPE out of the fire after {} ticks", ticks[0] - 60);
+                helper.succeed();
+            }
+        });
+    }
+
+    /**
      * A sorcerer that throws twenty blocks hunts a villager thirty off, with a strip of everlasting fire across the way:
      * with a gap at one side ({@code gap}), it goes by it and comes near; with none, it waits outside the fire. Either
      * way it never catches fire.
@@ -813,9 +879,9 @@ public final class SpellGameTests {
             return;
         }
         longFloor(helper, 24);
-        List<String> sentences = List.of("igni quantum 20 24 ubis vocant", "igni quantum 20 16 ubis vocant",
-                "igni quantum 20 vocant", "igni tenet quantum 20 iactare", "igni quantum 20 iactare");
-        double[] distances = {6.0D, 12.0D, 20.0D};
+        List<String> sentences = List.of("firmo quantum -10 vocant", "aqua quantum -10 vocant",
+                "aura quantum -10 vocant", "igni quantum -10 vocant", "firmo quantum -10 vocant quantum 20 iactare");
+        double[] distances = {6.0D, 12.0D};
         int at = 1;
         for (String sentence : sentences) {
             for (double distance : distances) {
@@ -857,8 +923,9 @@ public final class SpellGameTests {
                     Sorcerer caster = (Sorcerer) pair[0];
                     net.minecraft.world.entity.LivingEntity husk = (net.minecraft.world.entity.LivingEntity) pair[1];
                     com.mojang.logging.LogUtils.getLogger().info(
-                            "SELFBURN sentence={} distance={} casterBurned={} casterLife={} huskLife={}", sentence,
-                            distance, burned[0], caster.getHealth(), husk.isAlive() ? husk.getHealth() : 0.0F);
+                            "SELFBURN sentence={} distance={} casterBurned={} casterLife={} huskLife={} lastHurt={}",
+                            sentence, distance, burned[0], caster.getHealth(), husk.isAlive() ? husk.getHealth() : 0.0F,
+                            caster.getLastDamageSource() == null ? "nothing" : caster.getLastDamageSource().getMsgId());
                     leave(caster, husk);
                 });
                 at += 80;
