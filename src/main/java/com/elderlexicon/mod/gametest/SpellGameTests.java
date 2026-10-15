@@ -1261,7 +1261,8 @@ public final class SpellGameTests {
                                 com.elderlexicon.mod.mind.Personality.AGGRESSIVE, option,
                                 com.elderlexicon.mod.mind.Mind.person(0.0D));
                 pair[0] = new Object[]{caster, live, foreseen.map(com.elderlexicon.mod.mind.Mind.Choice::harm)
-                        .orElse(0.0D), foreseen.map(choice -> choice.intent().name()).orElse("")};
+                        .orElse(0.0D), foreseen.map(choice -> choice.intent().name()).orElse(""),
+                        Casters.vis(caster), caster.getHealth()};
                 new SpellCastingService().castBlock(caster, option.lines().stream()
                         .map(line -> new SpellCastingService.TimedSpell(line.words(), line.delaySteps())).toList(),
                         later -> {
@@ -1282,8 +1283,9 @@ public final class SpellGameTests {
                 boolean killed = !target.isAlive();
                 double done = before[0] - (killed ? 0.0F : target.getHealth());
                 com.mojang.logging.LogUtils.getLogger().info(
-                        "DAMAGE foe={} distance={} measured={} killed={} arena={} world={} health={} sentence={}", foe,
-                        distance, done, killed, held[2], held[1], before[0], option.name());
+                        "DAMAGE foe={} distance={} measured={} killed={} arena={} world={} health={} visSpent={} "
+                                + "lifeLost={} sentence={}", foe, distance, done, killed, held[2], held[1], before[0],
+                        (double) held[4] - Casters.vis(caster), (float) held[5] - caster.getHealth(), option.name());
                 com.google.gson.JsonObject entry = new com.google.gson.JsonObject();
                 entry.addProperty("sentence", option.name());
                 entry.addProperty("intent", (String) held[3]);
@@ -1292,6 +1294,9 @@ public final class SpellGameTests {
                 entry.addProperty("world", (double) held[1]);
                 entry.addProperty("measured", done);
                 entry.addProperty("killed", killed);
+                // What it cost the one who read it: the Vis spent, and the life it lost (3.19).
+                entry.addProperty("visSpent", (double) held[4] - Casters.vis(caster));
+                entry.addProperty("lifeLost", (float) held[5] - caster.getHealth());
                 found.add(entry);
                 leave(caster, target);
             });
@@ -2353,6 +2358,7 @@ public final class SpellGameTests {
     /**
      * The mind weighs what the scene asks (docs/feiticeiro-design.md, 3.3): drawing the water out of a cow is worth more
      * to a wounded evoker, which heals by it, than to a whole one; and it foresees what the draw takes from the cow.
+     * Whole, it may be worth nothing at all: the water would come into a full body and push the rest out (3.19).
      */
     @GameTest(template = EMPTY)
     public static void aWoundedMindWantsToDrawMore(GameTestHelper helper) {
@@ -2369,8 +2375,8 @@ public final class SpellGameTests {
         float share = evoker.getHealth() / evoker.getMaxHealth();
         double wounded = com.elderlexicon.mod.mind.Mind.evaluate(new com.elderlexicon.mod.mind.Mind.Scene(evoker, cow,
                 3.0D, share, 100.0D), trickster, bite).map(com.elderlexicon.mod.mind.Mind.Choice::score).orElse(0.0D);
-        if (!(whole > 0.0D)) {
-            helper.fail("drawing out of the cow is worth nothing: " + whole);
+        if (!(wounded > 0.0D)) {
+            helper.fail("drawing out of the cow is worth nothing, wounded (" + share + "): " + wounded);
         }
         if (!(wounded > whole)) {
             helper.fail("wounded (" + share + ") it is worth " + wounded + ", whole " + whole);

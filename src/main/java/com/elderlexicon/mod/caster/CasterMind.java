@@ -694,10 +694,12 @@ public final class CasterMind {
         }
         Doctrine.Situation seen = situation(target);
         String key = doctrineAgainst(target).map(doctrine -> doctrine.steps().key(seen)).orElse("-");
-        return String.format(Locale.ROOT, "%.1f blocks, %.2f trances to harm, room %.0f, %s%s%s, rest %d, key %s",
+        return String.format(Locale.ROOT,
+                "%.1f blocks, %.2f trances to harm, room %.0f, %s%s%s, rest %d, Vis %.0f, last \"%s\", key %s",
                 seen.distance(), seen.trancesToBlow(), seen.room(), stance == null ? "no stance" : stance.name(),
                 reading != null ? ", reading " + reading.intent() : releaseTicks > 0 ? ", releasing" : "",
-                cornered > 0 ? ", cornered" : "", restTicks, key);
+                cornered > 0 ? ", cornered" : "", restTicks, Casters.vis(owner),
+                lastChoice == null ? "-" : lastChoice.option().name(), key);
     }
 
     /** What its doctrine says to do now, if it follows one and it knows the situation. */

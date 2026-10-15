@@ -559,7 +559,8 @@ final class Fight {
             case DRAW -> {
                 foeHealth -= cal.damage().harm(choice);
                 spent += choice.harm() * UMU_PER_HP;
-                health = Math.min(cal.casterHealth(), health + Math.max(0.0D, choice.healed()));
+                // What it drew comes into its body: it heals one lacking, and hurts one full (3.19).
+                health = Math.min(cal.casterHealth(), health + choice.healed());
             }
             case HEAL -> health = Math.min(cal.casterHealth(), health + choice.healed());
             case WARD -> {

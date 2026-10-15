@@ -539,8 +539,44 @@ Resultados na arena (3000 lutas frescas; doutrina sem círculo → com círculo)
   `firmo quantum -10 vocant` (tirar terra do alvo) estando inteiro, o ancião passou a perder quase 5 de vida por
   segundo com dano de "lava", sem lava por perto, e perdeu. A sonda (`ELDERLEXICON_PROBE`) mostra que cada leitura de
   tirar custa de 1,6 a 4,4 de vida a quem lê, sem fonte de dano: é o Vita. A suspeita é que tirar sem precisar
-  enche o corpo além da conta, e o Vita castiga isso como calor. A mente não conhece esse risco: para ela, tirar só
-  faz bem a quem tira. É o próximo passo.
+  enche o corpo além da conta, e o Vita castiga isso como calor. A mente não conhecia esse risco (3.19).
+
+### 3.19 Encher-se demais (pedido do autor, 15/10/2026)
+
+O corpo é um cálice com capacidade fixa (5 UMU por ponto de vida), e cada elemento tem a sua parte: água 55%,
+ar 38%, terra 5%, fogo 2%. O que tirar traz para dentro do mago entra por esse caminho:
+
+- **Passou do cheio, empurra os outros para fora** (`VitaData.contain`), em proporção ao que cada um tem. A vida
+  segue o elemento que mais falta, então ela cai. Para um Feiticeiro (120 UMU), 10 de terra entrando com o corpo
+  inteiro custam cerca de 2 de vida. O excesso depois sai aos poucos, mas o que foi empurrado não volta.
+- **Desequilíbrios têm efeitos** (`IgniImbalanceEffects`, `FirmoImbalanceEffects`): fogo muito acima do cheio
+  **incendeia o corpo a cada 2 segundos**, o que explica as queimaduras "sem chama nenhuma por perto"; terra em excesso
+  deixa lento; terra muito baixa corta 8 da vida máxima.
+
+**O que a mente fazia de errado:** previa o que encher o corpo devolve com `lifeGivenBy`, que para no cheio e nunca
+fica negativo. Para ela, tirar só fazia bem a quem tira.
+
+**O que mudou:**
+- `VitaSystem.lifeChangedBy` simula a entrada pelo mesmo caminho do corpo (com o deslocamento) e pode dar negativo;
+  `overfullBy` diz quanto um elemento passa do cheio. A previsão da arena (`Mind.person`) faz o mesmo com o corpo de
+  uma pessoa.
+- Tirar vale o que tira do alvo mais o que volta à vida de quem tira, se voltar; se custar vida, isso entra como
+  risco. Puxar do mundo para se curar, o mesmo. Encher-se de fogo além da metade acima do cheio é mais um risco (o
+  corpo se incendeia).
+- Na arena, o que volta (ou o que custa) passa a mexer na vida do mago.
+
+**O que isso revelou:**
+- **A página "cura" faz mal.** Ela põe 10 de fogo e 10 de terra num corpo em que o fogo cheio é cerca de 2 e a terra
+  cerca de 5: transborda, empurra o resto e incendeia. A mente agora não a lê. Para servir, a cura precisa de
+  quantidades na proporção do corpo (fogo perto de 1 UMU), e a gramática só escreve 10, 20 e −10.
+- **Tirar inteiro não vale a pena.** O teste `aWoundedMindWantsToDrawMore` esperava que tirar a água de uma vaca valesse
+  algo para um Feiticeiro inteiro; agora não vale, e só ferido vale.
+- **A quantidade escrita ao contrário.** Em `firmo quantum -10 vocant`, a mente prevê que nada é tirado do alvo (lê a
+  quantidade −10 como zero), mas no jogo tira (6,7 de um husk). Corrigida a leitura, a mente passou a ler essas
+  frases muito mais, e numa luta uma só leitura custou mais de 60 de Vis e 11,8 de vida contra um husk quase morto: o
+  motor puxa fontes inteiras, a mais próxima primeiro (`WorldSources`), e quando o corpo mirado tem pouco, puxa de
+  outro lugar. A mente não prevê isso, então a correção foi desfeita: a leitura do −10 fica como estava, e o custo
+  real de tirar (medido agora pela medição de dano: Vis gasta e vida perdida por frase) é o próximo passo.
 
 ## 4. O que o evocador sabe
 

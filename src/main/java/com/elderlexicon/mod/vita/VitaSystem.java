@@ -313,6 +313,36 @@ public final class VitaSystem {
         return Math.max(0.0D, (Math.min(1.0D, after) - Math.min(1.0D, before)) * max);
     }
 
+    /**
+     * What putting {@code given} into the body of {@code living} does to its life (points of health), as the body takes
+     * it: an element filled past its full pushes the others out, and the life follows the one most lacking, so it may
+     * be less than nothing (docs/feiticeiro-design.md, 3.19). {@link #lifeGivenBy} stops at full.
+     */
+    public static double lifeChangedBy(LivingEntity living, java.util.Map<VitaElement, Double> given) {
+        if (living == null || given.isEmpty()) {
+            return 0.0D;
+        }
+        VitaData data = VitaData.peek(living);
+        double before = data.maxHealth() * Math.min(1.0D, data.wholeness());
+        given.forEach((element, amount) -> {
+            if (element != null && !element.isBalanced() && amount > EPSILON) {
+                data.addElementEnergy(element, amount);
+            }
+        });
+        return data.maxHealth() * Math.min(1.0D, data.wholeness()) - before;
+    }
+
+    /** How far past its full {@code element} would stand with {@code amount} more of it, as a share of its full. */
+    public static double overfullBy(LivingEntity living, VitaElement element, double amount) {
+        if (living == null || element == null || element.isBalanced()) {
+            return 0.0D;
+        }
+        VitaData data = VitaData.peek(living);
+        data.addElementEnergy(element, Math.max(0.0D, amount));
+        double full = data.full(element);
+        return full <= EPSILON ? 0.0D : Math.max(0.0D, (data.get(element) - full) / full);
+    }
+
     public static double lackOf(LivingEntity living, VitaElement element) {
         if (living == null || element == null || element.isBalanced()) {
             return 0.0D;

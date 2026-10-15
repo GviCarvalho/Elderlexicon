@@ -231,6 +231,7 @@ public final class Mind {
         double harm = 0.0D;
         double price = 0.0D;
         double risk = 0.0D;
+        double drawnBack = 0.0D;
         boolean struck = false;
         for (Act act : option.acts()) {
             Intent intent = serves(act, aim);
@@ -263,12 +264,18 @@ public final class Mind {
                 }
                 case DRAW -> {
                     if (scene.foe() && scene.distance() + REACH_MARGIN <= DRAW_REACH) {
+                        // A quantity written turned around (quantum -10 vocant) is foreseen to take nothing out of the
+                        // body aimed at, though it does: foreseen so, the mind seldom reads it, and what it really
+                        // costs (the engine pulls whole sources, from wherever) is not foreseen either (3.19).
                         double amount = act.quantity().orElse(DEFAULT_QUANTITY);
                         double life = foresight.lifeTaken(act.element(), amount);
-                        double healed = scene.wounded() ? Math.min(amount, foresight.lack(act.element()))
-                                / VitaSystem.UMU_PER_HP : 0.0D;
+                        // What it draws comes into its own body, as the body takes it: lacking, it heals; full, it
+                        // pushes the others out, and that hurts it; fire past its full sets it burning (3.19).
+                        double changed = foresight.lifeChanged(Map.of(act.element(), Math.abs(amount)));
                         price += life * VitaSystem.UMU_PER_HP;
-                        done.merge(Intent.DRAW, life + healed, Double::sum);
+                        done.merge(Intent.DRAW, life + Math.max(0.0D, changed), Double::sum);
+                        risk += Math.max(0.0D, -changed) + overheat(act.element(), amount, foresight);
+                        drawnBack += changed;
                         harm += life;
                     }
                 }
@@ -310,11 +317,18 @@ public final class Mind {
         }
         double healed = 0.0D;
         if (!given.isEmpty()) {
-            healed = foresight.lifeGiven(given);
+            // Drawn in from the world: as the body takes it, past full pushing the others out (3.19).
+            healed = foresight.lifeChanged(given);
             if (healed > 0.0D) {
                 done.merge(Intent.HEAL, healed, Double::sum);
+            } else {
+                risk -= healed;
+            }
+            for (Map.Entry<VitaElement, Double> entry : given.entrySet()) {
+                risk += overheat(entry.getKey(), entry.getValue(), foresight);
             }
         }
+        healed += drawnBack;
         if (done.isEmpty()) {
             return Optional.empty();
         }
@@ -337,6 +351,15 @@ public final class Mind {
         score += -personality.costWeight() * spent - risk + (random == null ? 0.0D : random.nextDouble() * luck);
         return score > 0.0D && most != null ? Optional.of(new Choice(option, most, score, aim, harm, healed))
                 : Optional.empty();
+    }
+
+    /** How far past its full fire may stand in a body before it sets it burning, and what that is worth (a guess). */
+    private static final double OVERHEATED = 0.5D;
+    private static final double BURNING_RISK = 4.0D;
+
+    /** The risk of filling the body with {@code amount} of {@code element}: fire far past its full burns it (3.19). */
+    private static double overheat(VitaElement element, double amount, Foresight foresight) {
+        return element == VitaElement.IGNI && foresight.overfull(element, amount) > OVERHEATED ? BURNING_RISK : 0.0D;
     }
 
     /** How much the scene asks for {@code intent}. */
@@ -468,6 +491,19 @@ public final class Mind {
         /** The life (points of health) the caster would get back with {@code given} put into its body. */
         double lifeGiven(Map<VitaElement, Double> given);
 
+        /**
+         * What putting {@code given} into the caster's body does to its life, as the body takes it: past full, the
+         * others are pushed out, and it may be less than nothing (3.19).
+         */
+        default double lifeChanged(Map<VitaElement, Double> given) {
+            return lifeGiven(given);
+        }
+
+        /** How far past its full {@code element} would stand in the caster with {@code amount} more of it (a share). */
+        default double overfull(VitaElement element, double amount) {
+            return 0.0D;
+        }
+
         /** Whether a zone keeping {@code element} out keeps the target out: Vis keeps every creature out. */
         default boolean keepsOff(VitaElement element) {
             return element.isBalanced();
@@ -504,6 +540,16 @@ public final class Mind {
         }
 
         @Override
+        public double lifeChanged(Map<VitaElement, Double> given) {
+            return scene.caster() == null ? lifeGiven(given) : VitaSystem.lifeChangedBy(scene.caster(), given);
+        }
+
+        @Override
+        public double overfull(VitaElement element, double amount) {
+            return scene.caster() == null ? 0.0D : VitaSystem.overfullBy(scene.caster(), element, amount);
+        }
+
+        @Override
         public boolean keepsOff(VitaElement element) {
             return element.isBalanced() || scene.target() != null
                     && com.elderlexicon.mod.vita.ElementAffinityService.matches(element, scene.target());
@@ -525,6 +571,49 @@ public final class Mind {
             @Override
             public double lack(VitaElement element) {
                 return lacking * VitaSystem.DEFAULT_TOTAL * share(element);
+            }
+
+            @Override
+            public double lifeChanged(Map<VitaElement, Double> given) {
+                // A person's body lacking {@code lacking} of each: filled as a body takes it, past its hundred UMU
+                // pushing the others out in their shares.
+                Map<VitaElement, Double> held = new EnumMap<>(VitaElement.class);
+                for (VitaElement element : VitaElement.values()) {
+                    if (share(element) > 0.0D) {
+                        held.put(element, (1.0D - lacking) * VitaSystem.DEFAULT_TOTAL * share(element));
+                    }
+                }
+                double before = wholeness(held);
+                for (Map.Entry<VitaElement, Double> entry : given.entrySet()) {
+                    VitaElement added = entry.getKey();
+                    if (!held.containsKey(added) || entry.getValue() <= 0.0D) {
+                        continue;
+                    }
+                    held.merge(added, entry.getValue(), Double::sum);
+                    double total = held.values().stream().mapToDouble(Double::doubleValue).sum();
+                    double overflow = total - VitaSystem.DEFAULT_TOTAL;
+                    if (overflow > 0.0D) {
+                        double others = total - held.get(added);
+                        double keep = others <= overflow ? 0.0D : (others - overflow) / others;
+                        held.replaceAll((element, value) -> element == added ? value : value * keep);
+                    }
+                }
+                return (Math.min(1.0D, wholeness(held)) - Math.min(1.0D, before)) * PERSON_HEALTH;
+            }
+
+            @Override
+            public double overfull(VitaElement element, double amount) {
+                double full = VitaSystem.DEFAULT_TOTAL * share(element);
+                return full <= 0.0D ? 0.0D
+                        : Math.max(0.0D, ((1.0D - lacking) * full + Math.max(0.0D, amount) - full) / full);
+            }
+
+            private double wholeness(Map<VitaElement, Double> held) {
+                double least = Double.MAX_VALUE;
+                for (Map.Entry<VitaElement, Double> entry : held.entrySet()) {
+                    least = Math.min(least, entry.getValue() / (VitaSystem.DEFAULT_TOTAL * share(entry.getKey())));
+                }
+                return least == Double.MAX_VALUE ? 1.0D : least;
             }
 
             @Override
