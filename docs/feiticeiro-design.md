@@ -578,6 +578,25 @@ fica negativo. Para ela, tirar só fazia bem a quem tira.
   outro lugar. A mente não prevê isso, então a correção foi desfeita: a leitura do −10 fica como estava, e o custo
   real de tirar (medido agora pela medição de dano: Vis gasta e vida perdida por frase) é o próximo passo.
 
+### 3.20 Lutas de teste isoladas (pedido do autor, 15/10/2026)
+
+As GameTests rodam muitas de uma vez, umas ao lado das outras, e criaturas de um teste entravam nos outros: um Mago de
+outro teste incendiou o ancião no meio de uma luta contra um husk; lutas deixavam restos onde o Mago de outro teste
+gravava varinhas ou lia nas estantes. Cada validação virava loteria.
+
+- **A ilha** (`SpellGameTests.Isle`): as lutas são montadas mil blocos ao lado do lugar do próprio teste, com os
+  chunks seguros carregados enquanto a luta dura. Ao abrir, ela varre a área (qualquer criatura, flecha ou item que
+  esteja lá); ao fechar, varre de novo, desmonta o que foi construído e solta os chunks. Fecha sempre, ganhando ou
+  perdendo.
+- **Na ilha:** as lutas de doutrina (husk, husk na sala, aranha, esqueleto, duelo) e a do mestre contra o husk.
+- **Resultado:** duas rodadas seguidas com todos os 105 testes obrigatórios passando, pela primeira vez; o ancião
+  venceu as quatro lutas nas duas, com 19 a 22 de vida no fim. As falhas do Mago que grava varinhas e do que lê nas
+  estantes também sumiram: vinham das lutas.
+- **O duelo, isolado, o ancião vence.** A GameTest opcional `anElderBeatsAnotherCaster` acusa "nunca consultou a
+  doutrina", o que só acontece quando o Mago morre: sem doutrina de duelo instalada, o ancião agressivo venceu o Mago
+  mestre nas duas rodadas. As quatro derrotas de 3.17 tinham interferência de outros testes; o que lá se concluiu
+  sobre o duelo precisa ser medido de novo.
+
 ## 4. O que o evocador sabe
 
 - **Repertório por grau.** Aprendiz (2 ou 3 runas), mestre (6 a 8), ancião (quase o léxico inteiro). Cada evocador
