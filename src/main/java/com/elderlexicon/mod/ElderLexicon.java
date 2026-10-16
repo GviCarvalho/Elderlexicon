@@ -253,6 +253,7 @@ public class ElderLexicon {
             MarkNetwork.register();
             LigabisNetwork.register();
             com.elderlexicon.mod.dialogue.DialogueNetwork.register();
+            com.elderlexicon.mod.vita.network.VitaNetwork.register();
             DamageMappingConfig.initialize();
             VitaRecoveryConfig.initialize();
         });

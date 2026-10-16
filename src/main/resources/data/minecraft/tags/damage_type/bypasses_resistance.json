@@ -1,6 +1,10 @@
 {
   "replace": false,
   "values": [
-    "elderlexicon:ligabis_death"
+    "elderlexicon:ligabis_death",
+    "elderlexicon:hypothermia",
+    "elderlexicon:exsanguination",
+    "elderlexicon:asphyxia",
+    "elderlexicon:shattering"
   ]
 }

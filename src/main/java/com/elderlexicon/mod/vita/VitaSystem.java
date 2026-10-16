@@ -177,6 +177,7 @@ public final class VitaSystem {
         if (creature && data.whole()) {
             VitaData.forget(player);
             DRAWERS.remove(player.getUUID());
+            Symptoms.clear(player);
             return;
         }
 
@@ -185,10 +186,8 @@ public final class VitaSystem {
         }
 
         VitaScoreboardManager.update(player, data.toProfile());
-        AquaImbalanceEffects.apply(player, data);
-        AuraImbalanceEffects.apply(player, data);
-        FirmoImbalanceEffects.apply(player, data);
-        IgniImbalanceEffects.apply(player, data);
+        // What the imbalance feels like, as a body feels it (docs/vita-sintomas-design.md).
+        Symptoms.tick(player, data);
     }
 
     public static VitaImbalanceTier getAquaTier(LivingEntity player) {
@@ -409,11 +408,41 @@ public final class VitaSystem {
         return java.util.Optional.of(drawer.by());
     }
 
-    /** The hurt a lack makes: the drawer's, when someone drew it out, or else the body's own. */
+    /**
+     * The hurt a lack makes, named for the element most lacking (docs/vita-sintomas-design.md): the cold, the blood, the
+     * breath, the bones. The drawer's, when someone drew it out, or else the body's own.
+     */
     private static DamageSource lackOf(LivingEntity living) {
-        return drawerOf(living)
-                .map(by -> living.damageSources().indirectMagic(by, by))
-                .orElseGet(() -> living.damageSources().magic());
+        VitaData data = VitaData.peek(living);
+        VitaElement most = null;
+        double least = Double.MAX_VALUE;
+        for (VitaElement element : new VitaElement[] {VitaElement.AQUA, VitaElement.AURA, VitaElement.IGNI,
+                VitaElement.FIRMO}) {
+            double full = data.full(element);
+            if (full > EPSILON && data.get(element) / full < least) {
+                least = data.get(element) / full;
+                most = element;
+            }
+        }
+        String name = most == null ? null : switch (most) {
+            case IGNI -> "hypothermia";
+            case AQUA -> "exsanguination";
+            case AURA -> "asphyxia";
+            case FIRMO -> "shattering";
+            case BALANCED -> null;
+        };
+        java.util.Optional<Entity> drawer = drawerOf(living);
+        if (name == null) {
+            return drawer.map(by -> living.damageSources().indirectMagic(by, by))
+                    .orElseGet(() -> living.damageSources().magic());
+        }
+        net.minecraft.core.Holder<net.minecraft.world.damagesource.DamageType> type = living.level().registryAccess()
+                .registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE)
+                .getHolderOrThrow(net.minecraft.resources.ResourceKey.create(
+                        net.minecraft.core.registries.Registries.DAMAGE_TYPE,
+                        net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
+                                com.elderlexicon.mod.ElderLexicon.MODID, name)));
+        return drawer.map(by -> new DamageSource(type, by, by)).orElseGet(() -> new DamageSource(type));
     }
 
     /** The natures of the hurts each player took since the last tick, in order. */
