@@ -109,20 +109,19 @@ public final class Dreams {
         }
     }
 
-    /** The runes the mage has understood and not yet learned, that have a realm to dream of. */
+    /** The runes the mage has understood and not yet learned, that have a dream. */
     private static List<String> waitingRunes(ServerPlayer player) {
         SpellingRepertoire repertoire = SpellingRepertoireHelper.get(player);
         List<String> waiting = new ArrayList<>();
         for (String rune : repertoire.understood()) {
-            if (!repertoire.isUnlocked(rune) && Understanding.lesson(rune)
-                    .map(lesson -> Nahva.REALMS.contains(lesson.realm())).orElse(false)) {
+            if (!repertoire.isUnlocked(rune) && FeverDream.dreams(rune)) {
                 waiting.add(rune);
             }
         }
         return waiting;
     }
 
-    /** Takes the sleeping mage to the realm of {@code rune}. */
+    /** Takes the sleeping mage into the fever dream of {@code rune}, on their own kern. */
     public static boolean enter(ServerPlayer player, String rune) {
         Optional<Understanding.RuneLesson> lesson = Understanding.lesson(rune);
         if (lesson.isEmpty()) {
@@ -131,7 +130,14 @@ public final class Dreams {
         if (player.isSleeping()) {
             player.stopSleepInBed(false, false);
         }
-        return go(player, lesson.get().realm(), rune, "dream.elderlexicon.enter." + rune);
+        if (!FeverDream.dreams(rune)) {
+            return false;
+        }
+        if (!go(player, FeverDream.REALM, rune, "dream.elderlexicon.enter." + rune)) {
+            return false;
+        }
+        FeverDream.tell(player, dream(player).getCompound("state"));
+        return true;
     }
 
     /** Takes a mage who has just died to their island, as a spirit. */
@@ -232,6 +238,11 @@ public final class Dreams {
             // What the tower will remember of the mage, if one of its rooms is a memory.
             state.put("memory", MemoryRoom.source(player, dream));
         }
+        if (FeverDream.REALM.equals(realm)) {
+            // Whose kern it dresses, and with which rune.
+            state.putUUID("mage", player.getUUID());
+            state.putString("rune", dream.getString("rune"));
+        }
         Optional<Realms.Built> built = Realms.build(realm, nahva, origin, state);
         if (built.isEmpty()) {
             return false;
@@ -269,9 +280,13 @@ public final class Dreams {
         CompoundTag dream = dream(player);
         String realm = dream.getString("realm");
         // The body of the dream flies, whatever the game mode says.
-        if (Realms.flies(realm) && !player.getAbilities().mayfly) {
+        if (Realms.flies(realm) && !(FeverDream.REALM.equals(realm) && FeverDream.grounded(dream))
+                && !player.getAbilities().mayfly) {
             player.getAbilities().mayfly = true;
             player.onUpdateAbilities();
+        }
+        if (FeverDream.REALM.equals(realm)) {
+            FeverDream.everyTick(player, dream);
         }
         Vec3 rift = new Vec3(dream.getDouble("riftX"), dream.getDouble("riftY"), dream.getDouble("riftZ"));
         if (player.position().add(0.0D, player.getBbHeight() / 2.0D, 0.0D).distanceTo(rift) < RIFT_REACH) {
@@ -364,6 +379,9 @@ public final class Dreams {
         Loans.repay(player, dream);
         player.getPersistentData().remove(TAG);
         String realm = dream.getString("realm");
+        if (FeverDream.REALM.equals(realm)) {
+            FeverDream.over(player, dream);
+        }
         restore(player, dream);
         if (!Realms.spirit(realm)) {
             wake(player, dream, won);

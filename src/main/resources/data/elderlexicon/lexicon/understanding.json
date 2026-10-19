@@ -1,10 +1,59 @@
 {
   "_license": "© GviCarvalho – This data is part of Elderlexicon. See LICENSE.txt.",
-  "_about": "How a rune is learned (docs/aprendizado-runas-design.md): the mage lives, in the body, every one of its 'experiences' (ids the mod knows how to tell); then a vivid dream may take them to its 'realm' in Nahvá, and escaping it teaches the rune.",
+  "_about": "How a rune is learned (docs/aprendizado-runas-design.md): the mage lives, in the body, every one of its 'experiences' (ids the mod knows how to tell), and the place each was lived in is kept as a memory; then a fever dream on their own kern, turned into the rune's idea and full of those memories (section 4b), and escaping it teaches the rune. 'requires': runes that must be learned before this one can be understood at all.",
   "runes": {
     "igni": {
-      "experiences": ["igni_cold", "igni_hypothermia", "igni_warm", "igni_boiling", "burning", "freezing"],
-      "realm": "igni"
+      "experiences": [
+        "igni_cold",
+        "igni_hypothermia",
+        "igni_warm",
+        "igni_boiling",
+        "burning",
+        "freezing"
+      ]
+    },
+    "aqua": {
+      "experiences": [
+        "aqua_thirst",
+        "aqua_parched",
+        "aqua_full",
+        "aqua_overflowing",
+        "drowning",
+        "swept"
+      ]
+    },
+    "aura": {
+      "experiences": [
+        "aura_low",
+        "aura_critical",
+        "aura_high",
+        "aura_overloaded",
+        "long_fall",
+        "blast"
+      ]
+    },
+    "firmo": {
+      "experiences": [
+        "firmo_low",
+        "firmo_deficient",
+        "firmo_high",
+        "firmo_rigid",
+        "buried",
+        "depths"
+      ]
+    },
+    "vis": {
+      "requires": [
+        "igni",
+        "aqua",
+        "aura",
+        "firmo"
+      ],
+      "experiences": [
+        "vis_empty",
+        "vis_full",
+        "vis_balance"
+      ]
     }
   }
 }

@@ -4,8 +4,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
@@ -28,7 +26,7 @@ final class Realms {
     /** Lays {@code realm} out at {@code origin}; what it keeps while the mage is there goes in {@code state}. */
     static Optional<Built> build(String realm, ServerLevel level, BlockPos origin, CompoundTag state) {
         return switch (realm) {
-            case "igni" -> Optional.of(IgniRealm.build(level, origin));
+            case FeverDream.REALM -> Optional.of(FeverDream.begin(level, origin, state));
             case TOWER -> Optional.of(TowerRealm.build(level, origin, state));
             case KERN -> Optional.of(KernRealm.build(level, origin));
             default -> Optional.empty();
@@ -48,10 +46,7 @@ final class Realms {
         return TOWER.equals(realm) || KERN.equals(realm);
     }
 
-    /**
-     * Each second in the realm: in the realm of igni, cold in hand puts the fire out and keeps the air from burning;
-     * without it, out of the water, the air sets the dreamer alight.
-     */
+    /** Each second in the realm: what its air does to the one in it. */
     static void pulse(String realm, ServerPlayer dreamer, CompoundTag dream) {
         if (TOWER.equals(realm)) {
             TowerRealm.everySecond(dreamer, dream);
@@ -62,23 +57,8 @@ final class Realms {
             Phantur.everySecond(dreamer, false);
             return;
         }
-        if (!"igni".equals(realm)) {
-            return;
+        if (FeverDream.REALM.equals(realm)) {
+            FeverDream.pulse(dreamer, dream);
         }
-        if (holdsCold(dreamer)) {
-            dreamer.clearFire();
-        } else if (!dreamer.isInWaterRainOrBubble()) {
-            dreamer.setRemainingFireTicks(Math.max(dreamer.getRemainingFireTicks(), 60));
-            dreamer.hurt(dreamer.damageSources().onFire(), 1.0F);
-        }
-    }
-
-    private static boolean holdsCold(ServerPlayer player) {
-        return isCold(player.getMainHandItem()) || isCold(player.getOffhandItem());
-    }
-
-    private static boolean isCold(ItemStack stack) {
-        return stack.is(Items.ICE) || stack.is(Items.PACKED_ICE) || stack.is(Items.BLUE_ICE)
-                || stack.is(Items.SNOW_BLOCK) || stack.is(Items.SNOWBALL) || stack.is(Items.POWDER_SNOW_BUCKET);
     }
 }
