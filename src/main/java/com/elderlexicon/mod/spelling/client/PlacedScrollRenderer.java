@@ -1,19 +1,18 @@
 package com.elderlexicon.mod.spelling.client;
 
 import com.elderlexicon.mod.spelling.entity.PlacedScrollEntity;
-import com.elderlexicon.mod.spelling.render.SpellMapHelper;
+import com.elderlexicon.mod.spell.block.WrittenTexts;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
+/** A loose page laid on a block: drawn as the grimoire's page it is, with its runes ({@link ScrollPage}). */
 public class PlacedScrollRenderer extends EntityRenderer<PlacedScrollEntity> {
 
     private static final ResourceLocation TEXTURE = new ResourceLocation("minecraft", "textures/map/map_background.png");
@@ -36,47 +35,22 @@ public class PlacedScrollRenderer extends EntityRenderer<PlacedScrollEntity> {
 
         poseStack.pushPose();
         rotateToFace(entity.getFace(), poseStack);
-        MapItemSavedData data = SpellMapHelper.getSavedData(stack, entity.level());
         Direction face = entity.getFace();
         net.minecraft.world.phys.Vec3 rest = entity.position()
                 .subtract(net.minecraft.world.phys.Vec3.atLowerCornerOf(face.getNormal()).scale(0.505D));
-        if (data != null && ClientCircles.hides(net.minecraft.core.BlockPos.containing(rest), face)) {
-            // Part of a circle on show: its runes are written by the circle; the scroll shows blank.
-            poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
-            poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F));
-            poseStack.scale(0.006640625F, 0.006640625F, 0.006640625F);
-            poseStack.translate(-64.0F, -64.0F, -1.0F);
-            com.mojang.blaze3d.vertex.VertexConsumer paper = buffer.getBuffer(
-                    net.minecraft.client.renderer.RenderType.text(TEXTURE));
-            org.joml.Matrix4f matrix = poseStack.last().pose();
-            float[][] corners = {{0, 128, 0, 1}, {128, 128, 1, 1}, {128, 0, 1, 0}, {0, 0, 0, 0}};
-            for (float[] c : corners) {
-                paper.vertex(matrix, c[0], c[1], -0.01F).color(255, 255, 255, 255).uv(c[2], c[3])
-                        .uv2(packedLight).endVertex();
-            }
-            poseStack.popPose();
-            super.render(entity, yaw, partialTick, poseStack, buffer, packedLight);
-            return;
-        }
-        if (data != null) {
-            // A map is drawn on one side only, seen from its local -Z. Turned like an item frame turns it (180 degrees
-            // about Y), that side faces out of the surface and the small -Z offset below lifts it off the block;
-            // without this the drawing sat inside the block with its back to the viewer, and the scroll vanished.
-            poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
-            poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F));
-            poseStack.scale(0.006640625F, 0.006640625F, 0.006640625F);
-            poseStack.translate(-64.0F, -64.0F, -1.0F);
-            Integer mapId = SpellMapHelper.getMapId(stack);
-            if (mapId == null) {
-                poseStack.popPose();
-                return;
-            }
-            Minecraft.getInstance().gameRenderer.getMapRenderer().render(poseStack, buffer, mapId, data, true, packedLight);
-        } else {
-            poseStack.scale(0.85F, 0.85F, 0.85F);
-            Minecraft.getInstance().getItemRenderer()
-                    .renderStatic(stack, ItemDisplayContext.FIXED, packedLight, 0, poseStack, buffer, entity.level(), entity.getId());
-        }
+        // Part of a circle on show: its runes are written by the circle; the page shows blank.
+        boolean blank = ClientCircles.hides(net.minecraft.core.BlockPos.containing(rest), face);
+        CompoundTag tag = stack.getTag();
+        WrittenTexts.upgrade(tag);
+        String text = tag == null ? "" : tag.getString("DetachedPageText");
+        // Turned as an item frame turns a map (180 degrees about Y, then Z), so the page faces out of the surface,
+        // lifted a hair off it; then fitted into the block's face, a little inside its edges.
+        poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
+        poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F));
+        float size = 0.85F / ScrollPage.H;
+        poseStack.scale(size, size, size);
+        poseStack.translate(-ScrollPage.W / 2.0F, -ScrollPage.H / 2.0F, -1.0F);
+        ScrollPage.draw(poseStack, buffer, packedLight, text, blank);
         poseStack.popPose();
         super.render(entity, yaw, partialTick, poseStack, buffer, packedLight);
     }

@@ -37,6 +37,12 @@ public final class SpellingClientModBusEvents {
                 com.elderlexicon.mod.wizard.client.WizardRenderer::new);
     }
 
+    /** The loose page's small picture, for where it is not drawn as the page itself. */
+    @SubscribeEvent
+    public static void registerModels(net.minecraftforge.client.event.ModelEvent.RegisterAdditional event) {
+        event.register(LoosePageItemRenderer.ICON);
+    }
+
     @SubscribeEvent
     public static void registerLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
         event.registerLayerDefinition(com.elderlexicon.mod.wizard.client.WizardModel.LAYER,

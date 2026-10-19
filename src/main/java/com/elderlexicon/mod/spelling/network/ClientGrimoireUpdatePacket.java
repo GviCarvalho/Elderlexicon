@@ -5,8 +5,6 @@ import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spelling.custom.CustomRuneHelper;
 import com.elderlexicon.mod.spelling.item.GrimoireItem;
 import com.elderlexicon.mod.spelling.item.SpellScrollItem;
-import com.elderlexicon.mod.spelling.render.SpellMapHelper;
-import com.elderlexicon.mod.spelling.render.SpellMapSync;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -85,7 +83,8 @@ public record ClientGrimoireUpdatePacket(InteractionHand hand,
             if (!(stack.getItem() instanceof GrimoireItem)) {
                 return;
             }
-            List<String> sanitizedPages = sanitizePages(packet.pages);
+            // No more pages than it has leaves.
+            List<String> sanitizedPages = sanitizePages(packet.pages, GrimoireItem.leaves(stack));
             if (sanitizedPages.isEmpty()) {
                 sanitizedPages.add("");
             }
@@ -107,16 +106,19 @@ public record ClientGrimoireUpdatePacket(InteractionHand hand,
             }
             tag.put(GrimoireItem.PAGE_NAMES_TAG, names);
             if (packet.detachPage && packet.detachedIndex >= 0) {
+                // A page torn out is a leaf gone.
+                GrimoireItem.setLeaves(stack, GrimoireItem.leaves(stack) - 1);
                 spawnDetachedPage(sender, packet.detachedText, packet.detachedIndex);
             }
         });
         context.setPacketHandled(true);
     }
 
-    private static List<String> sanitizePages(List<String> raw) {
-        List<String> sanitized = new ArrayList<>(Math.min(raw.size(), MAX_PAGES));
+    private static List<String> sanitizePages(List<String> raw, int leaves) {
+        int most = Math.min(MAX_PAGES, leaves);
+        List<String> sanitized = new ArrayList<>(Math.min(raw.size(), most));
         for (String page : raw) {
-            if (sanitized.size() >= MAX_PAGES) {
+            if (sanitized.size() >= most) {
                 break;
             }
             String cleaned = page == null ? "" : page;
@@ -133,14 +135,9 @@ public record ClientGrimoireUpdatePacket(InteractionHand hand,
         if (text.length() > MAX_CHARS) {
             text = text.substring(0, MAX_CHARS);
         }
-        ItemStack map = SpellScrollItem.create(sender.level(), sender.getBlockX(), sender.getBlockZ(), (byte) 3);
-        SpellMapHelper.paintSpell(sender.serverLevel(), map, text);
-        SpellMapSync.send(sender, map);
+        ItemStack map = SpellScrollItem.of(text);
         map.setHoverName(Component.translatable("item.elderlexicon.detached_page", index + 1));
-        CompoundTag custom = map.getOrCreateTag();
-        custom.putString("DetachedPageText", text);
-        WrittenTexts.mark(custom);
-        custom.putInt("DetachedPageIndex", index);
+        map.getOrCreateTag().putInt("DetachedPageIndex", index);
         if (!sender.addItem(map)) {
             sender.drop(map, false);
         }

@@ -73,11 +73,11 @@ ser lida de novo.
 - Uma linha que ele **não lê** fica com a tinta **cor de ferrugem**, e um **borrão** na margem; o tooltip do borrão
   diz o motivo.
 
-## Ler adiante (Tab)
+## Abrir espaço adiante (Tab)
 
-Tab faz uma luz dourada percorrer as colunas **no tempo real** (0,25 s por coluna), rolando a página se preciso.
-Quando ela chega à coluna em que um feitiço é solto, soa um sino (ou um baixo abafado, se a linha não lê) e o selo
-dessa linha acende. Serve para ver quando cada feitiço sai e onde eles se cruzam.
+Tab abre uma célula vazia **depois** da do cursor, empurrando uma coluna para a frente as palavras que vêm depois, e
+leva o cursor para ela (17/10/2026, pedido do autor). Assim se põe uma runa no meio de um feitiço sem apagar o resto.
+Antes Tab "lia adiante" (uma luz percorrendo as colunas no tempo real); isso saiu, porque quase não servia.
 
 ## O tooltip de cada palavra
 
@@ -103,12 +103,37 @@ extenso) e a página. A margem valida a linha já com a runa aberta no feitiço 
 
 - **Teclado**, como antes: letras e dígitos vão para a célula do cursor, com o som da pena. Ao sair da célula, o nome
   de uma runa vira o glifo (`igni` → `C`) e os dígitos viram os glifos dos dígitos.
-- **Espaço**: próxima célula; no fim da linha, cria uma pausa. **Shift+Espaço** ou **Insert**: insere uma pausa.
+- **Espaço**: próxima célula; no fim da linha, cria uma pausa. **Shift+Espaço** ou **Insert**: insere uma pausa
+  antes da célula do cursor. **Tab**: abre uma célula vazia depois dela e vai para lá.
 - **Enter**: quebra a linha no cursor; o que vem depois vai para uma linha nova abaixo.
 - **Backspace** apaga letra a letra; numa célula vazia, remove a célula; numa linha vazia, remove a linha.
   **Delete** remove a célula do cursor. Setas, Home e End movem o cursor; PageUp/PageDown viram a página.
 - **Ctrl+C** copia a página como texto; **Ctrl+V** cola palavras na linha do cursor.
 - O botão **Destacar página** e o limite de 1024 caracteres por página continuam como antes.
+
+## As folhas (17/10/2026)
+
+- Um grimório novo tem **30 folhas**. Não se vira para além da última (soa o livro fechando). Um grimório antigo com
+  mais páginas escritas fica com todas elas. O máximo são 100.
+- **Destacar uma página gasta uma folha**: ela sai do livro.
+- **Juntar folhas**: no inventário, clique com o botão direito no grimório segurando **papel** (uma folha em branco a
+  mais por papel) ou uma **página solta** (ela volta com o que tem escrito, depois da última página escrita, com o nome
+  que tinha, se tinha um; o custo que o espírito já leu volta junto, porque é guardado pelo texto). Como se enche uma
+  bolsa.
+- O tooltip do grimório diz quantas folhas estão escritas de quantas, e a página mostra "folha N de M" embaixo do
+  número.
+- **A tela cabe na tela**: quando a janela é pequena demais para o livro (com as fitas e os botões), ele é desenhado
+  menor, inteiro.
+
+## A página solta (17/10/2026)
+
+A página destacada aparece **como a página do grimório**: o papel do livro, rasgado na borda da encadernação, pautado
+como o grimório pauta, com as runas nas células (as 10 primeiras colunas de cada linha) e as pausas como pontinhos.
+Assim aparece **no bloco** onde foi posta, **na moldura** e **na mão**, em primeira e terceira pessoa. No inventário e
+caída no chão continua o desenho pequeno. A página guarda só o seu texto (`DetachedPageText`): o mapa que antes ficava
+por trás dela, pintado com as runas, saiu. O papel sai de `tools/loose_page.py` (recortado da `grimoire_book.png`); o desenho
+é `ScrollPage`. Num círculo à mostra, a página aparece em branco, porque as runas são escritas pelo círculo, que agora
+tem as cores trocadas: **o traço do círculo na tinta das runas, e as runas na luz do círculo**.
 
 ## Por baixo, nada muda
 
