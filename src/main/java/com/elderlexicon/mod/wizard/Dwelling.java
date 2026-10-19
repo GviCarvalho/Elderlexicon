@@ -14,7 +14,9 @@ public enum Dwelling {
     /** In its tower: indigo sown with stars, the pointed hat. */
     TOWER,
     /** At a university: a gown, as its rank asks. */
-    UNIVERSITY;
+    UNIVERSITY,
+    /** On the roads, a university's Emissary: a traveller's cloak with the house's seal, a satchel, a wide hat. */
+    EMISSARY;
 
     public String id() {
         return name().toLowerCase(Locale.ROOT);

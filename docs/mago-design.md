@@ -443,6 +443,56 @@ pesquisa, torre do observatório, dormitórios, pátio, jardins).
 - As texturas saem de `tools/caster_skins.py` (desenhadas pixel a pixel sobre o molde do aldeão; rodar de novo dá os
   mesmos arquivos). O Feiticeiro continua com a pele do evocador.
 
+## 5j. O Emissário (pedido do autor, 17/10/2026)
+
+A universidade tem dois papéis no mod: deixar o mundo mais vivo e **ser o tutorial**. O jogador não precisa de um
+livrinho explicando o mod; ele aprende estudando lá. O Emissário é quem leva o jogador até ela.
+
+- **Quem é.** Um Mago da universidade (`Dwelling.EMISSARY`), mestre na língua (barba preta), com a mesma mente dos
+  outros: se defende, guarda a paz. Não negocia. Veste a capa de viajante cinza-azulada, com uma pequena capa sobre os
+  ombros, o selo dourado da casa no peito e nas costas, a bolsa das cartas do lado, a poeira da estrada na barra, e um
+  chapéu de feltro de aba larga.
+- **O convite.** De dois a quatro dias depois de o transe despertar, se o jogador não estuda em nenhuma casa, há uma
+  pequena chance a cada momento do dia (mais ou menos uma vez por dia) de um Emissário vir andando até ele, de uns 25
+  blocos. Ele chama o jogador pelo nome no chat e espera ser ouvido (cinco minutos; depois deixa a carta e vai embora).
+  Falando com ele, o jogador pode:
+  - **aceitar e ir com ele**: recebe a carta e o mapa, e ele o leva (abaixo);
+  - **aceitar e ir sozinho**: recebe a carta e o mapa;
+  - **recusar**: ele vai embora, e a casa tenta de novo depois de uns cinco dias.
+- **A carta** é um livro escrito pelo Rector, já com o tutorial: o que a casa ensina (as runas, como vivê-las, as quatro
+  famílias), que os mestres respondem e o Arquivo guarda os guias, como é a admissão, que se paga em esmeraldas a cada
+  sete dias pelo que se sabe, e para onde ir. **O mapa** é como o mapa de explorador do cartógrafo, com a universidade
+  mais próxima marcada com um X.
+- **Levar o jogador: marca + `vocant`** (o autor, 18/10/2026; substituiu a caminhada guiada, que não dava conta de
+  lagos, neve fofa e quedas). Aceitando ser levado, o jogador recebe a carta e o mapa, e o Emissário:
+  1. **marca o jogador** com uma marca só dele (`rumo_<8 letras do UUID>`); a marca que o jogador tinha é guardada e
+     devolvida depois da viagem;
+  2. entra em transe e lê o **chamado da casa**, duas linhas: `x y z ubis <marca> vocant` (o jogador aparece no pátio)
+     e, um passo depois, `x y z ubis ego vocant` (ele vai junto). É a regra das marcas: **marca + `vocant` =
+     teletransporte** (docs/marcas-como-runas-design.md); o lugar são as coordenadas do pátio, ao sul da fonte, de
+     frente para o salão do conselho;
+  3. chegando, diz onde fica o Rector, e vai embora pouco depois.
+  Um golpe que quebra o transe faz ele ler de novo (até três vezes); se mesmo assim não leva, ele manda seguir o mapa.
+  O pátio é desenhado na hora se ninguém esteve lá ainda (o pedaço de mundo é gerado).
+- **A energia vem do engaste da casa.** Levar alguém custa massa × distância (0,01 UMU por massa por bloco): um jogador
+  e o Emissário por 1500 blocos dão uns 660 UMU, mais do que qualquer conjurador tem. A universidade põe na varinha do
+  Emissário o **Selo da Universidade**, um engaste que só ela tem (`university_seal` em `lexicon/foci.json`, até 2000
+  de vis, sem item que o faça), carregado com o custo da viagem e 20% a mais. A leitura paga dele pela regra de
+  reserva que já existe (`SettingReserveModule`), antes do corpo do Emissário. Ele segura a varinha de verdade, e ela
+  não cai quando ele morre.
+- **Ele protege quem procura.** O jogador é um aprendiz: enquanto vai até ele e espera ser ouvido, o Emissário ataca
+  primeiro qualquer criatura hostil a até 14 blocos do jogador (as neutras, como o enderman, só se vierem caçar), antes
+  que ela ataque. Vencida a luta, volta ao recado.
+- **O chamado de volta.** Um estudante cujo período acabou há um dia ou mais e que está a mais de 256 blocos de toda
+  universidade é procurado de novo, com a mesma pequena chance, no máximo a cada cinco dias. A mensagem diz o que a casa
+  espera: o novo exame, ou a mensalidade do período (quantas esmeraldas). A carta é outra, curta.
+- **Ir embora.** Terminado o recado, ele se afasta uns 30 blocos e some num sopro de luz. Some também se o jogador sai
+  do mundo, morre longe ou vai para outra dimensão por um minuto.
+- **Para testar:** `/mago emissario` (o convite) e `/mago emissario retorno` mandam um agora. Num mundo sem
+  universidade (um mundo plano, por exemplo), ele não vem.
+- O código: `university/Emissary` (o recado: procurar, esperar, levar, ir embora) e `university/Emissaries` (quando
+  ele vem, a carta, o mapa, o engaste). A tag `elderlexicon:university` acha a casa mais próxima.
+
 ## 6. Perguntas abertas
 
 - **O Mago como aldeão:** um `AbstractVillager` próprio (proposta), ou uma profissão nova de aldeão (dorme, trabalha

@@ -1,0 +1,8 @@
+allprojects {
+    afterEvaluate {
+        tasks.named('compileJava') {
+            destinationDirectory = file("${System.getProperty('checkDir')}/classes")
+            options.generatedSourceOutputDirectory = file("${System.getProperty('checkDir')}/generated")
+        }
+    }
+}

@@ -39,6 +39,7 @@ public class WizardDressLayer extends RenderLayer<Wizard, WizardModel> {
     private final ModelPart tassel;
     private final ModelPart velvet;
     private final ModelPart beret;
+    private final ModelPart brim;
 
     public WizardDressLayer(RenderLayerParent<Wizard, WizardModel> parent, EntityModelSet models) {
         super(parent);
@@ -48,6 +49,7 @@ public class WizardDressLayer extends RenderLayer<Wizard, WizardModel> {
         this.tassel = root.getChild("tassel");
         this.velvet = root.getChild("velvet");
         this.beret = root.getChild("beret");
+        this.brim = root.getChild("brim");
     }
 
     /**
@@ -90,6 +92,11 @@ public class WizardDressLayer extends RenderLayer<Wizard, WizardModel> {
         beret.addOrReplaceChild("quill", CubeListBuilder.create().texOffs(104, 24)
                         .addBox(-0.5F, -6.0F, -0.5F, 1.0F, 6.0F, 1.0F),
                 PartPose.offsetAndRotation(3.5F, -1.0F, 1.5F, 0.4F, 0.0F, 0.35F));
+        // The Emissary's traveller's hat: a wide brim, a low crown with a band.
+        root.addOrReplaceChild("brim", CubeListBuilder.create()
+                .texOffs(64, 36).addBox(-7.0F, -1.0F, -7.0F, 14.0F, 1.0F, 14.0F)
+                .texOffs(64, 51).addBox(-4.0F, -4.0F, -4.0F, 8.0F, 3.0F, 8.0F, new CubeDeformation(0.2F)),
+                PartPose.offset(0.0F, -9.5F, 0.0F));
         return LayerDefinition.create(mesh, 128, 64);
     }
 
@@ -114,6 +121,7 @@ public class WizardDressLayer extends RenderLayer<Wizard, WizardModel> {
             case SQUARE -> square;
             case VELVET -> velvet;
             case BERET -> beret;
+            case BRIM -> brim;
         };
         if (hat == null) {
             return;

@@ -22,7 +22,8 @@ import java.util.function.Consumer;
  * dead) and {@code /mago torre} (to the infinite tower: from the island by its road, or straight away), each with optional
  * players; {@code /mago sala <sala>}, which makes the next climb begin with that room; and {@code /mago matricula}
  * ({@code ver}, {@code vencer}: the period ends now, {@code esquecer}: struck off the university's book), to try the
- * university (docs/mago-design.md, 5h). For operators.
+ * university (docs/mago-design.md, 5h); {@code /mago emissario [convite|retorno]}, an Emissary sent to the player now
+ * (5j). For operators.
  */
 public final class MageCommand {
 
@@ -42,6 +43,13 @@ public final class MageCommand {
                         .then(Commands.literal("vencer").executes(context -> enrollment(context.getSource(), "vencer")))
                         .then(Commands.literal("esquecer")
                                 .executes(context -> enrollment(context.getSource(), "esquecer"))))
+                .then(Commands.literal("emissario")
+                        .executes(context -> emissary(context.getSource(),
+                                com.elderlexicon.mod.university.Emissary.Message.INVITATION))
+                        .then(Commands.literal("convite").executes(context -> emissary(context.getSource(),
+                                com.elderlexicon.mod.university.Emissary.Message.INVITATION)))
+                        .then(Commands.literal("retorno").executes(context -> emissary(context.getSource(),
+                                com.elderlexicon.mod.university.Emissary.Message.RETURN))))
                 .then(Commands.literal("sala")
                         .then(Commands.argument("sala", StringArgumentType.word())
                                 .suggests((context, builder) -> SharedSuggestionProvider.suggest(
@@ -57,6 +65,20 @@ public final class MageCommand {
                                             + " pela sala \"" + room + "\"."), true);
                                     return 1;
                                 }))));
+    }
+
+    /** An Emissary sent to the player now, with the invitation or the house's call back (docs/mago-design.md, 5j). */
+    private static int emissary(CommandSourceStack source,
+                                com.elderlexicon.mod.university.Emissary.Message message)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        net.minecraft.server.level.ServerPlayer player = source.getPlayerOrException();
+        if (com.elderlexicon.mod.university.Emissaries.send(player, message).isEmpty()) {
+            source.sendFailure(Component.literal("Nenhum emissário pôde vir: não há universidade neste mundo, ou não "
+                    + "há chão por perto de onde ele chegar."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Um emissário vem a caminho."), false);
+        return 1;
     }
 
     private static int enrollment(CommandSourceStack source, String what)

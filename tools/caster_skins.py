@@ -453,9 +453,45 @@ def rector():
     return p
 
 
+def emissary():
+    """A university's Emissary on the roads: a slate traveller's cloak with a short cape over the shoulders, the house's
+    gold seal on the breast and the back, a satchel for its letters at the side, dust on the hem; a wide hat."""
+    slate, cape, gold, leather = (60, 72, 88), (44, 52, 64), (214, 182, 84), (104, 70, 42)
+    p = Painter(seed=13)
+    head(p, (88, 70, 54))
+    robe(p, slate, (52, 40, 30))
+    # The cape over the shoulders: the top of the robe and its first rows all round.
+    p.fill(ROBE["top"], cape)
+    for r in range(3):
+        for name in ("front", "right", "left", "back"):
+            p.row(ROBE[name], r, cape)
+    for name in ("front", "right", "left", "back"):
+        p.row(ROBE[name], 3, darker(cape, 12))
+    # The seal of the house: a small gold disc, on the breast (above the folded arms) and on the back.
+    front, back = ROBE["front"], ROBE["back"]
+    for dx, dy in ((5, 1), (6, 1), (5, 2), (6, 2)):
+        p.at(front, dx, dy, gold)
+    for dx, dy in ((3, 5), (4, 5), (2, 6), (5, 6), (2, 7), (5, 7), (3, 8), (4, 8), (3, 6), (4, 7)):
+        p.at(back, dx, dy, gold)
+    # The satchel's strap from the right shoulder down to the left hip, and the satchel there.
+    for i in range(8):
+        p.at(front, 7 - i, 3 + i, leather)
+        p.at(back, i, 3 + i, leather)
+    left = ROBE["left"]
+    p.fill((left[0] + 1, left[1] + 10, left[0] + 5, left[1] + 15), leather)
+    p.row((left[0] + 1, left[1] + 10, left[0] + 5, left[1] + 15), 0, darker(leather, 25))
+    p.at(left, 3, 12, gold)  # its clasp
+    belt(p, leather, 11)
+    hem(p, (120, 104, 84), 2)  # the dust of the roads
+    sleeves(p, slate, leather)
+    hands(p, slate, leather)
+    return p
+
+
 ROBES = {
     "village": village, "tower": tower, "wilds": wilds,
     "auditor": auditor, "scriba": scriba, "lector": lector, "magister": magister, "rector": rector,
+    "emissary": emissary,
 }
 
 
@@ -463,7 +499,7 @@ ROBES = {
 
 def hats():
     """All the hats, on one 128x64 sheet (CasterHatModel): the tower's pointed hat, the Magister's square cap and its
-    tassel, the Rector's velvet cap, the Scriba's beret and quill."""
+    tassel, the Rector's velvet cap, the Scriba's beret and quill, the Emissary's wide hat."""
     p = Painter((128, 64), seed=10)
     indigo, gold, star = (46, 36, 94), (201, 178, 107), (236, 214, 128)
 
@@ -503,6 +539,12 @@ def hats():
     quill = box(104, 24, 1, 6, 1, (236, 234, 226), 4)
     for name in ("front", "right", "left", "back"):
         p.row(quill[name], -1, (40, 40, 48))
+    # The Emissary's traveller's hat: a wide brim of brown felt, a low crown with a leather band.
+    felt = (92, 68, 46)
+    box(64, 36, 14, 1, 14, felt, 5)
+    crown = box(64, 51, 8, 3, 8, darker(felt, 8), 5)
+    for name in ("front", "right", "left", "back"):
+        p.row(crown[name], -1, (54, 36, 24))
     return p
 
 

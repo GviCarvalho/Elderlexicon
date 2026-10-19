@@ -217,6 +217,12 @@ public final class CasterMind {
 
     @Nullable
     private Mind.Choice reading;
+    /**
+     * Where a reading its body asked for is aimed (an errand's: a leap toward where it goes), while that reading lasts:
+     * the trance is then held by the mind itself, not by its trance goal.
+     */
+    @Nullable
+    private Vec3 askedAim;
     private int tranceTicks;
     private int restTicks = REST_TICKS;
     /** What its reading is still being released against, and for how long: it keeps aiming at it until the last line. */
@@ -866,14 +872,32 @@ public final class CasterMind {
 
     /** How far around its hand it looks for an energy to draw in. */
     private static final int WORLD_REACH = 6;
+    /** How long a glance at the world around it holds, in ticks, while it stays within a block of where it looked. */
+    private static final int WORLD_GLANCE_TICKS = 20;
+
+    /** What its last glance found, where and when (game time); null before the first. */
+    @Nullable
+    private Set<VitaElement> worldGlance;
+    @Nullable
+    private net.minecraft.core.BlockPos worldGlancedAt;
+    private long worldGlancedTime;
 
     /**
      * Which energies the world around its hand holds, as a caster sees at a glance: air anywhere, earth where there is
-     * ground, water and fire where there is some near.
+     * ground, water and fire where there is some near. A glance holds for a second where it stands: the mind asks it
+     * at every choice, and the blocks around do not change that fast.
      */
     private java.util.function.Predicate<VitaElement> inWorld() {
-        Set<VitaElement> found = java.util.EnumSet.of(VitaElement.AURA);
         net.minecraft.core.BlockPos center = owner.blockPosition();
+        long now = owner.level().getGameTime();
+        if (worldGlance != null && worldGlancedAt != null && now - worldGlancedTime >= 0
+                && now - worldGlancedTime < WORLD_GLANCE_TICKS && center.distManhattan(worldGlancedAt) <= 1) {
+            return worldGlance::contains;
+        }
+        Set<VitaElement> found = java.util.EnumSet.of(VitaElement.AURA);
+        worldGlance = found;
+        worldGlancedAt = center;
+        worldGlancedTime = now;
         for (net.minecraft.core.BlockPos pos : net.minecraft.core.BlockPos.betweenClosed(
                 center.offset(-WORLD_REACH, -2, -WORLD_REACH), center.offset(WORLD_REACH, 3, WORLD_REACH))) {
             net.minecraft.world.level.block.state.BlockState state = owner.level().getBlockState(pos);
@@ -969,6 +993,9 @@ public final class CasterMind {
     /** One tick of the mind, on the server: the lines still released, the rest, a dream in calm, what came of a reading. */
     public void tick() {
         tickCount++;
+        if (askedAim != null && reading != null) {
+            holdTrance(null); // a reading its body asked for: no trance goal holds it
+        }
         watchFoe();
         if (cornered > 0) {
             cornered--;
@@ -986,6 +1013,7 @@ public final class CasterMind {
             }
             if (releaseTicks == 0) {
                 releasingAt = null;
+                askedAim = null;
                 body.releasing(false);
             }
         } else if (reading == null && restTicks > 0) {
@@ -1206,6 +1234,20 @@ public final class CasterMind {
         return words.size() <= SHOWN_WORDS ? words : words.subList(0, SHOWN_WORDS);
     }
 
+    /**
+     * A reading its body asks for, not one it chose (docs/mago-design.md, 5j): {@code option} read in a trance as any
+     * other, aimed at {@code point}. False when it is reading or releasing something already.
+     */
+    public boolean readToward(Option option, Vec3 point) {
+        if (reading != null || releaseTicks > 0) {
+            return false;
+        }
+        askedAim = point;
+        lookAt(point);
+        beginTrance(new Mind.Choice(option, Intent.FLEE, 1.0D, Aim.ANY, 0.0D, 0.0D));
+        return true;
+    }
+
     private void beginTrance(Mind.Choice choice) {
         reading = choice;
         tranceTicks = 0;
@@ -1306,6 +1348,10 @@ public final class CasterMind {
 
     /** Looks as {@code aim} says: at the target, at the sky, away from the target, at its own feet. */
     private void look(Aim aim, @Nullable LivingEntity target) {
+        if (askedAim != null) {
+            lookAt(askedAim); // where its body asked
+            return;
+        }
         Vec3 eyes = owner.getEyePosition();
         Vec3 ahead = owner.getViewVector(1.0F).multiply(1.0D, 0.0D, 1.0D);
         if (ahead.lengthSqr() < 1.0E-6D) {
@@ -1345,6 +1391,9 @@ public final class CasterMind {
     }
 
     private void endTrance(boolean spoken) {
+        if (!spoken) {
+            askedAim = null;
+        }
         Mind.Choice choice = reading;
         reading = null;
         tranceTicks = 0;
@@ -1403,11 +1452,13 @@ public final class CasterMind {
             return;
         }
         owner.level().getEntitiesOfClass(Mob.class, owner.getBoundingBox().inflate(Conversation.REACH),
-                        mob -> mob != owner && mob instanceof RuneCaster && mob.isAlive() && owner.hasLineOfSight(mob))
+                        mob -> mob != owner && mob instanceof RuneCaster && mob.isAlive())
                 .stream()
                 .map(mob -> ((RuneCaster) mob).casterMind())
                 .filter(other -> other.conversation == null && other.calm() && other.atLeisure()
                         && !other.writing() && other.working == null && other.talkRest <= TALK_LOOK_TICKS)
+                // Sight last: it is a ray through the world, worth casting only at one who would talk.
+                .filter(other -> owner.hasLineOfSight(other.owner))
                 .min(java.util.Comparator.comparingDouble(other -> other.owner.distanceToSqr(owner)))
                 .ifPresent(this::talkWith);
     }
