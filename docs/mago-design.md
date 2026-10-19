@@ -493,6 +493,35 @@ livrinho explicando o mod; ele aprende estudando lá. O Emissário é quem leva 
 - O código: `university/Emissary` (o recado: procurar, esperar, levar, ir embora) e `university/Emissaries` (quando
   ele vem, a carta, o mapa, o engaste). A tag `elderlexicon:university` acha a casa mais próxima.
 
+## 5k. A universidade que ensina: o plano (18/10/2026)
+
+O autor, sobre o que vem depois do Emissário. A universidade é o tutorial do mod: **aulas de verdade**, não um diálogo
+do Magister explicando o sistema.
+
+1. **Aulas de runa.** Hoje, para aprender `igni`, o mago precisa viver certas condições pelo mundo (docs/aprendizado-
+   runas-design.md) e sonhar. Na universidade, a aula **oferece as condições**: uma sala de prática onde o aluno vive o
+   que a runa significa, com o mestre presente, e depois o **dormitório**, onde o sonho vem (proposta: com certeza, em
+   vez dos 35% de uma noite qualquer). Passando no desafio do sonho, a runa é dele. Vale para **todas** as runas.
+   - **Dependência:** só o `igni` tem hoje o ciclo inteiro (as experiências em `lexicon/understanding.json` e a região
+     `IgniRealm`). Cada outra runa precisa ter o seu entendimento e a sua região desenhados, um a um, consultando o
+     grimório. A aula do `igni` vem primeiro e serve de molde.
+2. **Aulas de macetes.** Aulas sobre o sistema: o tempo das colunas, como um filtro age, como o custo se paga (o corpo,
+   o engaste, o mundo com `tenet`), as marcas, o grimório. Proposta: uma aula é um encontro marcado (hora do dia, sala,
+   mestre), onde o mestre conjura diante dos alunos e explica, e propõe um exercício que o aluno faz ali.
+3. **A sala de leitura** do Arquivo: **tratados, ensaios, contos e histórias** de magos antigos, livros escritos dentro
+   do mundo (sem referência ao mundo real), além dos guias de runa. Cada grau abre mais do Arquivo.
+4. **A oficina.** O aluno grava runas na mesa de galdraria e **registra** o objeto com o **artífice** da universidade: a
+   casa passa a conhecer aquela gravação (compartilha o conhecimento), vende e paga uma comissão ao aluno.
+5. **A disciplina da casa** (seção 4.5): conjurar contra alguém, roubar do Arquivo, fogo nos livros: o conselho, multa,
+   suspensão, expulsão.
+6. **O pedido prático do exame** ("acenda a vela daqui").
+7. **Outros alunos.** O jogador não é o único: alunos de verdade, Magos aprendizes da casa que assistem às aulas, vão
+   ao Arquivo, sonham as suas runas, sobem de grau e conversam (a mente de conjurador que já existe: aprendem
+   vivendo).
+
+Ordem proposta: a aula do `igni` (o molde, com o dormitório), os outros alunos (que dão vida às aulas), as aulas de
+macetes, a sala de leitura, a oficina, a disciplina da casa e o pedido prático; e, em paralelo, o ciclo de cada runa.
+
 ## 6. Perguntas abertas
 
 - **O Mago como aldeão:** um `AbstractVillager` próprio (proposta), ou uma profissão nova de aldeão (dorme, trabalha
