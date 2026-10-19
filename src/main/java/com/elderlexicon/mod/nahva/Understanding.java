@@ -81,6 +81,35 @@ public final class Understanding {
             Map.entry("buried", player -> justLived(player, "buried")),
             Map.entry("depths", player -> player.level().dimension() == net.minecraft.world.level.Level.OVERWORLD
                     && player.getY() < 0.0D),
+            // The functions, the verbs: what the body does that is each of them (docs/aprendizado-runas-design.md,
+            // 4c). Most happen in a moment, and are marked when they do (below).
+            Map.entry("shoot", player -> justLived(player, "shoot")),
+            Map.entry("throw", player -> justLived(player, "throw")),
+            Map.entry("reel", player -> justLived(player, "reel")),
+            Map.entry("knocked", player -> justLived(player, "knocked")),
+            Map.entry("drop", player -> justLived(player, "drop")),
+            Map.entry("pick_up", player -> justLived(player, "pick_up")),
+            Map.entry("pearl", player -> justLived(player, "pearl")),
+            Map.entry("lure", player -> justLived(player, "lure")),
+            Map.entry("shield", player -> justLived(player, "shield")),
+            Map.entry("shove", player -> justLived(player, "shove")),
+            Map.entry("smelt", player -> justLived(player, "smelt")),
+            Map.entry("brew", player -> justLived(player, "brew")),
+            Map.entry("eat", player -> justLived(player, "eat")),
+            Map.entry("tame", player -> justLived(player, "tame")),
+            Map.entry("rename", player -> justLived(player, "rename")),
+            Map.entry("name_tag", player -> justLived(player, "name_tag")),
+            Map.entry("read", player -> justLived(player, "read")),
+            Map.entry("brush", player -> justLived(player, "brush")),
+            Map.entry("surrounded", player -> player.level().getEntitiesOfClass(
+                    net.minecraft.world.entity.monster.Monster.class, player.getBoundingBox().inflate(6.0D),
+                    net.minecraft.world.entity.LivingEntity::isAlive).size() >= 4),
+            Map.entry("leash", player -> !player.level().getEntitiesOfClass(net.minecraft.world.entity.Mob.class,
+                    player.getBoundingBox().inflate(10.0D), mob -> mob.getLeashHolder() == player).isEmpty()),
+            Map.entry("ride", player -> player.getVehicle() instanceof net.minecraft.world.entity.LivingEntity),
+            Map.entry("sign_book", player -> signed(player.getMainHandItem(), player)
+                    || signed(player.getOffhandItem(), player)),
+            Map.entry("spyglass", ServerPlayer::isScoping),
             // vis: the mana itself, emptied and brimming, and the four sources in balance in the body.
             Map.entry("vis_empty", player -> com.elderlexicon.mod.spell.Casters.vis(player) < 1.0D),
             Map.entry("vis_full", player -> player.experienceLevel >= 30),
@@ -130,6 +159,153 @@ public final class Understanding {
     /** {@code experience} happened to {@code player} just now (a fall, a blast). */
     private static void lived(ServerPlayer player, String experience) {
         player.getPersistentData().putLong(LIVED + experience, player.level().getGameTime());
+    }
+
+    /** A book the mage wrote and signed, in their hand. */
+    private static boolean signed(net.minecraft.world.item.ItemStack stack, ServerPlayer player) {
+        return stack.is(net.minecraft.world.item.Items.WRITTEN_BOOK) && stack.hasTag()
+                && player.getGameProfile().getName().equals(stack.getTag().getString("author"));
+    }
+
+    // ------------------------------------------------------------------ the verbs, as they happen
+
+    @SubscribeEvent
+    public static void onShoot(net.minecraftforge.event.entity.player.ArrowLooseEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && event.hasAmmo()) {
+            lived(player, "shoot");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onThrow(net.minecraftforge.event.entity.EntityJoinLevelEvent event) {
+        if (event.getEntity() instanceof net.minecraft.world.entity.projectile.Projectile thrown
+                && !(thrown instanceof net.minecraft.world.entity.projectile.AbstractArrow
+                && !(thrown instanceof net.minecraft.world.entity.projectile.ThrownTrident))
+                && !(thrown instanceof net.minecraft.world.entity.projectile.FishingHook)
+                && thrown.getOwner() instanceof ServerPlayer player) {
+            lived(player, "throw");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onReel(net.minecraftforge.event.entity.player.ItemFishedEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            lived(player, "reel");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onKnocked(net.minecraftforge.event.entity.living.LivingKnockBackEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && event.getStrength() >= 0.6F) {
+            lived(player, "knocked");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onDrop(net.minecraftforge.event.entity.item.ItemTossEvent event) {
+        if (event.getPlayer() instanceof ServerPlayer player) {
+            lived(player, "drop");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPickUp(net.minecraftforge.event.entity.player.PlayerEvent.ItemPickupEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            lived(player, "pick_up");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPearl(net.minecraftforge.event.entity.EntityTeleportEvent.EnderPearl event) {
+        lived(event.getPlayer(), "pearl");
+    }
+
+    @SubscribeEvent
+    public static void onInteractEntity(net.minecraftforge.event.entity.player.PlayerInteractEvent.EntityInteract event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        net.minecraft.world.item.ItemStack held = event.getItemStack();
+        if (event.getTarget() instanceof net.minecraft.world.entity.animal.Animal animal && animal.isFood(held)) {
+            lived(player, "lure");
+        }
+        if (held.is(net.minecraft.world.item.Items.NAME_TAG) && held.hasCustomHoverName()) {
+            lived(player, "name_tag");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onShield(net.minecraftforge.event.entity.living.ShieldBlockEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            lived(player, "shield");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onShove(net.minecraftforge.event.entity.player.AttackEntityEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && player.isSprinting()) {
+            lived(player, "shove");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onSmelt(net.minecraftforge.event.entity.player.PlayerEvent.ItemSmeltedEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            lived(player, "smelt");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onBrew(net.minecraftforge.event.brewing.PlayerBrewedPotionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            lived(player, "brew");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onEat(net.minecraftforge.event.entity.living.LivingEntityUseItemEvent.Finish event) {
+        if (event.getEntity() instanceof ServerPlayer player && event.getItem().isEdible()) {
+            lived(player, "eat");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onTame(net.minecraftforge.event.entity.living.AnimalTameEvent event) {
+        if (event.getTamer() instanceof ServerPlayer player) {
+            lived(player, "tame");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onRename(net.minecraftforge.event.entity.player.AnvilRepairEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && event.getOutput().hasCustomHoverName()) {
+            lived(player, "rename");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onUseBlock(net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        net.minecraft.world.level.block.state.BlockState block = player.level().getBlockState(event.getPos());
+        if (block.is(net.minecraft.world.level.block.Blocks.LECTERN)
+                && block.getValue(net.minecraft.world.level.block.LecternBlock.HAS_BOOK)) {
+            lived(player, "read");
+        }
+        if (event.getItemStack().is(net.minecraft.world.item.Items.BRUSH)
+                && (block.is(net.minecraft.world.level.block.Blocks.SUSPICIOUS_SAND)
+                || block.is(net.minecraft.world.level.block.Blocks.SUSPICIOUS_GRAVEL))) {
+            lived(player, "brush");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onUseItem(net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickItem event) {
+        if (event.getEntity() instanceof ServerPlayer player
+                && event.getItemStack().is(net.minecraft.world.item.Items.WRITTEN_BOOK)) {
+            lived(player, "read");
+        }
     }
 
     @SubscribeEvent

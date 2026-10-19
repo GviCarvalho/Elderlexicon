@@ -8,6 +8,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -80,23 +81,69 @@ public final class FeverDream {
         void breathe(ServerPlayer dreamer, CompoundTag state);
     }
 
-    /** An extreme of a rune: its halls, what lies about them, what keeps its air off, and the air. */
+    /**
+     * An extreme of a rune: its halls, what lies about them, what keeps its air off, the air, and what more the scene
+     * does (the rule of a verb).
+     */
     private record Extreme(FeverHalls.Stuff stuff, Supplier<List<ItemStack>> things, Predicate<ItemStack> keeps,
-                           ParticleOptions mist, Air air) {
+                           ParticleOptions mist, Air air, FeverVerbs.Rule rule) {
+
+        Extreme(FeverHalls.Stuff stuff, Supplier<List<ItemStack>> things, Predicate<ItemStack> keeps,
+                ParticleOptions mist, Air air) {
+            this(stuff, things, keeps, mist, air, FeverVerbs.Rule.NONE);
+        }
     }
 
-    /** A rune's dream: its two extremes, and how its memories are turned. */
-    private record Dream(Extreme first, Extreme second, UnaryOperator<BlockState> swap) {
+    /**
+     * A rune's dream: its two extremes, how its memories are turned, and whether it is a verb's (no flight in it, a time
+     * limit, longer scenes, each told by a hint).
+     */
+    private record Dream(Extreme first, Extreme second, UnaryOperator<BlockState> swap, boolean verb) {
+
+        Dream(Extreme first, Extreme second, UnaryOperator<BlockState> swap) {
+            this(first, second, swap, false);
+        }
     }
 
-    private static final Map<String, Dream> DREAMS = Map.of(
-            "igni", new Dream(
+    /** A verb's scene: its halls and its rule; what lies about them; no air to keep off. */
+    private static Extreme verb(FeverHalls.Stuff stuff, FeverVerbs.Rule rule, Supplier<List<ItemStack>> things) {
+        return new Extreme(stuff, things, stack -> false, ParticleTypes.ENCHANT, (dreamer, state) -> {
+        }, rule);
+    }
+
+    /** A verb's dream: the verb, its memories held still, the verb turned round. */
+    private static Dream verbs(Extreme verb, Extreme turned) {
+        return new Dream(verb, turned, FeverDream::still, true);
+    }
+
+    /** The four sources, whose extremes vis draws from. */
+    private static final List<String> SOURCES = List.of("igni", "aqua", "aura", "firmo");
+
+    private static final Map<String, Dream> DREAMS = Map.ofEntries(
+            Map.entry("iactare", verbs(verb(FeverVerbs.THROWN, FeverVerbs.THROWN_RULE, List::of),
+                    verb(FeverVerbs.THROWN, FeverVerbs.PULLED_RULE, List::of))),
+            Map.entry("vocant", verbs(verb(FeverVerbs.GAZE, FeverVerbs.GAZE_RULE, List::of),
+                    verb(FeverVerbs.SUMMONED, FeverVerbs.SUMMONED_RULE, List::of))),
+            Map.entry("impediunt", verbs(verb(FeverVerbs.WARD, FeverVerbs.FLEEING_RULE, List::of),
+                    verb(FeverVerbs.WARD, FeverVerbs.FOLLOWING_RULE, List::of))),
+            Map.entry("vertere", verbs(verb(FeverVerbs.CHANGING, FeverVerbs.CHANGING_RULE, List::of),
+                    verb(FeverVerbs.STILL, FeverVerbs.STILL_RULE, List::of))),
+            Map.entry("ligabis", verbs(verb(FeverVerbs.BOUND, FeverVerbs.PAIRS_RULE,
+                            () -> items(Items.IRON_PICKAXE, Items.STONE_PICKAXE)),
+                    verb(FeverVerbs.LOOSE, FeverVerbs.LOOSE_RULE, () -> items(Items.LEAD)))),
+            Map.entry("reframe", verbs(verb(FeverVerbs.NAMED, FeverVerbs.NAMED_RULE,
+                            () -> List.of(FeverVerbs.tag("Porta"), FeverVerbs.tag("Porta"), FeverVerbs.tag("Parede"))),
+                    verb(FeverVerbs.NAMELESS, FeverVerbs.Rule.NONE, List::of))),
+            Map.entry("surgit", verbs(verb(FeverVerbs.DARK, FeverVerbs.DARK_RULE,
+                            () -> items(Items.BOOK, Items.WRITABLE_BOOK)),
+                    verb(FeverVerbs.BARE, FeverVerbs.Rule.NONE, List::of))),
+            Map.entry("igni", new Dream(
                     new Extreme(FeverHalls.HEAT, () -> items(Items.SNOWBALL, Items.BLUE_ICE, Items.PACKED_ICE),
                             FeverDream::cold, ParticleTypes.FLAME, FeverDream::burn),
                     new Extreme(FeverHalls.COLD, () -> items(Items.TORCH, Items.BLAZE_ROD, Items.MAGMA_BLOCK),
                             FeverDream::warm, ParticleTypes.SNOWFLAKE, FeverDream::freeze),
-                    FeverDream::hotForCold),
-            "aqua", new Dream(
+                    FeverDream::hotForCold)),
+            Map.entry("aqua", new Dream(
                     new Extreme(FeverHalls.FLOOD, () -> items(Items.SPONGE),
                             stack -> stack.is(Items.SPONGE) || stack.is(Items.WET_SPONGE), ParticleTypes.BUBBLE,
                             (dreamer, state) -> {
@@ -104,26 +151,30 @@ public final class FeverDream {
                     new Extreme(FeverHalls.DROUGHT, FeverDream::waterBottles,
                             stack -> stack.is(Items.POTION) && PotionUtils.getPotion(stack) == Potions.WATER,
                             ParticleTypes.WHITE_ASH, FeverDream::dryOut),
-                    FeverDream::wetForDry),
-            "aura", new Dream(
+                    FeverDream::wetForDry)),
+            Map.entry("aura", new Dream(
                     new Extreme(FeverHalls.GALE, () -> items(Items.FEATHER), stack -> stack.is(Items.FEATHER),
                             ParticleTypes.CLOUD, FeverDream::pressure),
                     new Extreme(FeverHalls.VOID, () -> items(Items.GLASS_BOTTLE), stack -> stack.is(Items.GLASS_BOTTLE),
                             ParticleTypes.ASH, (dreamer, state) -> {
                             }),
-                    FeverDream::fullForEmpty),
-            "firmo", new Dream(
+                    FeverDream::fullForEmpty)),
+            Map.entry("firmo", new Dream(
                     new Extreme(FeverHalls.WEIGHT, () -> items(Items.FEATHER, Items.PAPER),
                             stack -> stack.is(Items.FEATHER) || stack.is(Items.PAPER), new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.FALLING_DUST,
                                     Blocks.GRAVEL.defaultBlockState()),
                             FeverDream::heavy),
                     new Extreme(FeverHalls.BURIAL, () -> items(Items.IRON_PICKAXE, Items.STONE_PICKAXE),
                             stack -> false, ParticleTypes.MYCELIUM, FeverDream::closeIn),
-                    FeverDream::stoneForOre));
+                    FeverDream::stoneForOre)));
 
-    /** How long a scene lasts, at least, and how much longer it may. */
+    /** How long a scene lasts, at least, and how much longer it may; a verb's, which is a maze, longer. */
     private static final int SCENE_TICKS = 500;
     private static final int SCENE_SPREAD = 400;
+    private static final int VERB_SCENE_TICKS = 1200;
+    private static final int VERB_SCENE_SPREAD = 600;
+    /** How long a verb's dream lasts at most: then it comes apart, and the dreamer wakes without the rune. */
+    private static final int VERB_LIMIT = 6000;
     /** How often the walls of the burial come in, in seconds, and how far they come at most. */
     private static final int CLOSING_SECONDS = 6;
     private static final int CLOSING_ROWS = 3;
@@ -149,6 +200,12 @@ public final class FeverDream {
     /** The dreamer is told what they are dreaming, for the fever on their screen: of vis, the extreme it drew. */
     static void tell(ServerPlayer player, CompoundTag state) {
         Scene scene = Scene.values()[Mth.clamp(state.getInt("scene"), 0, Scene.values().length - 1)];
+        Dream dream = DREAMS.get(state.getString("rune"));
+        if (dream != null && dream.verb() && scene != Scene.MEMORY) {
+            player.displayClientMessage(Component.translatable("dream.elderlexicon.scene." + state.getString("rune")
+                    + (scene == Scene.FIRST ? ".verb" : ".turned")).withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE,
+                    net.minecraft.ChatFormatting.ITALIC), true);
+        }
         if (VIS.equals(state.getString("rune")) && scene != Scene.MEMORY) {
             SpellingNetwork.sendFever(player, state.getString("drawnRune"), state.getInt("drawnSide") == 0 ? 0 : 2);
         } else {
@@ -164,6 +221,10 @@ public final class FeverDream {
      */
     static Realms.Built begin(ServerLevel level, BlockPos origin, CompoundTag state) {
         KernRealm.build(level, origin);
+        Dream dream = DREAMS.get(state.getString("rune"));
+        if (dream != null && dream.verb()) {
+            state.putLong("deadline", level.getGameTime() + VERB_LIMIT);
+        }
         Vec3 rift = enter(level, origin, state, Scene.FIRST);
         return new Realms.Built(FeverHalls.spawn(origin.offset(0, KernRealm.Y, 0)), rift);
     }
@@ -175,7 +236,34 @@ public final class FeverDream {
         BlockPos origin = new BlockPos(dream.getInt("ox"), 0, dream.getInt("oz"));
         BlockPos island = origin.offset(0, KernRealm.Y, 0);
         FeverHalls.step(player, state);
+        Dream mine = DREAMS.get(state.getString("rune"));
+        if (mine != null && mine.verb() && !player.isCreative()
+                && (player.getAbilities().mayfly || player.getAbilities().flying)) {
+            // In a verb's dream the body does not fly: the mazes are walked (or thrown, or gazed) through.
+            player.getAbilities().mayfly = false;
+            player.getAbilities().flying = false;
+            player.onUpdateAbilities();
+        }
         Extreme extreme = extreme(state);
+        if (extreme != null) {
+            extreme.rule().tick(player, island, dream, state);
+        }
+        long deadline = state.getLong("deadline");
+        if (deadline > 0L) {
+            long left = deadline - level.getGameTime();
+            if (left == 1200L || left == 200L) {
+                player.displayClientMessage(Component.translatable("dream.elderlexicon.fading")
+                        .withStyle(net.minecraft.ChatFormatting.GRAY, net.minecraft.ChatFormatting.ITALIC), true);
+            }
+            if (left <= 0L) {
+                // The dream comes apart before the rift is found: waking, without the rune.
+                state.putLong("deadline", 0L);
+                player.sendSystemMessage(Component.translatable("dream.elderlexicon.faded")
+                        .withStyle(net.minecraft.ChatFormatting.GRAY, net.minecraft.ChatFormatting.ITALIC));
+                SpellTicks.schedule(player.server, 1, () -> Dreams.end(player, false));
+                return;
+            }
+        }
         if (extreme != null && extreme.stuff().windy()) {
             Direction wind = FeverHalls.wind(island, player.position(), state);
             if (wind != null) {
@@ -208,7 +296,12 @@ public final class FeverDream {
 
     /** Whether the dreamer's body may not fly now: the weight. */
     static boolean grounded(CompoundTag dream) {
-        Extreme extreme = extreme(dream.getCompound("state"));
+        CompoundTag state = dream.getCompound("state");
+        Dream mine = DREAMS.get(state.getString("rune"));
+        if (mine != null && mine.verb()) {
+            return true;
+        }
+        Extreme extreme = extreme(state);
         return extreme != null && extreme.stuff() == FeverHalls.WEIGHT;
     }
 
@@ -282,7 +375,47 @@ public final class FeverDream {
                 && player.level() instanceof ServerLevel level) {
             event.setCanceled(true);
             KernDressing.put(level, player.getUUID(), event.getPos(), Blocks.AIR.defaultBlockState());
+            CompoundTag dream = Dreams.dream(player);
+            Extreme extreme = extreme(dream.getCompound("state"));
+            if (extreme != null) {
+                extreme.rule().broke(player, new BlockPos(dream.getInt("ox"), KernRealm.Y, dream.getInt("oz")),
+                        dream.getCompound("state"), event.getPos());
+            }
         }
+    }
+
+    /** Using what is in hand on a block of the dream: the rule may take it (a name tag that makes a wall a door). */
+    @SubscribeEvent
+    public static void onUse(net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock event) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || !feverish(player)) {
+            return;
+        }
+        CompoundTag dream = Dreams.dream(player);
+        Extreme extreme = extreme(dream.getCompound("state"));
+        if (extreme != null && extreme.rule().used(player, new BlockPos(dream.getInt("ox"), KernRealm.Y,
+                dream.getInt("oz")), dream.getCompound("state"), event.getPos(), event.getFace(),
+                event.getItemStack())) {
+            event.setCanceled(true);
+        }
+    }
+
+    // ------------------------------------------------------------------ the rift, as the rules move it
+
+    /** Where the rift is now. */
+    static Vec3 rift(CompoundTag dream) {
+        return new Vec3(dream.getDouble("riftX"), dream.getDouble("riftY"), dream.getDouble("riftZ"));
+    }
+
+    /** The rift moved to {@code at}. */
+    static void riftAt(CompoundTag dream, Vec3 at) {
+        dream.putDouble("riftX", at.x);
+        dream.putDouble("riftY", at.y);
+        dream.putDouble("riftZ", at.z);
+    }
+
+    /** A thing of the dream, gone with it (a statue). */
+    static void mark(net.minecraft.world.entity.Entity thing) {
+        thing.getPersistentData().putBoolean(DREAMT, true);
     }
 
     /** What the dreamer sets down in the dream is gone at waking, and what it stood in comes back. */
@@ -329,8 +462,7 @@ public final class FeverDream {
         state.putInt("seconds", 0);
         if (vis && scene != Scene.MEMORY) {
             // Of vis: any extreme of the four sources, drawn anew.
-            List<String> sources = List.copyOf(DREAMS.keySet());
-            state.putString("drawnRune", sources.get(random.nextInt(sources.size())));
+            state.putString("drawnRune", SOURCES.get(random.nextInt(SOURCES.size())));
             state.putInt("drawnSide", random.nextInt(2));
         }
         Extreme extreme = extreme(state);
@@ -341,10 +473,16 @@ public final class FeverDream {
         } else {
             rift = FeverHalls.build(level, mage, island, extreme.stuff(), List.of(), UnaryOperator.identity(), random,
                     state);
+            extreme.rule().built(level, mage, island, rift, state, random);
             scatter(level, island, random, extreme.things().get());
         }
-        ring(level, mage, rift);
-        state.putLong("until", level.getGameTime() + SCENE_TICKS + random.nextInt(SCENE_SPREAD));
+        if (extreme == null || extreme.rule().ringed()) {
+            ring(level, mage, rift);
+        }
+        Dream mine = DREAMS.get(state.getString("rune"));
+        boolean verb = mine != null && mine.verb();
+        state.putLong("until", level.getGameTime() + (verb ? VERB_SCENE_TICKS + random.nextInt(VERB_SCENE_SPREAD)
+                : SCENE_TICKS + random.nextInt(SCENE_SPREAD)));
         return Vec3.atCenterOf(rift);
     }
 
@@ -538,7 +676,7 @@ public final class FeverDream {
 
     /** What the dreamer needs, lying about the rooms: in a dream it is easy to find. */
     private static void scatter(ServerLevel level, BlockPos island, RandomSource random, List<ItemStack> kinds) {
-        for (int n = 0; n < 8; n++) {
+        for (int n = 0; n < 8 && !kinds.isEmpty(); n++) {
             Vec3 at = Vec3.atCenterOf(FeverHalls.middle(island, random.nextInt(FeverHalls.ROOMS),
                     random.nextInt(FeverHalls.ROOMS))).add(random.nextInt(5) - 2, 0.0D, random.nextInt(5) - 2);
             ItemEntity thing = new ItemEntity(level, at.x, at.y, at.z, dreamt(kinds.get(n % kinds.size()).copy()));
@@ -553,6 +691,9 @@ public final class FeverDream {
         AABB kern = new AABB(origin.offset(-80, KernRealm.Y - 40, -80), origin.offset(80, KernRealm.Y + 60, 80));
         level.getEntitiesOfClass(ItemEntity.class, kern, thing -> thing.getPersistentData().getBoolean(DREAMT)
                 || thing.getItem().hasTag() && thing.getItem().getTag().getBoolean(DREAMT)).forEach(ItemEntity::discard);
+        level.getEntities((net.minecraft.world.entity.Entity) null, kern,
+                thing -> !(thing instanceof ServerPlayer) && thing.getPersistentData().getBoolean(DREAMT))
+                .forEach(net.minecraft.world.entity.Entity::discard);
     }
 
     /** A thing of the dream: wherever it is dropped, it goes with the dream. */

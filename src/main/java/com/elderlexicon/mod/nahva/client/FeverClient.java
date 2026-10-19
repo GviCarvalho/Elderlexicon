@@ -33,13 +33,31 @@ public final class FeverClient {
     /** The memories, of every rune: trails behind all that moves, in the ghost of a colour. */
     private static final Look MEMORY = new Look("phosphor", 0.40F, 0.18F, 0.48F);
     /** Each rune's two extremes, in the order of the scenes (FeverDream.Scene): the first, then the second. */
-    private static final Map<String, Look[]> EXTREMES = Map.of(
-            "igni", new Look[]{new Look("wobble", 0.62F, 0.18F, 0.05F), new Look("deconverge", 0.55F, 0.72F, 0.92F)},
+    private static final Map<String, Look[]> EXTREMES = Map.ofEntries(
+            Map.entry("igni", new Look[]{new Look("wobble", 0.62F, 0.18F, 0.05F),
+                    new Look("deconverge", 0.55F, 0.72F, 0.92F)}),
             // (blur shows nothing but black in this game: the water ripples instead.)
-            "aqua", new Look[]{new Look("wobble", 0.08F, 0.32F, 0.52F), new Look("color_convolve", 0.78F, 0.62F, 0.34F)},
-            "aura", new Look[]{new Look("scan_pincushion", 0.82F, 0.86F, 0.92F),
-                    new Look("desaturate", 0.04F, 0.04F, 0.06F)},
-            "firmo", new Look[]{new Look("bits", 0.34F, 0.30F, 0.25F), new Look("blobs", 0.18F, 0.13F, 0.09F)});
+            Map.entry("aqua", new Look[]{new Look("wobble", 0.08F, 0.32F, 0.52F),
+                    new Look("color_convolve", 0.78F, 0.62F, 0.34F)}),
+            Map.entry("aura", new Look[]{new Look("scan_pincushion", 0.82F, 0.86F, 0.92F),
+                    new Look("desaturate", 0.04F, 0.04F, 0.06F)}),
+            Map.entry("firmo", new Look[]{new Look("bits", 0.34F, 0.30F, 0.25F),
+                    new Look("blobs", 0.18F, 0.13F, 0.09F)}),
+            // The verbs: the verb, and the verb turned round.
+            Map.entry("iactare", new Look[]{new Look("bumpy", 0.55F, 0.55F, 0.52F),
+                    new Look("creeper", 0.30F, 0.42F, 0.30F)}),
+            Map.entry("vocant", new Look[]{new Look("spider", 0.42F, 0.24F, 0.48F),
+                    new Look("invert", 0.30F, 0.12F, 0.36F)}),
+            Map.entry("impediunt", new Look[]{new Look("notch", 0.12F, 0.10F, 0.14F),
+                    new Look("deconverge", 0.20F, 0.16F, 0.24F)}),
+            Map.entry("vertere", new Look[]{new Look("art", 0.62F, 0.42F, 0.26F),
+                    new Look("desaturate", 0.40F, 0.38F, 0.34F)}),
+            Map.entry("ligabis", new Look[]{new Look("pencil", 0.50F, 0.48F, 0.44F),
+                    new Look("green", 0.20F, 0.26F, 0.22F)}),
+            Map.entry("reframe", new Look[]{new Look("sobel", 0.30F, 0.22F, 0.14F),
+                    new Look("desaturate", 0.46F, 0.46F, 0.46F)}),
+            Map.entry("surgit", new Look[]{new Look("desaturate", 0.02F, 0.02F, 0.03F),
+                    new Look("phosphor", 0.80F, 0.86F, 0.90F)}));
 
     /** What the dreamer sees now; null awake. And whether they hear anything at all. */
     private static Look look;

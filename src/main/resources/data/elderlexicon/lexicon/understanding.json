@@ -54,6 +54,57 @@
         "vis_full",
         "vis_balance"
       ]
+    },
+    "iactare": {
+      "experiences": [
+        "shoot",
+        "throw",
+        "reel",
+        "knocked"
+      ]
+    },
+    "vocant": {
+      "experiences": [
+        "drop",
+        "pick_up",
+        "pearl",
+        "lure"
+      ]
+    },
+    "impediunt": {
+      "experiences": [
+        "shield",
+        "surrounded",
+        "shove"
+      ]
+    },
+    "vertere": {
+      "experiences": [
+        "smelt",
+        "brew",
+        "eat"
+      ]
+    },
+    "ligabis": {
+      "experiences": [
+        "leash",
+        "tame",
+        "ride"
+      ]
+    },
+    "reframe": {
+      "experiences": [
+        "rename",
+        "name_tag",
+        "sign_book"
+      ]
+    },
+    "surgit": {
+      "experiences": [
+        "read",
+        "spyglass",
+        "brush"
+      ]
     }
   }
 }

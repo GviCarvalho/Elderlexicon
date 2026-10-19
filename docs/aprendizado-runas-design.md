@@ -137,6 +137,34 @@ uma runa passa a acontecer lá, e é um sonho de verdade: **REM, febril**, louco
   na primeira vez em que é vivida; uma vivida antes desta mudança guarda o lugar na próxima vez em que for vivida de novo
   (pegar fogo, congelar na neve fofa...), mesmo com a runa já entendida.
 
+## 4c. As funções: o sonho de um verbo (19/10/2026)
+
+Uma função é um verbo, algo que se **faz**. No sonho dela, **a física do kern é aquele verbo**, e depois o verbo **ao
+contrário** (como um `quantum` negativo vira qualquer verbo): o verbo, as memórias (paradas, como nas fontes), o verbo
+ao contrário. São labirintos de regra estranha, não de dano: **não se voa**, as fases são mais longas (60 a 90 s),
+cada uma é dita numa dica curta ao começar, e o sonho tem **tempo limite (5 minutos)**: se desfaz e o sonhador acorda
+sem a runa (avisa com 1 minuto e 10 s de antecedência).
+
+| Verbo | Entender | O verbo | Ao contrário |
+|---|---|---|---|
+| `iactare` | soltar uma flecha; arremessar algo; puxar com a vara de pesca; ser arremessado por um golpe | **Não se anda** (lentidão forte); o pulo vira um arremesso na direção do olhar (uns 6 blocos; olhando reto voa baixo, por baixo do lintel da porta; olhando para cima, mais alto e mais longe); portas **largas** (3); salas sem chão com uma **pedra 3×3 no meio**; quem cai no escuro é **devolvido** onde pisou por último; **sem dano de queda** | **Tudo o que se olha puxa**: o sonhador é arrastado para o que olha; os mesmos abismos |
+| `vocant` | largar algo; pegar algo do chão; a pérola do Ender; atrair um bicho com comida | **Sem portas, só janelas** na altura dos olhos: fitar um ponto por um instante leva até ele | **O que se olha vem**: a sala da fenda é lacrada; fitar um bloco o arranca dali e o põe atrás do sonhador |
+| `impediunt` | bloquear com o escudo; ficar cercado (4+ criaturas); empurrar correndo | **A fenda foge do olhar**: vista de perto, some para outra sala; chega-se a ela de costas | **A fenda segue quem se afasta**: andando para longe, ela vem (1,5×); indo até ela, ela recua |
+| `vertere` | tirar algo da fornalha; preparar uma poção; comer | **Nada fica o que é**: a cada 3 s o castelo inteiro troca de material; a fenda só existe **no cobre** | **Nada muda**: uma estátua em cada sala, todas paradas; **uma gira**; tocá-la abre a fenda |
+| `ligabis` | prender um bicho no laço; domesticar; montar | **Salas irmãs** (o mesmo tapete): quebrar um bloco numa quebra o mesmo bloco na irmã; a sala da fenda é lacrada; picaretas | **Tudo solto**: salas separadas por um vão; segurando um **laço**, uma ponte se forma até a sala para onde se olha |
+| `reframe` | renomear na bigorna; dar nome com etiqueta; escrever e assinar um livro | **As coisas são o que o nome diz**: etiquetas chamadas "Porta" abrem uma porta na parede onde são usadas; placas que mentem ("Saída"); a sala da fenda é lacrada | **Nada tem nome**: todas as salas iguais, uma pedra só, seis pares de portas que levam a outro lugar |
+| `surgit` | ler um livro (ou um atril); olhar pela luneta; escovar areia suspeita | **O escuro**: sem luz e cego, a menos que se segure um **livro**: então se vê | **Tudo à vista**: o castelo de vidro; vê-se a fenda de todo lugar, o caminho não |
+
+A primeira versão do `iactare` era impossível (o autor morreu em todas as tentativas): portas de 1 bloco para acertar
+num arremesso, abismos de 7 blocos de onde o arremesso (que subia pouco mais de 1) não tirava ninguém, e dano a cada
+queda. Ficou como na tabela.
+A segunda também travava: o arremesso alto batia a cabeça na parede acima da porta, e o slime não tirava ninguém de um abismo de 7 (quicando, nunca se está no chão para pular). Agora o arremesso segue o olhar, o abismo tem uma pedra no meio e o escuro devolve quem cai.
+
+**Por dentro:** `nahva/FeverVerbs` (as salas e as regras de cada verbo: o que se faz a cada instante, ao quebrar, ao
+usar algo); `FeverHalls` ganhou janelas, salas soltas, salas iguais, lacrar uma sala, abismos e trocar o material. As
+experiências estão em `Understanding` (quase todas marcadas no instante em que acontecem). Os efeitos de tela de cada
+verbo são novos e não foram vistos ainda: algum pode deixar a tela preta (como o `blur`); trocar em `FeverClient`.
+
 ## 5. Perguntas abertas
 
 1. **O desafio do `igni`:** a primeira versão é um rascunho. Como deve ser?

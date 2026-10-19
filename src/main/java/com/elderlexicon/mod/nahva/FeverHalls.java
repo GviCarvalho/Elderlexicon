@@ -41,8 +41,6 @@ final class FeverHalls {
     private static final int HALF = ROOMS * ROOM / 2;
     /** How high a room is, at the most: what is looked at round the halls. */
     private static final int TALLEST = 6;
-    /** How many pairs of doorways that lead elsewhere. */
-    private static final int ELSEWHERES = 2;
 
     /** What a room has in it. */
     private enum Kind {
@@ -56,7 +54,30 @@ final class FeverHalls {
      */
     record Stuff(Block floor, Block floorAlt, Block wall, Block wallAlt, Block ceiling, Block stairs, Block fence,
                  Block slab, Block shelf, Block light, int height, boolean flooded, boolean windy,
-                 @org.jetbrains.annotations.Nullable Block strewn) {
+                 @org.jetbrains.annotations.Nullable Block strewn, Opening opening, boolean apart, boolean uniform,
+                 int elsewheres) {
+
+        /** Halls with doorways, rooms side by side, of every kind, two pairs of doorways that lead elsewhere. */
+        Stuff(Block floor, Block floorAlt, Block wall, Block wallAlt, Block ceiling, Block stairs, Block fence,
+              Block slab, Block shelf, Block light, int height, boolean flooded, boolean windy,
+              @org.jetbrains.annotations.Nullable Block strewn) {
+            this(floor, floorAlt, wall, wallAlt, ceiling, stairs, fence, slab, shelf, light, height, flooded, windy,
+                    strewn, Opening.DOOR, false, false, 2);
+        }
+
+        /** The same halls, otherwise: their openings, the rooms apart, all alike, so many doorways elsewhere. */
+        Stuff otherwise(Opening opening, boolean apart, boolean uniform, int elsewheres) {
+            return new Stuff(floor, floorAlt, wall, wallAlt, ceiling, stairs, fence, slab, shelf, light, height,
+                    flooded, windy, strewn, opening, apart, uniform, elsewheres);
+        }
+    }
+
+    /**
+     * How the rooms open on one another: doorways one wide and three high, or three wide (to be thrown through); windows,
+     * a hole at the height of the eyes, that nothing passes but a look; or nothing at all.
+     */
+    enum Opening {
+        DOOR, WIDE, WINDOW, NONE
     }
 
     /** The memories, of every rune: old stone and wood, by candlelight. */
@@ -101,7 +122,7 @@ final class FeverHalls {
         return corner(island, i, j).offset(ROOM / 2, 1, ROOM / 2);
     }
 
-    private static BlockPos corner(BlockPos island, int i, int j) {
+    static BlockPos corner(BlockPos island, int i, int j) {
         return island.offset(-HALF + i * ROOM, 0, -HALF + j * ROOM);
     }
 
@@ -134,7 +155,8 @@ final class FeverHalls {
         Kind repeated = Kind.values()[1 + random.nextInt(Kind.values().length - 1)];
         for (int i = 0; i < ROOMS; i++) {
             for (int j = 0; j < ROOMS; j++) {
-                kinds[i][j] = random.nextFloat() < 0.25F ? repeated : Kind.values()[random.nextInt(Kind.values().length)];
+                kinds[i][j] = stuff.uniform() || stuff.apart() ? Kind.EMPTY
+                        : random.nextFloat() < 0.25F ? repeated : Kind.values()[random.nextInt(Kind.values().length)];
             }
         }
         int center = ROOMS / 2;
@@ -152,21 +174,35 @@ final class FeverHalls {
                 room(level, mage, corner(island, i, j), stuff, kinds[i][j], random);
             }
         }
-        // The doorways of the maze, through both walls between two rooms.
+        // The doorways of the maze, through both walls between two rooms. Rooms apart open on every side, onto the
+        // gap between them.
         for (int i = 0; i < ROOMS; i++) {
             for (int j = 0; j < ROOMS; j++) {
                 BlockPos at = corner(island, i, j);
+                if (stuff.apart()) {
+                    for (Direction side : Direction.Plane.HORIZONTAL) {
+                        doorway(level, mage, at.offset(ROOM / 2, 0, ROOM / 2).relative(side, ROOM / 2 - 1), stuff);
+                    }
+                    continue;
+                }
+                if (stuff.opening() == Opening.NONE) {
+                    continue;
+                }
                 if (i + 1 < ROOMS && eastOpen[i][j]) {
-                    doorway(level, mage, at.offset(ROOM - 1, 0, ROOM / 2), stuff);
-                    doorway(level, mage, at.offset(ROOM, 0, ROOM / 2), stuff);
+                    doorway(level, mage, at.offset(ROOM - 1, 0, ROOM / 2), stuff, Direction.Axis.Z);
+                    doorway(level, mage, at.offset(ROOM, 0, ROOM / 2), stuff, Direction.Axis.Z);
                 }
                 if (j + 1 < ROOMS && southOpen[i][j]) {
-                    doorway(level, mage, at.offset(ROOM / 2, 0, ROOM - 1), stuff);
-                    doorway(level, mage, at.offset(ROOM / 2, 0, ROOM), stuff);
+                    doorway(level, mage, at.offset(ROOM / 2, 0, ROOM - 1), stuff, Direction.Axis.X);
+                    doorway(level, mage, at.offset(ROOM / 2, 0, ROOM), stuff, Direction.Axis.X);
                 }
             }
         }
-        elsewheres(level, mage, island, stuff, random, state);
+        if (!stuff.apart()) {
+            elsewheres(level, mage, island, stuff, random, state);
+        } else {
+            state.put("elsewheres", new ListTag());
+        }
         if (memory) {
             // The memories, inside rooms, the rift's among them.
             List<int[]> rooms = new ArrayList<>();
@@ -263,14 +299,24 @@ final class FeverHalls {
 
     private static void room(ServerLevel level, UUID mage, BlockPos at, Stuff stuff, Kind kind, RandomSource random) {
         int height = stuff.height();
+        int lo = stuff.apart() ? 1 : 0;
+        int hi = ROOM - 1 - lo;
         for (int x = 0; x < ROOM; x++) {
             for (int z = 0; z < ROOM; z++) {
-                boolean edge = x == 0 || z == 0 || x == ROOM - 1 || z == ROOM - 1;
+                if (x < lo || z < lo || x > hi || z > hi) {
+                    // The gap round a room apart: nothing, down into the dark.
+                    for (int y = -GAP; y <= TALLEST + 1; y++) {
+                        put(level, mage, at.offset(x, y, z), Blocks.AIR.defaultBlockState());
+                    }
+                    continue;
+                }
+                boolean edge = x == lo || z == lo || x == hi || z == hi;
                 put(level, mage, at.offset(x, 0, z), ((x + z) % 2 == 0 ? stuff.floor() : stuff.floorAlt())
                         .defaultBlockState());
                 // Up to the tallest halls of any scene: what a taller scene left above a low ceiling is cleared too.
                 for (int y = 1; y <= TALLEST + 1; y++) {
-                    BlockState wall = (random.nextFloat() < 0.15F ? stuff.wallAlt() : stuff.wall()).defaultBlockState();
+                    BlockState wall = (!stuff.uniform() && random.nextFloat() < 0.15F ? stuff.wallAlt() : stuff.wall())
+                            .defaultBlockState();
                     BlockState here = y > height + 1 ? Blocks.AIR.defaultBlockState()
                             : y == height + 1 ? stuff.ceiling().defaultBlockState()
                             : edge ? wall : Blocks.AIR.defaultBlockState();
@@ -280,7 +326,9 @@ final class FeverHalls {
         }
         BlockPos middle = at.offset(ROOM / 2, 0, ROOM / 2);
         // The light, dim either way: candles in the corners, a lantern hung from the ceiling, or a lamp set in it.
-        if (stuff.light() == Blocks.CANDLE) {
+        if (stuff.light() == Blocks.AIR) {
+            // No light at all.
+        } else if (stuff.light() == Blocks.CANDLE) {
             BlockState candles = Blocks.CANDLE.defaultBlockState().setValue(CandleBlock.CANDLES, 3)
                     .setValue(CandleBlock.LIT, true);
             put(level, mage, at.offset(1, 1, 1), candles);
@@ -381,10 +429,82 @@ final class FeverHalls {
         }
     }
 
-    /** A doorway through the wall at {@code at} (on the floor): one wide, three high. */
+    /** A doorway through the wall at {@code at} (on the floor): one wide, three high; or a window, at the eyes. */
     private static void doorway(ServerLevel level, UUID mage, BlockPos at, Stuff stuff) {
+        doorway(level, mage, at, stuff, null);
+    }
+
+    /** The same, a wide one widened along {@code along}, the way the wall runs. */
+    private static void doorway(ServerLevel level, UUID mage, BlockPos at, Stuff stuff,
+                                @org.jetbrains.annotations.Nullable Direction.Axis along) {
+        if (stuff.opening() == Opening.WINDOW) {
+            put(level, mage, at.above(2), Blocks.AIR.defaultBlockState());
+            return;
+        }
         for (int y = 1; y <= 3; y++) {
             put(level, mage, at.above(y), Blocks.AIR.defaultBlockState());
+            if (stuff.opening() == Opening.WIDE && along != null) {
+                // Three wide: along the wall on both sides.
+                for (BlockPos side : along == Direction.Axis.Z ? new BlockPos[]{at.above(y).north(), at.above(y).south()}
+                        : new BlockPos[]{at.above(y).east(), at.above(y).west()}) {
+                    put(level, mage, side, Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
+    }
+
+    /** How deep the dark goes under the gaps and the chasms. */
+    static final int GAP = 6;
+
+    /** The room {@code (i, j)} walled round again: its doorways shut, a room with no way in. */
+    static void seal(ServerLevel level, UUID mage, BlockPos island, int i, int j, Stuff stuff) {
+        BlockPos at = corner(island, i, j);
+        for (int x = 0; x < ROOM; x++) {
+            for (int z = 0; z < ROOM; z++) {
+                if (x == 0 || z == 0 || x == ROOM - 1 || z == ROOM - 1) {
+                    for (int y = 1; y <= stuff.height(); y++) {
+                        put(level, mage, at.offset(x, y, z), stuff.wall().defaultBlockState());
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * The floor of the room {@code (i, j)} gone: a chasm down into the dark, walled by the kern's earth, its bottom
+     * {@code bottom} (slime, for the throws of iactare: what falls in is thrown back up).
+     */
+    static void chasm(ServerLevel level, UUID mage, BlockPos island, int i, int j, Block bottom) {
+        BlockPos at = corner(island, i, j);
+        for (int x = 1; x < ROOM - 1; x++) {
+            for (int z = 1; z < ROOM - 1; z++) {
+                for (int y = 0; y >= -GAP; y--) {
+                    put(level, mage, at.offset(x, y, z), Blocks.AIR.defaultBlockState());
+                }
+                put(level, mage, at.offset(x, -GAP - 1, z), bottom.defaultBlockState());
+            }
+        }
+    }
+
+    /** Every wall and floor of the halls made of {@code wall} and {@code floor}: the openings are left open. */
+    static void repaint(ServerLevel level, UUID mage, BlockPos island, Stuff stuff, Block wall, Block floor) {
+        for (int i = 0; i < ROOMS; i++) {
+            for (int j = 0; j < ROOMS; j++) {
+                BlockPos at = corner(island, i, j);
+                for (int x = 0; x < ROOM; x++) {
+                    for (int z = 0; z < ROOM; z++) {
+                        boolean edge = x == 0 || z == 0 || x == ROOM - 1 || z == ROOM - 1;
+                        if (!level.getBlockState(at.offset(x, 0, z)).isAir()) {
+                            put(level, mage, at.offset(x, 0, z), floor.defaultBlockState());
+                        }
+                        for (int y = 1; edge && y <= stuff.height(); y++) {
+                            if (!level.getBlockState(at.offset(x, y, z)).isAir()) {
+                                put(level, mage, at.offset(x, y, z), wall.defaultBlockState());
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -397,7 +517,7 @@ final class FeverHalls {
     private static void elsewheres(ServerLevel level, UUID mage, BlockPos island, Stuff stuff, RandomSource random,
                                    CompoundTag state) {
         List<long[]> doors = new ArrayList<>();
-        for (int n = 0; n < ELSEWHERES * 2; n++) {
+        for (int n = 0; n < stuff.elsewheres() * 2; n++) {
             Direction side = Direction.from2DDataValue(n % 4);
             int k = random.nextInt(ROOMS);
             int i = side == Direction.EAST ? ROOMS - 1 : side == Direction.WEST ? 0 : k;
