@@ -51,6 +51,26 @@ Com partículas as duas viram uma só, e é a mesma lei que o corpo já segue.
 - **As unidades por coisa saem** (terra 0,5, pedra 1,5, água 3, obsidiana 50). O que é mais denso é o que está
   comprimido.
 
+### Densidade (17/10/2026)
+
+Decidido com o autor: **a dureza do bloco no jogo é a densidade dele**, a mesma escala que a condensação e a visão da
+terra já usam. A terra (dureza 0,5) é o bloco solto: 4096 partículas. O resto é terra (ou o que for) empacotada:
+
+- **Empacotamento** = dureza ÷ 0,5. A pedra (1,5) é 3: um bloco de pedra tem 12288 partículas; a obsidiana (50), 100:
+  409600; a rocha-mãe, inquebrável, conta como dureza 100. O que quebra ao toque (uma flor) não fica abaixo de 0,1.
+- Líquidos, gases, fogo e os quatro primordiais ficam em 1: 4096 de água é a água.
+- O empacotamento é da substância (o bloco sólido dela) e vale para todas as formas: a laje de pedra tem 6144, o lingote
+  de ferro 4550 (o bloco de ferro, dureza 5, tem 40960). A lava é pedra derretida e guarda as 12288 da pedra.
+- A tabela (`materials.json`, escrita por `tools/materials_table.py`) conta as partículas como se tudo fosse solto como
+  a terra; o jogo multiplica pelo empacotamento ao carregar, com a dureza de cada bloco (`Materials.useHardness`).
+- **Na física** (`Field`), cada bloco guarda o empacotamento do que ele é, e **o espaço que a matéria ocupa é a contagem
+  dela ÷ o empacotamento**. É o que vale para o espaço livre (o gás entra, flui e sobe por ele) e para a ignição (a
+  massa que sufoca o fogo). Calor, queima, vapor e cinza seguem as contagens reais: uma tora tem os poros e o espaço do
+  fogo de sempre, mas quatro vezes as partículas para queimar e para esquentar. Um bloco que perde toda a matéria
+  volta ao empacotamento 1, e a poeira que assenta ali é solta como a terra.
+- Encher um bloco de terra além do natural continua sendo a condensação: na densidade da pedra é pedra, e passando de
+  1000 é o buraco negro.
+
 ## 2. Os impulsos
 
 Desenho fechado com o usuário em 02/10/2026.
@@ -1091,3 +1111,25 @@ Ficaram de fora os chefes (dragão do End e wither) e os que o jogo não faz nas
     jogo; o ar e o fogo jogados num líquido não se misturam a ele.
 11. **Quem encosta num bloco informe**, até os seres entrarem no campo: queima passando da ignição (uns 270 °C), o
     líquido que não queima apaga, e o líquido segura pelo que as partículas seguram.
+
+## Identidade: código e empacotamento (17/10/2026)
+
+O que uma coisa é depende de duas medidas: o **código** (quanto de cada aspecto ela tem) e o **empacotamento** (quão
+apertadas as partículas estão).
+- **Matéria solta no mundo** se espalha no empacotamento da própria substância. Por isso, para ela, só o código decide.
+- **Matéria presa num volume** tem o empacotamento que esse volume dá. É o caso do bloco único de um `vocant` e do
+  quadrado da bancada. Ali, ela é a coisa mais próxima nas duas medidas juntas.
+  - **A distância** soma as duas. Cinco pontos de diferença numa fatia do código contam um passo; ficar 25% mais ou
+    menos apertada também conta um passo.
+  - **Exemplo:** a terra pura (código só de terra) com empacotamento 3 fica mais perto da pedra (20 pontos de diferença
+    no código, mesmo empacotamento) do que da terra.
+- **No mundo, a matéria só vira o que a natureza faz sozinha.** O `materials.json` dá a cada substância uma `origin`:
+  - **sem `origin`:** o que a natureza faz com a matéria sozinha;
+  - **`vein`:** o que nasce dentro de outra coisa, como minérios, blocos infestados e areia ou cascalho suspeitos;
+  - **`hands`:** o que só mãos fazem, como tábuas, tijolos, lingotes e a fornalha.
+
+  Matéria que só chega *perto* do código de um `vein` ou de um `hands` não vira essa coisa; precisa ter o código exato.
+  Na bancada, que é trabalho de mãos, tudo é encontrado por proximidade. Terra apertada nunca vira minério nem bedrock.
+- **A terra de um `vocant`** segue isso. Ela vira terra até cerca de 40 UMU, pedra perto de 48, ardósia de cerca de 64
+  até 640, e obsidiana a partir de uns 720 UMU. O que a rocha escolhida não guarda volta ao corpo. Acima da densidade
+  da obsidiana, continuam o poço de gravidade e o buraco negro.

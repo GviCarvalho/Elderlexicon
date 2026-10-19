@@ -12,6 +12,7 @@ import java.util.Objects;
  *   igni 10 5 ubis vocant        distance and height: 10 blocks ahead, 5 above the mage's feet
  *   igni 10 64 -30 ubis vocant   coordinates x=10, y=64, z=-30
  *   igni 10 m1 -30 ubis vocant   coordinates with y taken from where m1 is (the average of its members)
+ *   igni ego 5 10 ubis vocant    from a mark: 5 blocks ahead of the one who bears it, 10 above its feet
  *   m1 ubis igni vocant          where m1 is (the average of its members), at its feet
  * </pre>
  */
@@ -21,7 +22,8 @@ public record SpellPlace(Kind kind, double distance, double height, List<Axis> a
         DISTANCE,
         DISTANCE_HEIGHT,
         COORDINATES,
-        MARK
+        MARK,
+        FROM_MARK
     }
 
     /** One coordinate: a number, or the same coordinate of where a mark is. */
@@ -53,7 +55,7 @@ public record SpellPlace(Kind kind, double distance, double height, List<Axis> a
     public SpellPlace {
         Objects.requireNonNull(kind, "kind");
         axes = axes == null ? List.of() : List.copyOf(axes);
-        if (kind == Kind.MARK && (mark == null || mark.isBlank())) {
+        if ((kind == Kind.MARK || kind == Kind.FROM_MARK) && (mark == null || mark.isBlank())) {
             throw new IllegalArgumentException("A mark place needs a mark");
         }
         if (kind == Kind.COORDINATES && axes.size() != 3) {
@@ -82,9 +84,17 @@ public record SpellPlace(Kind kind, double distance, double height, List<Axis> a
         return new SpellPlace(Kind.MARK, 0.0D, 0.0D, List.of(), normalize(mark));
     }
 
+    /**
+     * {@code distance} ahead of what bears {@code mark} and {@code height} above its feet, as {@link
+     * #distanceAndHeight} is from the mage ({@code ego 5 10 ubis}: 5 ahead of the one who casts, 10 above).
+     */
+    public static SpellPlace fromMark(String mark, double distance, double height) {
+        return new SpellPlace(Kind.FROM_MARK, distance, height, List.of(), normalize(mark));
+    }
+
     /** Whether where it is depends on marked things, so it moves with them. */
     public boolean followsMarks() {
-        return kind == Kind.MARK || axes.stream().anyMatch(Axis::isMark);
+        return kind == Kind.MARK || kind == Kind.FROM_MARK || axes.stream().anyMatch(Axis::isMark);
     }
 
     public String describe() {
@@ -93,6 +103,7 @@ public record SpellPlace(Kind kind, double distance, double height, List<Axis> a
             case DISTANCE_HEIGHT -> format(distance) + " blocks ahead, " + format(height) + " up";
             case COORDINATES -> axes.get(0).describe() + " " + axes.get(1).describe() + " " + axes.get(2).describe();
             case MARK -> "'" + mark + "'";
+            case FROM_MARK -> format(distance) + " blocks ahead of '" + mark + "', " + format(height) + " up";
         };
     }
 

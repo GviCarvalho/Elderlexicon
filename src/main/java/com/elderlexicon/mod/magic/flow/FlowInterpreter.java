@@ -72,6 +72,12 @@ public final class FlowInterpreter {
         // is now, and how much.
         VitaElement held = null;
         double heldUmu = 0.0D;
+        // How much a conversion of what is taken from the world was told to take (firmo quantum 200 tenet vertere firmo
+        // vocant): the verb after spends that much, and the world pays it.
+        Double carried = null;
+        boolean carriedAll = false;
+        // Told how much to take, the world is drawn before the verb acts, so it knows how dense what it spends is.
+        boolean gathering = false;
         // The rungs crossed by the conversions along the way (each adds its own), for their work and time.
         int steps = 0;
         // Every element the energy has been along the way, in order, so its orb can show each conversion.
@@ -139,6 +145,10 @@ public final class FlowInterpreter {
             }
             // igni tenet vertere aqua converts the fire being taken, not the mage's own: the Vita is left alone.
             if (flow == Flow.CONVERT && !marked && captured != null) {
+                if (action.quantity().isPresent()) {
+                    carried = action.quantity().getAsDouble();
+                }
+                carriedAll |= action.quantityAll();
                 if (vertereIndex < vertereQueue.size()) {
                     VitaElement target = vertereQueue.get(vertereIndex++).target();
                     steps += Conversion.steps(capturedAs, target);
@@ -198,14 +208,29 @@ public final class FlowInterpreter {
                 }
                 continue;
             }
+            if (captured != null && capturedForSpell && (carried != null || carriedAll) && action.quantity().isEmpty()
+                    && !action.quantityAll()) {
+                // The amount written on the conversion is the amount taken: the verb that spends it spends that much.
+                action = action.toBuilder()
+                        .putMetadata(SpellAction.QUANTITY, carried)
+                        .putMetadata(SpellAction.QUANTITY_ALL, carriedAll ? Boolean.TRUE : null)
+                        .build();
+                ledger.setCurrentAction(action);
+                carried = null;
+                carriedAll = false;
+                // Spent in one go, the world is drawn first, to know how dense it is; held open (chronos), the verb spends
+                // that much again for every two seconds, and the world pays all of it at the end, as before.
+                gathering = action.seconds().isEmpty();
+            }
             FlowWorld.Captured all = null;
-            if (captured != null && capturedForSpell && action.gathers() && world.hasCaster()) {
+            if (captured != null && capturedForSpell && (action.gathers() || gathering) && world.hasCaster()) {
+                gathering = false;
                 // firmo tenet quantum iactare: everything in reach is taken now and spent by this verb (quantum 20
                 // chronos 0: twenty of it). With chronos 0 it is released in one instant, as intense as all of it
                 // together (docs/condensacao-design.md).
                 double limit = action.quantityAll() ? Double.MAX_VALUE : action.potency().getAsDouble();
                 all = world.captureAll(List.copyOf(chain), limit, action, capture);
-                boolean atOnce = action.atOnce();
+                boolean atOnce = action.concentrates();
                 // The spirit's work (merging all the sources into one, unmaking and remaking them as another element) is
                 // done with the energy in hand: it is lost from it, and what is left is what the verb releases.
                 double worked = all.total() - (atOnce && all.sources() > 1 ? Heat.work(all.total(), all.sources()) : 0.0D);
@@ -229,7 +254,9 @@ public final class FlowInterpreter {
                 capturedAll = true;
             }
             double fromBody = 0.0D;
-            if (captured == null && world.hasCaster() && (held != null || action.quantityAll())) {
+            // An image takes nothing from the body: igni quantum ego surgit … vocant shows how much fire there is, it does
+            // not draw it out (docs/bussola-arcana-design.md).
+            if (captured == null && world.hasCaster() && (held != null || action.quantityAll()) && !action.image()) {
                 // From the body: what a conversion already took and converted, or, with a bare quantity here, all of the
                 // source there is in the body (firmo quantum chronos 0 iactare; vis quantum …: all the mana). With
                 // chronos 0 it is condensed into one point, as intense as all of it.
@@ -245,7 +272,7 @@ public final class FlowInterpreter {
                 }
                 held = null;
                 heldUmu = 0.0D;
-                boolean atOnce = action.atOnce() && fromBody > EPSILON;
+                boolean atOnce = action.concentrates() && fromBody > EPSILON;
                 int charge = atOnce ? Charge.ticks(fromBody) + Conversion.chainTicks(fromBody, chain) : 0;
                 // Converting it on the way is the spirit's work, done with the energy in hand: lost from it.
                 double worked = fromBody * (1.0D - Conversion.workShare(steps));
@@ -292,9 +319,14 @@ public final class FlowInterpreter {
         }
     }
 
-    /** Converts the mage's own Vita; with a focus the conversion happens in the focus, and the Vita is left alone. */
+    /**
+     * Converts the mage's own Vita; with a focus the conversion happens in the focus, and the Vita is left alone. Into
+     * vis or out of it, the conversion always reaches the chalice: vis is kept there, not in the nerves the focus spares.
+     */
     private static VitaElement convertVita(SpellLedger ledger, FlowWorld world, VertereRequest request) {
-        double transferred = ledger.focusActive() ? request.amount() : world.transferVita(request);
+        boolean throughChalice = request.source() == null || request.target() == null
+                || request.source().isBalanced() || request.target().isBalanced();
+        double transferred = ledger.focusActive() && !throughChalice ? request.amount() : world.transferVita(request);
         if (transferred <= EPSILON) {
             return null;
         }

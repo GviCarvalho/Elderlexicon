@@ -265,7 +265,7 @@ public class ElementOrb extends Entity {
             return Density.diamonds(coal, intensity) > 0 ? Blocks.DIAMOND_BLOCK.defaultBlockState()
                     : Blocks.COAL_BLOCK.defaultBlockState();
         }
-        return EarthSpots.blockOf(Density.rock(Math.max(Density.SOIL, intensity)));
+        return EarthSpots.blockOf(Math.max(Density.SOIL, intensity));
     }
 
     /** The colour of its layers right now: fire by its heat, water deepening, air white. */

@@ -56,6 +56,15 @@ public final class MaterialTableBuilder {
         return this;
     }
 
+    /** Packs every substance as dense as {@code packing} says of it (1: as loose as earth, left as it is). */
+    public MaterialTableBuilder pack(java.util.function.ToDoubleFunction<Substance> packing) {
+        substances.replaceAll((id, substance) -> {
+            double by = packing.applyAsDouble(substance);
+            return by == 1.0D ? substance : substance.packed(by);
+        });
+        return this;
+    }
+
     /** Reads a materials file into this builder (see {@link MaterialTableReader} for the format). */
     public MaterialTableBuilder read(Reader json) {
         MaterialTableReader.read(json, this);
@@ -87,16 +96,14 @@ public final class MaterialTableBuilder {
                 problems.add("no primordial substance is all " + aspect.runeId());
             }
         }
+        // Every thing is its code (tools/materials_table.py): no two substances may share one. Codes a few particles apart
+        // are two things; a mixture is the one nearest it.
         List<Substance> all = new ArrayList<>(substances.values());
-        for (int i = 0; i < all.size(); i++) {
-            for (int j = i + 1; j < all.size(); j++) {
-                double distance = all.get(i).recipe().distance(all.get(j).recipe());
-                if (distance < 2.0D * MaterialTable.TOLERANCE - 1.0E-9D) {
-                    problems.add("the recipes of '" + all.get(i).id() + "' and '" + all.get(j).id() + "' are "
-                            + String.format(Locale.ROOT, "%.2f", distance) + " apart: a mixture could be both (they must"
-                            + " be at least " + String.format(Locale.ROOT, "%.2f", 2.0D * MaterialTable.TOLERANCE)
-                            + " apart)");
-                }
+        Map<Particles, String> codes = new HashMap<>();
+        for (Substance substance : all) {
+            String other = codes.putIfAbsent(substance.code(Particles.BLOCK), substance.id());
+            if (other != null) {
+                problems.add("'" + other + "' and '" + substance.id() + "' have the same code");
             }
         }
         Map<String, String> readers = new HashMap<>();
@@ -108,7 +115,8 @@ public final class MaterialTableBuilder {
                     }
                     String key = form.kind().name().toLowerCase(Locale.ROOT) + " " + form.id();
                     String other = readers.putIfAbsent(key, substance.id() + " " + state.name().toLowerCase(Locale.ROOT));
-                    if (other != null) {
+                    // A liquid may show many (every rock melts into lava): read, it is the first that names it.
+                    if (other != null && state != State.LIQUID) {
                         problems.add("the " + key + " would read as both " + other + " and " + substance.id() + " "
                                 + state.name().toLowerCase(Locale.ROOT));
                     }

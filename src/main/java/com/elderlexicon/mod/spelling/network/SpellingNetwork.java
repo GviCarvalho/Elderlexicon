@@ -169,6 +169,13 @@ public final class SpellingNetwork {
         );
         CHANNEL.registerMessage(
                 nextPacketId++,
+                com.elderlexicon.mod.invocation.BenchMarkPacket.class,
+                com.elderlexicon.mod.invocation.BenchMarkPacket::encode,
+                com.elderlexicon.mod.invocation.BenchMarkPacket::decode,
+                com.elderlexicon.mod.invocation.BenchMarkPacket::handle
+        );
+        CHANNEL.registerMessage(
+                nextPacketId++,
                 IncorporationPacket.class,
                 IncorporationPacket::encode,
                 IncorporationPacket::decode,
@@ -310,6 +317,11 @@ public final class SpellingNetwork {
 
     /** The local player wrote on a block face with a quill. */
     public static void sendInscribe(com.elderlexicon.mod.spelling.inscription.InscribePacket packet) {
+        CHANNEL.sendToServer(packet);
+    }
+
+    /** The local player carves the marks of a crafting table's squares, and its line (docs/invocacao-design.md). */
+    public static void sendBenchMarks(com.elderlexicon.mod.invocation.BenchMarkPacket packet) {
         CHANNEL.sendToServer(packet);
     }
 

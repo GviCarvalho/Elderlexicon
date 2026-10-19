@@ -54,6 +54,11 @@ public final class MarkHelper {
         return Optional.ofNullable(sanitize(readMark(blockEntity.getPersistentData())));
     }
 
+    /**
+     * The mark an item bears: the one written on it, or else the one its name makes (docs/marks.md, "Nome na bigorna").
+     * The name is read every time, not only when the anvil is left: an item taken from the anvil with shift-click is a
+     * copy made after the anvil's event, and the mark written then went with the stack left behind.
+     */
     public static Optional<String> markForItem(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return Optional.empty();
@@ -62,7 +67,11 @@ public final class MarkHelper {
         if (tag == null) {
             return Optional.empty();
         }
-        return Optional.ofNullable(sanitize(readMark(tag)));
+        Optional<String> written = Optional.ofNullable(sanitize(readMark(tag)));
+        if (written.isPresent() || !stack.hasCustomHoverName()) {
+            return written;
+        }
+        return markFromName(stack.getHoverName().getString());
     }
 
     public static boolean applyMark(Entity entity, String rawMark) {

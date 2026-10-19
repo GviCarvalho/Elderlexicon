@@ -20,3 +20,8 @@ Ou use o **Elder Brush**: segure o item, clique com botao direito em um bloco/en
 Renomear um item na bigorna dá a ele a marca do nome (docs/varinhas-design.md): minúsculas, espaços como `_`, só
 letras, números e `_` ("Varinha do Gui" vira `varinha_do_gui`). Um nome que não pode ser escrito como marca (uma letra
 só, só números, ou uma runa) não marca. Tirar o nome tira a marca que ele deu; uma marca escrita de outro jeito fica.
+
+O nome é lido como marca sempre que se pergunta pela marca de um item (`MarkHelper.markForItem`), e não só quando ele
+sai da bigorna: pego com shift+clique, o item é copiado para o inventário depois do evento da bigorna, e a marca escrita
+nele ia embora com a pilha que ficava para trás (16/10/2026). Uma marca escrita vale antes do nome. O tooltip de todo
+item mostra a marca que ele tem, ou avisa quando o nome não virou marca.

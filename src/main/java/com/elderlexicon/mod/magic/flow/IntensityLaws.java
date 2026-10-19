@@ -32,9 +32,11 @@ public final class IntensityLaws {
             double heat = Heat.of(worked, sources, atOnce);
             return heat > Heat.COMMON + EPSILON ? heat : null;
         });
-        // Earth pressed into one block is as dense as all of it.
-        LAWS.put(VitaElement.FIRMO, (worked, sources, atOnce) ->
-                atOnce && worked > EPSILON ? Density.of(worked, sources, true) : null);
+        // Earth pressed into one block is as dense as all of it; spread, it keeps the density of what it was drawn from.
+        // Drawn from the world, a block of loose soil gives 16 UMU of earth, of stone 38 (docs/particulas-design.md):
+        // density is the UMU in one block over Density.UMU_PER_DENSITY.
+        LAWS.put(VitaElement.FIRMO, (worked, sources, atOnce) -> worked > EPSILON
+                ? Density.of(worked / Density.UMU_PER_DENSITY, sources, atOnce) : null);
         // Water and air pressed into one point: its pressure is all of it.
         Law pressure = (worked, sources, atOnce) -> atOnce && worked > EPSILON ? worked : null;
         LAWS.put(VitaElement.AQUA, pressure);

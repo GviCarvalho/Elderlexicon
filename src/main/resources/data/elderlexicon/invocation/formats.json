@@ -1,0 +1,25 @@
+{
+  "_license": "© GviCarvalho – Part of Elderlexicon. See LICENSE.txt.",
+  "_about": "The formats of the invocation bench (docs/invocacao-design.md, section 3): the same thing, of another matter. Each is a drawing on the grid, as a recipe of the game is, read anywhere on the grid and mirrored. 'M' (or the key 'principal' names) is the principal part, the matter of the thing: any matter fills it, and every square of it must hold the same. The other keys are the parts that stay what they are (an item, or '#' and a tag). A grid that the game's own recipe makes is that recipe's thing; only a grid no recipe makes is a format's conjured thing. 'damage' and 'speed' are what the thing has made of iron (the bonus to the hand, as the game's sword of iron has 5); other matter weighs more or less than iron and hits as much more or less.",
+  "formats": {
+    "sword": {"name": "espada", "pattern": ["M", "M", "H"], "keys": {"H": "minecraft:stick"},
+              "item": "elderlexicon:conjured_sword", "damage": 5.0, "speed": -2.4},
+    "pickaxe": {"name": "picareta", "pattern": ["MMM", " H ", " H "], "keys": {"H": "minecraft:stick"},
+                "item": "elderlexicon:conjured_pickaxe", "damage": 3.5, "speed": -2.8, "mines": "#minecraft:mineable/pickaxe"},
+    "axe": {"name": "machado", "pattern": ["MM", "MH", " H"], "keys": {"H": "minecraft:stick"},
+            "item": "elderlexicon:conjured_axe", "damage": 8.0, "speed": -3.1, "mines": "#minecraft:mineable/axe"},
+    "shovel": {"name": "pá", "pattern": ["M", "H", "H"], "keys": {"H": "minecraft:stick"},
+               "item": "elderlexicon:conjured_shovel", "damage": 3.5, "speed": -3.0, "mines": "#minecraft:mineable/shovel"},
+    "hoe": {"name": "enxada", "pattern": ["MM", " H", " H"], "keys": {"H": "minecraft:stick"},
+            "item": "elderlexicon:conjured_hoe", "damage": 0.0, "speed": -1.0, "mines": "#minecraft:mineable/hoe"},
+    "spear": {"name": "lança", "pattern": ["  M", " H ", "H  "], "keys": {"H": "minecraft:stick"},
+              "item": "elderlexicon:conjured_spear", "damage": 6.0, "speed": -2.9},
+    "arrow": {"name": "flecha", "pattern": ["M", "H", "F"], "keys": {"H": "minecraft:stick", "F": "minecraft:feather"},
+              "item": "elderlexicon:conjured_arrow", "count": 4, "damage": 2.0},
+    "shield": {"name": "escudo", "pattern": ["PIP", "PPP", " P "], "principal": "P", "keys": {"I": "minecraft:iron_ingot"},
+               "item": "elderlexicon:conjured_shield"},
+    "cube": {"name": "cubo", "pattern": ["MMM", "MMM", "MMM"], "item": "elderlexicon:conjured_cube"},
+    "disc": {"name": "disco", "pattern": ["MMM"], "item": "elderlexicon:conjured_disc"},
+    "sphere": {"name": "esfera", "pattern": [" M ", "MMM", " M "], "item": "elderlexicon:conjured_sphere"}
+  }
+}

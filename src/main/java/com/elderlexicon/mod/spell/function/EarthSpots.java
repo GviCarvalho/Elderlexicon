@@ -95,12 +95,12 @@ public final class EarthSpots {
         if (spot == null) {
             return;
         }
-        level.setBlock(spot, blockOf(rock), Block.UPDATE_ALL);
+        level.setBlock(spot, blockOf(density), Block.UPDATE_ALL);
         level.playSound(null, spot, SoundEvents.STONE_PLACE, SoundSource.BLOCKS, 1.5F, 0.6F);
         level.sendParticles(ParticleTypes.CLOUD, at.x, at.y, at.z, 12, 0.4D, 0.4D, 0.4D, 0.02D);
         if (level.getBlockState(spot.below()).canBeReplaced()) {
             // Nothing holds it up: it falls like any heavy block, and a well starts pulling once it lands.
-            FallingBlockEntity falling = FallingBlockEntity.fall(level, spot, blockOf(rock));
+            FallingBlockEntity falling = FallingBlockEntity.fall(level, spot, blockOf(density));
             falling.setHurtsEntities(2.0F, 40);
             FLIGHTS.add(new Flight(falling, caster, density, 0, false, level.getGameTime()));
             return;
@@ -124,7 +124,7 @@ public final class EarthSpots {
         }
         // Carbon flies as coal and turns to diamond when it strikes.
         BlockState flying = coal > 0 && Density.diamonds(coal, density) > 0
-                ? Blocks.COAL_BLOCK.defaultBlockState() : blockOf(Density.rock(density));
+                ? Blocks.COAL_BLOCK.defaultBlockState() : blockOf(density);
         level.setBlock(start, flying, Block.UPDATE_CLIENTS);
         FallingBlockEntity block = FallingBlockEntity.fall(level, start, flying);
         block.setDeltaMovement(look.scale(THROW_SPEED));
@@ -142,7 +142,7 @@ public final class EarthSpots {
         level.playSound(null, at.x, at.y, at.z, SoundEvents.ANVIL_LAND, SoundSource.BLOCKS, 2.0F, 0.5F);
         level.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE, SoundSource.BLOCKS, 3.0F, 0.6F);
         level.sendParticles(new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK,
-                        blockOf(Density.rock(density))), at.x, at.y + 0.5D, at.z, (int) (40 * strength),
+                        blockOf(density)), at.x, at.y + 0.5D, at.z, (int) (40 * strength),
                 strength * 0.5D, strength * 0.3D, strength * 0.5D, 0.3D);
         level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, at.x, at.y + 0.5D, at.z, (int) (8 * strength),
                 strength * 0.4D, 0.3D, strength * 0.4D, 0.02D);
@@ -174,6 +174,35 @@ public final class EarthSpots {
             }
         }
         return null;
+    }
+
+    /**
+     * The block earth pressed {@code density} (hardness) settles as: the natural thing nearest pure earth packed that
+     * tight, in code and packing together (docs/particulas-design.md, "Identidade"); denser than any rock, crying
+     * obsidian.
+     */
+    static BlockState blockOf(double density) {
+        return settled(density).flatMap(EarthSpots::stateOf).orElseGet(() -> blockOf(Density.rock(density)));
+    }
+
+    /** The natural thing earth pressed {@code density} settles as; empty past obsidian, where no rock holds it. */
+    static java.util.Optional<com.elderlexicon.mod.magic.matter.Substance> settled(double density) {
+        if (density > Density.OBSIDIAN) {
+            return java.util.Optional.empty();
+        }
+        com.elderlexicon.mod.magic.matter.MaterialTable table = com.elderlexicon.mod.magic.matter.Materials.get();
+        return table.settle(table.primordial(com.elderlexicon.mod.vita.VitaElement.FIRMO).recipe(),
+                Math.max(density, Density.SOIL) / com.elderlexicon.mod.magic.matter.Materials.EARTH_HARDNESS,
+                com.elderlexicon.mod.magic.matter.State.SOLID);
+    }
+
+    /** The block a substance shows as a solid. */
+    static java.util.Optional<BlockState> stateOf(com.elderlexicon.mod.magic.matter.Substance substance) {
+        return substance.solidBlock()
+                .map(id -> net.minecraftforge.registries.ForgeRegistries.BLOCKS.getValue(
+                        net.minecraft.resources.ResourceLocation.tryParse(id)))
+                .filter(block -> block != null && block != Blocks.AIR)
+                .map(Block::defaultBlockState);
     }
 
     static BlockState blockOf(Density.Rock rock) {

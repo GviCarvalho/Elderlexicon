@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "elderlexicon:block/invocation_bench"
+    }
+  }
+}

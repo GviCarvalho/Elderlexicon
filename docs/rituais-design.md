@@ -22,6 +22,12 @@ No livro, `surgit` é o "comando de leitura" (cap. 5.1): o espírito lê o perga
 - **Ramificação:** um pergaminho pode ter várias linhas `rX surgit`.
 - **Loop:** o último passo chama o primeiro (`r1 chronos 10 surgit`). Sem `chronos`, a leitura espera 1 tick, então um pergaminho que chama a si mesmo vira um loop, e não uma recursão.
 - **Nomear:** `r1 surgit reframe ritual`, e depois basta dizer `ritual`.
+- **Pela marca na mão:** um `surgit` dito com um item marcado na mão (marcado pelo nome na bigorna ou pelo pincel) lê o que
+  tem a mesma marca, como `marca surgit` (16/10/2026). Vem depois do que se mira ou toca e das gravações na mão; uma
+  página ou um grimório na mão continuam lidos por si, não pela marca. Se nada tem a marca, o `surgit` segue lendo o
+  resto, como antes.
+- **Página carregada:** a leitura pela marca também lê as páginas marcadas que o mago carrega (como já lia as coisas
+  gravadas), e **não as gasta**: só a página lida da mão, sem marca, se desfaz (16/10/2026).
 
 Exemplo de ritual em loop:
 

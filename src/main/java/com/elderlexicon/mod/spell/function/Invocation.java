@@ -15,6 +15,7 @@ import com.elderlexicon.mod.spell.nature.NatureWorld;
 import com.elderlexicon.mod.spell.ElementPersistence;
 import com.elderlexicon.mod.spell.SpellFlow;
 import com.elderlexicon.mod.spell.mark.MarkCost;
+import com.elderlexicon.mod.spell.Density;
 import com.elderlexicon.mod.spell.mark.WindLift;
 import com.elderlexicon.mod.vita.VitaElement;
 import net.minecraft.core.BlockPos;
@@ -298,6 +299,33 @@ final class Invocation {
             }
         });
         return left;
+    }
+
+    /**
+     * Earth delivered as dense as it was drawn (docs/condensacao-design.md: what is captured keeps the intensity it
+     * won): blocks of the rock that density makes, each holding what a block of it holds (stone 48 UMU, obsidian 1600),
+     * laid where loose earth would be. Returns what made no whole block, for the body.
+     */
+    static double dense(LivingEntity player, Where where, double energy, double density) {
+        Optional<SpellEffects.SpellImpact> first = where.now();
+        if (first.isEmpty()) {
+            return energy;
+        }
+        ServerLevel level = Casters.level(player);
+        // Each block is what earth that dense settles as, holding what a block of it holds (stone 48 UMU).
+        double capped = Math.min(density, Density.OBSIDIAN);
+        Optional<com.elderlexicon.mod.magic.matter.Substance> settled = EarthSpots.settled(capped);
+        BlockState block = settled.flatMap(EarthSpots::stateOf).orElseGet(() -> EarthSpots.blockOf(capped));
+        double unit = settled.map(found -> found.packing() * Particles.BLOCK_UMU)
+                .orElse(Density.umuOf(Density.rock(capped)));
+        int count = (int) Math.floor(energy / unit + 1.0E-9D);
+        if (count <= 0) {
+            MarkSpells.tell(player, "Nao ha terra bastante para um bloco tao denso: a energia voltou ao corpo.");
+            return energy;
+        }
+        List<BlockPos> laid = lay(level, VitaElement.FIRMO, groundOf(first.get(), block, where.atFeet()), block, count);
+        SpellEffects.spawnSummonEffect(player, VitaElement.FIRMO, VitaElement.FIRMO.runeId(), first.get());
+        return Math.max(0.0D, energy - laid.size() * unit);
     }
 
     /** The block the table shows matter as, in the state it is in; empty when it shows as anything else. */

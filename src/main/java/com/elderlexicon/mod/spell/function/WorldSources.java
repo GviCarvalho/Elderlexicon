@@ -11,6 +11,7 @@ import com.elderlexicon.mod.spell.SpellContext;
 import com.elderlexicon.mod.spell.action.SpellAction;
 import com.elderlexicon.mod.spell.mark.SpellPlace;
 import com.elderlexicon.mod.spell.sight.Revelation;
+import com.elderlexicon.mod.spell.matter.WorldMatter;
 import com.elderlexicon.mod.vita.VitaElement;
 import com.elderlexicon.mod.command.SpellCostCalculator;
 import net.minecraft.core.BlockPos;
@@ -128,7 +129,7 @@ public final class WorldSources {
         double pulled = taken.stream().mapToDouble(Source::value).sum();
         LivingEntity player = context.player();
         ElementOrb orb = null;
-        if (spender != null && spender.atOnce() && pulled > EPSILON) {
+        if (spender != null && spender.concentrates() && pulled > EPSILON) {
             // Condensing: it is gathered into one point for as long as the charge takes, then released.
             java.util.function.Supplier<Vec3> point = orbPoint(context, spender);
             List<Gatherings.Origin> origins = taken.stream()
@@ -286,9 +287,10 @@ public final class WorldSources {
             center = zone.get().center();
             range = Math.max(range, zone.get().radius() + 2.0D);
         }
-        // The ground the mage stands on is not pulled out from under the feet.
-        AABB feet = kind.get() != Revelation.Kind.FIRMO ? null
-                : player.getBoundingBox().expandTowards(0.0D, -0.6D, 0.0D);
+        // The ground the mage stands on is not pulled out from under the feet: earth is drawn around the mound that holds
+        // the mage up (VisDraw.holdsUp).
+        AABB feet = null;
+        boolean earth = kind.get() == Revelation.Kind.FIRMO;
         // Pulling air, the mage keeps the breath in its own lungs: the space its body fills is not emptied.
         if (kind.get() == Revelation.Kind.AURA) {
             feet = player.getBoundingBox();
@@ -308,7 +310,8 @@ public final class WorldSources {
                     if (distanceSq > rangeSq || !level.hasChunkAt(cursor)) {
                         continue;
                     }
-                    if (feet != null && feet.intersects(new AABB(cursor))) {
+                    if (feet != null && feet.intersects(new AABB(cursor))
+                            || earth && VisDraw.holdsUp(player, cursor)) {
                         continue;
                     }
                     BlockState state = level.getBlockState(cursor);
@@ -320,6 +323,9 @@ public final class WorldSources {
             }
         }
         sources.sort(Comparator.comparingDouble(Source::distanceSq));
+        if (earth) {
+            return drawEarth(level, sources, needed);
+        }
         Capture.Taken taken = Capture.take(sources.stream().map(Source::value).toList(), needed);
         List<Source> drained = List.copyOf(sources.subList(0, taken.sources()));
         for (Source source : drained) {
@@ -335,6 +341,37 @@ public final class WorldSources {
     }
 
     private record Source(BlockPos pos, double distanceSq, double value, BlockState state) {
+    }
+
+    /**
+     * Earth drawn out of the world by its particles (docs/particulas-design.md, "Densidade"): each block gives the earth
+     * it holds (a block of dirt 16 UMU, of stone, packed three times as tight, 38), nearest first, the last only as much
+     * as is still needed; what is left of each block stays where it was, as what it is now or rarefied.
+     */
+    private static List<Source> drawEarth(ServerLevel level, List<Source> sources, double needed) {
+        List<Source> drawn = new ArrayList<>();
+        long wanted = needed >= Double.MAX_VALUE / 2.0D ? Long.MAX_VALUE
+                : com.elderlexicon.mod.magic.matter.Particles.ofUmu(needed);
+        for (Source source : sources) {
+            if (wanted <= 0L) {
+                break;
+            }
+            Optional<com.elderlexicon.mod.magic.matter.Matter> read = WorldMatter.read(level, source.pos());
+            if (read.isEmpty()) {
+                continue;
+            }
+            long held = read.get().particles().present().firmo();
+            long taken = Math.min(held, wanted);
+            if (taken <= 0L) {
+                continue;
+            }
+            WorldMatter.rarefy(level, source.pos(), read.get(),
+                    com.elderlexicon.mod.magic.matter.Particles.of(VitaElement.FIRMO, taken));
+            wanted -= taken;
+            drawn.add(new Source(source.pos(), source.distanceSq(),
+                    (double) taken / com.elderlexicon.mod.magic.matter.Particles.PER_UMU, source.state()));
+        }
+        return drawn;
     }
 
     /**
@@ -403,16 +440,39 @@ public final class WorldSources {
     static double valueOf(Revelation.Kind kind, ServerLevel level, BlockPos pos, BlockState state) {
         return switch (kind) {
             case IGNI -> igniValue(level, pos, state);
-            case AQUA -> aquaValue(state);
+            case AQUA -> aquaValue(level, pos, state);
             case FIRMO -> firmoValue(level, pos, state);
-            // Air: every block of it in reach, leaving a vacuum where it was pulled from.
-            case AURA -> state.isAir() ? AirPressure.UMU_PER_AIR : 0.0D;
+            // Air: every block of it in reach, its air (a block of it, 16 UMU), leaving a vacuum where it was pulled from.
+            case AURA -> state.isAir() ? aspectOf(Blocks.AIR.defaultBlockState(), VitaElement.AURA) : 0.0D;
             default -> 0.0D;
         };
     }
 
+    /**
+     * The UMU of {@code aspect} the particles of {@code state} hold, as the table reads the block (docs/particulas-design.md);
+     * 0 for a block the table does not know.
+     */
+    private static double aspectOf(BlockState state, VitaElement aspect) {
+        return WorldMatter.read(state).map(matter -> (double) Math.max(0L, matter.particles().count(aspect))
+                / com.elderlexicon.mod.magic.matter.Particles.PER_UMU).orElse(0.0D);
+    }
+
+    /** What drying {@code wet} into {@code dry} gives of {@code aspect}: what the one holds more than the other. */
+    private static double lost(BlockState wet, BlockState dry, VitaElement aspect, double otherwise) {
+        double lost = aspectOf(wet, aspect) - aspectOf(dry, aspect);
+        return lost > EPSILON ? lost : otherwise;
+    }
+
+    /**
+     * Fire gives what it holds: a fire block its particles of fire (a block of it, 16 UMU). What only burns (a torch, a
+     * lit furnace, lava, whose fire is its heat and not its matter) gives a flame's worth, and is put out.
+     */
     private static double igniValue(ServerLevel level, BlockPos pos, BlockState state) {
-        if (state.is(BlockTags.FIRE) || state.is(Blocks.JACK_O_LANTERN)
+        if (state.is(BlockTags.FIRE)) {
+            double held = aspectOf(state, VitaElement.IGNI);
+            return held > EPSILON ? held : 1.0D;
+        }
+        if (state.is(Blocks.JACK_O_LANTERN)
                 || state.is(Blocks.TORCH) || state.is(Blocks.WALL_TORCH)
                 || state.is(Blocks.SOUL_TORCH) || state.is(Blocks.SOUL_WALL_TORCH)
                 || state.is(Blocks.LANTERN) || state.is(Blocks.SOUL_LANTERN)) {
@@ -434,21 +494,32 @@ public final class WorldSources {
         if (state.getFluidState().is(FluidTags.LAVA) && state.getFluidState().isSource()) {
             return 10.0D;
         }
-        return 0.0D;
+        // Heat let loose in the air or in hot matter (a flame the drives keep, a burning field): fire, all of it.
+        return (double) com.elderlexicon.mod.spell.nature.NatureWorld.freeHeat(level, pos)
+                / com.elderlexicon.mod.magic.matter.Particles.PER_UMU;
     }
 
-    private static double aquaValue(BlockState state) {
+    /**
+     * Water gives what it holds (docs/particulas-design.md): a source of it, or a block standing in one, a block of water
+     * (16 UMU); ice its particles of water; a cauldron its share of a bucket (a block of water); what dries (a wet
+     * sponge, mud) the water it holds more than when dry.
+     */
+    private static double aquaValue(ServerLevel level, BlockPos pos, BlockState state) {
+        double block = aspectOf(Blocks.WATER.defaultBlockState(), VitaElement.AQUA);
         if (state.getFluidState().is(FluidTags.WATER) && state.getFluidState().isSource()) {
-            return 3.0D;
+            return block;
+        }
+        if (state.is(BlockTags.ICE) && !state.hasBlockEntity()) {
+            return aspectOf(state, VitaElement.AQUA);
         }
         if (state.is(Blocks.WATER_CAULDRON)) {
-            return state.getValue(LayeredCauldronBlock.LEVEL);
+            return block * state.getValue(LayeredCauldronBlock.LEVEL) / 3.0D;
         }
         if (state.is(Blocks.WET_SPONGE)) {
-            return 3.0D;
+            return lost(state, Blocks.SPONGE.defaultBlockState(), VitaElement.AQUA, 3.0D);
         }
         if (state.is(Blocks.MUD)) {
-            return 1.0D;
+            return lost(state, Blocks.DIRT.defaultBlockState(), VitaElement.AQUA, 1.0D);
         }
         if (state.is(Blocks.FARMLAND) && state.getValue(FarmBlock.MOISTURE) > 0) {
             return 1.0D;
@@ -457,15 +528,20 @@ public final class WorldSources {
     }
 
     /**
-     * Earth gives what the revelation sees in it, its hardness (docs/surgit-visao-design.md): loose soil little, rock
-     * more, obsidian a great deal. What holds things (a chest, a furnace) is not torn apart for its earth.
+     * Earth gives the earth its particles hold (docs/particulas-design.md, "Densidade"): a block of dirt 16 UMU, of stone
+     * 38, of obsidian far more. What holds things (a chest, a furnace) is not torn apart for its earth, nor what cannot
+     * be broken.
      */
     private static double firmoValue(ServerLevel level, BlockPos pos, BlockState state) {
-        if (!RevelationSight.carries(Revelation.Kind.FIRMO, state) || state.hasBlockEntity()) {
+        if (!RevelationSight.carries(Revelation.Kind.FIRMO, state) || state.getDestroySpeed(level, pos) < 0.0F
+                || state.hasBlockEntity() && !(level.getBlockEntity(pos)
+                instanceof com.elderlexicon.mod.spell.matter.FormlessMatterBlockEntity)) {
             return 0.0D;
         }
-        float hardness = state.getDestroySpeed(level, pos);
-        return hardness < 0.0F ? 0.0D : Revelation.earthUmu(hardness);
+        return WorldMatter.read(level, pos)
+                .map(matter -> (double) matter.particles().present().firmo()
+                        / com.elderlexicon.mod.magic.matter.Particles.PER_UMU)
+                .orElse(0.0D);
     }
 
     /** Takes the source out of the block: the flame goes out, the water dries, the earth crumbles away. */
@@ -474,6 +550,9 @@ public final class WorldSources {
             case IGNI -> drainIgni(level, pos, state);
             case AQUA -> drainAqua(level, pos, state);
             case FIRMO -> level.destroyBlock(pos, false);
+            // The air of the block is taken out of it; the drives let the air around rush back in.
+            case AURA -> com.elderlexicon.mod.spell.nature.NatureWorld.draw(level, pos, VitaElement.AURA,
+                    com.elderlexicon.mod.magic.matter.Particles.BLOCK);
             default -> {
             }
         }
@@ -508,6 +587,11 @@ public final class WorldSources {
         } else if (state.getFluidState().is(FluidTags.LAVA)) {
             // Lava without its heat is rock.
             level.setBlock(pos, Blocks.OBSIDIAN.defaultBlockState(), Block.UPDATE_ALL);
+        } else {
+            long heat = com.elderlexicon.mod.spell.nature.NatureWorld.freeHeat(level, pos);
+            if (heat > 0L) {
+                com.elderlexicon.mod.spell.nature.NatureWorld.heat(level, pos, -heat);
+            }
         }
     }
 

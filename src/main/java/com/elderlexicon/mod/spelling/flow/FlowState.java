@@ -34,6 +34,8 @@ public final class FlowState {
     private static final int REFRACTORY_TICKS = 10;
     /** The woken lines are cast on the next tick, out of the happening that woke them. */
     private static final int WAKE_DELAY_TICKS = 1;
+    /** How often a held arcane compass is read again in flow: shorter than an image lasts, so it never goes dark. */
+    private static final int DIAL_READ_TICKS = 20;
 
     private static final Map<UUID, Session> SESSIONS = new ConcurrentHashMap<>();
 
@@ -115,6 +117,10 @@ public final class FlowState {
                 player.giveExperiencePoints(-whole);
                 session.owedPoints -= whole;
             }
+        }
+        if (session.ticks % DIAL_READ_TICKS == 0) {
+            // A dial in hand is read again each second, so what it shows lasts while it is held.
+            ServerSpellingController.getInstance().readHeldDial(player);
         }
         if (session.ticks % 10 == 0) {
             player.serverLevel().sendParticles(ParticleTypes.ENCHANT, player.getX(), player.getY() + 1.0D,

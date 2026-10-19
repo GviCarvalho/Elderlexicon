@@ -597,6 +597,17 @@ public final class VitaSystem {
         return core;
     }
 
+    /**
+     * How much of {@code element} the body of {@code living} holds now, in UMU, read without writing anything down (a
+     * whole creature's reads as full). Vis is no part of the body: nothing.
+     */
+    public static double holds(LivingEntity living, VitaElement element) {
+        if (living == null || element == null || element.isBalanced()) {
+            return 0.0D;
+        }
+        return Math.max(0.0D, VitaData.peek(living).get(element));
+    }
+
     /** What the player's body holds of each element now, in UMU. */
     public static java.util.Map<VitaElement, Double> body(LivingEntity player) {
         VitaData data = VitaData.get(player);

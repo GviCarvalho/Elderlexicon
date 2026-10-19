@@ -72,7 +72,12 @@ minecraft {
             // Recommended logging level for the console
             // You can set various levels here.
             // Please read: https://stackoverflow.com/questions/2031163/when-to-use-the-different-log-levels
-            property 'forge.logging.console.level', 'debug'
+            // 'info', not 'debug': a debug console costs frames in play (debug.log keeps everything anyway).
+            property 'forge.logging.console.level', 'info'
+
+            // The mixins of the runtime mods below (Embeddium, FerriteCore, ModernFix) are remapped to dev names.
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
 
             mods {
                 "${mod_id}" {
@@ -84,6 +89,8 @@ minecraft {
         client {
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             property 'forge.enabledGameTestNamespaces', mod_id
+            // A fixed heap: enough for the game without starving a 12 GB machine that also runs Gradle.
+            jvmArgs '-Xms2G', '-Xmx4G'
         }
 
         server {
@@ -130,6 +137,16 @@ repositories {
     // flatDir {
     //     dir 'libs'
     // }
+
+    // Modrinth's maven, for the profiler and the performance mods run beside the mod in development.
+    // Not exclusiveContent: ForgeGradle serves the remapped copies of these from its own repository.
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content {
+            includeGroup 'maven.modrinth'
+        }
+    }
 }
 
 dependencies {
@@ -141,6 +158,13 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+
+    // Run beside the mod in development only, never packed in its jar: the profiler (/spark, /sparkc) to find what
+    // weighs, and the usual performance mods, so play here feels as it would on a player's modpack.
+    runtimeOnly fg.deobf('maven.modrinth:spark:1.10.53-forge')
+    runtimeOnly fg.deobf('maven.modrinth:embeddium:0.3.31+mc1.20.1')
+    runtimeOnly fg.deobf('maven.modrinth:ferrite-core:6.0.1')
+    runtimeOnly fg.deobf('maven.modrinth:modernfix:5.27.85+mc1.20.1')
 
     // Example mod dependency with JEI - using fg.deobf() ensures the dependency is remapped to your development mappings
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime

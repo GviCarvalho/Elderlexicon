@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.ToDoubleFunction;
 
 /**
  * The material table in force: the mod's own ({@value #RESOURCE}) with every extension an addon registered applied on
@@ -20,6 +21,18 @@ public final class Materials {
 
     private static final List<Consumer<MaterialTableBuilder>> EXTENSIONS = new CopyOnWriteArrayList<>();
     private static volatile MaterialTable current;
+    /**
+     * How hard each block of the game is (its destroy time, {@code minecraft:stone} 1.5), NaN for one the game lacks:
+     * what packs a substance (docs/particulas-design.md, "Densidade"). With none, everything is as loose as earth.
+     */
+    private static volatile ToDoubleFunction<String> hardness;
+
+    /** Earth's hardness: what is as hard as dirt is packed 1, a block of 4096 particles. */
+    public static final double EARTH_HARDNESS = 0.5D;
+    /** What cannot be broken (bedrock) is packed as if this hard. */
+    public static final double UNBREAKABLE_HARDNESS = 100.0D;
+    /** What breaks at a touch (a flower, a torch) is still something: never packed looser than this. */
+    public static final double LEAST_PACKING = 0.1D;
 
     private Materials() {
     }
@@ -58,6 +71,37 @@ public final class Materials {
         }
     }
 
+    /**
+     * Packs the table by the game's hardness of each substance's block, once the blocks are known: a block of stone
+     * (1.5) holds three times the particles of a block of earth (0.5), obsidian (50) a hundred times.
+     */
+    public static void useHardness(ToDoubleFunction<String> source) {
+        synchronized (Materials.class) {
+            hardness = source;
+            current = null;
+        }
+    }
+
+    /**
+     * How tightly a substance is packed: its solid block's hardness over earth's. A liquid, a gas, fire and the four
+     * primordials are as loose as earth (4096 of water is water); so is what has no block.
+     */
+    public static double packing(Substance substance, ToDoubleFunction<String> hardness) {
+        if (hardness == null || substance.nature() != State.SOLID || substance.primordial()) {
+            return 1.0D;
+        }
+        java.util.Optional<String> block = substance.solidBlock();
+        if (block.isEmpty()) {
+            return 1.0D;
+        }
+        double hard = hardness.applyAsDouble(block.get());
+        if (Double.isNaN(hard)) {
+            return 1.0D;
+        }
+        double of = hard < 0.0D ? UNBREAKABLE_HARDNESS : hard;
+        return Math.max(LEAST_PACKING, of / EARTH_HARDNESS);
+    }
+
     /** Forgets every extension (tests, and a world that unloads its addons' substances). */
     public static void reset() {
         synchronized (Materials.class) {
@@ -70,6 +114,10 @@ public final class Materials {
         MaterialTableBuilder builder = builtInBuilder();
         for (Consumer<MaterialTableBuilder> extension : EXTENSIONS) {
             extension.accept(builder);
+        }
+        ToDoubleFunction<String> hard = hardness;
+        if (hard != null) {
+            builder.pack(substance -> packing(substance, hard));
         }
         return builder.build();
     }
