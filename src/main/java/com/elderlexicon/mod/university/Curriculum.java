@@ -27,8 +27,43 @@ public final class Curriculum {
     public static final String RESOURCE = "/data/elderlexicon/lexicon/cursos.json";
     private static final org.slf4j.Logger LOGGER = com.mojang.logging.LogUtils.getLogger();
 
-    /** A lesson of a chair: its id within the chair, its title, the runes it leads the student to understand. */
-    public record Lesson(String id, String title, List<String> runes) {
+    /**
+     * A lesson of a chair: its id within the chair, its title, the runes it leads the student to understand, the lessons
+     * to have done first ("chair/lesson"), and its steps.
+     */
+    public record Lesson(String id, String title, List<String> runes, List<String> requires, List<Step> steps) {
+    }
+
+    /** What a step of a lesson is. */
+    public enum StepKind {
+        /** The master says it. */
+        FALA,
+        /** The master reads a spell before the student. */
+        DEMONSTRA,
+        /** The student's trance is woken. */
+        TRANSE,
+        /** The student lives the experiences of a rune. */
+        VIVER,
+        /** The student casts a spell with all of some runes. */
+        CONJURAR,
+        /** The student dreams a rune, and learns it. */
+        SONHAR,
+        /** The student comes back to the master. */
+        VOLTAR
+    }
+
+    /**
+     * A step of a lesson: its kind, what the master says of it, and what it is about: the rune (to live, to dream),
+     * the spell (to show), the experiences (of the rune, to live: none, all of its lesson), the runes (to cast).
+     */
+    public record Step(StepKind kind, String text, String rune, String spell, List<String> experiences,
+                       List<String> runes) {
+
+        /** Whether the step is done in the world, not before the master. */
+        public boolean inTheWorld() {
+            return kind == StepKind.TRANSE || kind == StepKind.VIVER || kind == StepKind.CONJURAR
+                    || kind == StepKind.SONHAR;
+        }
     }
 
     /** A question of a chair's examination: the prompt, the right answer, then the wrong ones. */
@@ -137,8 +172,16 @@ public final class Curriculum {
             List<Lesson> lessons = new ArrayList<>();
             for (JsonElement element : array(chair, "aulas")) {
                 JsonObject lesson = element.getAsJsonObject();
-                lessons.add(new Lesson(lesson.get("id").getAsString(), lesson.get("titulo").getAsString(),
-                        strings(array(lesson, "runas"))));
+                List<String> runes = strings(array(lesson, "runas"));
+                List<Step> steps = new ArrayList<>();
+                for (JsonElement stepElement : array(lesson, "passos")) {
+                    step(stepElement.getAsJsonObject(), entry.getKey()).ifPresent(steps::add);
+                }
+                if (steps.isEmpty()) {
+                    runes.forEach(rune -> steps.addAll(runeSteps(rune)));
+                }
+                lessons.add(new Lesson(lesson.get("id").getAsString(), lesson.get("titulo").getAsString(), runes,
+                        strings(array(lesson, "requer")), List.copyOf(steps)));
             }
             List<Question> exam = new ArrayList<>();
             for (JsonElement element : array(chair, "exame")) {
@@ -171,6 +214,36 @@ public final class Curriculum {
         }
         List<String> firstYear = known(strings(array(root, "primeiroAno")), chairs, "primeiroAno");
         return new Curriculum(firstYear, Collections.unmodifiableMap(courses), Collections.unmodifiableMap(chairs));
+    }
+
+    private static Optional<Step> step(JsonObject step, String chair) {
+        String kind = step.has("tipo") ? step.get("tipo").getAsString() : "";
+        StepKind found;
+        try {
+            found = StepKind.valueOf(kind.toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException unknown) {
+            LOGGER.warn("A lesson of the chair {} has a step the house does not know: {}", chair, kind);
+            return Optional.empty();
+        }
+        return Optional.of(new Step(found, text(step, "texto"), text(step, "runa"), text(step, "feitico"),
+                strings(array(step, "experiencias")), strings(array(step, "runas"))));
+    }
+
+    /** The steps of every rune's lesson that says no more: live it, come back, dream it, come back. */
+    private static List<Step> runeSteps(String rune) {
+        return List.of(
+                new Step(StepKind.VIVER, "Viva «" + rune + "» no corpo: tudo o que ela significa. Quando o seu "
+                        + "corpo tiver entendido, volte a mim.", rune, "", List.of(), List.of()),
+                new Step(StepKind.VOLTAR, "O seu corpo entendeu «" + rune + "». Falta o sonho.", "", "", List.of(),
+                        List.of()),
+                new Step(StepKind.SONHAR, "Durma aqui, no dormitório da casa: o sonho de «" + rune + "» vem esta "
+                        + "noite, com certeza. Ache a fenda e atravesse.", rune, "", List.of(), List.of()),
+                new Step(StepKind.VOLTAR, "Você voltou do sonho com «" + rune + "». É sua.", "", "", List.of(),
+                        List.of()));
+    }
+
+    private static String text(JsonObject object, String key) {
+        return object.has(key) ? object.get(key).getAsString() : "";
     }
 
     /** The chairs of {@code ids} the curriculum has; the others are told and left out. */

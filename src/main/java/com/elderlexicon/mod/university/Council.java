@@ -265,6 +265,10 @@ public final class Council {
             choices.add(new Choice(Component.literal("Quero o exame de ").append(discipline).append("."),
                     p -> masterOpening(p, chair)));
         }
+        if (student != null && student.inGoodStanding(now)) {
+            // His lessons (docs/universidade-cursos-design.md, 8, step 2).
+            choices.addAll(Lessons.choices(player, master, chair, student));
+        }
         if (!master.getOffers().isEmpty()) {
             choices.add(new Choice(Component.literal("Quero ver o que tem para trocar."), p -> {
                 master.setTradingPlayer(p);

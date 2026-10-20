@@ -1,6 +1,6 @@
 {
   "_license": "© GviCarvalho – This data is part of Elderlexicon. See LICENSE.txt.",
-  "_about": "The courses of the university and their chairs (docs/universidade-cursos-design.md). 'primeiroAno': the chairs every student takes first. 'cursos': the nine courses, each with its specialist and the ids of its chairs. 'cadeiras': every chair once, by id; a chair listed by several courses is shared. Each chair: its title, what it is about, the runes it teaches (understanding guided, then the dream), its lessons ('aulas': id, title, the runes of that lesson), and its examination ('exame': each question with the right answer first, then the wrong ones). Lessons and examinations are filled in step by step.",
+  "_about": "The courses of the university and their chairs (docs/universidade-cursos-design.md). 'primeiroAno': the chairs every student takes first. 'cursos': the nine courses, each with its specialist and the ids of its chairs. 'cadeiras': every chair once, by id; a chair listed by several courses is shared. Each chair: its title, what it is about, the runes it teaches (understanding guided, then the dream), its lessons ('aulas': id, title, the runes of that lesson), and its examination ('exame': each question with the right answer first, then the wrong ones). Lessons and examinations are filled in step by step. A lesson's 'passos' are its steps, in order: 'fala' (the master says it), 'demonstra' (the master reads 'feitico' before the student), 'transe' (the trance woken), 'viver' (the experiences of 'runa', all of its lesson or those of 'experiencias'), 'conjurar' (a spell cast with all of 'runas'), 'sonhar' (the dream of 'runa': at the house, it comes for sure), 'voltar' (back to the master). 'requer': lessons ('cadeira/aula') to have done first. A lesson with runes and no steps has the steps of every rune's lesson: live it, come back, dream it, come back.",
   "primeiroAno": [
     "fundamentos_1",
     "fundamentos_2",
@@ -15,177 +15,956 @@
     "evocacao": {
       "titulo": "Evocação",
       "especialista": "o Evocador, a mão",
-      "cadeiras": ["evocacao_das_fontes", "balistica", "quantum_e_escala", "evocacao_espalhada", "fogo_e_plasma",
-        "fisica_dos_encontros", "evocacao_sobre_marca", "paginas_de_combate", "tenet", "torneiras",
-        "contas_do_calice", "duelo_supervisionado"]
+      "cadeiras": [
+        "evocacao_das_fontes",
+        "balistica",
+        "quantum_e_escala",
+        "evocacao_espalhada",
+        "fogo_e_plasma",
+        "fisica_dos_encontros",
+        "evocacao_sobre_marca",
+        "paginas_de_combate",
+        "tenet",
+        "torneiras",
+        "contas_do_calice",
+        "duelo_supervisionado"
+      ]
     },
     "guarda": {
       "titulo": "Guarda",
       "especialista": "o Guardião, o escudo",
-      "cadeiras": ["zonas", "muros_e_aneis", "atracao_e_vortice", "protecao_do_outro", "fatos_e_reflexos",
-        "torneiras", "fisica_dos_encontros", "leitura_de_circulos", "formacao_de_grupo", "duelo_supervisionado"]
+      "cadeiras": [
+        "zonas",
+        "muros_e_aneis",
+        "atracao_e_vortice",
+        "protecao_do_outro",
+        "fatos_e_reflexos",
+        "torneiras",
+        "fisica_dos_encontros",
+        "leitura_de_circulos",
+        "formacao_de_grupo",
+        "duelo_supervisionado"
+      ]
     },
     "conversao": {
       "titulo": "Conversão",
       "especialista": "o Conversor, o alquimista",
-      "cadeiras": ["vertere_1", "vertere_2", "vertere_3", "codigos_das_coisas", "mesa_de_invocacao",
-        "construtos_e_seres", "o_corpo_que_reage", "a_escada", "tenet", "materia_e_lugar", "contas_do_calice",
-        "laboratorio_de_conversao", "cerne_e_particulas"]
+      "cadeiras": [
+        "vertere_1",
+        "vertere_2",
+        "vertere_3",
+        "codigos_das_coisas",
+        "mesa_de_invocacao",
+        "construtos_e_seres",
+        "o_corpo_que_reage",
+        "a_escada",
+        "tenet",
+        "materia_e_lugar",
+        "contas_do_calice",
+        "laboratorio_de_conversao",
+        "cerne_e_particulas"
+      ]
     },
     "visao": {
       "titulo": "Visão",
       "especialista": "o Vidente, os olhos",
-      "cadeiras": ["surgit_1", "surgit_2", "surgit_3", "ilusao", "contra_ilusao", "ver_sem_ser_visto",
-        "cartografia_runica", "marcas_e_nomes", "leitura_de_circulos"]
+      "cadeiras": [
+        "surgit_1",
+        "surgit_2",
+        "surgit_3",
+        "ilusao",
+        "contra_ilusao",
+        "ver_sem_ser_visto",
+        "cartografia_runica",
+        "marcas_e_nomes",
+        "leitura_de_circulos"
+      ]
     },
     "vinculacao": {
       "titulo": "Vinculação",
       "especialista": "o Vinculador, os fios",
-      "cadeiras": ["marcas_e_nomes", "ligabis_1", "ligabis_2", "vinculo_de_leitura", "ego_e_ille",
-        "marcas_em_criaturas", "redes_de_marcas", "evocacao_sobre_marca", "etica_do_vinculo"]
+      "cadeiras": [
+        "marcas_e_nomes",
+        "ligabis_1",
+        "ligabis_2",
+        "vinculo_de_leitura",
+        "ego_e_ille",
+        "marcas_em_criaturas",
+        "redes_de_marcas",
+        "evocacao_sobre_marca",
+        "etica_do_vinculo"
+      ]
     },
     "ritual": {
       "titulo": "Ritual",
       "especialista": "o Ritualista, o \"antes\"",
-      "cadeiras": ["circulos_1", "circulos_2", "rituais", "inscricao_e_gravacao", "reframe_e_nomes",
-        "ativacao_a_distancia", "pergaminho_de_parar", "obra_permanente", "leitura_de_circulos", "tenet",
-        "torneiras", "contas_do_calice"]
+      "cadeiras": [
+        "circulos_1",
+        "circulos_2",
+        "rituais",
+        "inscricao_e_gravacao",
+        "reframe_e_nomes",
+        "ativacao_a_distancia",
+        "pergaminho_de_parar",
+        "obra_permanente",
+        "leitura_de_circulos",
+        "tenet",
+        "torneiras",
+        "contas_do_calice"
+      ]
     },
     "contramagia": {
       "titulo": "Contramagia",
       "especialista": "o Contramago, o desarmador",
-      "cadeiras": ["leitura_de_circulos", "desmarcar", "logica_dos_fatos", "fatos_e_reflexos",
-        "pericia_de_feiticos", "os_erros_classicos", "contra_ilusao", "fisica_dos_encontros"]
+      "cadeiras": [
+        "leitura_de_circulos",
+        "desmarcar",
+        "logica_dos_fatos",
+        "fatos_e_reflexos",
+        "pericia_de_feiticos",
+        "os_erros_classicos",
+        "contra_ilusao",
+        "fisica_dos_encontros"
+      ]
     },
     "oneirologia": {
       "titulo": "Oneirologia",
       "especialista": "o Sonhador, quem vai a Nahvá",
-      "cadeiras": ["transe_2", "transe_3", "o_kern", "nahva", "sonhar_uma_runa", "dizer_as_runas",
-        "a_morte_e_o_kern", "a_forma", "cuidado_de_quem_volta", "tutoria_de_sonho"]
+      "cadeiras": [
+        "transe_2",
+        "transe_3",
+        "o_kern",
+        "nahva",
+        "sonhar_uma_runa",
+        "dizer_as_runas",
+        "a_morte_e_o_kern",
+        "a_forma",
+        "cuidado_de_quem_volta",
+        "tutoria_de_sonho"
+      ]
     },
     "artificiaria": {
       "titulo": "Artificiaria",
       "especialista": "o Artífice, quem faz as coisas",
-      "cadeiras": ["inscricao_e_gravacao", "fatos_e_reflexos", "focos_1", "focos_2", "instrumentos",
-        "codigos_das_coisas", "mesa_de_invocacao", "construtos_e_seres", "oficio"]
+      "cadeiras": [
+        "inscricao_e_gravacao",
+        "fatos_e_reflexos",
+        "focos_1",
+        "focos_2",
+        "instrumentos",
+        "codigos_das_coisas",
+        "mesa_de_invocacao",
+        "construtos_e_seres",
+        "oficio"
+      ]
     }
   },
   "cadeiras": {
     "fundamentos_1": {
       "titulo": "Fundamentos de Siglística I",
       "sobre": "o mundo e as Fontes: viver cada uma no corpo, e sonhá-la",
-      "runas": ["igni", "aqua", "aura", "firmo", "vis"],
+      "runas": [
+        "igni",
+        "aqua",
+        "aura",
+        "firmo",
+        "vis"
+      ],
       "aulas": [
-        {"id": "os_dois_mundos", "titulo": "Os dois mundos e do que o mundo é feito", "runas": []},
-        {"id": "igni", "titulo": "O fogo: a câmara fria e a forja", "runas": ["igni"]},
-        {"id": "aqua", "titulo": "A água: o tanque e o canal", "runas": ["aqua"]},
-        {"id": "aura", "titulo": "O ar: a torre da queda e o fosso da explosão", "runas": ["aura"]},
-        {"id": "firmo", "titulo": "A terra: o poço de areia e a descida às profundezas", "runas": ["firmo"]},
-        {"id": "vis", "titulo": "A vis: o cálice vazio, o cálice cheio, o equilíbrio", "runas": ["vis"]}
+        {
+          "id": "os_dois_mundos",
+          "titulo": "Os dois mundos e do que o mundo é feito",
+          "runas": [],
+          "passos": [
+            {
+              "tipo": "fala",
+              "texto": "Antes de qualquer runa, o mundo. Há dois: Harl, o mundo desperto, o do corpo e dos sentidos; e Nahvá, o mundo adormecido, das ideias. Cada espírito tem lá o seu kern, um planeta só dele, onde vive enquanto dorme."
+            },
+            {
+              "tipo": "fala",
+              "texto": "Acordado, o cérebro segura o espírito longe do mundo. O transe abre uma fresta, por um instante, e o que o espírito faz em Nahvá vaza para cá. A magia é isso: o sonho vazando. E o que vaza obedece às leis daqui, e tem preço."
+            },
+            {
+              "tipo": "fala",
+              "texto": "E o mundo é feito de quatro vontades. O fogo quer se mexer; o ar quer espaço; a água quer se juntar; a terra quer ficar. Quem vence a briga decide o estado da coisa: sólido, líquido, gás, plasma. Guarde isso: é a primeira página de tudo."
+            },
+            {
+              "tipo": "voltar",
+              "texto": "Agora o primeiro dos quatro. Quando quiser, peça a aula do fogo."
+            }
+          ]
+        },
+        {
+          "id": "igni",
+          "titulo": "O fogo: a câmara fria e a forja",
+          "runas": [
+            "igni"
+          ],
+          "requer": [
+            "fundamentos_1/os_dois_mundos",
+            "transe_1/despertar"
+          ],
+          "passos": [
+            {
+              "tipo": "fala",
+              "texto": "O fogo. Ele agita tudo o que toca: o calor é fogo solto, e o frio é a falta dele. Saber que «igni» quer dizer fogo não ensina nada ao seu espírito. Ele só entende a runa quando o seu corpo entende o fogo inteiro: o calor e a falta dele, o que acende e o que queima."
+            },
+            {
+              "tipo": "demonstra",
+              "feitico": "igni vocant",
+              "texto": "Olhe. «igni vocant»: uma chama, por um instante, onde eu miro. Custou uns três décimos de UMU. Pouco fogo faz muito."
+            },
+            {
+              "tipo": "viver",
+              "runa": "igni",
+              "texto": "Agora, viva o fogo no corpo. Sinta o frio de verdade, e depois a hipotermia; sinta o calor, e a febre que ferve; arda em chamas; congele. Neve funda e gelo dão o frio; lava, fogo e o deserto dão o calor. Quando o seu corpo tiver entendido, volte a mim."
+            },
+            {
+              "tipo": "voltar",
+              "texto": "O seu corpo entendeu o fogo. Falta o espírito: a runa se aprende sonhando."
+            },
+            {
+              "tipo": "sonhar",
+              "runa": "igni",
+              "texto": "Durma aqui, no dormitório da casa. Esta noite o sonho vem, com certeza: um sonho de febre, no seu próprio kern. Ache a fenda e atravesse. Se acordar sem a runa, durma de novo."
+            },
+            {
+              "tipo": "voltar",
+              "texto": "Você sonhou o fogo, e voltou com ele. «igni» é seu. A aula acabou."
+            }
+          ]
+        },
+        {
+          "id": "aqua",
+          "titulo": "A água: o tanque e o canal",
+          "runas": [
+            "aqua"
+          ]
+        },
+        {
+          "id": "aura",
+          "titulo": "O ar: a torre da queda e o fosso da explosão",
+          "runas": [
+            "aura"
+          ]
+        },
+        {
+          "id": "firmo",
+          "titulo": "A terra: o poço de areia e a descida às profundezas",
+          "runas": [
+            "firmo"
+          ]
+        },
+        {
+          "id": "vis",
+          "titulo": "A vis: o cálice vazio, o cálice cheio, o equilíbrio",
+          "runas": [
+            "vis"
+          ]
+        }
       ],
       "exame": []
     },
     "fundamentos_2": {
       "titulo": "Fundamentos de Siglística II",
       "sobre": "as Funções, vividas e sonhadas; e a gramática inteira, em teoria",
-      "runas": ["iactare", "vocant", "impediunt", "vertere", "ligabis", "reframe", "surgit"],
+      "runas": [
+        "iactare",
+        "vocant",
+        "impediunt",
+        "vertere",
+        "ligabis",
+        "reframe",
+        "surgit"
+      ],
       "aulas": [
-        {"id": "iactare", "titulo": "Empurrar: o campo de tiro e o lago de pesca", "runas": ["iactare"]},
-        {"id": "vocant", "titulo": "Levar: o que se larga, o que se pega, a pérola", "runas": ["vocant"]},
-        {"id": "impediunt", "titulo": "Afastar: o escudo e o fosso das criaturas", "runas": ["impediunt"]},
-        {"id": "vertere", "titulo": "Converter: a cozinha, a forja e a alquimia", "runas": ["vertere"]},
-        {"id": "ligabis", "titulo": "Ligar: o estábulo", "runas": ["ligabis"]},
-        {"id": "reframe", "titulo": "Dar nome: a bigorna, a etiqueta, o livro assinado", "runas": ["reframe"]},
-        {"id": "surgit", "titulo": "Ver e ler: a biblioteca, a luneta, a escavação", "runas": ["surgit"]},
-        {"id": "a_gramatica", "titulo": "A gramática inteira: Filtros e Fatos, só em teoria", "runas": []}
+        {
+          "id": "iactare",
+          "titulo": "Empurrar: o campo de tiro e o lago de pesca",
+          "runas": [
+            "iactare"
+          ]
+        },
+        {
+          "id": "vocant",
+          "titulo": "Levar: o que se larga, o que se pega, a pérola",
+          "runas": [
+            "vocant"
+          ]
+        },
+        {
+          "id": "impediunt",
+          "titulo": "Afastar: o escudo e o fosso das criaturas",
+          "runas": [
+            "impediunt"
+          ]
+        },
+        {
+          "id": "vertere",
+          "titulo": "Converter: a cozinha, a forja e a alquimia",
+          "runas": [
+            "vertere"
+          ]
+        },
+        {
+          "id": "ligabis",
+          "titulo": "Ligar: o estábulo",
+          "runas": [
+            "ligabis"
+          ]
+        },
+        {
+          "id": "reframe",
+          "titulo": "Dar nome: a bigorna, a etiqueta, o livro assinado",
+          "runas": [
+            "reframe"
+          ]
+        },
+        {
+          "id": "surgit",
+          "titulo": "Ver e ler: a biblioteca, a luneta, a escavação",
+          "runas": [
+            "surgit"
+          ]
+        },
+        {
+          "id": "a_gramatica",
+          "titulo": "A gramática inteira: Filtros e Fatos, só em teoria",
+          "runas": [],
+          "passos": [
+            {
+              "tipo": "fala",
+              "texto": "A frase do espírito tem uma ordem: a Fonte, o que se usa; depois a Função, o que se faz. Entre as duas, os Filtros dizem quanto, quando, onde e de onde; e na frente de tudo, os Fatos dizem se a linha vale e quem está no acontecimento."
+            },
+            {
+              "tipo": "fala",
+              "texto": "Um Filtro vale para a Função logo depois dele. Um Fato só fala de quem conjura. Fonte sem Função vaza em quem a diz; Função sem Fonte usa a sua vis. E o espírito é literal: faz exatamente o que foi escrito, e pula a runa que você não aprendeu."
+            },
+            {
+              "tipo": "voltar",
+              "texto": "Os Filtros e os Fatos se aprendem de verdade no seu curso. Aqui basta saber que existem, e onde se escrevem."
+            }
+          ]
+        }
       ],
       "exame": []
     },
-    "corpo_e_calice": {"titulo": "O Corpo e o Cálice", "sobre": "a vis, os elementos do corpo, o preço, a carne", "runas": [], "aulas": [], "exame": []},
-    "a_pagina": {"titulo": "A Página", "sobre": "colunas, tempo, o que acontece junto", "runas": [], "aulas": [], "exame": []},
-    "caligrafia": {"titulo": "Caligrafia Rúnica", "sobre": "os glifos à mão", "runas": [], "aulas": [], "exame": []},
-    "transe_1": {"titulo": "Transe I", "sobre": "o despertar do transe, e como se aprende uma runa", "runas": [], "aulas": [], "exame": []},
-    "lingua_antiga_1": {"titulo": "Língua Antiga I", "sobre": "as famílias, os glifos, os números, as palavras que não são runas", "runas": [], "aulas": [], "exame": []},
-    "seguranca_e_etica": {"titulo": "Segurança e Ética do Ofício", "sobre": "o que não se conjura, e por quê", "runas": [], "aulas": [], "exame": []},
-
-    "evocacao_das_fontes": {"titulo": "Evocação das Quatro Fontes", "sobre": "pôr cada elemento no mundo", "runas": [], "aulas": [], "exame": []},
-    "balistica": {"titulo": "Balística", "sobre": "o golpe é peso vezes velocidade ao quadrado; alcance e mira", "runas": [], "aulas": [], "exame": []},
-    "quantum_e_escala": {"titulo": "Quantum e Escala", "sobre": "quanto, e o que muda com o quanto", "runas": ["quantum"], "aulas": [], "exame": []},
-    "evocacao_espalhada": {"titulo": "Evocação Espalhada", "sobre": "repartir a matéria em vários sar", "runas": [], "aulas": [], "exame": []},
-    "fogo_e_plasma": {"titulo": "Fogo e Plasma", "sobre": "a chama, o ponto quente, o raio", "runas": [], "aulas": [], "exame": []},
-    "fisica_dos_encontros": {"titulo": "Física dos Encontros", "sobre": "o que acontece quando as linhas se encontram", "runas": [], "aulas": [], "exame": []},
-    "evocacao_sobre_marca": {"titulo": "Evocação sobre Marca", "sobre": "acertar a marca pelo lugar, sem vê-la", "runas": ["ubis"], "aulas": [], "exame": []},
-    "paginas_de_combate": {"titulo": "Composição de Páginas de Combate", "sobre": "uma linha para cada situação", "runas": ["ferit", "necat", "currit"], "aulas": [], "exame": []},
-    "tenet": {"titulo": "Tenet", "sobre": "tirar do mundo, e não do corpo", "runas": ["tenet"], "aulas": [], "exame": []},
-    "torneiras": {"titulo": "Torneiras", "sobre": "o custo de manter: todo chronos com número é uma", "runas": ["chronos"], "aulas": [], "exame": []},
-    "contas_do_calice": {"titulo": "Contas do Cálice", "sobre": "vigiar o cálice de todos e dizer \"para\" antes que a carne pague", "runas": [], "aulas": [], "exame": []},
-    "duelo_supervisionado": {"titulo": "Duelo Supervisionado", "sobre": "mago contra mago, com um mestre olhando", "runas": [], "aulas": [], "exame": []},
-
-    "zonas": {"titulo": "Zonas", "sobre": "raio, centro e duração do impediunt", "runas": [], "aulas": [], "exame": []},
-    "muros_e_aneis": {"titulo": "Muros e Anéis", "sobre": "o que se invoca numa zona vai para a borda", "runas": [], "aulas": [], "exame": []},
-    "atracao_e_vortice": {"titulo": "Atração e Vórtice", "sobre": "o impediunt ao contrário", "runas": [], "aulas": [], "exame": []},
-    "protecao_do_outro": {"titulo": "Proteção do Outro", "sobre": "a zona centrada num aliado marcado", "runas": [], "aulas": [], "exame": []},
-    "fatos_e_reflexos": {"titulo": "Fatos e Reflexos", "sobre": "o feitiço e o objeto que reagem sozinhos", "runas": ["patitur", "cadit", "ardet", "ferit", "frangit", "salit", "utitur"], "aulas": [], "exame": []},
-    "leitura_de_circulos": {"titulo": "Leitura de Círculos", "sobre": "saber o que vai acontecer antes de pisar", "runas": [], "aulas": [], "exame": []},
-    "formacao_de_grupo": {"titulo": "Formação de Grupo", "sobre": "quem fica onde, e quem cobre quem", "runas": [], "aulas": [], "exame": []},
-
-    "vertere_1": {"titulo": "Vertere I, os estados", "sobre": "sólido, líquido, gás, plasma", "runas": [], "aulas": [], "exame": []},
-    "vertere_2": {"titulo": "Vertere II, o corpo", "sobre": "trocar um elemento por outro; o autocuidado", "runas": [], "aulas": [], "exame": []},
-    "vertere_3": {"titulo": "Vertere III, o cerne", "sobre": "o que a coisa é", "runas": [], "aulas": [], "exame": []},
-    "codigos_das_coisas": {"titulo": "Os Códigos das Coisas", "sobre": "as cem partes, descobertas tentando", "runas": [], "aulas": [], "exame": []},
-    "mesa_de_invocacao": {"titulo": "A Mesa de Invocação", "sobre": "a magia dá a matéria, a mesa dá a forma", "runas": [], "aulas": [], "exame": []},
-    "construtos_e_seres": {"titulo": "Construtos e Seres", "sobre": "o boneco de pedra, criar um ser, o homúnculo, o corpo sem kern", "runas": [], "aulas": [], "exame": []},
-    "o_corpo_que_reage": {"titulo": "O Corpo que Reage", "sobre": "Fatos de estado diante do vertere: o autocuidado que se dispara sozinho", "runas": ["languet", "ardet", "mergitur"], "aulas": [], "exame": []},
-    "a_escada": {"titulo": "A Escada", "sobre": "fundir os elementos em vis, e o rendimento", "runas": [], "aulas": [], "exame": []},
-    "materia_e_lugar": {"titulo": "Matéria e Lugar", "sobre": "o que não cabe volta", "runas": [], "aulas": [], "exame": []},
-    "laboratorio_de_conversao": {"titulo": "Laboratório de Conversão", "sobre": "a prática do vertere", "runas": [], "aulas": [], "exame": []},
-    "cerne_e_particulas": {"titulo": "O Cerne e as Partículas", "sobre": "pesquisa: os grãos de cada coisa", "runas": [], "aulas": [], "exame": []},
-
-    "surgit_1": {"titulo": "Surgit I", "sobre": "ler e revelar", "runas": [], "aulas": [], "exame": []},
-    "surgit_2": {"titulo": "Surgit II", "sobre": "medir: a bússola arcana", "runas": [], "aulas": [], "exame": []},
-    "surgit_3": {"titulo": "Surgit III", "sobre": "ver de longe e projetar", "runas": [], "aulas": [], "exame": []},
-    "ilusao": {"titulo": "Ilusão", "sobre": "a imagem da fonte", "runas": [], "aulas": [], "exame": []},
-    "contra_ilusao": {"titulo": "Contra-ilusão", "sobre": "ver através", "runas": [], "aulas": [], "exame": []},
-    "ver_sem_ser_visto": {"titulo": "Ver sem Ser Visto", "sobre": "o próprio corpo como gatilho: revelar só enquanto se está agachado", "runas": ["latet", "currit"], "aulas": [], "exame": []},
-    "cartografia_runica": {"titulo": "Cartografia Rúnica", "sobre": "o ubis de três números, o mundo em medidas", "runas": ["ubis"], "aulas": [], "exame": []},
-    "marcas_e_nomes": {"titulo": "Marcas e Nomes", "sobre": "a marca, o pincel, o segredo", "runas": [], "aulas": [], "exame": []},
-
-    "ligabis_1": {"titulo": "Ligabis I", "sobre": "os aspectos", "runas": [], "aulas": [], "exame": []},
-    "ligabis_2": {"titulo": "Ligabis II", "sobre": "o movimento ligado", "runas": [], "aulas": [], "exame": []},
-    "vinculo_de_leitura": {"titulo": "O Vínculo de Leitura", "sobre": "agir de qualquer lugar", "runas": [], "aulas": [], "exame": []},
-    "ego_e_ille": {"titulo": "Ego e Ille", "sobre": "a cena", "runas": ["ego", "ille"], "aulas": [], "exame": []},
-    "marcas_em_criaturas": {"titulo": "Marcas em Criaturas", "sobre": "o que se marca vivo", "runas": [], "aulas": [], "exame": []},
-    "redes_de_marcas": {"titulo": "Redes de Marcas", "sobre": "correio, logística, rastreio", "runas": [], "aulas": [], "exame": []},
-    "etica_do_vinculo": {"titulo": "Ética do Vínculo", "sobre": "marcar pessoas", "runas": [], "aulas": [], "exame": []},
-
-    "circulos_1": {"titulo": "Círculos I", "sobre": "a cebola e o núcleo", "runas": [], "aulas": [], "exame": []},
-    "circulos_2": {"titulo": "Círculos II", "sobre": "o tempo dos anéis", "runas": [], "aulas": [], "exame": []},
-    "rituais": {"titulo": "Rituais", "sobre": "correntes, ramificações e laços", "runas": [], "aulas": [], "exame": []},
-    "inscricao_e_gravacao": {"titulo": "Inscrição e Gravação", "sobre": "o buril, a linha de dez colunas; pedra, objeto, quanto cabe em cada um", "runas": [], "aulas": [], "exame": []},
-    "reframe_e_nomes": {"titulo": "Reframe e Nomes", "sobre": "guardar um feitiço num nome", "runas": [], "aulas": [], "exame": []},
-    "ativacao_a_distancia": {"titulo": "Ativação a Distância", "sobre": "o preço que cresce com a distância", "runas": [], "aulas": [], "exame": []},
-    "pergaminho_de_parar": {"titulo": "O Pergaminho de Parar", "sobre": "rituais em pares", "runas": [], "aulas": [], "exame": []},
-    "obra_permanente": {"titulo": "Obra Permanente", "sobre": "defesas de acampamento e de cidade", "runas": [], "aulas": [], "exame": []},
-
-    "desmarcar": {"titulo": "Desmarcar e Quebrar Correntes", "sobre": "táticas, não magia: achar a marca, chegar a ela, raspá-la", "runas": [], "aulas": [], "exame": []},
-    "logica_dos_fatos": {"titulo": "Lógica dos Fatos", "sobre": "non, aut, os grupos", "runas": ["aut", "non"], "aulas": [], "exame": []},
-    "pericia_de_feiticos": {"titulo": "Perícia de Feitiços", "sobre": "o que foi conjurado aqui? deduzir pelo que a física guardou", "runas": [], "aulas": [], "exame": []},
-    "os_erros_classicos": {"titulo": "Os Erros Clássicos", "sobre": "runas puladas, verbos sem sujeito, e a falha do outro", "runas": [], "aulas": [], "exame": []},
-
-    "transe_2": {"titulo": "Transe II", "sobre": "o transe mais fundo", "runas": [], "aulas": [], "exame": []},
-    "transe_3": {"titulo": "Transe III", "sobre": "o transe sem pressa", "runas": [], "aulas": [], "exame": []},
-    "o_kern": {"titulo": "O Kern", "sobre": "o planeta de cada espírito", "runas": [], "aulas": [], "exame": []},
-    "nahva": {"titulo": "Nahvá", "sobre": "as regiões, os kerns, o caminho de volta", "runas": [], "aulas": [], "exame": []},
-    "sonhar_uma_runa": {"titulo": "Sonhar uma Runa", "sobre": "viver as experiências e escapar do sonho febril", "runas": [], "aulas": [], "exame": []},
-    "dizer_as_runas": {"titulo": "Dizer as Runas", "sobre": "o transe falado", "runas": [], "aulas": [], "exame": []},
-    "a_morte_e_o_kern": {"titulo": "A Morte e o Kern", "sobre": "o que se sabe, e o que se conta", "runas": [], "aulas": [], "exame": []},
-    "a_forma": {"titulo": "A Forma", "sobre": "a família perdida (pesquisa)", "runas": [], "aulas": [], "exame": []},
-    "cuidado_de_quem_volta": {"titulo": "Cuidado de Quem Volta", "sobre": "o enjoo, a fraqueza, o corpo que estava longe", "runas": [], "aulas": [], "exame": []},
-    "tutoria_de_sonho": {"titulo": "Tutoria de Sonho", "sobre": "só com um mestre", "runas": [], "aulas": [], "exame": []},
-
-    "focos_1": {"titulo": "Focos I", "sobre": "a haste e a empunhadura; a condução, o desgaste e o conserto", "runas": [], "aulas": [], "exame": []},
-    "focos_2": {"titulo": "Focos II", "sobre": "o engaste, a reserva, o eco", "runas": [], "aulas": [], "exame": []},
-    "instrumentos": {"titulo": "Instrumentos", "sobre": "a bússola arcana, as pepitas e os metais, o pergaminho que se relê", "runas": [], "aulas": [], "exame": []},
-    "oficio": {"titulo": "Ofício", "sobre": "o registro com o Artífice da casa, a encomenda, o preço", "runas": [], "aulas": [], "exame": []}
+    "corpo_e_calice": {
+      "titulo": "O Corpo e o Cálice",
+      "sobre": "a vis, os elementos do corpo, o preço, a carne",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "a_pagina": {
+      "titulo": "A Página",
+      "sobre": "colunas, tempo, o que acontece junto",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "caligrafia": {
+      "titulo": "Caligrafia Rúnica",
+      "sobre": "os glifos à mão",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "transe_1": {
+      "titulo": "Transe I",
+      "sobre": "o despertar do transe, e como se aprende uma runa",
+      "runas": [],
+      "aulas": [
+        {
+          "id": "despertar",
+          "titulo": "O despertar do transe",
+          "runas": [],
+          "passos": [
+            {
+              "tipo": "fala",
+              "texto": "O transe não vem de nascença. Desperta-se, com treino: uma técnica de dormir sem dormir, repetida até que, uma noite, no fundo desse quase-sono, algo te ouve."
+            },
+            {
+              "tipo": "fala",
+              "texto": "O preço é a vis guardada: chegue à noite com cem de experiência, deite e durma. Você acorda enjoado, e dali em diante entra em transe. Sem o transe, nenhuma runa se entende: o espírito não ouve o corpo."
+            },
+            {
+              "tipo": "transe",
+              "texto": "Junte cem de experiência e durma uma noite inteira. Quando o transe despertar, volte a mim."
+            },
+            {
+              "tipo": "voltar",
+              "texto": "Algo te ouviu. Agora, sim: as runas."
+            }
+          ]
+        },
+        {
+          "id": "como_se_aprende",
+          "titulo": "Como se aprende uma runa",
+          "runas": [],
+          "passos": [
+            {
+              "tipo": "fala",
+              "texto": "Uma runa é o nome verdadeiro de uma coisa, e o nome verdadeiro contém tudo o que a coisa significa. Por isso decorar não ensina: o corpo precisa viver a coisa inteira. Quando nada dela falta mais, a runa está entendida."
+            },
+            {
+              "tipo": "fala",
+              "texto": "Entendida, ela espera um sonho: numa noite, vem um sonho febril no seu kern, de verdade, louco, e a fenda dele é a saída. Atravessá-la ensina a runa; morrer lá só acorda, sem ela. Aqui, no dormitório da casa, o sonho vem com certeza."
+            },
+            {
+              "tipo": "voltar",
+              "texto": "Agora você sabe o caminho. As aulas das Fontes e das Funções o fazem percorrê-lo."
+            }
+          ]
+        }
+      ],
+      "exame": []
+    },
+    "lingua_antiga_1": {
+      "titulo": "Língua Antiga I",
+      "sobre": "as famílias, os glifos, os números, as palavras que não são runas",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "seguranca_e_etica": {
+      "titulo": "Segurança e Ética do Ofício",
+      "sobre": "o que não se conjura, e por quê",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "evocacao_das_fontes": {
+      "titulo": "Evocação das Quatro Fontes",
+      "sobre": "pôr cada elemento no mundo",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "balistica": {
+      "titulo": "Balística",
+      "sobre": "o golpe é peso vezes velocidade ao quadrado; alcance e mira",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "quantum_e_escala": {
+      "titulo": "Quantum e Escala",
+      "sobre": "quanto, e o que muda com o quanto",
+      "runas": [
+        "quantum"
+      ],
+      "aulas": [],
+      "exame": []
+    },
+    "evocacao_espalhada": {
+      "titulo": "Evocação Espalhada",
+      "sobre": "repartir a matéria em vários sar",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "fogo_e_plasma": {
+      "titulo": "Fogo e Plasma",
+      "sobre": "a chama, o ponto quente, o raio",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "fisica_dos_encontros": {
+      "titulo": "Física dos Encontros",
+      "sobre": "o que acontece quando as linhas se encontram",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "evocacao_sobre_marca": {
+      "titulo": "Evocação sobre Marca",
+      "sobre": "acertar a marca pelo lugar, sem vê-la",
+      "runas": [
+        "ubis"
+      ],
+      "aulas": [],
+      "exame": []
+    },
+    "paginas_de_combate": {
+      "titulo": "Composição de Páginas de Combate",
+      "sobre": "uma linha para cada situação",
+      "runas": [
+        "ferit",
+        "necat",
+        "currit"
+      ],
+      "aulas": [],
+      "exame": []
+    },
+    "tenet": {
+      "titulo": "Tenet",
+      "sobre": "tirar do mundo, e não do corpo",
+      "runas": [
+        "tenet"
+      ],
+      "aulas": [],
+      "exame": []
+    },
+    "torneiras": {
+      "titulo": "Torneiras",
+      "sobre": "o custo de manter: todo chronos com número é uma",
+      "runas": [
+        "chronos"
+      ],
+      "aulas": [],
+      "exame": []
+    },
+    "contas_do_calice": {
+      "titulo": "Contas do Cálice",
+      "sobre": "vigiar o cálice de todos e dizer \"para\" antes que a carne pague",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "duelo_supervisionado": {
+      "titulo": "Duelo Supervisionado",
+      "sobre": "mago contra mago, com um mestre olhando",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "zonas": {
+      "titulo": "Zonas",
+      "sobre": "raio, centro e duração do impediunt",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "muros_e_aneis": {
+      "titulo": "Muros e Anéis",
+      "sobre": "o que se invoca numa zona vai para a borda",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "atracao_e_vortice": {
+      "titulo": "Atração e Vórtice",
+      "sobre": "o impediunt ao contrário",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "protecao_do_outro": {
+      "titulo": "Proteção do Outro",
+      "sobre": "a zona centrada num aliado marcado",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "fatos_e_reflexos": {
+      "titulo": "Fatos e Reflexos",
+      "sobre": "o feitiço e o objeto que reagem sozinhos",
+      "runas": [
+        "patitur",
+        "cadit",
+        "ardet",
+        "ferit",
+        "frangit",
+        "salit",
+        "utitur"
+      ],
+      "aulas": [],
+      "exame": []
+    },
+    "leitura_de_circulos": {
+      "titulo": "Leitura de Círculos",
+      "sobre": "saber o que vai acontecer antes de pisar",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "formacao_de_grupo": {
+      "titulo": "Formação de Grupo",
+      "sobre": "quem fica onde, e quem cobre quem",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "vertere_1": {
+      "titulo": "Vertere I, os estados",
+      "sobre": "sólido, líquido, gás, plasma",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "vertere_2": {
+      "titulo": "Vertere II, o corpo",
+      "sobre": "trocar um elemento por outro; o autocuidado",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "vertere_3": {
+      "titulo": "Vertere III, o cerne",
+      "sobre": "o que a coisa é",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "codigos_das_coisas": {
+      "titulo": "Os Códigos das Coisas",
+      "sobre": "as cem partes, descobertas tentando",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "mesa_de_invocacao": {
+      "titulo": "A Mesa de Invocação",
+      "sobre": "a magia dá a matéria, a mesa dá a forma",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "construtos_e_seres": {
+      "titulo": "Construtos e Seres",
+      "sobre": "o boneco de pedra, criar um ser, o homúnculo, o corpo sem kern",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "o_corpo_que_reage": {
+      "titulo": "O Corpo que Reage",
+      "sobre": "Fatos de estado diante do vertere: o autocuidado que se dispara sozinho",
+      "runas": [
+        "languet",
+        "ardet",
+        "mergitur"
+      ],
+      "aulas": [],
+      "exame": []
+    },
+    "a_escada": {
+      "titulo": "A Escada",
+      "sobre": "fundir os elementos em vis, e o rendimento",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "materia_e_lugar": {
+      "titulo": "Matéria e Lugar",
+      "sobre": "o que não cabe volta",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "laboratorio_de_conversao": {
+      "titulo": "Laboratório de Conversão",
+      "sobre": "a prática do vertere",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "cerne_e_particulas": {
+      "titulo": "O Cerne e as Partículas",
+      "sobre": "pesquisa: os grãos de cada coisa",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "surgit_1": {
+      "titulo": "Surgit I",
+      "sobre": "ler e revelar",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "surgit_2": {
+      "titulo": "Surgit II",
+      "sobre": "medir: a bússola arcana",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "surgit_3": {
+      "titulo": "Surgit III",
+      "sobre": "ver de longe e projetar",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "ilusao": {
+      "titulo": "Ilusão",
+      "sobre": "a imagem da fonte",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "contra_ilusao": {
+      "titulo": "Contra-ilusão",
+      "sobre": "ver através",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "ver_sem_ser_visto": {
+      "titulo": "Ver sem Ser Visto",
+      "sobre": "o próprio corpo como gatilho: revelar só enquanto se está agachado",
+      "runas": [
+        "latet",
+        "currit"
+      ],
+      "aulas": [],
+      "exame": []
+    },
+    "cartografia_runica": {
+      "titulo": "Cartografia Rúnica",
+      "sobre": "o ubis de três números, o mundo em medidas",
+      "runas": [
+        "ubis"
+      ],
+      "aulas": [],
+      "exame": []
+    },
+    "marcas_e_nomes": {
+      "titulo": "Marcas e Nomes",
+      "sobre": "a marca, o pincel, o segredo",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "ligabis_1": {
+      "titulo": "Ligabis I",
+      "sobre": "os aspectos",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "ligabis_2": {
+      "titulo": "Ligabis II",
+      "sobre": "o movimento ligado",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "vinculo_de_leitura": {
+      "titulo": "O Vínculo de Leitura",
+      "sobre": "agir de qualquer lugar",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "ego_e_ille": {
+      "titulo": "Ego e Ille",
+      "sobre": "a cena",
+      "runas": [
+        "ego",
+        "ille"
+      ],
+      "aulas": [],
+      "exame": []
+    },
+    "marcas_em_criaturas": {
+      "titulo": "Marcas em Criaturas",
+      "sobre": "o que se marca vivo",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "redes_de_marcas": {
+      "titulo": "Redes de Marcas",
+      "sobre": "correio, logística, rastreio",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "etica_do_vinculo": {
+      "titulo": "Ética do Vínculo",
+      "sobre": "marcar pessoas",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "circulos_1": {
+      "titulo": "Círculos I",
+      "sobre": "a cebola e o núcleo",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "circulos_2": {
+      "titulo": "Círculos II",
+      "sobre": "o tempo dos anéis",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "rituais": {
+      "titulo": "Rituais",
+      "sobre": "correntes, ramificações e laços",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "inscricao_e_gravacao": {
+      "titulo": "Inscrição e Gravação",
+      "sobre": "o buril, a linha de dez colunas; pedra, objeto, quanto cabe em cada um",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "reframe_e_nomes": {
+      "titulo": "Reframe e Nomes",
+      "sobre": "guardar um feitiço num nome",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "ativacao_a_distancia": {
+      "titulo": "Ativação a Distância",
+      "sobre": "o preço que cresce com a distância",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "pergaminho_de_parar": {
+      "titulo": "O Pergaminho de Parar",
+      "sobre": "rituais em pares",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "obra_permanente": {
+      "titulo": "Obra Permanente",
+      "sobre": "defesas de acampamento e de cidade",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "desmarcar": {
+      "titulo": "Desmarcar e Quebrar Correntes",
+      "sobre": "táticas, não magia: achar a marca, chegar a ela, raspá-la",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "logica_dos_fatos": {
+      "titulo": "Lógica dos Fatos",
+      "sobre": "non, aut, os grupos",
+      "runas": [
+        "aut",
+        "non"
+      ],
+      "aulas": [],
+      "exame": []
+    },
+    "pericia_de_feiticos": {
+      "titulo": "Perícia de Feitiços",
+      "sobre": "o que foi conjurado aqui? deduzir pelo que a física guardou",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "os_erros_classicos": {
+      "titulo": "Os Erros Clássicos",
+      "sobre": "runas puladas, verbos sem sujeito, e a falha do outro",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "transe_2": {
+      "titulo": "Transe II",
+      "sobre": "o transe mais fundo",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "transe_3": {
+      "titulo": "Transe III",
+      "sobre": "o transe sem pressa",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "o_kern": {
+      "titulo": "O Kern",
+      "sobre": "o planeta de cada espírito",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "nahva": {
+      "titulo": "Nahvá",
+      "sobre": "as regiões, os kerns, o caminho de volta",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "sonhar_uma_runa": {
+      "titulo": "Sonhar uma Runa",
+      "sobre": "viver as experiências e escapar do sonho febril",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "dizer_as_runas": {
+      "titulo": "Dizer as Runas",
+      "sobre": "o transe falado",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "a_morte_e_o_kern": {
+      "titulo": "A Morte e o Kern",
+      "sobre": "o que se sabe, e o que se conta",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "a_forma": {
+      "titulo": "A Forma",
+      "sobre": "a família perdida (pesquisa)",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "cuidado_de_quem_volta": {
+      "titulo": "Cuidado de Quem Volta",
+      "sobre": "o enjoo, a fraqueza, o corpo que estava longe",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "tutoria_de_sonho": {
+      "titulo": "Tutoria de Sonho",
+      "sobre": "só com um mestre",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "focos_1": {
+      "titulo": "Focos I",
+      "sobre": "a haste e a empunhadura; a condução, o desgaste e o conserto",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "focos_2": {
+      "titulo": "Focos II",
+      "sobre": "o engaste, a reserva, o eco",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "instrumentos": {
+      "titulo": "Instrumentos",
+      "sobre": "a bússola arcana, as pepitas e os metais, o pergaminho que se relê",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    },
+    "oficio": {
+      "titulo": "Ofício",
+      "sobre": "o registro com o Artífice da casa, a encomenda, o preço",
+      "runas": [],
+      "aulas": [],
+      "exame": []
+    }
   }
 }

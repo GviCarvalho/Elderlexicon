@@ -103,7 +103,12 @@ public final class Dreams {
                 return;
             }
             List<String> waiting = waitingRunes(player);
-            if (!waiting.isEmpty() && player.getRandom().nextFloat() < DREAM_CHANCE) {
+            // In the house's dormitory, the dream a lesson asks for comes for sure (docs/mago-design.md, 5k).
+            java.util.Optional<String> due = com.elderlexicon.mod.university.Lessons.dreamDue(player)
+                    .filter(waiting::contains);
+            if (due.isPresent()) {
+                enter(player, due.get());
+            } else if (!waiting.isEmpty() && player.getRandom().nextFloat() < DREAM_CHANCE) {
                 enter(player, waiting.get(player.getRandom().nextInt(waiting.size())));
             }
         }

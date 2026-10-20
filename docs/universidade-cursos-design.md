@@ -299,3 +299,24 @@ de `UniversityPiece`, com uma sala por cadeira antiga.
 - **Para testar** (até as aulas existirem): `/mago primeiroano`, `/mago cadeira <cadeira>`, `/mago curso <curso>`,
   `/mago expedicao`, e `/mago matricula ver`.
 - `Discipline` continua por ora, como a cadeira dos Magisters de hoje, até os nove Magisters (passo 5).
+
+### 8.2 Passo 2, feito (20/10/2026): a máquina das aulas
+
+- **Uma aula é uma lista de passos** (`passos` em `cursos.json`, lidos por `Curriculum`): `fala` (o mestre diz),
+  `demonstra` (o mestre lê um feitiço entre ele e o aluno), `transe` (o transe desperto), `viver` (as experiências de
+  uma runa), `conjurar` (um feitiço com tais runas), `sonhar` (o sonho de uma runa) e `voltar` (de volta ao mestre).
+  `requer` diz que aulas fazer antes. Uma aula com runas e sem passos ganha os passos de toda aula de runa: viver,
+  voltar, sonhar, voltar.
+- **No Magister** (`university/Lessons`): o aluno em dia vê "Quero a aula: …" (a próxima que pode fazer) ou
+  "Continuar a aula: …". Os passos diante do mestre correm no diálogo; os do mundo são conferidos a cada segundo, e
+  o aluno é avisado ("Feito. Volte ao seu mestre"). Uma aula por vez, guardada no jogador.
+- **O dormitório:** dormindo dentro da universidade com o passo `sonhar` à frente, o sonho daquela runa vem com
+  certeza (em vez dos 35%).
+- **Uma cadeira sem exame** passa quando todas as aulas dela estão feitas (o exame vem no passo 4).
+- **Quem dá o quê, por ora** (até os nove Magisters, passo 5): Fundamentos I, o mestre das Fontes; Fundamentos II, o
+  das Funções; Transe I, o de Nahvá; O Corpo e o Cálice, o da Vita; A Página, Caligrafia e Língua Antiga, o do
+  Arquivo; Segurança e Ética, o dos Fatos.
+- **As aulas escritas:** Os dois mundos e A gramática inteira (falas); O despertar do transe e Como se aprende uma
+  runa (Transe I); e **a aula do `igni`, o molde**: a fala, a demonstração de `igni vocant`, viver o fogo, voltar,
+  sonhar no dormitório, voltar. As outras aulas de Fonte e de Função usam os passos de toda aula de runa.
+- `/mago aula sair` tira o jogador da aula; `/mago matricula ver` mostra em que passo ele está.

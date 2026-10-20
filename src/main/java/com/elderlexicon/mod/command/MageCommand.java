@@ -66,6 +66,12 @@ public final class MageCommand {
                             .forEach(chair -> book.chairPassed(player.getUUID(), chair, 5));
                     return enrollment(context.getSource(), "ver");
                 }))
+                .then(Commands.literal("aula").then(Commands.literal("sair").executes(context -> {
+                    ServerPlayer player = context.getSource().getPlayerOrException();
+                    com.elderlexicon.mod.university.Lessons.leave(player);
+                    context.getSource().sendSuccess(() -> Component.literal("Fora da aula."), false);
+                    return 1;
+                })))
                 .then(Commands.literal("expedicao").executes(context -> {
                     ServerPlayer player = context.getSource().getPlayerOrException();
                     com.elderlexicon.mod.university.Enrollments.of(player.serverLevel()).expeditionDone(
@@ -166,7 +172,9 @@ public final class MageCommand {
                 .orElse("nenhum") + "; cadeiras " + student.chairs().keySet() + "; faltam do primeiro ano "
                 + student.firstYearLeft() + (student.course().isPresent() ? "; faltam do curso "
                 + student.courseLeft() + "; expedição " + (student.expedition() ? "sim" : "não") : "")
-                + "; aulas " + student.lessons().size() + "; disciplinas antigas " + student.passed())
+                + "; aulas " + student.lessons() + "; na aula " + com.elderlexicon.mod.university.Lessons.current(player)
+                .map(current -> current.chair() + "/" + current.lesson() + " passo " + current.step()).orElse("nenhuma")
+                + "; disciplinas antigas " + student.passed())
                 .orElse("Fora do livro da universidade.");
         source.sendSuccess(() -> Component.literal(said), false);
         return 1;
