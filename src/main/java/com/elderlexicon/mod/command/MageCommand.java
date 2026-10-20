@@ -22,8 +22,10 @@ import java.util.function.Consumer;
  * dead) and {@code /mago torre} (to the infinite tower: from the island by its road, or straight away), each with optional
  * players; {@code /mago sala <sala>}, which makes the next climb begin with that room; and {@code /mago matricula}
  * ({@code ver}, {@code vencer}: the period ends now, {@code esquecer}: struck off the university's book), to try the
- * university (docs/mago-design.md, 5h); {@code /mago emissario [convite|retorno]}, an Emissary sent to the player now
- * (5j). For operators.
+ * university (docs/mago-design.md, 5h); {@code /mago curso <curso>}, {@code /mago cadeira <cadeira>},
+ * {@code /mago primeiroano} and {@code /mago expedicao}, to take a course, pass a chair, pass the whole first year, or
+ * come back from the Expedition without the lessons (docs/universidade-cursos-design.md); {@code /mago emissario
+ * [convite|retorno]}, an Emissary sent to the player now (5j). For operators.
  */
 public final class MageCommand {
 
@@ -43,6 +45,33 @@ public final class MageCommand {
                         .then(Commands.literal("vencer").executes(context -> enrollment(context.getSource(), "vencer")))
                         .then(Commands.literal("esquecer")
                                 .executes(context -> enrollment(context.getSource(), "esquecer"))))
+                .then(Commands.literal("curso")
+                        .then(Commands.argument("curso", StringArgumentType.word())
+                                .suggests((context, builder) -> SharedSuggestionProvider.suggest(
+                                        java.util.Arrays.stream(com.elderlexicon.mod.university.Course.values())
+                                                .map(com.elderlexicon.mod.university.Course::id), builder))
+                                .executes(context -> course(context.getSource(),
+                                        StringArgumentType.getString(context, "curso")))))
+                .then(Commands.literal("cadeira")
+                        .then(Commands.argument("cadeira", StringArgumentType.word())
+                                .suggests((context, builder) -> SharedSuggestionProvider.suggest(
+                                        com.elderlexicon.mod.university.Curriculum.get().chairs().keySet(), builder))
+                                .executes(context -> chair(context.getSource(),
+                                        StringArgumentType.getString(context, "cadeira")))))
+                .then(Commands.literal("primeiroano").executes(context -> {
+                    ServerPlayer player = context.getSource().getPlayerOrException();
+                    com.elderlexicon.mod.university.Enrollments book = com.elderlexicon.mod.university.Enrollments.of(
+                            player.serverLevel());
+                    com.elderlexicon.mod.university.Curriculum.get().firstYear()
+                            .forEach(chair -> book.chairPassed(player.getUUID(), chair, 5));
+                    return enrollment(context.getSource(), "ver");
+                }))
+                .then(Commands.literal("expedicao").executes(context -> {
+                    ServerPlayer player = context.getSource().getPlayerOrException();
+                    com.elderlexicon.mod.university.Enrollments.of(player.serverLevel()).expeditionDone(
+                            player.getUUID());
+                    return enrollment(context.getSource(), "ver");
+                }))
                 .then(Commands.literal("emissario")
                         .executes(context -> emissary(context.getSource(),
                                 com.elderlexicon.mod.university.Emissary.Message.INVITATION))
@@ -81,6 +110,42 @@ public final class MageCommand {
         return 1;
     }
 
+    /**
+     * {@code player} takes the course {@code id}: by the rules if they may (the first year done), and if not, admitted
+     * and made a Scriba of it anyway, for testing.
+     */
+    private static int course(CommandSourceStack source, String id)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        java.util.Optional<com.elderlexicon.mod.university.Course> course =
+                com.elderlexicon.mod.university.Course.byId(id);
+        if (course.isEmpty()) {
+            source.sendFailure(Component.literal("Não há curso \"" + id + "\"."));
+            return 0;
+        }
+        com.elderlexicon.mod.university.Enrollments book = com.elderlexicon.mod.university.Enrollments.of(
+                player.serverLevel());
+        if (!book.chooseCourse(player.getUUID(), course.get())) {
+            com.elderlexicon.mod.university.Curriculum.get().firstYear()
+                    .forEach(chair -> book.chairPassed(player.getUUID(), chair, 5));
+            book.examined(player.getUUID(), 6, 6, player.getServer().overworld().getGameTime());
+            book.chooseCourse(player.getUUID(), course.get());
+        }
+        return enrollment(source, "ver");
+    }
+
+    /** {@code player} passed the chair {@code id}, without a mistake. */
+    private static int chair(CommandSourceStack source, String id)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        if (com.elderlexicon.mod.university.Curriculum.get().chair(id).isEmpty()) {
+            source.sendFailure(Component.literal("Não há cadeira \"" + id + "\"."));
+            return 0;
+        }
+        com.elderlexicon.mod.university.Enrollments.of(player.serverLevel()).chairPassed(player.getUUID(), id, 5);
+        return enrollment(source, "ver");
+    }
+
     private static int enrollment(CommandSourceStack source, String what)
             throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
@@ -97,7 +162,12 @@ public final class MageCommand {
                 .orElse("nenhum") + "; mensalidade " + student.fee() + "; "
                 + (student.inGoodStanding(now) ? "em dia por mais " + (student.paidUntil() - now) / 20 + " s"
                 : student.owes(now) ? "devendo o período" : student.dueForExamination(now) ? "exame do período pendente"
-                : "não admitido") + "; disciplinas " + student.passed()).orElse("Fora do livro da universidade.");
+                : "não admitido") + "; curso " + student.course().map(com.elderlexicon.mod.university.Course::id)
+                .orElse("nenhum") + "; cadeiras " + student.chairs().keySet() + "; faltam do primeiro ano "
+                + student.firstYearLeft() + (student.course().isPresent() ? "; faltam do curso "
+                + student.courseLeft() + "; expedição " + (student.expedition() ? "sim" : "não") : "")
+                + "; aulas " + student.lessons().size() + "; disciplinas antigas " + student.passed())
+                .orElse("Fora do livro da universidade.");
         source.sendSuccess(() -> Component.literal(said), false);
         return 1;
     }

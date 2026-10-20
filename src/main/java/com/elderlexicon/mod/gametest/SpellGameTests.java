@@ -2338,18 +2338,25 @@ public final class SpellGameTests {
                 >= com.elderlexicon.mod.university.Enrollments.feeFor(3, 6)) {
             helper.fail("the fee does not fall as the examination goes better");
         }
-        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.FONTES, 3, now);
-        if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.AUDITOR) {
-            helper.fail("three of five made a Scriba");
+        // Under the courses (docs/universidade-cursos-design.md): the first year, then a course, then its chairs and
+        // the Expedition.
+        com.elderlexicon.mod.university.Course course = com.elderlexicon.mod.university.Course.GUARDA;
+        if (book.chooseCourse(who, course)) {
+            helper.fail("a course chosen before the first year");
         }
-        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.FONTES, 4, now);
-        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.FILTROS, 4, now);
-        if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.SCRIBA || student.mayRead()) {
-            helper.fail("after two passed: " + student.rank() + ", may read " + student.mayRead());
+        com.elderlexicon.mod.university.Curriculum.get().firstYear().forEach(chair -> book.chairPassed(who, chair, 4));
+        if (!book.chooseCourse(who, course)
+                || student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.SCRIBA || student.mayRead()) {
+            helper.fail("after the first year and a course: " + student.rank() + ", may read " + student.mayRead());
         }
-        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.NAHVA, 5, now);
+        com.elderlexicon.mod.university.Curriculum.get().course(course).orElseThrow().chairs()
+                .forEach(chair -> book.chairPassed(who, chair, 4));
+        if (student.mayRead()) {
+            helper.fail("a Lector without the Expedition");
+        }
+        book.expeditionDone(who);
         if (!book.makeLector(who) || student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.LECTOR) {
-            helper.fail("three passed, one perfect, and not a Lector");
+            helper.fail("the course and the Expedition done, and not a Lector");
         }
         book.forget(who);
         helper.succeed();
@@ -2397,7 +2404,7 @@ public final class SpellGameTests {
             magister.mobInteract(mage, net.minecraft.world.InteractionHand.MAIN_HAND);
             com.elderlexicon.mod.dialogue.Dialogue.choose(mage, 0); // The examination of the Fonts.
             answerRight(helper, mage);
-            if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.SCRIBA
+            if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.AUDITOR
                     || student.passed().getOrDefault(com.elderlexicon.mod.university.Discipline.FONTES, 0) != 5) {
                 helper.fail("passed the Fonts without a mistake: " + student.rank() + ", " + student.passed());
             }

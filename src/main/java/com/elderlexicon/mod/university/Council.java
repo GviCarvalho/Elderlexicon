@@ -22,9 +22,11 @@ import java.util.Map;
  * <ul>
  *   <li><b>The Rector</b> admits: the council's examination (six questions on everything) sets the fee for the next
  *       seven days, by how well it went; a fee is paid to him in emeralds, and one who missed nothing is paid instead.
- *       Every period, a new examination and a new fee. He also makes Lectors of the Scribas a master accepts.</li>
- *   <li><b>A Magister</b> examines the students in good standing in his discipline (five questions; four right pass):
- *       the first discipline passed makes an Auditor a Scriba. He also trades, as any wizard.</li>
+ *       Every period, a new examination and a new fee. An Auditor who passed the first year chooses their course
+ *       with him, and is a Scriba (docs/universidade-cursos-design.md); a Scriba who passed the course and came back
+ *       from the Expedition, he makes a Lector.</li>
+ *   <li><b>A Magister</b> examines the students in good standing in his discipline (five questions; four right pass).
+ *       He also trades, as any wizard.</li>
  * </ul>
  * One who fails waits a day to be examined again by the same.
  */
@@ -147,8 +149,9 @@ public final class Council {
         player.playNotifySound(SoundEvents.VILLAGER_YES, player.getSoundSource(), 1.0F, 0.85F);
         Enrollments.Student student = book(player).student(player.getUUID());
         return new Line(Component.literal("Pago. Você está em dia por sete dias, ").append(title(student))
-                .append(". As aulas são dos Magisters, na Ala de Pesquisa; o exame de um deles faz um Auditor "
-                        + "Scriba."), bye());
+                .append(student.rank().filter(Rank.AUDITOR::equals).isPresent()
+                        ? ". Agora, o primeiro ano: as cadeiras são dos Magisters, na Ala de Pesquisa. Passando em "
+                        + "todas, você escolhe o seu curso comigo." : "."), bye());
     }
 
     /** One in good standing: how they stand, and the rank of Lector if a master accepts them. */
@@ -156,29 +159,83 @@ public final class Council {
         long days = Math.max(1L, (student.paidUntil() - now + 23999L) / 24000L);
         MutableComponent text = Component.literal("Você é ").append(title(student)).append(", em dia por mais "
                 + days + (days == 1 ? " dia." : " dias."));
-        text.append(passedText(student));
+        text.append(progress(student));
         List<Choice> choices = new ArrayList<>();
         if (student.mayRead()) {
             choices.add(new Choice(Component.literal("Peço o grau de Lector."), Council::lector));
         }
+        if (student.mayChooseCourse()) {
+            choices.add(new Choice(Component.literal(student.course().isEmpty() ? "Quero escolher o meu curso."
+                    : "Quero trocar de curso."), p -> courses(p, 0)));
+        }
         choices.add(new Choice(Component.literal("Como se sobe de grau?"), p -> new Line(Component.literal(
-                "Auditor é quem ouve: foi admitido. Scriba é quem escreve: passou no exame de um Magister. Lector é "
-                        + "quem lê: passou em três disciplinas, uma delas sem errar nada, e esse mestre o aceita. "
-                        + "Magister, só quem tem cadeira."), bye())));
+                "Auditor é quem ouve: foi admitido, e faz o primeiro ano. Scriba é quem escreve: passou em todas as "
+                        + "cadeiras do primeiro ano e escolheu um curso, um só. Lector é quem lê: passou em todas as "
+                        + "cadeiras do curso e voltou da Expedição. Magister, só quem tem cadeira."), bye())));
         choices.add(new Choice(Component.literal("Até logo."), p -> null));
         return new Line(text, choices);
     }
 
     private static Line lector(ServerPlayer player) {
         Enrollments.Student student = book(player).student(player.getUUID());
-        Discipline master = student.master().orElse(Discipline.REITOR);
+        String course = student.course().map(Curriculum.get()::title).orElse("o seu curso");
         if (!book(player).makeLector(player.getUUID())) {
             return new Line(Component.literal("Ainda não."), bye());
         }
         player.playNotifySound(SoundEvents.PLAYER_LEVELUP, player.getSoundSource(), 0.8F, 1.0F);
-        return new Line(Component.literal("O ").append(Component.translatable("university.elderlexicon.chair."
-                        + master.id())).append(" o aceita como seu leitor. De hoje em diante, você é Lector."),
-                bye());
+        return new Line(Component.literal("Você passou em todas as cadeiras de " + course + " e voltou da "
+                + "Expedição. De hoje em diante, você é Lector."), bye());
+    }
+
+    // ------------------------------------------------------------------ the course
+
+    /** How many courses the Rector names at a time: the dialogue has room for so many. */
+    private static final int COURSES_SHOWN = 5;
+
+    /** The courses of the house, a few at a time; each one, what it is, before it is chosen. */
+    private static Line courses(ServerPlayer player, int from) {
+        Course[] all = Course.values();
+        List<Choice> choices = new ArrayList<>();
+        for (int i = from; i < Math.min(all.length, from + COURSES_SHOWN); i++) {
+            Course course = all[i];
+            choices.add(new Choice(Component.literal(Curriculum.get().title(course)), p -> course(p, course)));
+        }
+        if (from + COURSES_SHOWN < all.length) {
+            choices.add(new Choice(Component.literal("Outros cursos."), p -> courses(p, from + COURSES_SHOWN)));
+        } else if (from > 0) {
+            choices.add(new Choice(Component.literal("Os primeiros cursos."), p -> courses(p, 0)));
+        }
+        return new Line(Component.literal(from == 0 ? "Nove cursos, um especialista cada. Um curso por vez: trocar "
+                + "é começar de novo. Qual quer conhecer?" : "Os outros cursos:"), choices);
+    }
+
+    private static Line course(ServerPlayer player, Course course) {
+        Curriculum curriculum = Curriculum.get();
+        Curriculum.CourseInfo info = curriculum.course(course).orElse(null);
+        if (info == null) {
+            return new Line(Component.literal("Esse curso ainda não tem cadeiras nesta casa."), bye());
+        }
+        MutableComponent text = Component.literal(info.title()).withStyle(ChatFormatting.AQUA).copy()
+                .append(Component.literal(": " + info.specialist() + ". " + info.chairs().size() + " cadeiras: "
+                        + String.join(", ", info.chairs().stream().map(curriculum::title).toList()) + ".")
+                        .withStyle(ChatFormatting.RESET));
+        return new Line(text, new Choice(Component.literal("Escolho " + info.title() + "."), p -> chosen(p, course)),
+                new Choice(Component.literal("Quero ver outro."), p -> courses(p, 0)),
+                new Choice(Component.literal("Depois."), p -> null));
+    }
+
+    private static Line chosen(ServerPlayer player, Course course) {
+        Enrollments book = book(player);
+        boolean changing = book.student(player.getUUID()).course().isPresent();
+        if (!book.chooseCourse(player.getUUID(), course)) {
+            return new Line(Component.literal("Ainda não: antes, o primeiro ano inteiro."), bye());
+        }
+        player.playNotifySound(changing ? SoundEvents.VILLAGER_YES : SoundEvents.PLAYER_LEVELUP,
+                player.getSoundSource(), 0.8F, 1.0F);
+        String title = Curriculum.get().title(course);
+        return new Line(Component.literal(changing ? "Está feito: o seu curso agora é " + title + ". O que já passou "
+                + "fica passado; o resto, recomeça."
+                : "Está feito: o seu curso é " + title + ". De hoje em diante, você é Scriba."), bye());
     }
 
     // ------------------------------------------------------------------ a Magister
@@ -227,22 +284,14 @@ public final class Council {
 
     private static Line masterVerdict(ServerPlayer player, Discipline chair, Exam exam) {
         Enrollments book = book(player);
-        boolean wasAuditor = book.student(player.getUUID()).rank().filter(Rank.AUDITOR::equals).isPresent();
         boolean passed = book.examinedBy(player.getUUID(), chair, exam.score(), now(player));
         MutableComponent text = Component.literal("Você acertou " + exam.score() + " de " + exam.size() + ". ");
         if (!passed) {
             player.playNotifySound(SoundEvents.VILLAGER_NO, player.getSoundSource(), 1.0F, 0.85F);
             return new Line(text.append("Não passou. Estude, e volte amanhã."), bye());
         }
-        player.playNotifySound(wasAuditor ? SoundEvents.PLAYER_LEVELUP : SoundEvents.VILLAGER_YES,
-                player.getSoundSource(), 0.8F, 1.0F);
+        player.playNotifySound(SoundEvents.VILLAGER_YES, player.getSoundSource(), 0.8F, 1.0F);
         text.append("Passou em ").append(discipline(chair)).append(".");
-        if (wasAuditor) {
-            text.append(" De hoje em diante, você é Scriba.");
-        }
-        if (exam.score() >= Enrollments.MASTER_QUESTIONS) {
-            text.append(" Sem errar nada: se um dia pedir o grau de Lector, eu o aceito.");
-        }
         return new Line(text, bye());
     }
 
@@ -296,20 +345,21 @@ public final class Council {
                 .withStyle(ChatFormatting.AQUA);
     }
 
-    private static Component passedText(Enrollments.Student student) {
-        if (student.passed().isEmpty()) {
-            return Component.literal(" Ainda não passou no exame de nenhum Magister.");
+    /** Where they are in their studies: the first year, or the course. */
+    private static Component progress(Enrollments.Student student) {
+        Curriculum curriculum = Curriculum.get();
+        if (student.course().isEmpty()) {
+            List<String> left = student.firstYearLeft();
+            return Component.literal(left.isEmpty() ? " Passou no primeiro ano inteiro: pode escolher o seu curso."
+                    : " Do primeiro ano, faltam " + left.size() + " cadeiras: "
+                    + String.join(", ", left.stream().map(curriculum::title).toList()) + ".");
         }
-        MutableComponent text = Component.literal(" Passou em: ");
-        boolean first = true;
-        for (Map.Entry<Discipline, Integer> entry : student.passed().entrySet()) {
-            if (!first) {
-                text.append(", ");
-            }
-            text.append(discipline(entry.getKey()));
-            first = false;
-        }
-        return text.append(".");
+        String course = curriculum.title(student.course().get());
+        List<String> left = student.courseLeft();
+        return Component.literal(" O seu curso é " + course + (left.isEmpty()
+                ? (student.expedition() ? "; passou em todas as cadeiras, e voltou da Expedição."
+                : "; passou em todas as cadeiras. Falta a Expedição.")
+                : "; faltam " + left.size() + " cadeiras."));
     }
 
     /** Takes {@code count} emeralds from {@code player}, if they have them. */

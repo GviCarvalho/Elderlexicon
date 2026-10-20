@@ -111,6 +111,9 @@ O conselho é presidido pelo **Rector**.
 
 ### 4.4 As disciplinas e os mestres
 
+> **Nota (20/10/2026):** as disciplinas abaixo dão lugar aos nove cursos e às suas cadeiras
+> (docs/universidade-cursos-design.md). O código ainda segue esta tabela até a troca (seção 8 daquele documento).
+
 Uma por família e arte da língua; cada uma com um mestre (um Mago ancião):
 
 | Disciplina | O que ensina |
