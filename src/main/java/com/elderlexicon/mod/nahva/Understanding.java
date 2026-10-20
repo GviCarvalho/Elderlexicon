@@ -3,6 +3,7 @@ package com.elderlexicon.mod.nahva;
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spelling.data.SpellingRepertoire;
 import com.elderlexicon.mod.spelling.data.SpellingRepertoireHelper;
+import com.elderlexicon.mod.spelling.flow.Happenings;
 import com.elderlexicon.mod.spelling.network.SpellingNetwork;
 import com.elderlexicon.mod.vita.VitaImbalanceTier;
 import com.elderlexicon.mod.vita.VitaSystem;
@@ -110,6 +111,32 @@ public final class Understanding {
             Map.entry("sign_book", player -> signed(player.getMainHandItem(), player)
                     || signed(player.getOffhandItem(), player)),
             Map.entry("spyglass", ServerPlayer::isScoping),
+            // The filters: how much, when, where, where from (docs/aprendizado-runas-design.md, 4d).
+            Map.entry("full_stack", player -> justLived(player, "full_stack")),
+            Map.entry("xp_orb", player -> justLived(player, "xp_orb")),
+            Map.entry("breed", player -> justLived(player, "breed")),
+            Map.entry("bone_meal", player -> justLived(player, "bone_meal")),
+            Map.entry("slept", player -> justLived(player, "slept")),
+            Map.entry("clock", player -> justLived(player, "clock")),
+            Map.entry("map", player -> justLived(player, "map")),
+            Map.entry("chorus", player -> justLived(player, "chorus")),
+            Map.entry("portal", player -> justLived(player, "portal")),
+            Map.entry("bucket", player -> justLived(player, "bucket")),
+            Map.entry("ore", player -> justLived(player, "ore")),
+            Map.entry("milk", player -> justLived(player, "milk")),
+            // The facts: the body living each of them, as the flow tells it (docs/aprendizado-runas-design.md, 4e).
+            Map.entry("fact_ferit", player -> Happenings.recent(player, Happenings.ATTACK)),
+            Map.entry("fact_patitur", player -> Happenings.recent(player, Happenings.HURT)),
+            Map.entry("fact_necat", player -> Happenings.recent(player, Happenings.KILL)),
+            Map.entry("fact_salit", player -> Happenings.recent(player, Happenings.JUMP)),
+            Map.entry("fact_cadit", player -> Happenings.recent(player, Happenings.LAND)),
+            Map.entry("fact_frangit", player -> Happenings.recent(player, Happenings.BREAK)),
+            Map.entry("fact_utitur", player -> Happenings.recent(player, Happenings.USE)),
+            Map.entry("fact_latet", player -> Happenings.recent(player, Happenings.SNEAK)),
+            Map.entry("fact_currit", player -> Happenings.recent(player, Happenings.SPRINT)),
+            Map.entry("fact_languet", player -> Happenings.recent(player, Happenings.LOW)),
+            Map.entry("fact_ardet", player -> Happenings.recent(player, Happenings.BURNING)),
+            Map.entry("fact_mergitur", player -> Happenings.recent(player, Happenings.UNDERWATER)),
             // vis: the mana itself, emptied and brimming, and the four sources in balance in the body.
             Map.entry("vis_empty", player -> com.elderlexicon.mod.spell.Casters.vis(player) < 1.0D),
             Map.entry("vis_full", player -> player.experienceLevel >= 30),
@@ -212,6 +239,11 @@ public final class Understanding {
     public static void onPickUp(net.minecraftforge.event.entity.player.PlayerEvent.ItemPickupEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             lived(player, "pick_up");
+            net.minecraft.world.item.ItemStack picked = event.getStack();
+            if (picked.getMaxStackSize() > 1 && player.getInventory().items.stream().anyMatch(stack ->
+                    stack.is(picked.getItem()) && stack.getCount() >= stack.getMaxStackSize())) {
+                lived(player, "full_stack");
+            }
         }
     }
 
@@ -231,6 +263,11 @@ public final class Understanding {
         }
         if (held.is(net.minecraft.world.item.Items.NAME_TAG) && held.hasCustomHoverName()) {
             lived(player, "name_tag");
+        }
+        if (held.is(net.minecraft.world.item.Items.BUCKET)
+                && (event.getTarget() instanceof net.minecraft.world.entity.animal.Cow
+                || event.getTarget() instanceof net.minecraft.world.entity.animal.goat.Goat)) {
+            lived(player, "milk");
         }
     }
 
@@ -266,6 +303,9 @@ public final class Understanding {
     public static void onEat(net.minecraftforge.event.entity.living.LivingEntityUseItemEvent.Finish event) {
         if (event.getEntity() instanceof ServerPlayer player && event.getItem().isEdible()) {
             lived(player, "eat");
+            if (event.getItem().is(net.minecraft.world.item.Items.CHORUS_FRUIT)) {
+                lived(player, "chorus");
+            }
         }
     }
 
@@ -305,6 +345,73 @@ public final class Understanding {
         if (event.getEntity() instanceof ServerPlayer player
                 && event.getItemStack().is(net.minecraft.world.item.Items.WRITTEN_BOOK)) {
             lived(player, "read");
+        }
+        if (event.getEntity() instanceof ServerPlayer player
+                && event.getItemStack().is(net.minecraft.world.item.Items.MAP)) {
+            lived(player, "map");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onXp(net.minecraftforge.event.entity.player.PlayerXpEvent.PickupXp event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            lived(player, "xp_orb");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onBreed(net.minecraftforge.event.entity.living.BabyEntitySpawnEvent event) {
+        if (event.getCausedByPlayer() instanceof ServerPlayer player) {
+            lived(player, "breed");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onBoneMeal(net.minecraftforge.event.entity.player.BonemealEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            lived(player, "bone_meal");
+        }
+    }
+
+    /** Slept through: the night went by without the mage. */
+    @SubscribeEvent
+    public static void onWake(net.minecraftforge.event.entity.player.PlayerWakeUpEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && player.isSleepingLongEnough()) {
+            lived(player, "slept");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onCraft(net.minecraftforge.event.entity.player.PlayerEvent.ItemCraftedEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player
+                && event.getCrafting().is(net.minecraft.world.item.Items.CLOCK)) {
+            lived(player, "clock");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPortal(net.minecraftforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && !event.getFrom().equals(Nahva.LEVEL)
+                && !event.getTo().equals(Nahva.LEVEL)) {
+            lived(player, "portal");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onBucket(net.minecraftforge.event.entity.player.FillBucketEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && event.getEmptyBucket().is(
+                net.minecraft.world.item.Items.BUCKET)
+                && event.getTarget() instanceof net.minecraft.world.phys.BlockHitResult hit
+                && !player.level().getFluidState(hit.getBlockPos()).isEmpty()) {
+            lived(player, "bucket");
+        }
+    }
+
+    @SubscribeEvent
+    public static void onMine(net.minecraftforge.event.level.BlockEvent.BreakEvent event) {
+        if (event.getPlayer() instanceof ServerPlayer player
+                && event.getState().is(net.minecraftforge.common.Tags.Blocks.ORES)) {
+            lived(player, "ore");
         }
     }
 

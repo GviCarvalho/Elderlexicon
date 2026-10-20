@@ -119,7 +119,7 @@ public final class FeverDream {
     /** The four sources, whose extremes vis draws from. */
     private static final List<String> SOURCES = List.of("igni", "aqua", "aura", "firmo");
 
-    private static final Map<String, Dream> DREAMS = Map.ofEntries(
+    private static final Map<String, Dream> DREAMS = withFacts(Map.ofEntries(
             Map.entry("iactare", verbs(verb(FeverVerbs.THROWN, FeverVerbs.THROWN_RULE, List::of),
                     verb(FeverVerbs.THROWN, FeverVerbs.PULLED_RULE, List::of))),
             Map.entry("vocant", verbs(verb(FeverVerbs.GAZE, FeverVerbs.GAZE_RULE, List::of),
@@ -137,6 +137,15 @@ public final class FeverDream {
             Map.entry("surgit", verbs(verb(FeverVerbs.DARK, FeverVerbs.DARK_RULE,
                             () -> items(Items.BOOK, Items.WRITABLE_BOOK)),
                     verb(FeverVerbs.BARE, FeverVerbs.Rule.NONE, List::of))),
+            // The filters: measures of the dreamer, not halls (docs/aprendizado-runas-design.md, 4d).
+            Map.entry("quantum", verbs(verb(FeverHalls.OLD, FeverMeasures.SMALL, List::of),
+                    verb(FeverHalls.OLD, FeverMeasures.MODEL, List::of))),
+            Map.entry("chronos", verbs(verb(FeverHalls.OLD, FeverMeasures.LOOP, List::of),
+                    verb(FeverHalls.OLD, FeverMeasures.REWIND, List::of))),
+            Map.entry("ubis", verbs(verb(FeverHalls.OLD, FeverMeasures.NUMBERS, List::of),
+                    verb(FeverHalls.OLD, FeverMeasures.SAME, List::of))),
+            Map.entry("tenet", verbs(verb(FeverHalls.OLD, FeverMeasures.DRAIN, List::of),
+                    verb(FeverHalls.OLD, FeverMeasures.BODY, List::of))),
             Map.entry("igni", new Dream(
                     new Extreme(FeverHalls.HEAT, () -> items(Items.SNOWBALL, Items.BLUE_ICE, Items.PACKED_ICE),
                             FeverDream::cold, ParticleTypes.FLAME, FeverDream::burn),
@@ -166,7 +175,17 @@ public final class FeverDream {
                             FeverDream::heavy),
                     new Extreme(FeverHalls.BURIAL, () -> items(Items.IRON_PICKAXE, Items.STONE_PICKAXE),
                             stack -> false, ParticleTypes.MYCELIUM, FeverDream::closeIn),
-                    FeverDream::stoneForOre)));
+                    FeverDream::stoneForOre))));
+
+    /** The facts, each a mirror: the fact, its memories, the fact turned round (docs/aprendizado-runas-design.md, 4e). */
+    private static Map<String, Dream> withFacts(Map<String, Dream> dreams) {
+        Map<String, Dream> all = new java.util.HashMap<>(dreams);
+        for (String fact : FeverMirror.FACTS.keySet()) {
+            all.put(fact, verbs(verb(FeverHalls.OLD, FeverMirror.rule(fact, false), List::of),
+                    verb(FeverHalls.OLD, FeverMirror.rule(fact, true), List::of)));
+        }
+        return java.util.Collections.unmodifiableMap(all);
+    }
 
     /** How long a scene lasts, at least, and how much longer it may; a verb's, which is a maze, longer. */
     private static final int SCENE_TICKS = 500;
@@ -226,7 +245,10 @@ public final class FeverDream {
             state.putLong("deadline", level.getGameTime() + VERB_LIMIT);
         }
         Vec3 rift = enter(level, origin, state, Scene.FIRST);
-        return new Realms.Built(FeverHalls.spawn(origin.offset(0, KernRealm.Y, 0)), rift);
+        BlockPos island = origin.offset(0, KernRealm.Y, 0);
+        Extreme first = extreme(state);
+        Vec3 start = first == null ? null : first.rule().start(island, state);
+        return new Realms.Built(start != null ? start : FeverHalls.spawn(island), rift);
     }
 
     /** Each tick of the dream: the doorways, the wind, the void; when a scene is over, the next, and the rift moves. */
@@ -286,9 +308,12 @@ public final class FeverDream {
         dream.putDouble("riftX", rift.x);
         dream.putDouble("riftY", rift.y);
         dream.putDouble("riftZ", rift.z);
-        // The halls are built anew round the dreamer: they stand in the middle of the room they were in.
+        // The halls are built anew round the dreamer: they stand in the middle of the room they were in. A scene that
+        // is not the halls says where.
+        Extreme now = extreme(state);
+        Vec3 start = now == null ? null : now.rule().start(island, state);
         int[] room = FeverHalls.roomAt(island, player.position());
-        Vec3 stand = room == null ? FeverHalls.spawn(island)
+        Vec3 stand = start != null ? start : room == null ? FeverHalls.spawn(island)
                 : Vec3.atBottomCenterOf(FeverHalls.middle(island, room[0], room[1]));
         player.teleportTo(stand.x, stand.y, stand.z);
         tell(player, state);
@@ -374,9 +399,12 @@ public final class FeverDream {
         if (event.getPlayer() instanceof ServerPlayer player && feverish(player)
                 && player.level() instanceof ServerLevel level) {
             event.setCanceled(true);
-            KernDressing.put(level, player.getUUID(), event.getPos(), Blocks.AIR.defaultBlockState());
             CompoundTag dream = Dreams.dream(player);
             Extreme extreme = extreme(dream.getCompound("state"));
+            if (extreme != null && extreme.rule().keeps(event.getState())) {
+                return;
+            }
+            KernDressing.put(level, player.getUUID(), event.getPos(), Blocks.AIR.defaultBlockState());
             if (extreme != null) {
                 extreme.rule().broke(player, new BlockPos(dream.getInt("ox"), KernRealm.Y, dream.getInt("oz")),
                         dream.getCompound("state"), event.getPos());
@@ -387,7 +415,8 @@ public final class FeverDream {
     /** Using what is in hand on a block of the dream: the rule may take it (a name tag that makes a wall a door). */
     @SubscribeEvent
     public static void onUse(net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock event) {
-        if (!(event.getEntity() instanceof ServerPlayer player) || !feverish(player)) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || !feverish(player)
+                || event.getHand() != net.minecraft.world.InteractionHand.MAIN_HAND) {
             return;
         }
         CompoundTag dream = Dreams.dream(player);
@@ -397,6 +426,31 @@ public final class FeverDream {
                 event.getItemStack())) {
             event.setCanceled(true);
         }
+    }
+
+    /** Striking a block of the dream: the rule may take it (tenet: what is touched is drunk). */
+    @SubscribeEvent
+    public static void onHit(net.minecraftforge.event.entity.player.PlayerInteractEvent.LeftClickBlock event) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || !feverish(player)
+                || event.getAction() != net.minecraftforge.event.entity.player.PlayerInteractEvent.LeftClickBlock
+                .Action.START) {
+            return;
+        }
+        CompoundTag dream = Dreams.dream(player);
+        Extreme extreme = extreme(dream.getCompound("state"));
+        if (extreme != null && extreme.rule().hit(player, new BlockPos(dream.getInt("ox"), KernRealm.Y,
+                dream.getInt("oz")), dream.getCompound("state"), event.getPos())) {
+            event.setCanceled(true);
+        }
+    }
+
+    /** A thing of the dream laid at {@code at}: what the dreamer needs, gone with the dream. */
+    static void thing(ServerLevel level, Vec3 at, ItemStack stack) {
+        ItemEntity thing = new ItemEntity(level, at.x, at.y, at.z, dreamt(stack));
+        thing.getPersistentData().putBoolean(DREAMT, true);
+        thing.setUnlimitedLifetime();
+        thing.setDeltaMovement(Vec3.ZERO);
+        level.addFreshEntity(thing);
     }
 
     // ------------------------------------------------------------------ the rift, as the rules move it
@@ -471,17 +525,26 @@ public final class FeverDream {
             rift = FeverHalls.build(level, mage, island, FeverHalls.OLD, memories(level, mage, island, state, random),
                     swap, random, state);
         } else {
-            rift = FeverHalls.build(level, mage, island, extreme.stuff(), List.of(), UnaryOperator.identity(), random,
-                    state);
-            extreme.rule().built(level, mage, island, rift, state, random);
-            scatter(level, island, random, extreme.things().get());
+            BlockPos placed = extreme.rule().place(level, mage, island, state, random);
+            if (placed != null) {
+                rift = placed;
+                // No doorways elsewhere here: what the halls before left in the state is forgotten.
+                state.put("elsewheres", new net.minecraft.nbt.ListTag());
+            } else {
+                rift = FeverHalls.build(level, mage, island, extreme.stuff(), List.of(), UnaryOperator.identity(),
+                        random, state);
+                extreme.rule().built(level, mage, island, rift, state, random);
+                scatter(level, island, random, extreme.things().get());
+            }
         }
         if (extreme == null || extreme.rule().ringed()) {
             ring(level, mage, rift);
         }
         Dream mine = DREAMS.get(state.getString("rune"));
         boolean verb = mine != null && mine.verb();
-        state.putLong("until", level.getGameTime() + (verb ? VERB_SCENE_TICKS + random.nextInt(VERB_SCENE_SPREAD)
+        int length = extreme == null ? 0 : extreme.rule().length();
+        state.putLong("until", level.getGameTime() + (length > 0 ? length
+                : verb ? VERB_SCENE_TICKS + random.nextInt(VERB_SCENE_SPREAD)
                 : SCENE_TICKS + random.nextInt(SCENE_SPREAD)));
         return Vec3.atCenterOf(rift);
     }
@@ -568,7 +631,7 @@ public final class FeverDream {
      * What a memory holds, held still in the dream: what would flow off the kern (water, lava, a block full of water) is
      * set fast, and what would fall (sand, gravel) is stone.
      */
-    private static BlockState still(BlockState state) {
+    static BlockState still(BlockState state) {
         if (state.is(Blocks.WATER) || !state.getFluidState().isEmpty() && state.getBlock()
                 instanceof net.minecraft.world.level.block.LiquidBlock) {
             return Blocks.PACKED_ICE.defaultBlockState();

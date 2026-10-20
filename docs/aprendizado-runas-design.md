@@ -165,6 +165,67 @@ usar algo); `FeverHalls` ganhou janelas, salas soltas, salas iguais, lacrar uma 
 experiências estão em `Understanding` (quase todas marcadas no instante em que acontecem). Os efeitos de tela de cada
 verbo são novos e não foram vistos ainda: algum pode deixar a tela preta (como o `blur`); trocar em `FeverClient`.
 
+## 4d. Os filtros: o sonho de uma medida (19/10/2026)
+
+Uma fonte muda a **matéria** do kern; uma função, a **física**. Um filtro faz uma pergunta precisa (quanto, quando,
+onde, de onde: livro 4.3), e no sonho dele quem muda são **as medidas de quem sonha**. Não há castelo: as cenas são
+feitas do **lugar onde o mago deitou para dormir** (guardado ao cair no sonho), aumentado, diminuído, destruído,
+repetido ou transformado numa massa; ou de um tempo em laço, um campo de números, um vazio. Como nas funções: a medida,
+as memórias, a medida ao contrário; não se voa; **tempo limite de 5 minutos**; cada fase tem a sua dica.
+
+| Filtro | Entender | A medida | Ao contrário |
+|---|---|---|---|
+| `quantum` | juntar uma pilha cheia; pegar experiência; fazer dois bichos terem um filhote | **Você é pequeno**: o lugar onde dormiu, **4× maior** (cada bloco um cubo de 4); pulo forte (salto V); a fenda no ponto mais alto que dá pra escalar | **Você é grande**: uma **maquete** da terra em volta da cama (1 coluna a cada 4 blocos, numa janela que nem sempre põe a cama no meio); camas falsas; a fenda é **a sua cama** |
+| `chronos` | usar farinha de osso; dormir a noite toda; fazer um relógio | **O laço**: a cada 20 s, de volta ao começo; os **ecos** das voltas anteriores (com o seu rosto) refazem o que você fez; no **sino** (aos 15 s), três placas precisam estar pisadas ao mesmo tempo, e a jaula da fenda abre | **O tempo volta**: o lugar 3× maior, destruído e queimado; ele **se refaz só enquanto você anda de costas** (e quebra de novo se andar pra frente); inteiro, a fenda é **em cima da cama** |
+| `ubis` | encher um mapa; comer uma fruta do coro; atravessar um portal | **O lugar é um número**: campo branco, **paredes invisíveis** (um labirinto) e só os números de onde você está e de onde precisa estar; chegar no número é achar a fenda | **Todo lugar é o mesmo**: o lugar repetido 5×5; sair por um lado é voltar pelo outro; a fenda aparece em todas as cópias menos na sua; o único "onde" que não se repete é **pra baixo** (uma picareta; o que se quebra numa cópia se quebra em todas) |
+| `tenet` | encher um balde; minerar um minério; tirar leite | **Do mundo**: uma massa feita dos blocos do lugar; tudo o que você toca você **bebe** (fome e vida), e o que estava em volta fica **cinza** (o cinza não alimenta); a fome não para; a fenda no meio da massa | **De você**: um vazio e um chão de osso; de mão vazia, cada bloco custa **meia vida**, ou, agachado, **um nível** (de verdade: o nível gasto não volta); a fenda a 18 blocos e 6 acima |
+
+Quem cai de uma cena volta ao começo dela (ou ao último chão, no vazio do `tenet`), sem dano de queda.
+
+**Por dentro:** `nahva/FeverMeasures` (as cenas e as regras de cada filtro); a regra (`FeverVerbs.Rule`) ganhou
+`place` (uma cena que não é o castelo), `start`, `length` e `hit` (golpear um bloco). O lugar onde se deitou é
+guardado ao entrar no sonho (`FeverMeasures.prepare`, chamado em `Dreams`). As experiências estão em `Understanding`.
+Os efeitos de tela de cada filtro (`FeverClient`) não foram vistos ainda. Os ecos do `chronos` vivem na memória do
+servidor: se ele cair no meio do sonho, o laço recomeça sem eles.
+
+## 4e. Os fatos: o sonho do espelho (19/10/2026)
+
+Os Fatos dizem **o que precisa ser verdade** e **quem** está no acontecimento (livro 4.3). Até aqui o sonho mudava o
+mundo e o sonhador era sempre ele mesmo; no dos Fatos, **há mais alguém**: o `ille`, o outro do acontecimento. Uma cena
+só, sempre a mesma: o lugar onde o mago deitou, **das pedras dele** (o chão e a parede mais comuns da memória), duas
+vezes, com uma parede de vidro no meio. Do outro lado anda uma figura **com o rosto do sonhador**, vestida de escuro,
+que faz o que ele faz, **espelhada**. E **o espelho mente**: onde o sonhador tem chão, o outro tem um buraco, fogo,
+água, um bicho.
+
+- **O fato:** precisa acontecer **com o outro, duas vezes, e não com você no mesmo instante** (se acontecer com os
+  dois, não conta). Então a fenda se abre, no fim do seu lado. Do seu lado há paredes baixas que atrapalham o caminho
+  até os pontos certos.
+- **Ao contrário (`non`):** a fenda está aberta no fim, mas o lado de lá está cheio da mentira, com um caminho só; se o
+  fato acontecer com o outro, os dois voltam ao começo.
+- **Aprender um fato ensina também `aut`, `non`, `ego` e `ille`**: as palavras da família vêm com o primeiro.
+- **Entender** um fato é vivê-lo acordado, uma vez (os acontecimentos do fluxo, `Happenings`).
+
+| Fato | O lado de lá | Como acontece com o outro |
+|---|---|---|
+| `cadit` | buracos de 4 | ele cai no buraco e chega ao fundo |
+| `mergitur` | piscinas de 2 | ele afunda, os olhos na água |
+| `ardet` | fogo das almas | ele pisa no fogo e arde |
+| `salit` | slime | ele quica |
+| `latet` | teto baixo (meia laje) | ele se agacha pra passar |
+| `currit` | gelo azul | ele desliza com você andando (agachado, não) |
+| `languet` | arbusto de frutas | ele perde vida devagar; fraco (30%) conta; se morrer, volta inteiro e não conta |
+| `patitur` | magma | ele se fere ao pisar |
+| `frangit` | vidraças | ele atravessa e quebra o vidro |
+| `ferit` | ovelhas paradas | você golpeia o ar, ele golpeia o que está à frente dele; do seu lado há ovelhas onde do lado de lá não há nada, e golpeá-las conta contra você. Ao contrário: paredes de lã pra quebrar (cada golpe seu é um golpe dele) com ovelhas atrás do vidro |
+| `necat` | galinhas | duas pancadas dele matam uma. Ao contrário, como o `ferit` |
+| `utitur` | alavancas na parede | clicar a sua parede onde, do outro lado, há uma alavanca. Ao contrário: três portões; antes de cada um, três botões; atrás do vidro, dois deles são alavancas, e só um botão abre o portão sem que o outro puxe nada |
+
+Do vidro e das paredes nada se quebra; só a lã do `ferit` e do `necat` ao contrário.
+
+**Por dentro:** `nahva/FeverMirror` (a cena, o outro e cada fato); a regra ganhou `keeps` (o que não se quebra). O
+outro é um suporte de armadura sem corpo com a cabeça do jogador; a altura dele é a do chão do lado dele (cai nos
+buracos, afunda nas piscinas). As palavras vêm em `Dreams.wake`.
+
 ## 5. Perguntas abertas
 
 1. **O desafio do `igni`:** a primeira versão é um rascunho. Como deve ser?

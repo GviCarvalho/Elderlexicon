@@ -57,7 +57,16 @@ public final class FeverClient {
             Map.entry("reframe", new Look[]{new Look("sobel", 0.30F, 0.22F, 0.14F),
                     new Look("desaturate", 0.46F, 0.46F, 0.46F)}),
             Map.entry("surgit", new Look[]{new Look("desaturate", 0.02F, 0.02F, 0.03F),
-                    new Look("phosphor", 0.80F, 0.86F, 0.90F)}));
+                    new Look("phosphor", 0.80F, 0.86F, 0.90F)}),
+            // The filters: the measure, and the measure turned round.
+            Map.entry("quantum", new Look[]{new Look("scan_pincushion", 0.46F, 0.52F, 0.40F),
+                    new Look("pencil", 0.70F, 0.74F, 0.80F)}),
+            Map.entry("chronos", new Look[]{new Look("phosphor", 0.62F, 0.50F, 0.30F),
+                    new Look("invert", 0.24F, 0.20F, 0.18F)}),
+            Map.entry("ubis", new Look[]{new Look("desaturate", 0.94F, 0.94F, 0.94F),
+                    new Look("deconverge", 0.40F, 0.36F, 0.44F)}),
+            Map.entry("tenet", new Look[]{new Look("notch", 0.36F, 0.20F, 0.16F),
+                    new Look("blobs", 0.10F, 0.08F, 0.10F)}));
 
     /** What the dreamer sees now; null awake. And whether they hear anything at all. */
     private static Look look;
@@ -66,9 +75,15 @@ public final class FeverClient {
     private FeverClient() {
     }
 
+    /** The facts, all in one mirror: seen double, and then the other way round. */
+    private static final java.util.Set<String> FACTS = java.util.Set.of("ferit", "patitur", "necat", "salit", "cadit",
+            "frangit", "utitur", "latet", "currit", "languet", "ardet", "mergitur");
+    private static final Look[] MIRROR = {new Look("deconverge", 0.60F, 0.52F, 0.20F),
+            new Look("invert", 0.30F, 0.26F, 0.10F)};
+
     public static void set(String rune, int scene) {
         Minecraft minecraft = Minecraft.getInstance();
-        Look[] extremes = EXTREMES.get(rune);
+        Look[] extremes = FACTS.contains(rune) ? MIRROR : EXTREMES.get(rune);
         look = scene == 1 ? MEMORY : extremes != null && (scene == 0 || scene == 2) ? extremes[scene / 2] : null;
         silent = "aura".equals(rune) && scene == 2;
         if (look == null) {

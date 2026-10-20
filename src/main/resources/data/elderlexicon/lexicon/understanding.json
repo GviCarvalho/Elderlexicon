@@ -105,6 +105,94 @@
         "spyglass",
         "brush"
       ]
+    },
+    "quantum": {
+      "experiences": [
+        "full_stack",
+        "xp_orb",
+        "breed"
+      ]
+    },
+    "chronos": {
+      "experiences": [
+        "bone_meal",
+        "slept",
+        "clock"
+      ]
+    },
+    "ubis": {
+      "experiences": [
+        "map",
+        "chorus",
+        "portal"
+      ]
+    },
+    "tenet": {
+      "experiences": [
+        "bucket",
+        "ore",
+        "milk"
+      ]
+    },
+    "ferit": {
+      "experiences": [
+        "fact_ferit"
+      ]
+    },
+    "patitur": {
+      "experiences": [
+        "fact_patitur"
+      ]
+    },
+    "necat": {
+      "experiences": [
+        "fact_necat"
+      ]
+    },
+    "salit": {
+      "experiences": [
+        "fact_salit"
+      ]
+    },
+    "cadit": {
+      "experiences": [
+        "fact_cadit"
+      ]
+    },
+    "frangit": {
+      "experiences": [
+        "fact_frangit"
+      ]
+    },
+    "utitur": {
+      "experiences": [
+        "fact_utitur"
+      ]
+    },
+    "latet": {
+      "experiences": [
+        "fact_latet"
+      ]
+    },
+    "currit": {
+      "experiences": [
+        "fact_currit"
+      ]
+    },
+    "languet": {
+      "experiences": [
+        "fact_languet"
+      ]
+    },
+    "ardet": {
+      "experiences": [
+        "fact_ardet"
+      ]
+    },
+    "mergitur": {
+      "experiences": [
+        "fact_mergitur"
+      ]
     }
   }
 }

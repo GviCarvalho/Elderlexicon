@@ -251,7 +251,7 @@ final class FeverHalls {
     // ------------------------------------------------------------------ the maze
 
     /** A maze over the grid (every room reached, one way between any two), and a few more doorways besides. */
-    private static void maze(boolean[][] east, boolean[][] south, RandomSource random) {
+    static void maze(boolean[][] east, boolean[][] south, RandomSource random) {
         boolean[][] seen = new boolean[ROOMS][ROOMS];
         Deque<int[]> path = new ArrayDeque<>();
         path.push(new int[]{ROOMS / 2, ROOMS / 2});

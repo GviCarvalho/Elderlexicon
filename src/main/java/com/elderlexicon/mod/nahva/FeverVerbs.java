@@ -57,6 +57,34 @@ final class FeverVerbs {
             return false;
         }
 
+        /**
+         * A scene that is not the halls (the filters'): it lays itself out on the kern and returns where its rift is.
+         * Null, the halls are built and {@link #built} told.
+         */
+        default BlockPos place(ServerLevel level, UUID mage, BlockPos island, CompoundTag state, RandomSource random) {
+            return null;
+        }
+
+        /** Where the dreamer stands as such a scene begins; null, the halls' room. */
+        default Vec3 start(BlockPos island, CompoundTag state) {
+            return null;
+        }
+
+        /** How long the scene lasts, in ticks; 0, as long as a verb's. */
+        default int length() {
+            return 0;
+        }
+
+        /** Whether a block of the dream that was {@code was} stays when the dreamer breaks it. */
+        default boolean keeps(BlockState was) {
+            return false;
+        }
+
+        /** The dreamer strikes a block of the dream; true, it is taken (and not broken as blocks are). */
+        default boolean hit(ServerPlayer player, BlockPos island, CompoundTag state, BlockPos pos) {
+            return false;
+        }
+
         /** Whether the rift stands in its ring of stone; one that moves is only its light. */
         default boolean ringed() {
             return true;
@@ -339,7 +367,7 @@ final class FeverVerbs {
     };
 
     /** A rift with no ring: its light, in a column, seen through the halls. */
-    private static void shine(ServerPlayer player, Vec3 rift) {
+    static void shine(ServerPlayer player, Vec3 rift) {
         if (player.tickCount % 5 == 0) {
             player.serverLevel().sendParticles(player, ParticleTypes.END_ROD, true, rift.x, rift.y, rift.z, 4, 0.3D,
                     0.6D, 0.3D, 0.01D);

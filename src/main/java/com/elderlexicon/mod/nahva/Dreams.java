@@ -242,6 +242,8 @@ public final class Dreams {
             // Whose kern it dresses, and with which rune.
             state.putUUID("mage", player.getUUID());
             state.putString("rune", dream.getString("rune"));
+            // The filters dream of where the mage lay down (FeverMeasures).
+            FeverMeasures.prepare(player, state);
         }
         Optional<Realms.Built> built = Realms.build(realm, nahva, origin, state);
         if (built.isEmpty()) {
@@ -431,6 +433,10 @@ public final class Dreams {
         String rune = dream.getString("rune");
         if (escaped && !rune.isEmpty()) {
             RuneUnlocks.unlock(player, rune);
+            if (FeverMirror.FACTS.containsKey(rune)) {
+                // A fact learned, the words of the family come with it: or, not, I, that one.
+                FeverMirror.WORDS.forEach(word -> RuneUnlocks.unlock(player, word));
+            }
         } else {
             player.displayClientMessage(Component.translatable("dream.elderlexicon.woke_unlearned")
                     .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC), true);
