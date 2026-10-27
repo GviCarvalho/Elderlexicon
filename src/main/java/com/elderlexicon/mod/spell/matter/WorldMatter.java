@@ -117,6 +117,24 @@ public final class WorldMatter {
                 : table().read(Form.Kind.ENTITY, id.toString()).map(MaterialTable.Reading::matter);
     }
 
+    /**
+     * Takes {@code out} of the particles of the block at {@code pos}, which holds {@code read}: what is left is what it
+     * is now, a block of it if it makes one, or else, less than a whole block, the same matter rarefied where it was.
+     * Nothing of it is lost.
+     */
+    public static void rarefy(ServerLevel level, BlockPos pos, Matter read, Particles out) {
+        Particles left = read.particles().present().minus(out);
+        take(level, pos);
+        if (left.total() <= 0L) {
+            return;
+        }
+        Matter rest = Matter.of(left.present(), read.state());
+        Placed placed = place(level, pos, rest);
+        if (placed.placed() <= EPSILON && !MaterialTable.floats(rest.state())) {
+            showFormless(level, pos, formless(rest.state(), natural(rest)), left.present());
+        }
+    }
+
     /** Takes a block out of the world as matter: it is read, and the place is left empty. */
     public static Optional<Matter> take(ServerLevel level, BlockPos pos) {
         Optional<Matter> matter = read(level, pos);

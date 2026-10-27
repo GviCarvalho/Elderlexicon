@@ -111,6 +111,9 @@ O conselho é presidido pelo **Rector**.
 
 ### 4.4 As disciplinas e os mestres
 
+> **Nota (20/10/2026):** as disciplinas abaixo dão lugar aos nove cursos e às suas cadeiras
+> (docs/universidade-cursos-design.md). O código ainda segue esta tabela até a troca (seção 8 daquele documento).
+
 Uma por família e arte da língua; cada uma com um mestre (um Mago ancião):
 
 | Disciplina | O que ensina |
@@ -442,6 +445,85 @@ pesquisa, torre do observatório, dormitórios, pátio, jardins).
   mudou. Antes saíam de diante do rosto e cegavam quem conjurava.
 - As texturas saem de `tools/caster_skins.py` (desenhadas pixel a pixel sobre o molde do aldeão; rodar de novo dá os
   mesmos arquivos). O Feiticeiro continua com a pele do evocador.
+
+## 5j. O Emissário (pedido do autor, 17/10/2026)
+
+A universidade tem dois papéis no mod: deixar o mundo mais vivo e **ser o tutorial**. O jogador não precisa de um
+livrinho explicando o mod; ele aprende estudando lá. O Emissário é quem leva o jogador até ela.
+
+- **Quem é.** Um Mago da universidade (`Dwelling.EMISSARY`), mestre na língua (barba preta), com a mesma mente dos
+  outros: se defende, guarda a paz. Não negocia. Veste a capa de viajante cinza-azulada, com uma pequena capa sobre os
+  ombros, o selo dourado da casa no peito e nas costas, a bolsa das cartas do lado, a poeira da estrada na barra, e um
+  chapéu de feltro de aba larga.
+- **O convite.** De dois a quatro dias depois de o transe despertar, se o jogador não estuda em nenhuma casa, há uma
+  pequena chance a cada momento do dia (mais ou menos uma vez por dia) de um Emissário vir andando até ele, de uns 25
+  blocos. Ele chama o jogador pelo nome no chat e espera ser ouvido (cinco minutos; depois deixa a carta e vai embora).
+  Falando com ele, o jogador pode:
+  - **aceitar e ir com ele**: recebe a carta e o mapa, e ele o leva (abaixo);
+  - **aceitar e ir sozinho**: recebe a carta e o mapa;
+  - **recusar**: ele vai embora, e a casa tenta de novo depois de uns cinco dias.
+- **A carta** é um livro escrito pelo Rector, já com o tutorial: o que a casa ensina (as runas, como vivê-las, as quatro
+  famílias), que os mestres respondem e o Arquivo guarda os guias, como é a admissão, que se paga em esmeraldas a cada
+  sete dias pelo que se sabe, e para onde ir. **O mapa** é como o mapa de explorador do cartógrafo, com a universidade
+  mais próxima marcada com um X.
+- **Levar o jogador: marca + `vocant`** (o autor, 18/10/2026; substituiu a caminhada guiada, que não dava conta de
+  lagos, neve fofa e quedas). Aceitando ser levado, o jogador recebe a carta e o mapa, e o Emissário:
+  1. **marca o jogador** com uma marca só dele (`rumo_<8 letras do UUID>`); a marca que o jogador tinha é guardada e
+     devolvida depois da viagem;
+  2. entra em transe e lê o **chamado da casa**, duas linhas: `x y z ubis <marca> vocant` (o jogador aparece no pátio)
+     e, um passo depois, `x y z ubis ego vocant` (ele vai junto). É a regra das marcas: **marca + `vocant` =
+     teletransporte** (docs/marcas-como-runas-design.md); o lugar são as coordenadas do pátio, ao sul da fonte, de
+     frente para o salão do conselho;
+  3. chegando, diz onde fica o Rector, e vai embora pouco depois.
+  Um golpe que quebra o transe faz ele ler de novo (até três vezes); se mesmo assim não leva, ele manda seguir o mapa.
+  O pátio é desenhado na hora se ninguém esteve lá ainda (o pedaço de mundo é gerado).
+- **A energia vem do engaste da casa.** Levar alguém custa massa × distância (0,01 UMU por massa por bloco): um jogador
+  e o Emissário por 1500 blocos dão uns 660 UMU, mais do que qualquer conjurador tem. A universidade põe na varinha do
+  Emissário o **Selo da Universidade**, um engaste que só ela tem (`university_seal` em `lexicon/foci.json`, até 2000
+  de vis, sem item que o faça), carregado com o custo da viagem e 20% a mais. A leitura paga dele pela regra de
+  reserva que já existe (`SettingReserveModule`), antes do corpo do Emissário. Ele segura a varinha de verdade, e ela
+  não cai quando ele morre.
+- **Ele protege quem procura.** O jogador é um aprendiz: enquanto vai até ele e espera ser ouvido, o Emissário ataca
+  primeiro qualquer criatura hostil a até 14 blocos do jogador (as neutras, como o enderman, só se vierem caçar), antes
+  que ela ataque. Vencida a luta, volta ao recado.
+- **O chamado de volta.** Um estudante cujo período acabou há um dia ou mais e que está a mais de 256 blocos de toda
+  universidade é procurado de novo, com a mesma pequena chance, no máximo a cada cinco dias. A mensagem diz o que a casa
+  espera: o novo exame, ou a mensalidade do período (quantas esmeraldas). A carta é outra, curta.
+- **Ir embora.** Terminado o recado, ele se afasta uns 30 blocos e some num sopro de luz. Some também se o jogador sai
+  do mundo, morre longe ou vai para outra dimensão por um minuto.
+- **Para testar:** `/mago emissario` (o convite) e `/mago emissario retorno` mandam um agora. Num mundo sem
+  universidade (um mundo plano, por exemplo), ele não vem.
+- O código: `university/Emissary` (o recado: procurar, esperar, levar, ir embora) e `university/Emissaries` (quando
+  ele vem, a carta, o mapa, o engaste). A tag `elderlexicon:university` acha a casa mais próxima.
+
+## 5k. A universidade que ensina: o plano (18/10/2026)
+
+O autor, sobre o que vem depois do Emissário. A universidade é o tutorial do mod: **aulas de verdade**, não um diálogo
+do Magister explicando o sistema.
+
+1. **Aulas de runa.** Hoje, para aprender `igni`, o mago precisa viver certas condições pelo mundo (docs/aprendizado-
+   runas-design.md) e sonhar. Na universidade, a aula **oferece as condições**: uma sala de prática onde o aluno vive o
+   que a runa significa, com o mestre presente, e depois o **dormitório**, onde o sonho vem (proposta: com certeza, em
+   vez dos 35% de uma noite qualquer). Passando no desafio do sonho, a runa é dele. Vale para **todas** as runas.
+   - **Dependência:** só o `igni` tem hoje o ciclo inteiro (as experiências em `lexicon/understanding.json` e a região
+     `IgniRealm`). Cada outra runa precisa ter o seu entendimento e a sua região desenhados, um a um, consultando o
+     grimório. A aula do `igni` vem primeiro e serve de molde.
+2. **Aulas de macetes.** Aulas sobre o sistema: o tempo das colunas, como um filtro age, como o custo se paga (o corpo,
+   o engaste, o mundo com `tenet`), as marcas, o grimório. Proposta: uma aula é um encontro marcado (hora do dia, sala,
+   mestre), onde o mestre conjura diante dos alunos e explica, e propõe um exercício que o aluno faz ali.
+3. **A sala de leitura** do Arquivo: **tratados, ensaios, contos e histórias** de magos antigos, livros escritos dentro
+   do mundo (sem referência ao mundo real), além dos guias de runa. Cada grau abre mais do Arquivo.
+4. **A oficina.** O aluno grava runas na mesa de galdraria e **registra** o objeto com o **artífice** da universidade: a
+   casa passa a conhecer aquela gravação (compartilha o conhecimento), vende e paga uma comissão ao aluno.
+5. **A disciplina da casa** (seção 4.5): conjurar contra alguém, roubar do Arquivo, fogo nos livros: o conselho, multa,
+   suspensão, expulsão.
+6. **O pedido prático do exame** ("acenda a vela daqui").
+7. **Outros alunos.** O jogador não é o único: alunos de verdade, Magos aprendizes da casa que assistem às aulas, vão
+   ao Arquivo, sonham as suas runas, sobem de grau e conversam (a mente de conjurador que já existe: aprendem
+   vivendo).
+
+Ordem proposta: a aula do `igni` (o molde, com o dormitório), os outros alunos (que dão vida às aulas), as aulas de
+macetes, a sala de leitura, a oficina, a disciplina da casa e o pedido prático; e, em paralelo, o ciclo de cada runa.
 
 ## 6. Perguntas abertas
 

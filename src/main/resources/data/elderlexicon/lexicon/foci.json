@@ -37,6 +37,7 @@
     "heart_of_the_sea": {"translation": "setting.elderlexicon.heart_of_the_sea", "color": "#2B8FB8", "item": "minecraft:heart_of_the_sea", "reserves": {"aqua": 80}},
     "flint": {"translation": "setting.elderlexicon.flint", "color": "#5A5A5A", "item": "minecraft:flint", "reserves": {"firmo": 40}},
     "fire_charge": {"translation": "setting.elderlexicon.fire_charge", "color": "#E8641A", "item": "minecraft:fire_charge", "reserves": {"igni": 40}},
-    "echo_shard": {"translation": "setting.elderlexicon.echo_shard", "color": "#1E7A86", "item": "minecraft:echo_shard", "echo": true}
+    "echo_shard": {"translation": "setting.elderlexicon.echo_shard", "color": "#1E7A86", "item": "minecraft:echo_shard", "echo": true},
+    "university_seal": {"translation": "setting.elderlexicon.university_seal", "color": "#D6B654", "item": "", "reserves": {"vis": 2000}}
   }
 }

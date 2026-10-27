@@ -33,6 +33,8 @@ class MindTest {
     void drawingInFromTheAimDrawsOutOfABody() {
         assertEquals(Intent.DRAW, Mind.serves(act("manifest", VitaElement.AQUA, Act.Toward.AIM, true)));
         assertNull(Mind.serves(act("manifest", VitaElement.AQUA, Act.Toward.AIM, false)), "water made there hurts no one");
+        assertNull(Mind.serves(act("manifest", VitaElement.IGNI, Act.Toward.AIM, false)),
+                "nor fire brought there: measured, it hurts the one who reads it, not the one looked at (3.14)");
     }
 
     @Test

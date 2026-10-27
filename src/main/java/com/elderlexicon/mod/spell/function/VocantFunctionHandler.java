@@ -52,6 +52,13 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
         }
         Optional<SpellPlace> place = action.flatMap(SpellAction::place);
         Optional<String> subject = action.flatMap(SpellAction::subjectMark);
+        // Into a marked square of an invocation bench, what is invoked goes into the square (docs/invocacao-design.md).
+        Optional<String> square = place.filter(at -> at.kind() == SpellPlace.Kind.MARK).map(SpellPlace::mark)
+                .filter(mark -> com.elderlexicon.mod.invocation.BenchInvocation.isSquare(level.getServer(), mark));
+        if (square.isPresent()) {
+            intoSquare(context, element, action.get(), subject, square.get());
+            return;
+        }
         if (subject.isPresent()) {
             // m1 vocant: what carries the mark appears where the mage aims (or at the ubis place); with chronos it goes
             // back where it was when the window ends, like any permanent matter summoned for a time.
@@ -82,7 +89,11 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
         // aqua quantum 32 vocant brings twice the water (book 4.3.2, linear); what goes beyond one block is paid. Fire is
         // the exception: by itself, igni vocant brings what makes a flame of a block of air (user, 03/10/2026).
         double usual = element == VitaElement.IGNI ? NatureWorld.flame() : DEFAULT_UMU;
-        double asked = action.map(SpellAction::quantity).orElse(OptionalDouble.empty()).orElse(usual);
+        // quantum 200 firmo quantum 4 vocant: the quantum before the source is how much, the one before the vocant how
+        // many blocks it covers; with one quantum alone, it is how much, all of it in one block.
+        int area = areaOf(action);
+        double asked = area > 1 ? action.get().sourceValue().getAsDouble()
+                : action.map(SpellAction::quantity).orElse(OptionalDouble.empty()).orElse(usual);
         // chronos is how long what was summoned stays or keeps acting (book 4.3.2: "igni exsugat chronos firmo vocant"),
         // and a tap held open: it spends that much for every two seconds (SpellFlow).
         int window = action.map(Chronos::window).orElse(0);
@@ -99,18 +110,19 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                 .filter(SpellPlace::followsMarks)
                 .map(marked -> MarkSpells.follower(context, marked, MarkSpells.SUMMON_RANGE));
 
-        boolean condensedEarth = element == VitaElement.FIRMO && action.isPresent() && action.get().atOnce()
-                && action.get().metadata().get(SpellAction.INTENSITY) != null;
-        boolean condensedWater = element == VitaElement.AQUA && action.isPresent() && action.get().atOnce()
-                && action.get().metadata().get(SpellAction.INTENSITY) != null;
-        boolean condensedAir = element == VitaElement.AURA && action.isPresent() && action.get().atOnce()
-                && action.get().metadata().get(SpellAction.INTENSITY) != null;
-        boolean condensedVis = element == VitaElement.BALANCED && action.isPresent() && action.get().atOnce()
-                && action.get().metadata().get(SpellAction.INTENSITY) != null;
+        // A vocant invokes into one block (user, 17/10/2026): all it brings is pressed into it, and how much is in that
+        // one block decides what appears there. Up to one block's worth it is the common element; past it, earth as
+        // dense as all of it, water pressed (ice past a point), air pressed (a bomb past a point), heat that melts and,
+        // past a point, plasma. No chronos is needed for any of it; held open with chronos it is the common element.
+        double each = energy / area;
+        boolean concentrating = window <= 0 && !intoGem && action.map(SpellAction::concentrates).orElse(false);
+        double intensity = concentrating ? intensityOf(element, each, action.get()) : 0.0D;
+        boolean condensed = intensity > 0.0D && area == 1;
+        // Spread over an area, earth is laid as blocks each as dense as its share.
+        Double earthDensity = element == VitaElement.FIRMO && intensity > 0.0D && area > 1 ? intensity : null;
         // The verb after acts on what this makes (igni vocant iactare): it is handed on, to be made where it starts from.
-        // A condensation is handed on too (igni quantum chronos 0 vocant iactare): gathered before the hand, it flies as
-        // its orb and is released where it strikes.
-        boolean condensed = condensedEarth || condensedWater || condensedAir || condensedVis;
+        // A concentration is handed on too (igni quantum 40 vocant iactare): gathered before the hand, it flies as its
+        // orb and is released where it strikes.
         Product product = action.isPresent() && action.get().handsOn()
                 ? new Product(element, SpellFlow.total(energy, window)) : null;
         context.handOn(product); // nothing, when no verb after takes it: what an earlier verb left is not handed on
@@ -141,7 +153,7 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                 }
                 product.ready(level, from, landed -> {
                     if (condensed) {
-                        releaseCondensed(level, player, element, action.get(), landed, window);
+                        releaseCondensed(level, player, element, action.get(), intensity, landed, window);
                         return;
                     }
                     appear(context, player, element, rune, landed, Invocation.Where.fixed(landed), energy, window,
@@ -163,7 +175,17 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                 return;
             }
             if (condensed) {
-                releaseCondensed(level, player, element, action.get(), aimed, window);
+                releaseCondensed(level, player, element, action.get(), intensity,
+                        aimed != null ? aimed : meeting, window);
+                return;
+            }
+            if (earthDensity != null) {
+                SpellEffects.SpellImpact at = aimed != null ? aimed : written.map(MarkSpells.Destination::impact)
+                        .orElseGet(() -> SpellEffects.findImpact(player, MarkSpells.SUMMON_RANGE));
+                double left = Invocation.dense(player, Invocation.Where.fixed(at), energy, earthDensity);
+                if (left > 1.0E-9D && !context.focusActive()) {
+                    VitaSystem.restoreElementEnergy(player, element, left);
+                }
                 return;
             }
             SpellEffects.SpellImpact impact = aimed != null ? aimed : written
@@ -187,6 +209,39 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
         });
     }
 
+    /**
+     * What is invoked into a square of an invocation bench goes into it: a marked thing as it is, a source as so many
+     * particles of it, paid as any vocant is (and a chronos, the time it will last once out of the bench, as a tap). What
+     * the square does not take goes back into the body.
+     */
+    private static void intoSquare(SpellContext context, VitaElement element, SpellAction action,
+                                   Optional<String> subject, String square) {
+        LivingEntity player = context.player();
+        ServerLevel level = Casters.level(player);
+        if (subject.isPresent()) {
+            java.util.List<net.minecraft.world.entity.item.ItemEntity> things = new java.util.ArrayList<>();
+            for (MarkTargets.Marked thing : MarkTargets.find(level.getServer(), subject.get())) {
+                if (thing.entity instanceof net.minecraft.world.entity.item.ItemEntity lying) {
+                    things.add(lying);
+                }
+            }
+            com.elderlexicon.mod.invocation.BenchInvocation.receive(level.getServer(), player, square, things);
+            return;
+        }
+        double usual = element == VitaElement.IGNI ? NatureWorld.flame() : DEFAULT_UMU;
+        double asked = action.quantity().orElse(usual);
+        int window = Chronos.window(action);
+        context.addTotalCost(SpellFlow.total(asked, window) - usual);
+        if (asked <= 1.0E-4D) {
+            return;
+        }
+        double left = com.elderlexicon.mod.invocation.BenchInvocation.receive(level.getServer(), player, square,
+                element, asked, window);
+        if (left > 1.0E-9D && !context.focusActive() && !element.isBalanced()) {
+            VitaSystem.restoreElementEnergy(player, element, left);
+        }
+    }
+
     /** Condensed fire where it appears: a hot spot that cools little by little. */
     private static void hotSpot(ServerLevel level, LivingEntity player, VitaElement element,
                                 Optional<SpellAction> action, Vec3 at) {
@@ -200,15 +255,16 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
      * All that was condensed, released at {@code at}: vis shows its four aspects at once; air bursts out all around, or
      * goes off as a bomb; water is pressed into ice VII held while chronos lasts (two seconds without it) and then
      * bursts, or bursts at once when it was not pressed hard enough to freeze; earth is one block as dense as all of
-     * it (docs/condensacao-design.md).
+     * it; fire is a heat that melts and, hot enough, is plasma (docs/condensacao-design.md).
      */
     private static void releaseCondensed(ServerLevel level, LivingEntity player, VitaElement element,
-                                         SpellAction action, SpellEffects.SpellImpact at, int window) {
+                                         SpellAction action, double intensity, SpellEffects.SpellImpact at,
+                                         int window) {
         if (!SpellEffects.isPlayerValid(player)) {
             return;
         }
-        double intensity = action.intensity();
         switch (element) {
+            case IGNI -> HeatSpots.strike(level, player, at.location(), intensity);
             case BALANCED -> VisSpots.release(level, player, at.location(), intensity);
             case AURA -> AirSpots.burst(level, player, at.location(), intensity);
             case AQUA -> {
@@ -219,10 +275,48 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
                     WaterSpots.burst(level, Vec3.atCenterOf(spot), intensity);
                 }
             }
-            case FIRMO -> EarthSpots.place(level, player, spotOf(at), intensity, action.carbon());
+            case FIRMO -> {
+                EarthSpots.place(level, player, spotOf(at), intensity, action.carbon());
+                // The rock it settles as holds what a block of it holds; what the block does not hold goes back into
+                // the body, as what makes no whole block does.
+                double invested = intensity * com.elderlexicon.mod.spell.Density.UMU_PER_DENSITY;
+                double left = EarthSpots.settled(intensity)
+                        .map(rock -> invested - rock.packing() * Particles.BLOCK_UMU).orElse(0.0D);
+                if (left > 1.0E-6D && action.carbon() <= 0) {
+                    VitaSystem.restoreElementEnergy(player, VitaElement.FIRMO, left);
+                }
+            }
             default -> {
             }
         }
+    }
+
+    /** How many blocks a vocant covers: the quantum before it, when another before the source says how much. */
+    private static int areaOf(Optional<SpellAction> action) {
+        if (action.isEmpty() || action.get().fromWorld() || action.get().sourceValue().isEmpty()
+                || action.get().potency().isEmpty()) {
+            return 1;
+        }
+        return (int) Math.max(1L, Math.min(4096L, Math.round(action.get().potency().getAsDouble())));
+    }
+
+    /**
+     * How intense {@code umu} pressed into one block is, in each aspect's own measure, or 0 when it is no more than one
+     * block of the common element holds: earth's density (UMU in the block over {@link
+     * com.elderlexicon.mod.spell.Density#UMU_PER_DENSITY}); water's pressure (a still source, one block of it, is
+     * {@link Pressure#SOURCE}); air's (a block of it is {@link com.elderlexicon.mod.spell.AirPressure#UMU_PER_AIR});
+     * fire's heat (a flame is 1). Vis pressed into one point only when it was gathered.
+     */
+    static double intensityOf(VitaElement element, double umu, SpellAction action) {
+        double block = Particles.BLOCK_UMU;
+        return switch (element) {
+            case FIRMO -> umu > block + 1.0E-6D ? umu / com.elderlexicon.mod.spell.Density.UMU_PER_DENSITY : 0.0D;
+            case AQUA -> umu > block + 1.0E-6D ? umu / block * Pressure.SOURCE : 0.0D;
+            case AURA -> umu > block + 1.0E-6D ? umu / block * com.elderlexicon.mod.spell.AirPressure.UMU_PER_AIR : 0.0D;
+            case IGNI -> umu > NatureWorld.flame() + 1.0E-6D ? umu / NatureWorld.flame() : 0.0D;
+            case BALANCED -> action.metadata().get(SpellAction.INTENSITY) != null ? action.intensity() : 0.0D;
+            default -> 0.0D;
+        };
     }
 
     /** The block a condensation is released into: where the creature stands, or before the face that was struck. */
@@ -273,6 +367,11 @@ public final class VocantFunctionHandler implements SpellFunctionHandler {
         if (subject.isPresent()) {
             MarkSpells.summon(context, subject.get(), Optional.of(SpellPlace.distance(BEFORE_THE_MAGE)),
                     SUMMON_DELAY_TICKS, Chronos.window(action));
+            return;
+        }
+        if (element.isBalanced()) {
+            // vis quantum -10 vocant: a quarter of each of the four, out of the blocks around, fused into vis.
+            VisDraw.absorb(context, action.quantity().orElse(WorldSources.DEFAULT_ABSORBED_UMU));
             return;
         }
         WorldSources.absorb(context, element, element,

@@ -9,10 +9,12 @@ import java.util.List;
 public final class RealmLayout {
 
     /**
-     * The realms, in the order they are laid out along z. The second place is left empty: the first tower stood there,
-     * and the tower of Lig'dar is laid out anew elsewhere rather than over its remains. Last, the mages' own islands.
+     * The realms, in the order they are laid out along z. The first two places are left empty: the realm of igni stood
+     * in the first (a rune is dreamed on the kern now: docs/aprendizado-runas-design.md, 4b), the first tower in the
+     * second, and the tower of Lig'dar is laid out anew elsewhere rather than over its remains. Last, the mages' own
+     * islands.
      */
-    public static final List<String> REALMS = List.of("igni", "", "tower", "kern");
+    public static final List<String> REALMS = List.of("", "", "tower", "kern");
     /** How far apart realms and instances are. */
     public static final int SPACING = 8192;
 

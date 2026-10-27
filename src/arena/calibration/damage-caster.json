@@ -1,0 +1,385 @@
+{
+  "foe": "caster",
+  "health": 24.0,
+  "times": 3,
+  "readings": [
+    {
+      "sentence": "firmo quantum 20 iactare",
+      "intent": "STRIKE",
+      "element": "FIRMO",
+      "arena": 8.0,
+      "world": 8.0,
+      "measured": 6.577777862548828,
+      "killed": false,
+      "early": 4.44444465637207,
+      "burning": false,
+      "visSpent": 10.5,
+      "lifeLost": 0.0,
+      "each": [
+        6.577777862548828,
+        6.577777862548828,
+        6.577777862548828
+      ]
+    },
+    {
+      "sentence": "aura quantum -10 vocant quantum 20 iactare",
+      "intent": "DRAW",
+      "element": "AURA",
+      "arena": 7.263157894736842,
+      "world": 7.2631578947368425,
+      "measured": 9.529824256896973,
+      "killed": false,
+      "early": 7.92982292175293,
+      "burning": false,
+      "visSpent": 37.81578947368422,
+      "lifeLost": 3.2258072,
+      "each": [
+        9.529824256896973,
+        9.529824256896973,
+        9.529824256896973
+      ]
+    },
+    {
+      "sentence": "firmo quantum 20 iactare surgit ego quantum 0",
+      "intent": "STRIKE",
+      "element": "FIRMO",
+      "arena": 8.0,
+      "world": 8.0,
+      "measured": 6.577777862548828,
+      "killed": false,
+      "early": 4.44444465637207,
+      "burning": false,
+      "visSpent": 12.900000000000006,
+      "lifeLost": 0.0,
+      "each": [
+        6.577777862548828,
+        6.577777862548828,
+        6.577777862548828
+      ]
+    },
+    {
+      "sentence": "igni tenet quantum 20 iactare surgit ego quantum 0",
+      "intent": "STRIKE",
+      "element": "IGNI",
+      "arena": 28.0,
+      "world": 0.0,
+      "measured": 24.0,
+      "killed": true,
+      "early": 24.0,
+      "burning": false,
+      "visSpent": 97.5,
+      "lifeLost": 3.1111107,
+      "each": [
+        24.0,
+        24.0,
+        24.0
+      ]
+    },
+    {
+      "sentence": "firmo quantum -10 vocant quantum 20 iactare",
+      "intent": "DRAW",
+      "element": "FIRMO",
+      "arena": 28.0,
+      "world": 0.0,
+      "measured": 24.0,
+      "killed": true,
+      "early": 24.0,
+      "burning": false,
+      "visSpent": 97.5,
+      "lifeLost": 5.263159,
+      "each": [
+        24.0,
+        24.0,
+        24.0
+      ]
+    },
+    {
+      "sentence": "igni tenet quantum 20 iactare",
+      "intent": "STRIKE",
+      "element": "IGNI",
+      "arena": 28.0,
+      "world": 0.0,
+      "measured": 24.0,
+      "killed": true,
+      "early": 24.0,
+      "burning": false,
+      "visSpent": 97.5,
+      "lifeLost": 3.1111107,
+      "each": [
+        24.0,
+        24.0,
+        24.0
+      ]
+    },
+    {
+      "sentence": "firmo iactare",
+      "intent": "STRIKE",
+      "element": "FIRMO",
+      "arena": 4.0,
+      "world": 4.0,
+      "measured": 3.2888965606689453,
+      "killed": false,
+      "early": 2.222227096557617,
+      "burning": false,
+      "visSpent": 0.5,
+      "lifeLost": 0.0,
+      "each": [
+        3.2888965606689453,
+        3.2888965606689453,
+        3.2888965606689453
+      ]
+    },
+    {
+      "sentence": "igni iactare",
+      "intent": "STRIKE",
+      "element": "IGNI",
+      "arena": 4.0,
+      "world": 4.0,
+      "measured": 6.577783584594727,
+      "killed": false,
+      "early": 2.6666717529296875,
+      "burning": true,
+      "visSpent": 0.5,
+      "lifeLost": 0.0,
+      "each": [
+        6.577783584594727,
+        6.577783584594727,
+        6.577783584594727
+      ]
+    },
+    {
+      "sentence": "aqua iactare",
+      "intent": "STRIKE",
+      "element": "AQUA",
+      "arena": 2.0,
+      "world": 2.0,
+      "measured": 3.2888965606689453,
+      "killed": false,
+      "early": 2.222227096557617,
+      "burning": false,
+      "visSpent": 0.5,
+      "lifeLost": 0.0,
+      "each": [
+        3.2888965606689453,
+        3.2888965606689453,
+        3.2888965606689453
+      ]
+    },
+    {
+      "sentence": "aura iactare",
+      "intent": "STRIKE",
+      "element": "AURA",
+      "arena": 1.0,
+      "world": 1.0,
+      "measured": 2.466665267944336,
+      "killed": false,
+      "early": 1.666666030883789,
+      "burning": false,
+      "visSpent": 0.5,
+      "lifeLost": 0.0,
+      "each": [
+        2.466665267944336,
+        2.466665267944336,
+        2.466665267944336
+      ]
+    },
+    {
+      "sentence": "igni quantum 20 iactare",
+      "intent": "STRIKE",
+      "element": "IGNI",
+      "arena": 8.0,
+      "world": 8.0,
+      "measured": 8.444441795349121,
+      "killed": false,
+      "early": 4.622220993041992,
+      "burning": true,
+      "visSpent": 10.5,
+      "lifeLost": 0.0,
+      "each": [
+        8.444441795349121,
+        8.444441795349121,
+        8.444441795349121
+      ]
+    },
+    {
+      "sentence": "igni impediunt quantum 20 iactare",
+      "intent": "STRIKE",
+      "element": "IGNI",
+      "arena": 8.0,
+      "world": 8.0,
+      "measured": 8.444441795349121,
+      "killed": false,
+      "early": 4.622220993041992,
+      "burning": true,
+      "visSpent": 10.5,
+      "lifeLost": 3.0,
+      "each": [
+        7.022218704223633,
+        8.444441795349121,
+        8.444441795349121
+      ]
+    },
+    {
+      "sentence": "firmo tenet quantum 20 iactare",
+      "intent": "STRIKE",
+      "element": "FIRMO",
+      "arena": 20.0,
+      "world": 0.0,
+      "measured": 24.0,
+      "killed": true,
+      "early": 24.0,
+      "burning": false,
+      "visSpent": 30.828399658203125,
+      "lifeLost": 0.0,
+      "each": [
+        4.44444465637207,
+        24.0,
+        24.0
+      ]
+    },
+    {
+      "sentence": "igni tenet chronos 0 impediunt quantum 20 iactare",
+      "intent": "STRIKE",
+      "element": "IGNI",
+      "arena": 8.0,
+      "world": 8.0,
+      "measured": 24.0,
+      "killed": true,
+      "early": 24.0,
+      "burning": false,
+      "visSpent": 97.5,
+      "lifeLost": 3.1111107,
+      "each": [
+        24.0,
+        24.0,
+        24.0
+      ]
+    },
+    {
+      "sentence": "firmo chronos 0 impediunt quantum 20 iactare",
+      "intent": "STRIKE",
+      "element": "FIRMO",
+      "arena": 8.0,
+      "world": 8.0,
+      "measured": 6.577777862548828,
+      "killed": false,
+      "early": 4.44444465637207,
+      "burning": false,
+      "visSpent": 10.5,
+      "lifeLost": 0.0,
+      "each": [
+        6.577777862548828,
+        6.577777862548828,
+        6.577777862548828
+      ]
+    },
+    {
+      "sentence": "lança de fogo",
+      "intent": "STRIKE",
+      "element": "IGNI",
+      "arena": 4.0,
+      "world": 4.0,
+      "measured": 0.0,
+      "killed": false,
+      "early": 0.0,
+      "burning": false,
+      "visSpent": 1.5,
+      "lifeLost": 0.0,
+      "each": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "sentence": "salva de fogo",
+      "intent": "STRIKE",
+      "element": "IGNI",
+      "arena": 12.0,
+      "world": 12.0,
+      "measured": 0.0,
+      "killed": false,
+      "early": 0.0,
+      "burning": false,
+      "visSpent": 9.5,
+      "lifeLost": 0.0,
+      "each": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "sentence": "mordida",
+      "intent": "",
+      "element": "AQUA",
+      "arena": 0.0,
+      "world": 0.0,
+      "measured": 3.636363983154297,
+      "killed": false,
+      "early": 3.636363983154297,
+      "burning": false,
+      "visSpent": 17.681818181818187,
+      "lifeLost": 4.4444447,
+      "each": [
+        3.636363983154297,
+        3.636363983154297,
+        3.636363983154297
+      ]
+    },
+    {
+      "sentence": "sangria",
+      "intent": "STRIKE",
+      "element": "AQUA",
+      "arena": 3.090909090909091,
+      "world": 3.09090909090909,
+      "measured": 3.935361862182617,
+      "killed": false,
+      "early": 2.868692398071289,
+      "burning": false,
+      "visSpent": 0.7323221726851017,
+      "lifeLost": 0.0,
+      "each": [
+        3.935361862182617,
+        3.935361862182617,
+        3.935361862182617
+      ]
+    },
+    {
+      "sentence": "beber e devolver",
+      "intent": "STRIKE",
+      "element": "AQUA",
+      "arena": 7.454545454545453,
+      "world": 7.454545454545457,
+      "measured": 7.571723937988281,
+      "killed": false,
+      "early": 5.793941497802734,
+      "burning": false,
+      "visSpent": 21.35857946222478,
+      "lifeLost": 4.4444447,
+      "each": [
+        7.571723937988281,
+        7.571723937988281,
+        7.571723937988281
+      ]
+    },
+    {
+      "sentence": "véu",
+      "intent": "STRIKE",
+      "element": "BALANCED",
+      "arena": 4.0,
+      "world": 4.0,
+      "measured": 0.0,
+      "killed": false,
+      "early": 0.0,
+      "burning": false,
+      "visSpent": 8.700000000000003,
+      "lifeLost": 0.0,
+      "each": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ]
+}

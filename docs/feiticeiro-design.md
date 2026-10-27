@@ -207,6 +207,457 @@ O autor viu que eles insistiam no que não fazia efeito, e que só atacavam.
 - Testes: `KeepingWholeTest` (unitários) e os GameTests `aSorcererHurtsWhatItAimsAt`, `aWoundedWizardHealsItself`,
   `aBurningWizardPutsItOut` e `aCasterWardsAFoeAtHand`.
 
+### 3.9 Onde ficar, e o grau na cabeça (pedido do autor, 13/10/2026)
+
+Um zumbi vencia um ancião. O mago abria o transe com o zumbi colado, o golpe quebrava o transe, nada saía, e ele abria
+de novo. Depois de duas quebras, passava a só abrir de longe, mas não tinha como se afastar: ficava parado apanhando.
+Além disso, o grau só mudava as runas que ele sabe, não o jeito de pensar.
+
+- **Tempo até o golpe (`Threat`).** Ele mede a distância, o alcance do golpe do inimigo (2 blocos; uma pessoa, 3) e a
+  velocidade com que o inimigo vem: a que ele viu nos últimos ticks, ou a que ele chuta para alguém daquele tipo (0,5
+  bloco por tick para cada ponto de velocidade; uma pessoa correndo, 0,28), a maior das duas. Só conta quem vem bater:
+  uma pessoa, ou uma criatura que o caça e tem golpe. Quem atira ou lê fica onde está, e a presa foge.
+- **Só abre o transe se o golpe não chegar antes do fim.** O mestre quer que o transe acabe antes do golpe (1×), o
+  ancião com folga (1,25×). O aprendiz não vê o inimigo chegando: continua aprendendo só depois de levar o golpe, como
+  antes (`Memory.safeDistance`).
+- **Manter distância (`keepDistanceGoal`).** Entre uma leitura e outra, ele recua de quem está mais perto do que ele
+  quer, mas nunca para tão longe que o que ele lê deixe de alcançar. Se recuar sem ganhar distância por 1,5 s, está
+  **encurralado**: lê onde está por 3 s (a mente já prefere barreira e fuga com o inimigo em cima). O Mago usa o mesmo
+  objetivo, com um piso de 5 blocos.
+- **O grau pesa na escolha.** Escolhe entre as 3, 2 ou 1 melhores (aprendiz, mestre, ancião), com sorte 0,3, 0,15 ou
+  0,05. Cansa de repetir: cada vez seguida que lê a mesma coisa contra o mesmo inimigo, ela vale 15% (mestre) ou 25%
+  (ancião) menos, até no mínimo 30%. O aprendiz não cansa, e repete.
+- Testes: `ThreatTest` (unitários) e o GameTest `aMasterKeepsAHuskOff`, em que um mestre só com pedra e fogo vence um
+  husk que começa a 3 blocos. Com o código anterior, o husk ganha.
+
+### 3.10 A arena e as doutrinas (pedido do autor, 13/10/2026)
+
+Os anciãos aprendem a lutar **fora do jogo**, numa arena, e o que aprendem fica guardado num arquivo que o mod carrega.
+
+- **A arena (`src/arena`).** É um simulador tique a tique: chão plano murado, um conjurador e um inimigo
+  que anda até ele e bate. Ela reproduz o transe de 2 s que um golpe quebra, as linhas soltas depois dele (o
+  conjurador fica parado, mirando: um arremesso segura 2 s), o descanso, a Vis gasta e recuperada (0,5 por segundo).
+  Ela **usa a própria mente do mod**: o catálogo de frases, `Mind.evaluate`, `Threat`. Assim, o que se treina é o
+  mesmo que roda no jogo, e não uma cópia que se perderia com o tempo.
+- **Calibrada pelo mundo.** A GameTest `theArenaIsSetByTheWorld` mede a velocidade do husk (0,114 bloco por tick)
+  e a de quem recua (Feiticeiro 0,345, Mago 0,264), e a arena usa esses números (`Calibration`). Quando o mundo
+  mudar, mede-se de novo. A medição às vezes sai torta, quando algo de outro teste atravessa o caminho: vale olhar
+  duas rodadas.
+- **O que se aprende é a postura, não a frase.** Em cada momento livre, o ancião escolhe entre ferir, tirar,
+  proteger, fugir, curar, sumir, recuar, aproximar e esperar. A frase continua sendo escolhida pela mente. A situação
+  é vista em degraus: distância, quantos transes até o golpe, a própria vida, a Vis, a vida do inimigo e se o
+  descanso já acabou (1512 situações). Sem esse último dado, mais treino piorava a doutrina: recuar e ferir se
+  confundiam. O aprendizado é Q-learning em tabela: cada luta ajusta um pouco quanto vale cada postura em cada
+  situação.
+- **A doutrina** é um JSON em `data/elderlexicon/doctrines/<inimigo>.json`. Ele guarda os degraus, quanto cada
+  postura vale em cada situação vista pelo menos 30 vezes, e como foi treinado (lutas, sementes, velocidades,
+  vitórias). Dá para abrir e ler o que o ancião "pensa".
+- **No jogo.** Só o **ancião** segue doutrina, e só contra um inimigo para o qual há uma (zumbis e parentes,
+  aranhas e aranhas de caverna, esqueletos e errantes com arco: seção 3.11). A cada meio segundo livre ele pergunta à doutrina o que fazer. Se for ler, a mente
+  escolhe a melhor frase para aquela intenção. Se for recuar ou aproximar, os objetivos de movimento obedecem. Numa
+  situação que a doutrina nunca viu, ele luta como na 3.9.
+- **Treinar:** `gradlew trainDoctrines --args="--foe zombie --episodes 1000000 --open"`. Sem `--open`, treina também em salas (3.12), o que ainda não deve ser instalado. Sem `--install`, o
+  arquivo vai para `build/doctrines`. `--show` lista as frases que a mente escolheria para cada intenção. Mudou a
+  potência, o custo ou o alcance das runas: treina-se de novo.
+- **As paredes importam.** Numa arena de 24 × 24, o ancião recuava até o canto e perdia 82% das lutas, com ou sem
+  doutrina. Em campo aberto (80 × 80), como as primeiras doutrinas foram treinadas:
+
+  | 3000 lutas, mesmos começos | vence (sorteadas) | vence (frescas) | transes quebrados |
+  |---|---|---|---|
+  | como antes da 3.9 | 3% | 0% | 3,1 |
+  | ancião, só a 3.9 | 95% | 93% | 0,2 |
+  | ancião, doutrina | 96% | 95% | 0,5 |
+
+  A doutrina é mais agressiva que a regra da 3.9: perde menos lutas, mas termina com menos vida. Ela não sabe onde
+  ficam as paredes: num lugar fechado, ainda se encurrala.
+- **Limites.** A arena não tem quinas, buracos, água nem empurrão. O resultado de cada frase é a previsão da mente
+  (`Mind.potency`, `Mind.person`), e não o efeito de verdade. Por isso o que ela aprende precisa ser conferido no
+  jogo (GameTest `anElderFollowsItsDoctrine`).
+
+### 3.11 Aranhas e esqueletos (pedido do autor, 13/10/2026)
+
+Cada inimigo pede da arena uma coisa diferente.
+
+- **Aranha.** Corpo a corpo, como o zumbi, porém mais rápida (0,18 bloco por tick, medido), larga (o golpe alcança
+  cerca de 2,9 blocos, contra 1,4 do zumbi) e salta quando está de 2 a 4 blocos. O jogo agora calcula o alcance do
+  golpe pela largura da criatura, como o próprio vanilla (`blowOf`). Para o zumbi, nada muda.
+- **Esqueleto.** O perigo é a flecha, não ele chegar. O arco tem um ciclo: espera 40 ticks depois de uma flecha (20 no
+  difícil), puxa 20 e solta. A flecha voa 1,6 bloco por tick. O mago vê o esqueleto puxar o arco
+  (`isUsingItem`) e percebe quando ele solta, e daí calcula quando vem a próxima flecha (`Threat.ticksToArrow`). Isso
+  entra na situação da doutrina no mesmo lugar do "tempo até o golpe".
+- **A regra da 3.9 não espera flechas.** Na arena, esperar uma janela entre flechas deixava o ancião sem doutrina
+  *pior* que antes (vencia 65%, contra 77%): ele tomava flechadas enquanto esperava. Por isso, sem doutrina, o
+  tempo até o golpe só vale contra quem vem bater.
+- **Como a flecha acerta** era um chute: 90% a 5 blocos, 60% a 15, e 70% disso contra quem anda. Medido depois
+  (3.15). O dano é 3,5.
+
+Resultados na arena (80 × 80, 1 milhão de lutas de treino; 3000 lutas, mesmos começos):
+
+| | vence (sorteadas) | vence (frescas) |
+|---|---|---|
+| aranha, como antes | 9% | 0% |
+| aranha, ancião só com a 3.9 | 82% | 73% |
+| aranha, ancião com doutrina | 87% | 83% |
+| esqueleto, como antes (igual à 3.9) | 81% | 77% |
+| esqueleto, ancião com doutrina | 99,9% | 99% |
+
+- **O que a doutrina do esqueleto aprendeu:** lê (`tirar` ou `ferir`) logo depois de uma flecha, quando faltam de
+  1 a 1,5 transe para a próxima, e se move quando a flecha está para vir. Os 99% dependem do chute de que a flecha
+  erra mais quem anda: se no jogo não for assim, o número cai.
+- **No jogo:** as GameTests `anElderFightsASpiderByItsDoctrine` e `anElderFightsASkeletonByItsDoctrine` passam,
+  junto com a do husk. Em duas rodadas, o ancião venceu as três lutas em poucos segundos, perdendo no máximo 4 de
+  24 de vida: com o idioma quase todo, ele tira a vida do corpo do inimigo de longe. Essas lutas são curtas demais para pôr à prova o ritmo da doutrina. A
+  GameTest `theArenaIsSetByTheWorldForSpidersAndSkeletons` mede a aranha e o arco: 6 flechas em 360 ticks, cerca de
+  23 ticks puxando cada uma.
+- **Treinar:** `gradlew trainDoctrines --args="--foe spider --episodes 1000000 --install"` (e
+  `--foe skeleton`).
+
+### 3.12 O sentido de parede (pedido do autor, 13/10/2026)
+
+Até aqui, o mago recuava sempre em linha reta para longe do inimigo, e a doutrina não sabia onde ficavam as paredes.
+Em lugar fechado, ele recuava até o canto e morria lá.
+
+- **Quanto espaço há (`Room`).** O mago olha 5 direções a partir da que se afasta do inimigo (reto, ±45° e ±90°) e
+  mede quantos blocos poderia andar em cada uma, até 12. No jogo, um bloco é andável se não há nada no pé nem na
+  cabeça, nenhum líquido nem fogo, e há chão embaixo (ou um degrau abaixo); ele também sobe um degrau. Na arena,
+  conta só a parede da sala. O código é o mesmo nos dois lados.
+- **Recuar pelo melhor caminho.** Ele vai pela direção com mais espaço; reto para trás vale 2 blocos a mais que de
+  lado, porque ganha mais distância. Se nenhuma direção tem 1,5 bloco livre, ele se sabe **encurralado** na hora, em
+  vez de empurrar a parede por 1,5 s antes de perceber. Isso vale para todo conjurador, com doutrina ou sem.
+- **A doutrina pode ver o espaço:** encurralado (menos de 3 blocos), apertado (3 a 8) ou aberto. As doutrinas que
+  não aprenderam com esse dado continuam sendo lidas, sem ele.
+- **A arena treina em salas.** Cada luta de treino acontece em campo aberto (40% das vezes) ou numa sala de lados
+  sorteados entre 5 e 32 blocos, o que inclui corredores (`Hall`). A luta começa com o mago descansando (20 ticks),
+  como no jogo. `--open` treina só em campo aberto, `--hurt` diz quanto pesa a vida perdida (padrão 2), e
+  `--trace N` imprime as decisões de N lutas numa sala.
+
+**O que a arena mostrou** (3000 lutas frescas por cenário; ancião só com a 3.9 → ancião com doutrina treinada em
+salas):
+
+| | campo aberto | sala 16 × 16 | sala 10 × 10 | corredor 5 × 40 |
+|---|---|---|---|---|
+| zumbi | 99% → 100% | 4% → 89% | 0% → 32% | 28% → 78% |
+| aranha | 99% → 100% | 0% → 0% | 0% → 0% | 4% → 28% |
+| esqueleto | 77% → 100% | 63% → 100% | 47% → 100% | 65% → 100% |
+
+**Mas essas doutrinas não foram instaladas.** No jogo, elas se saíram pior que as anteriores:
+
+- **Pagar com a carne de propósito.** O rastreamento (`--trace`) mostrou que, em sala, a doutrina deixa o zumbi
+  bater até a vida cair abaixo de 45%. Assim o mago agressivo fica desesperado e pode pagar com a carne o `tirar`
+  letal, que custa uns 100 UMU. Na arena funciona; no jogo, o ancião passava do ponto e morria. Pesar em dobro a
+  vida perdida (`--hurt 2`) acaba com isso em campo aberto (ele termina com 22 de vida em vez de 9), mas não em sala,
+  onde é a única saída que a arena enxerga.
+- **A diferença está no dano.** No jogo, o ancião mata um husk com um ou dois `ferir`; a arena supõe 8 de dano por
+  arremesso (`Mind.potency`, um chute "a ajustar jogando"). Com o dano subestimado, as lutas da arena ficam longas, as
+  paredes pesam muito mais e a doutrina aprende saídas desesperadas que no jogo só atrapalham. **Antes de treinar
+  doutrinas para salas, é preciso medir o dano de verdade** (uma GameTest que compare o que cada frase faz com o que a
+  mente previu) e calibrar a arena com isso.
+- **O que ficou no jogo:** o recuo pelo melhor caminho e as doutrinas anteriores (só campo aberto, 3.10 e 3.11). Com
+  eles, o ancião venceu as quatro lutas de teste, **inclusive a da sala de 16 × 16**, nas duas rodadas, quase sempre
+  sem perder vida.
+- **Aranha em lugar fechado é perdida na arena:** a 8 blocos, ela chega em cerca de 28 ticks, menos que os 40 do
+  transe, e seu golpe alcança quase 3 blocos. Se isso se confirmar no jogo, a resposta não está na mente, e sim em ler
+  mais depressa (varinhas gravadas, `docs/varinhas-design.md`) ou em ter algo preparado antes da luta.
+- **Escapar do canto passando pelo inimigo** (de lado, a mais de 90°) ainda não está entre as direções olhadas.
+- **GameTests:** `anElderFightsAHuskInAHall` (sala de 16 × 16, **não obrigatória** enquanto nenhuma doutrina de sala
+  estiver instalada) e a da aranha, agora num campo de 40 × 40 com teto: sem o teto, a aranha arremessada pelo golpe
+  escalava a parede e sumia de vista. As lutas de doutrina registram no log, a cada segundo, o que o ancião vê e
+  decide (`describeFight`). Testes de unidade: `RoomTest`.
+
+### 3.13 O dano medido (pedido do autor, 13/10/2026)
+
+A arena usava como dano de cada frase a previsão da mente (`Mind.potency` para arremessos, um chute "a ajustar
+jogando"; `Mind.person` para tirar, o corpo de uma pessoa). Agora ela usa o que foi medido no jogo.
+
+- **A medição.** As GameTests `whatTheElderDoesToAHusk`, `...ToASpider` e `...ToASkeleton` montam uma lista: as
+  frases que o ancião da arena lê para ferir e para tirar (perto e longe, inteiro, ferido e desesperado, com Vis cheia
+  e pouca) e os arremessos simples de cada energia. Um Feiticeiro novo lê cada frase num alvo parado a 6 blocos, 3
+  vezes, e fica a mediana. Tudo vai para `run/arena-calibration/damage-<inimigo>.json`, com o previsto ao lado.
+  A distância não muda nada (6 e 12 blocos deram o mesmo). A medição leva minutos, então só roda com a variável de
+  ambiente `ELDERLEXICON_CALIBRATE` definida; sem ela, os testes passam na hora.
+- **A arena usa a tabela** (`src/arena/calibration`, `Damage`). Frase medida faz o que foi medido. Frase não medida
+  faz o previsto vezes a mediana de medido/previsto das medidas da mesma intenção e energia. `--foreseen` volta ao
+  previsto.
+
+O que a medição mostrou (dano em pontos de vida; previsto pela arena → medido):
+
+| frase | husk (20) | aranha (16) | esqueleto (20) |
+|---|---|---|---|
+| `firmo quantum 20 iactare` | 8 → 7,5 | 8 → 13,6 | 8 → 7,8 |
+| `aqua quantum -10 vocant quantum 20 iactare` | 7,6 → 13,7 | 7,6 → 13,1 | 7,6 → mata |
+| `firmo quantum -10 vocant quantum 20 iactare` | 28 → 14,3 | 28 → mata | 28 → 10,3 |
+| `igni tenet quantum 20 iactare` (só desesperado) | 28 → mata | 28 → mata | 28 → mata |
+| `igni iactare` / `aqua iactare` / `aura iactare` | 4 / 2 / 1 → 6,8 / 4 / 2,8 | → 7,1 / 4 / 3 | → 6 / 4 / 2,9 |
+
+O arremesso de terra está bem previsto, menos contra a aranha. Tirar (com o arremesso que vem junto) faz quase o
+dobro do previsto. Fogo, água e ar fazem de 1,7 a 2,8 vezes mais que o chute. **No jogo, `Mind.potency` erra do
+mesmo jeito**, o que puxa os conjuradores para a terra; corrigi-lo muda o equilíbrio de todos, e fica para decidir.
+
+- **A mente que treina é a cautelosa** (`--personality`). O rastreamento mostrou que a doutrina, treinada com um
+  ancião agressivo, planejava apanhar até ficar desesperado e então pagar com a carne o golpe letal. O cauteloso
+  nunca fica desesperado: ele seguiria esse plano até morrer. Treinada com a mente cautelosa, a doutrina não conta
+  com o desespero e vence o mesmo tanto, terminando com mais vida.
+- **`sumir` como no mod.** Quem foi despistado ainda nota um invisível a 7% do seu alcance de visão (zumbi: 2,5
+  blocos; aranha e esqueleto: 1,1), e o reencontra. A arena tratava `sumir` como perder o mago de vez.
+- **Esperar encostado.** Uma regra "com o inimigo a menos de 3 blocos e espaço para recuar, nunca esperar nem
+  aproximar" (`--sensible`) piorou a doutrina na arena nas duas vezes em que foi testada. Fica como opção, desligada.
+
+Resultados com o dano medido (3000 lutas frescas; ancião só com a 3.9 → com doutrina):
+
+| | campo aberto | sala 16 × 16 | corredor 5 × 40 |
+|---|---|---|---|
+| zumbi | 99% → 99,9% (23 de vida no fim) | 16% → 79% | 32% → 75% |
+| aranha | 99% → 99% | 0% → 0% | 4% → 2% |
+| esqueleto | 79% → 100% | 67% → 100% | 69% → 100% |
+
+**Instaladas depois da 3.14.** Na primeira tentativa, o ancião morreu queimado numa luta em campo aberto; a causa
+estava na mente, não na calibração (3.14). Corrigida a mente, as doutrinas calibradas venceram as quatro lutas de
+teste em quatro rodadas seguidas, sem queimaduras, terminando com 19 a 22 de vida de 24.
+
+Quanto a flecha acerta quem anda foi medido depois (3.15).
+
+### 3.14 O fogo que o mago lê contra si (pedido do autor, 14/10/2026)
+
+Numa luta de teste, o ancião morreu queimado. Parecia que ele andava pelo fogo que suas frases deixavam no chão; não
+era.
+
+- **Ele não anda pelo fogo.** As GameTests `aCasterWalksAroundFire` e `aCasterDoesNotWalkThroughFire` põem uma faixa
+  de fogo eterno entre um Feiticeiro e o alvo. Com uma passagem de lado, ele dá a volta e chega perto; sem passagem,
+  fica do lado de fora. O caminho do Minecraft já evita fogo; nada precisou mudar ali.
+- **Ele se queimava lendo.** As lutas de doutrina agora registram no log o momento em que o ancião pega fogo: onde
+  estava, as chamas em volta (nenhuma), a última fonte de dano e a última frase lida (`BURNING ...`). Era sempre
+  `igni quantum 20 24 ubis vocant`, "fogo levado a 24 blocos", lida contra um husk a 12 ou 20 blocos.
+- **`igni ... vocant` não fere quem é mirado.** A GameTest `whatFireSetsTheCasterBurning` leu cada variante contra um
+  husk a 6, 12 e 20 blocos: o husk não perdeu nada em nenhuma, e quem leu perdeu de 1 a 4 de vida. A mente contava
+  "fogo trazido para onde se mira" como golpe (`Mind.intentOf`); deixou de contar. O motor de feitiços ficou como
+  está: **por que o fogo trazido fere quem lê, e não o alvo, é uma pergunta para o motor** (`VocantFunctionHandler`),
+  se não for o que se quer.
+- **A sonda deixa chamas no mundo** (blocos de luz) onde os testes seguintes são montados, e derrubava 8 a 10 testes
+  de fogo e matéria. Por isso ela só roda com `ELDERLEXICON_PROBE` (nem a calibração a liga).
+- **Queimadura legítima:** um esqueleto em chamas atira flechas em chamas, e isso também incendeia o mago.
+
+### 3.15 Quanto a flecha acerta (pedido do autor, 14/10/2026)
+
+- **A medição.** A GameTest `howOftenAnArrowStrikes` (só com `ELDERLEXICON_CALIBRATE`) monta quatro raias lado a
+  lado. Em cada uma, um esqueleto que não anda (velocidade zero, mas mira e atira) atira num Feiticeiro inerte, que é
+  movido à mão a 0,345 bloco por tick, o passo de quem recua. O movimento começa quando o arco é puxado e vai até a
+  flecha chegar, e a partida é escolhida para que, no disparo, ele esteja a 5, 10 ou 15 blocos. Uma raia por
+  movimento: parado, recuando, avançando, de lado. Acertou é perdeu vida; ele é curado entre uma flecha e outra.
+  Tudo vai para `arena-calibration/arrows-skeleton.json`, flecha por flecha, com a distância real no disparo.
+- **O resultado** (três rodadas somadas, `src/arena/calibration/arrows-skeleton.json`):
+
+  | movimento do mago | 5 blocos | 10 blocos | 15 blocos |
+  |---|---|---|---|
+  | parado | 93% | 50% | 27% |
+  | recuando | 42% | 37% | 13% |
+  | avançando | 90% | 42% | 28% |
+  | de lado | 8% | 3% | 0% |
+
+  O chute errou para os dois lados. Parado, o mago leva **bem menos** flechas de longe (27% a 15 blocos, não 60%).
+  Avançar quase não protege. **Andar de lado é quase imune**: o esqueleto mira onde o mago está, não onde vai estar.
+- **A arena** classifica o movimento do mago no instante do disparo, pela direção do passo em relação à flecha
+  (`Arrows.Motion`): parado, recuando, avançando ou de lado. Entre as distâncias medidas, interpola.
+- **O esqueleto da raia de lado morreu cedo** em duas das três rodadas, e não foi o sol (na terceira ele tinha
+  resistência a fogo). Por isso essa raia tem menos flechas (48, 36 e 12). A causa ficou sem explicação.
+- **Medir mexe no mundo.** As medições de dano leem frases de fogo e deixam chamas onde os testes seguintes são
+  montados: numa rodada com `ELDERLEXICON_CALIBRATE`, os testes de chama podem falhar. A suíte normal, sem a
+  variável, não roda nada disso.
+
+Com isso, contra o esqueleto (3000 lutas frescas): como antes 98% em campo aberto, 84% na sala de 16 × 16, 62% na de
+10 × 10; com a doutrina, 100% em todos os cenários, terminando com 21 a 23 de vida.
+
+**O que isso sugeria:** uma postura própria de andar de lado, circulando o inimigo como um jogador faz (3.16).
+
+### 3.16 Circular (pedido do autor, 14/10/2026)
+
+Uma postura nova, `CIRCLE`: o mago anda em volta do inimigo, na perpendicular à linha entre os dois.
+
+- **Para que lado.** Para o lado em que estava indo, enquanto houver espaço ali (1,5 bloco livre); senão, para o
+  outro, se ele tiver mais (`Room.aside`, o mesmo olhar de espaço do recuo, 3.12). No jogo, o objetivo que recua
+  também circula quando a doutrina manda, a passos de 3 blocos, refazendo o caminho a cada quarto de segundo. Na
+  arena, cada passo dele conta como "de lado" para as flechas (3.15).
+- **Só pela doutrina.** A regra da 3.9, sem doutrina, não circula. As doutrinas que não conhecem a postura nunca a
+  escolhem (ela vale o mínimo nelas).
+
+Resultados na arena (3000 lutas frescas; doutrina sem círculo → com círculo):
+
+| | campo aberto | sala 16 × 16 | sala 10 × 10 | corredor 5 × 40 |
+|---|---|---|---|---|
+| zumbi | 99,9% → 100% | 79% → **97%** | 8% vence, 92% morre → 3% vence, 54% morre | 75% → 78% |
+| aranha | 99,4% → 99,9% | 0% → 0% | 0% → 0% | 2% → 4% |
+| esqueleto | 100% → 100% (vida no fim 21 → 23) | 100% → 100% (21 → 24) | 100% → 100% | 100% → 100% |
+
+- **Contra o zumbi numa sala,** circular é o que faltava: ele anda em volta, o zumbi corta por dentro e nunca o
+  alcança, e o mago lê quando abre distância. Na sala de 10 × 10, ainda não ganha, mas sobrevive em quase metade das
+  lutas, que acabam empatadas.
+- **Contra a aranha em lugar fechado,** nada muda: ela é rápida demais para isso.
+
+### 3.17 Mago contra mago (pedido do autor, 14/10/2026)
+
+- **O transe do outro é a ameaça.** Contra outro conjurador, o "tempo até o golpe" é quanto falta para o transe dele
+  acabar (o transe aparece sobre a cabeça), zero enquanto ele solta as linhas, ou o descanso dele mais um transe
+  inteiro (`Threat.ticksToReading`).
+- **Dano medido contra um Feiticeiro** (`whatTheElderDoesToACaster`; `ELDERLEXICON_CALIBRATE=caster` mede só isso):
+  ferir forte 6,6, tirar 9,3 a 9,5, e as frases de desespero matam (24).
+- **A arena ganhou um oponente que lê.** Lê ferir, tirar ou curar com o mesmo transe, descanso e Vis, e anda até o
+  mago quando nada do que lê o alcança. Um golpe quebra o transe dele como o dele quebra o do mago. Não usa barreira,
+  fuga nem sumir, não recua e não põe fogo.
+- **Quem é ferido reencontra quem o feriu, mesmo invisível** (o `HurtByTargetGoal` do jogo ignora a invisibilidade).
+  A arena achava que `sumir` despistava até quem estava sendo ferido; corrigido para todos os inimigos. As doutrinas
+  de zumbi, aranha e esqueleto quase não mudaram com isso.
+- **Doutrina por temperamento.** Contra outro mago, o agressivo, ferido, fica desesperado e mata de uma vez; o
+  cauteloso nunca. Por isso a doutrina contra magos é de um temperamento (`caster-<temperamento>.json`), treinada
+  contra oponentes de temperamento sorteado (`--personality`, `--foe-personality`), e o ancião segue a do seu.
+
+  | temperamento | sem doutrina | com doutrina (arena) |
+  |---|---|---|
+  | agressivo | 63–79% | 97–100% |
+  | trapaceiro | 24–49% | 81–100% (termina com 4 de vida) |
+  | cauteloso | 13–21% | 0–15%: pior |
+
+- **Não instaladas.** No jogo, um ancião agressivo com a doutrina perdeu as quatro lutas contra um Mago mestre
+  agressivo. O Mago de verdade recua e põe fogo no chão sob os pés do ancião, e ele queimava por segundos; nada
+  disso existe no oponente da arena. A GameTest `anElderBeatsAnotherCaster` fica, não obrigatória, para medir a
+  distância. Para instalar, o oponente da arena precisa recuar e incendiar como o do mundo.
+- **Pegando fogo, o mago larga a doutrina.** Nenhuma postura dela é "apagar o fogo": com a doutrina, ele não se
+  apagava. Agora, em chamas, a mente decide. Mesmo assim, na luta registrada, ela leu ferir em vez de sair do fogo;
+  sair de um bloco em chamas veio depois (3.18).
+
+### 3.18 Sair do fogo (pedido do autor, 14/10/2026)
+
+- **Primeiro sair.** Um objetivo novo, acima de todos (`escapeFireGoal`): parado num bloco em chamas (no pé ou na
+  cabeça) ou na lava, o mago vai até o chão seguro mais próximo, sem chama ao lado. Entre os pontos seguros, escolhe
+  o de menos chamas no caminho (encostado numa parede de fogo, volta por onde veio; no meio de um braseiro, sai pelo
+  lado mais curto), e então o mais próximo. Vai em linha reta, sem procurar caminho: de dentro do fogo, não há.
+- **Não abre o transe dentro do fogo.** E, se o fogo vem enquanto lê, quem prevê o que vem (mestre, ancião) larga o
+  transe e sai; o aprendiz continua lendo, e queimando.
+- **O caminho nunca passa pelo fogo.** O andar do Minecraft só evita fogo e atravessa quando não há outro caminho;
+  para um conjurador, fogo é intransponível e estar ao lado dele custa o dobro.
+- **GameTest** `anElderStepsOutOfFire`: um ancião posto no meio de um braseiro de 3 × 3 sai em 11 a 12 ticks e
+  fica fora. As de 3.14 (contornar e não atravessar uma faixa de fogo) continuam passando.
+- **Encontrado no caminho, não resolvido: encher-se demais.** Numa luta contra o esqueleto, depois de ler duas vezes
+  `firmo quantum -10 vocant` (tirar terra do alvo) estando inteiro, o ancião passou a perder quase 5 de vida por
+  segundo com dano de "lava", sem lava por perto, e perdeu. A sonda (`ELDERLEXICON_PROBE`) mostra que cada leitura de
+  tirar custa de 1,6 a 4,4 de vida a quem lê, sem fonte de dano: é o Vita. A suspeita é que tirar sem precisar
+  enche o corpo além da conta, e o Vita castiga isso como calor. A mente não conhecia esse risco (3.19).
+
+### 3.19 Encher-se demais (pedido do autor, 15/10/2026)
+
+O corpo é um cálice com capacidade fixa (5 UMU por ponto de vida), e cada elemento tem a sua parte: água 55%,
+ar 38%, terra 5%, fogo 2%. O que tirar traz para dentro do mago entra por esse caminho:
+
+- **Passou do cheio, empurra os outros para fora** (`VitaData.contain`), em proporção ao que cada um tem. A vida
+  segue o elemento que mais falta, então ela cai. Para um Feiticeiro (120 UMU), 10 de terra entrando com o corpo
+  inteiro custam cerca de 2 de vida. O excesso depois sai aos poucos, mas o que foi empurrado não volta.
+- **Desequilíbrios têm efeitos** (`IgniImbalanceEffects`, `FirmoImbalanceEffects`): fogo muito acima do cheio
+  **incendeia o corpo a cada 2 segundos**, o que explica as queimaduras "sem chama nenhuma por perto"; terra em excesso
+  deixa lento; terra muito baixa corta 8 da vida máxima.
+
+**O que a mente fazia de errado:** previa o que encher o corpo devolve com `lifeGivenBy`, que para no cheio e nunca
+fica negativo. Para ela, tirar só fazia bem a quem tira.
+
+**O que mudou:**
+- `VitaSystem.lifeChangedBy` simula a entrada pelo mesmo caminho do corpo (com o deslocamento) e pode dar negativo;
+  `overfullBy` diz quanto um elemento passa do cheio. A previsão da arena (`Mind.person`) faz o mesmo com o corpo de
+  uma pessoa.
+- Tirar vale o que tira do alvo mais o que volta à vida de quem tira, se voltar; se custar vida, isso entra como
+  risco. Puxar do mundo para se curar, o mesmo. Encher-se de fogo além da metade acima do cheio é mais um risco (o
+  corpo se incendeia).
+- Na arena, o que volta (ou o que custa) passa a mexer na vida do mago.
+
+**O que isso revelou:**
+- **A página "cura" faz mal.** Ela põe 10 de fogo e 10 de terra num corpo em que o fogo cheio é cerca de 2 e a terra
+  cerca de 5: transborda, empurra o resto e incendeia. A mente agora não a lê. Para servir, a cura precisa de
+  quantidades na proporção do corpo (fogo perto de 1 UMU), e a gramática só escreve 10, 20 e −10.
+- **Tirar inteiro não vale a pena.** O teste `aWoundedMindWantsToDrawMore` esperava que tirar a água de uma vaca valesse
+  algo para um Feiticeiro inteiro; agora não vale, e só ferido vale.
+- **A quantidade escrita ao contrário.** Em `firmo quantum -10 vocant`, a mente prevê que nada é tirado do alvo (lê a
+  quantidade −10 como zero), mas no jogo tira (6,7 de um husk). Corrigida a leitura, a mente passou a ler essas
+  frases muito mais, e numa luta uma só leitura custou mais de 60 de Vis e 11,8 de vida contra um husk quase morto: o
+  motor puxa fontes inteiras, a mais próxima primeiro (`WorldSources`), e quando o corpo mirado tem pouco, puxa de
+  outro lugar. A mente não prevê isso, então a correção foi desfeita: a leitura do −10 fica como estava, e o custo
+  real de tirar (medido agora pela medição de dano: Vis gasta e vida perdida por frase) é o próximo passo.
+
+### 3.20 Lutas de teste isoladas (pedido do autor, 15/10/2026)
+
+As GameTests rodam muitas de uma vez, umas ao lado das outras, e criaturas de um teste entravam nos outros: um Mago de
+outro teste incendiou o ancião no meio de uma luta contra um husk; lutas deixavam restos onde o Mago de outro teste
+gravava varinhas ou lia nas estantes. Cada validação virava loteria.
+
+- **A ilha** (`SpellGameTests.Isle`): as lutas são montadas mil blocos ao lado do lugar do próprio teste, com os
+  chunks seguros carregados enquanto a luta dura. Ao abrir, ela varre a área (qualquer criatura, flecha ou item que
+  esteja lá); ao fechar, varre de novo, desmonta o que foi construído e solta os chunks. Fecha sempre, ganhando ou
+  perdendo.
+- **Na ilha:** as lutas de doutrina (husk, husk na sala, aranha, esqueleto, duelo) e a do mestre contra o husk.
+- **Resultado:** duas rodadas seguidas com todos os 105 testes obrigatórios passando, pela primeira vez; o ancião
+  venceu as quatro lutas nas duas, com 19 a 22 de vida no fim. As falhas do Mago que grava varinhas e do que lê nas
+  estantes também sumiram: vinham das lutas.
+- **O duelo, isolado, o ancião vence.** A GameTest opcional `anElderBeatsAnotherCaster` acusa "nunca consultou a
+  doutrina", o que só acontece quando o Mago morre: sem doutrina de duelo instalada, o ancião agressivo venceu o Mago
+  mestre nas duas rodadas. As quatro derrotas de 3.17 tinham interferência de outros testes; o que lá se concluiu
+  sobre o duelo precisa ser medido de novo.
+
+### 3.21 A doutrina de duelo, posta à prova (pedido do autor, 15/10/2026)
+
+Com as lutas isoladas (3.20), as doutrinas de duelo foram retreinadas com a mente atual (3.19) e postas no jogo.
+
+- **Na arena:** o ancião agressivo vai de 61–70% para 94–100% de vitórias contra magos de temperamento sorteado; o
+  trapaceiro, de 36–49% para 85–100%. Os dois terminam com pouca vida (9 e 4 de 24).
+- **O que elas aprenderam:** o rastreamento mostra o plano de sempre num duelo de agressivos: encostar, deixar o
+  outro bater até ficar abaixo de 45% (desesperado), e então ler o golpe que mata de uma vez. Na arena, quem se
+  desespera primeiro mata.
+- **No jogo, perderam tudo:** com a doutrina, o ancião perdeu as 6 lutas (3 agressivo, 3 trapaceiro) contra um Mago
+  mestre agressivo. Sem doutrina, o agressivo venceu 3 de 4 (terminando com 18 de vida na que se registrou); o
+  trapaceiro, 0 de 2 (uma derrota, um empate por tempo). **Não instaladas.** O Mago de verdade recua, põe fogo e lê
+  com o próprio ritmo; o plano de esperar o desespero perto dele não sobrevive a isso.
+- **As GameTests de duelo** (`anElderBeatsAnotherCaster`, `aTricksterElderBeatsAnotherCaster`, opcionais) agora medem
+  se o ancião vence, sem exigir doutrina.
+- **O que falta para uma doutrina de duelo servir:** um oponente na arena que se pareça com o Mago (recua, mantém
+  distância, incendeia, usa barreira e sumir); hoje ele só anda até o alcance e lê ferir, tirar ou curar.
+
+### 3.22 O Mago fiel na arena (pedido do autor, 15/10/2026)
+
+Antes de mexer na arena, o duelo do mundo foi medido: `ELDERLEXICON_CALIBRATE=duels` põe oito duelos (quatro anciãos
+agressivos, quatro trapaceiros, sem doutrina) contra um Mago mestre agressivo, cada um na sua ilha e no seu lote, e
+registra cada frase lida pelos dois (`DUEL ... READ`), como cada um está a cada segundo (`SEES`) e o fim (`END`). Sem
+doutrina o ancião venceu 11 de 16. O que os registros mostraram:
+
+- **A página favorita não faz nada.** "salva de fogo" e "lança de fogo" (as páginas do grimório que a mente mais quer,
+  prevendo 12 e 4 de dano) tiraram 0 de um alvo parado a 6 blocos, e 0,9 nos duelos. Os dois abrem o duelo com ela.
+- **Frases com `tenet` matam de uma vez.** "firmo tenet quantum 20 iactare" mata um conjurador inteiro gastando 31 de
+  Vis; "igni tenet chronos 0 impediunt quantum 20 iactare", gastando 97,5. A mente prevê 8 a 20 de dano para elas e as
+  pontua igual a uma dúzia de frases comuns (11,08); a sorte do grau decide qual sai.
+- **O fogo queima por muito tempo.** "igni ... iactare" com quantidade deixa o alvo queimando 20 segundos ou mais, a
+  0,8 de vida por segundo: o fogo no corpo (3.19) acende de novo depois de apagado. Apagar quase nunca resolve: o
+  ancião leu "aqua tenet ... vocant" quatro vezes numa pedra seca e morreu queimando.
+- **Os duelos se afastam:** 20 a 40 blocos, lendo com `ubis`.
+
+A arena passou a ter:
+
+- **O Mago como o mundo o roda** (`Calibration.Mage`, `Fight.mage`): lê sempre que está livre, entre as duas
+  melhores com a sorte do mestre (`Mind.choose`); recua de quem está a menos de 5 blocos (7 depois de ter o transe
+  quebrado duas vezes, `Memory.SAFE_DISTANCE`) pelo caminho com mais espaço; anda até o outro só quando nada que lê
+  chega lá. Barreira (empurra e não deixa entrar o elemento dela), fuga (`THROWN`), véu (some e não é mirado), e o
+  fogo que cai (sai dele antes de ler, 3.18) valem para os dois lados.
+- **As páginas do grimório** no repertório (`Repertoire.pages`), e **frases escritas mais longe** (`Reach.farther`).
+- **O que falta de Vis sai do corpo**, como no `SpellCostModule` (5 UMU por ponto de vida): antes a arena não cobrava,
+  e ler desesperado saía de graça. **O custo medido** (`visSpent`, `lifeLost`) vale quando há.
+- **O dano medido de uma vez** (`early`, nos primeiros 30 ticks) e **a queima** (`burning`) à parte: 20 segundos a 0,8.
+  Uma frase não medida usa a medida da parente sem a barreira nem o salto (`Damage.kin`).
+- **Memória, cansaço e sorte** dos dois (`Memory`, `Degree.habit`, `Degree.luck`): o que não fez nada duas vezes não é
+  lido de novo, e entre as que valem igual a sorte escolhe.
+- **Quem lê primeiro no mesmo tick** é sorteado (antes, o ancião sempre quebrava o transe do outro).
+
+**Resultado.** Treinadas contra esse Mago (300 mil lutas cada), as doutrinas `caster-aggressive` e `caster-trickster`
+vencem 94% em campo aberto e 62% no corredor de 5 × 40 na arena (sem doutrina, 38% e 40%). **No jogo, em 16 duelos
+medidos, o ancião com doutrina venceu 14, empatou 1 (por tempo, à frente) e perdeu 1**, quase sempre com 21 a 24 de
+vida; sem doutrina, 11 de 16. Ele aprendeu a se afastar para mais de 20 blocos logo no começo e lutar de longe com
+`ubis`. **Instaladas.** Os testes de duelo voltam a exigir a doutrina; continuam opcionais (um duelo também é sorte).
+
+A arena ainda dá ao Mago mais do que o mundo (sem doutrina o ancião vence 35–40% nela e 69% no jogo). Ficam para depois,
+porque são da mente e não da arena: a mente prever o que a página de fogo e as frases com `tenet` fazem de verdade, e
+não ler `aqua tenet` para apagar onde não há água.
+
 ## 4. O que o evocador sabe
 
 - **Repertório por grau.** Aprendiz (2 ou 3 runas), mestre (6 a 8), ancião (quase o léxico inteiro). Cada evocador

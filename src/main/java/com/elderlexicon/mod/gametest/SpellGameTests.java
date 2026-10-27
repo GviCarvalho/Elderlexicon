@@ -464,6 +464,159 @@ public final class SpellGameTests {
     }
 
     /**
+     * A caster walks around fire, not through it (docs/feiticeiro-design.md, 3.14): a strip of fire burns across its way
+     * to what it hunts, with a gap at one side; it goes by the gap, comes near enough to read, and never catches fire.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 600, batch = "fire_detour")
+    public static void aCasterWalksAroundFire(GameTestHelper helper) {
+        fireAcrossTheWay(helper, true);
+    }
+
+    /**
+     * Fire across the whole of its way: it does not walk through, though it cannot come near (3.14). Fire it set at
+     * what it hunts is fire like any other.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 600, batch = "fire_wall")
+    public static void aCasterDoesNotWalkThroughFire(GameTestHelper helper) {
+        fireAcrossTheWay(helper, false);
+    }
+
+    /**
+     * A caster that finds itself in fire gets out first (docs/feiticeiro-design.md, 3.18): an elder set down in the
+     * middle of a patch of everlasting fire, a villager to hunt twelve blocks off, is out of it within two seconds and
+     * keeps out.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 300, batch = "fire_escape")
+    public static void anElderStepsOutOfFire(GameTestHelper helper) {
+        for (int x = 0; x < 9; x++) {
+            for (int z = 0; z < 20; z++) {
+                boolean patch = x >= 3 && x <= 5 && z >= 3 && z <= 5;
+                helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)),
+                        patch ? Blocks.NETHERRACK.defaultBlockState() : Blocks.STONE.defaultBlockState());
+                for (int y = 1; y < 4; y++) {
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)),
+                            y == 1 && patch ? Blocks.FIRE.defaultBlockState() : Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
+        Villager prey = helper.spawn(EntityType.VILLAGER, new Vec3(4.5D, 1.0D, 16.5D));
+        prey.setNoAi(true);
+        prey.setInvulnerable(true);
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(4.5D, 1.0D, 4.5D));
+        evoker.targetSelector.removeAllGoals(goal -> true);
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.ELDER, com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        evoker.setTarget(prey);
+        Runnable putOut = () -> {
+            leave(evoker, prey);
+            for (int x = 3; x <= 5; x++) {
+                for (int z = 3; z <= 5; z++) {
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 1, z)),
+                            Blocks.AIR.defaultBlockState());
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)),
+                            Blocks.STONE.defaultBlockState());
+                }
+            }
+        };
+        int[] ticks = new int[1];
+        int[] outFor = new int[1];
+        boolean[] over = new boolean[1];
+        helper.onEachTick(() -> {
+            if (over[0]) {
+                return;
+            }
+            ticks[0]++;
+            boolean in = evoker.casterMind().standingInFire();
+            outFor[0] = in ? 0 : outFor[0] + 1;
+            String failed = null;
+            if (in && ticks[0] > 40) {
+                failed = "still in the fire after two seconds, at " + evoker.blockPosition();
+            } else if (outFor[0] < 60) {
+                return;
+            }
+            over[0] = true;
+            putOut.run();
+            if (failed != null) {
+                helper.fail(failed);
+            } else {
+                com.mojang.logging.LogUtils.getLogger().info("ESCAPE out of the fire after {} ticks", ticks[0] - 60);
+                helper.succeed();
+            }
+        });
+    }
+
+    /**
+     * A sorcerer that throws twenty blocks hunts a villager thirty off, with a strip of everlasting fire across the way:
+     * with a gap at one side ({@code gap}), it goes by it and comes near; with none, it waits outside the fire. Either
+     * way it never catches fire.
+     */
+    private static void fireAcrossTheWay(GameTestHelper helper, boolean gap) {
+        // Nine wide, thirty-two long; a strip of everlasting fire (on netherrack) across it at twelve, but for the
+        // last two blocks of one side when there is a gap.
+        for (int x = 0; x < 9; x++) {
+            for (int z = 0; z < 32; z++) {
+                boolean strip = z >= 11 && z <= 13 && (x < 7 || !gap);
+                helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)),
+                        strip ? Blocks.NETHERRACK.defaultBlockState() : Blocks.STONE.defaultBlockState());
+                for (int y = 1; y < 4; y++) {
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)),
+                            y == 1 && strip ? Blocks.FIRE.defaultBlockState() : Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
+        Villager prey = helper.spawn(EntityType.VILLAGER, new Vec3(3.5D, 1.0D, 30.5D));
+        prey.setNoAi(true);
+        prey.setInvulnerable(true);
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        Sorcerer evoker = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(3.5D, 1.0D, 2.5D));
+        evoker.targetSelector.removeAllGoals(goal -> true);
+        // It throws twenty blocks and cannot write a distance: it must walk past the fire to read.
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.APPRENTICE, com.elderlexicon.mod.mind.Personality.CAUTIOUS,
+                Set.of("igni", "iactare", "vocant"));
+        evoker.setTarget(prey);
+        // The fire is put out when the test ends, either way: everlasting, it would burn into the tests after.
+        Runnable putOut = () -> {
+            leave(evoker, prey);
+            for (int x = 0; x < 9; x++) {
+                for (int z = 11; z <= 13; z++) {
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 1, z)),
+                            Blocks.AIR.defaultBlockState());
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)),
+                            Blocks.STONE.defaultBlockState());
+                }
+            }
+        };
+        int[] ticks = new int[1];
+        boolean[] over = new boolean[1];
+        helper.onEachTick(() -> {
+            if (over[0]) {
+                return;
+            }
+            ticks[0]++;
+            String failed = null;
+            if (evoker.isOnFire() || helper.getLevel().getBlockState(evoker.blockPosition()).is(Blocks.FIRE)) {
+                failed = "it walked into the fire, at " + evoker.blockPosition();
+            } else if (ticks[0] >= 590) {
+                if (gap) {
+                    failed = "it has not come near: " + evoker.distanceTo(prey) + " blocks, at "
+                            + evoker.blockPosition();
+                }
+            } else if (!gap || evoker.distanceTo(prey) > com.elderlexicon.mod.mind.Reach.THROW - 1.0D) {
+                return;
+            }
+            over[0] = true;
+            putOut.run();
+            if (failed != null) {
+                helper.fail(failed);
+            } else {
+                helper.succeed();
+            }
+        });
+    }
+
+    /**
      * What it throws gets twenty blocks (docs/feiticeiro-design.md, 3.7): one that cannot write a distance walks up to
      * a target farther than that, rather than throwing what would fall short.
      */
@@ -481,6 +634,1075 @@ public final class SpellGameTests {
                 helper.fail("it has not come near yet: " + evoker.distanceTo(prey));
             }
             leave(evoker, prey);
+        });
+    }
+
+    /**
+     * A place far off from every other test, where a fight is set (docs/feiticeiro-design.md, 3.20): a thousand blocks
+     * aside of the test's own place, its chunks held loaded while it lasts. Creatures of other tests (a wizard that
+     * defends what is hurt near it, a husk left over) do not wander into it, and what fights there does not wander out:
+     * whatever stands there is swept away when it opens and when it closes, and what was built is torn down.
+     */
+    private static final class Isle {
+
+        private static final int AWAY = 1000;
+        private static final int MARGIN = 12;
+
+        final GameTestHelper helper;
+        final BlockPos origin;
+        private final int width;
+        private final int length;
+        private final List<net.minecraft.world.level.ChunkPos> held = new java.util.ArrayList<>();
+
+        /** An isle {@code width} by {@code length}, its ground at the test's own height. */
+        Isle(GameTestHelper helper, int width, int length) {
+            this.helper = helper;
+            this.width = width;
+            this.length = length;
+            origin = helper.absolutePos(BlockPos.ZERO).offset(AWAY, 0, 0);
+            ServerLevel level = helper.getLevel();
+            for (int cx = (origin.getX() - MARGIN) >> 4; cx <= (origin.getX() + width + MARGIN) >> 4; cx++) {
+                for (int cz = (origin.getZ() - MARGIN) >> 4; cz <= (origin.getZ() + length + MARGIN) >> 4; cz++) {
+                    level.setChunkForced(cx, cz, true);
+                    held.add(new net.minecraft.world.level.ChunkPos(cx, cz));
+                }
+            }
+            sweep();
+        }
+
+        BlockPos at(int x, int y, int z) {
+            return origin.offset(x, y, z);
+        }
+
+        private void set(int x, int y, int z, BlockState state) {
+            helper.getLevel().setBlockAndUpdate(at(x, y, z), state);
+        }
+
+        /** {@code type}, set down at {@code where} on the isle, kept (no player is near to keep it from despawning). */
+        <T extends net.minecraft.world.entity.Entity> T spawn(EntityType<T> type, Vec3 where) {
+            T entity = type.create(helper.getLevel());
+            entity.moveTo(origin.getX() + where.x, origin.getY() + where.y, origin.getZ() + where.z, 0.0F, 0.0F);
+            if (entity instanceof net.minecraft.world.entity.Mob mob) {
+                mob.setPersistenceRequired();
+            }
+            helper.getLevel().addFreshEntity(entity);
+            return entity;
+        }
+
+        /** Stone ground over the whole isle, open air above it. */
+        Isle floor() {
+            for (int x = 0; x < width; x++) {
+                for (int z = 0; z < length; z++) {
+                    set(x, 0, z, Blocks.STONE.defaultBlockState());
+                    for (int y = 1; y < 5; y++) {
+                        set(x, y, z, Blocks.AIR.defaultBlockState());
+                    }
+                }
+            }
+            return this;
+        }
+
+        /** Walls three high around the isle, its inside from 1 to its side less one; and a roof, if {@code roofed}. */
+        Isle walled(boolean roofed) {
+            floor();
+            for (int x = 0; x < width; x++) {
+                for (int z = 0; z < length; z++) {
+                    boolean wall = x == 0 || z == 0 || x == width - 1 || z == length - 1;
+                    for (int y = 1; y < 5; y++) {
+                        if (y < 4 ? wall : roofed) {
+                            set(x, y, z, Blocks.STONE.defaultBlockState());
+                        }
+                    }
+                }
+            }
+            return this;
+        }
+
+        private AABB box() {
+            return new AABB(at(-MARGIN, -4, -MARGIN), at(width + MARGIN, 12, length + MARGIN));
+        }
+
+        /** Every creature, arrow and thing dropped on the isle, taken away (players never). */
+        private void sweep() {
+            helper.getLevel().getEntitiesOfClass(net.minecraft.world.entity.Entity.class, box(),
+                            entity -> !(entity instanceof net.minecraft.world.entity.player.Player))
+                    .forEach(net.minecraft.world.entity.Entity::discard);
+        }
+
+        /** It ends: swept, what was built torn down to the ground, its chunks let go. */
+        void close() {
+            sweep();
+            for (int x = -1; x <= width; x++) {
+                for (int z = -1; z <= length; z++) {
+                    for (int y = 1; y < 6; y++) {
+                        set(x, y, z, Blocks.AIR.defaultBlockState());
+                    }
+                }
+            }
+            held.forEach(chunk -> helper.getLevel().setChunkForced(chunk.x, chunk.z, false));
+        }
+    }
+
+    /**
+     * A master does not open its trance with a husk at hand (docs/feiticeiro-design.md, 3.9): it backs away until the husk
+     * could not strike before the reading is out, reads from there, and is not beaten by a creature that only walks up.
+     * On an isle, alone.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 600, batch = "keep_distance")
+    public static void aMasterKeepsAHuskOff(GameTestHelper helper) {
+        Isle isle = new Isle(helper, 5, 40).floor();
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        Sorcerer evoker = isle.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 10.5D));
+        evoker.targetSelector.removeAllGoals(goal -> true);
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.MASTER, com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                Set.of("firmo", "igni", "iactare", "vocant"));
+        net.minecraft.world.entity.monster.Husk husk = isle.spawn(EntityType.HUSK, new Vec3(2.5D, 1.0D, 7.5D));
+        husk.targetSelector.removeAllGoals(goal -> true);
+        husk.setTarget(evoker);
+        evoker.setTarget(husk);
+        float before = husk.getHealth();
+        int[] ticks = new int[1];
+        boolean[] over = new boolean[1];
+        helper.onEachTick(() -> {
+            if (over[0]) {
+                return;
+            }
+            ticks[0]++;
+            String failed = null;
+            if (evoker.getHealth() < evoker.getMaxHealth() * 0.5F) {
+                failed = "the husk beat it: " + evoker.getHealth() + " left";
+            } else if (ticks[0] >= 590) {
+                failed = "the husk was not hurt (" + evoker.distanceTo(husk) + " blocks apart)";
+            } else if (!(husk.getHealth() < before)) {
+                return;
+            }
+            over[0] = true;
+            isle.close();
+            if (failed != null) {
+                helper.fail(failed);
+            } else {
+                helper.succeed();
+            }
+        });
+    }
+
+    /**
+     * An elder fights a husk by the doctrine the arena taught it (docs/feiticeiro-design.md, 3.10): it asks it what to do,
+     * and is not beaten by a creature that only walks up.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 900, batch = "doctrine")
+    public static void anElderFollowsItsDoctrine(GameTestHelper helper) {
+        Isle isle = new Isle(helper, 5, 40).floor();
+        net.minecraft.world.entity.monster.Husk husk = isle.spawn(EntityType.HUSK, new Vec3(2.5D, 1.0D, 8.5D));
+        anElderFights(isle, husk, new Vec3(2.5D, 1.0D, 14.5D), 900);
+    }
+
+    /** An elder fights a spider by its doctrine: one that leaps, and whose blow reaches farther (3.11). */
+    @GameTest(template = EMPTY, timeoutTicks = 900, batch = "doctrine_spider")
+    public static void anElderFightsASpiderByItsDoctrine(GameTestHelper helper) {
+        // A field walled and roofed at forty: a spider knocked back neither falls off a narrow floor nor climbs out.
+        Isle isle = new Isle(helper, 42, 42).walled(true);
+        net.minecraft.world.entity.monster.Spider spider = isle.spawn(EntityType.SPIDER, new Vec3(20.5D, 1.0D, 14.5D));
+        // A spider in daylight loses its taste for a fight now and then: this one keeps it.
+        spider.goalSelector.removeAllGoals(goal -> goal instanceof net.minecraft.world.entity.ai.goal.MeleeAttackGoal);
+        spider.goalSelector.addGoal(4, new net.minecraft.world.entity.ai.goal.MeleeAttackGoal(spider, 1.0D, true));
+        anElderFights(isle, spider, new Vec3(20.5D, 1.0D, 22.5D), 900);
+    }
+
+    /** An elder fights a skeleton by its doctrine: it reads between its arrows (3.11). */
+    @GameTest(template = EMPTY, timeoutTicks = 1200, batch = "doctrine_skeleton")
+    public static void anElderFightsASkeletonByItsDoctrine(GameTestHelper helper) {
+        Isle isle = new Isle(helper, 5, 40).floor();
+        net.minecraft.world.entity.monster.Skeleton skeleton = isle.spawn(EntityType.SKELETON,
+                new Vec3(2.5D, 1.0D, 2.5D));
+        skeleton.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        skeleton.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+        anElderFights(isle, skeleton, new Vec3(2.5D, 1.0D, 14.5D), 1200);
+    }
+
+    /**
+     * An elder fights a husk shut in a hall sixteen blocks a side (docs/feiticeiro-design.md, 3.12): it backs away the
+     * way with room, not into the wall behind it. Not required yet: no doctrine wins it in the world (3.12), and this
+     * says how far from it they are. (In a hall of ten, the arena gives it one fight in three: a caster with two
+     * seconds of trance does not belong there with a zombie.)
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 900, batch = "doctrine_hall", required = false)
+    public static void anElderFightsAHuskInAHall(GameTestHelper helper) {
+        Isle isle = new Isle(helper, 18, 18).walled(false);
+        net.minecraft.world.entity.monster.Husk husk = isle.spawn(EntityType.HUSK, new Vec3(8.5D, 1.0D, 5.5D));
+        anElderFights(isle, husk, new Vec3(8.5D, 1.0D, 11.5D), 900);
+    }
+
+    /**
+     * An aggressive elder sorcerer and {@code foe} hunt each other alone, on an isle: the elder asks its doctrine, and
+     * is not beaten (its life does not fall below a quarter). The fight ends here, whoever wins, a little before
+     * {@code timeout}, and the isle is closed, either way.
+     */
+    private static void anElderFights(Isle isle, net.minecraft.world.entity.Mob foe, Vec3 at, int timeout) {
+        anElderFights(isle, foe, at, timeout, com.elderlexicon.mod.mind.Personality.AGGRESSIVE, 0.25F, true);
+    }
+
+    /**
+     * As above, the elder of {@code temper}; beaten when its life falls below {@code beaten} of the whole (in a duel,
+     * where both bleed, only dead is beaten).
+     */
+    private static void anElderFights(Isle isle, net.minecraft.world.entity.Mob foe, Vec3 at, int timeout,
+                                      com.elderlexicon.mod.mind.Personality temper, float beaten,
+                                      boolean byDoctrine) {
+        GameTestHelper helper = isle.helper;
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        Sorcerer evoker = isle.spawn(ElderLexicon.SORCERER.get(), at);
+        evoker.targetSelector.removeAllGoals(goal -> true);
+        evoker.setMind(com.elderlexicon.mod.mind.Degree.ELDER, temper,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        foe.targetSelector.removeAllGoals(goal -> true);
+        foe.setTarget(evoker);
+        evoker.setTarget(foe);
+        String name = foe.getType().getDescriptionId();
+        boolean[] followed = new boolean[1];
+        int[] ticks = new int[1];
+        boolean[] over = new boolean[1];
+        boolean[] burning = new boolean[1];
+        helper.onEachTick(() -> {
+            if (over[0]) {
+                return;
+            }
+            if (evoker.isOnFire() && !burning[0]) {
+                // What set it burning: where it stands, the flames near, what it reads, what last hurt it.
+                BlockPos feet = evoker.blockPosition();
+                long flames = BlockPos.betweenClosedStream(feet.offset(-3, -1, -3), feet.offset(3, 2, 3))
+                        .filter(pos -> helper.getLevel().getBlockState(pos).is(net.minecraft.tags.BlockTags.FIRE))
+                        .count();
+                net.minecraft.world.damagesource.DamageSource last = evoker.getLastDamageSource();
+                com.mojang.logging.LogUtils.getLogger().info(
+                        "BURNING {} t{}: at {} in {}, {} flames within 3, foe {} blocks off and {}, last hurt by {}; "
+                                + "read last: {}; {}",
+                        name, ticks[0], feet, helper.getLevel().getBlockState(feet), flames, evoker.distanceTo(foe),
+                        foe.isOnFire() ? "burning" : "not burning", last == null ? "nothing" : last.getMsgId()
+                                + (last.getEntity() == null ? "" : " of " + last.getEntity().getType().getDescriptionId()),
+                        evoker.casterMind().lastChoice().map(choice -> "\"" + choice.option().name() + "\" for "
+                                + choice.intent() + " looking " + choice.aim()).orElse("nothing"),
+                        evoker.casterMind().describeFight());
+            }
+            burning[0] = evoker.isOnFire();
+            followed[0] |= evoker.casterMind().stance().isPresent();
+            if (++ticks[0] % 20 == 0 && evoker.isAlive()) {
+                com.mojang.logging.LogUtils.getLogger().info("FIGHT {} t{} life {}: {}", name, ticks[0],
+                        evoker.getHealth(), evoker.casterMind().describeFight());
+            }
+            String failed = null;
+            if (!evoker.isAlive() || evoker.getHealth() < evoker.getMaxHealth() * beaten) {
+                failed = "the " + name + " beat it: " + evoker.getHealth() + " left";
+            } else if (byDoctrine && !foe.isAlive() && !followed[0]) {
+                failed = "it never asked its doctrine";
+            } else if (ticks[0] >= timeout - 5 && foe.isAlive()) {
+                failed = "the " + name + " lives: " + foe.getHealth() + " (" + evoker.distanceTo(foe) + " blocks apart)";
+            }
+            if (failed == null && foe.isAlive()) {
+                return;
+            }
+            over[0] = true;
+            float kept = evoker.getHealth();
+            isle.close();
+            if (failed != null) {
+                helper.fail(failed);
+            } else {
+                com.mojang.logging.LogUtils.getLogger().info("DOCTRINE {} beaten, the elder kept {} of {}", name,
+                        kept, evoker.getMaxHealth());
+                helper.succeed();
+            }
+        });
+    }
+
+    /**
+     * What the elder's sentences really do to a husk (docs/feiticeiro-design.md, 3.13): each is read at a husk standing
+     * still, and what it lost is written to the log next to what the mind foresaw, so the arena can be set by it.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 9000, batch = "damage_husk")
+    public static void whatTheElderDoesToAHusk(GameTestHelper helper) {
+        measureDamage(helper, EntityType.HUSK, "zombie");
+    }
+
+    /** As {@link #whatTheElderDoesToAHusk}, at a spider. */
+    @GameTest(template = EMPTY, timeoutTicks = 9000, batch = "damage_spider")
+    public static void whatTheElderDoesToASpider(GameTestHelper helper) {
+        measureDamage(helper, EntityType.SPIDER, "spider");
+    }
+
+    /** As {@link #whatTheElderDoesToAHusk}, at another caster: a sorcerer with no mind of its own (3.17). */
+    @GameTest(template = EMPTY, timeoutTicks = 9000, batch = "damage_caster")
+    public static void whatTheElderDoesToACaster(GameTestHelper helper) {
+        measureDamage(helper, ElderLexicon.SORCERER.get(), "caster");
+    }
+
+    /**
+     * Whether the environment asks to measure {@code what} ({@code ELDERLEXICON_CALIBRATE}: 1 for everything, or the
+     * names, by commas: zombie, spider, skeleton, caster, arrows).
+     */
+    private static boolean calibrating(String what) {
+        String asked = System.getenv("ELDERLEXICON_CALIBRATE");
+        return asked != null && (asked.equals("1") || List.of(asked.split(",")).contains(what));
+    }
+
+    /** As {@link #whatTheElderDoesToAHusk}, at a skeleton (with a helmet: the sun burns it). */
+    @GameTest(template = EMPTY, timeoutTicks = 9000, batch = "damage_skeleton")
+    public static void whatTheElderDoesToASkeleton(GameTestHelper helper) {
+        measureDamage(helper, EntityType.SKELETON, "skeleton");
+    }
+
+    /**
+     * Which of the fire it reads sets the caster itself burning, and from how far (docs/feiticeiro-design.md, 3.14):
+     * each sentence read at a husk six, twelve and twenty blocks off, by a fresh sorcerer; logged ("SELFBURN ...").
+     * The flames it leaves (blocks of light) linger where the tests after are set, and spoil them: it runs only when
+     * the environment asks for it ({@code ELDERLEXICON_PROBE}), not even with the calibration.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 1400, batch = "self_burn")
+    public static void whatFireSetsTheCasterBurning(GameTestHelper helper) {
+        if (System.getenv("ELDERLEXICON_PROBE") == null) {
+            helper.succeed();
+            return;
+        }
+        longFloor(helper, 24);
+        List<String> sentences = List.of("firmo quantum -10 vocant", "aqua quantum -10 vocant",
+                "aura quantum -10 vocant", "igni quantum -10 vocant", "firmo quantum -10 vocant quantum 20 iactare");
+        double[] distances = {6.0D, 12.0D};
+        int at = 1;
+        for (String sentence : sentences) {
+            for (double distance : distances) {
+                int start = at;
+                Object[] pair = new Object[2];
+                helper.runAfterDelay(start, () -> {
+                    for (int x = 0; x < 5; x++) {
+                        for (int z = 0; z < 24; z++) {
+                            for (int y = 1; y < 4; y++) {
+                                helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)),
+                                        Blocks.AIR.defaultBlockState());
+                            }
+                        }
+                    }
+                    Sorcerer caster = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 1.5D));
+                    caster.setNoAi(true);
+                    net.minecraft.world.entity.monster.Husk husk = helper.spawn(EntityType.HUSK,
+                            new Vec3(2.5D, 1.0D, 1.5D + distance));
+                    husk.setNoAi(true);
+                    pair[0] = caster;
+                    pair[1] = husk;
+                    aimFrom(caster, husk);
+                    new SpellCastingService().castBlock(caster, List.of(new SpellCastingService.TimedSpell(
+                            List.of(sentence.split(" ")), 0)), later -> {
+                    });
+                });
+                boolean[] burned = new boolean[1];
+                for (int tick = 1; tick < 60; tick++) {
+                    helper.runAfterDelay(start + tick, () -> {
+                        if (pair[0] instanceof Sorcerer caster && pair[1] instanceof net.minecraft.world.entity.LivingEntity husk) {
+                            burned[0] |= caster.isOnFire();
+                            if (husk.isAlive()) {
+                                aimFrom(caster, husk);
+                            }
+                        }
+                    });
+                }
+                helper.runAfterDelay(start + 70, () -> {
+                    Sorcerer caster = (Sorcerer) pair[0];
+                    net.minecraft.world.entity.LivingEntity husk = (net.minecraft.world.entity.LivingEntity) pair[1];
+                    com.mojang.logging.LogUtils.getLogger().info(
+                            "SELFBURN sentence={} distance={} casterBurned={} casterLife={} huskLife={} lastHurt={}",
+                            sentence, distance, burned[0], caster.getHealth(), husk.isAlive() ? husk.getHealth() : 0.0F,
+                            caster.getLastDamageSource() == null ? "nothing" : caster.getLastDamageSource().getMsgId());
+                    leave(caster, husk);
+                });
+                at += 80;
+            }
+        }
+        helper.runAfterDelay(at + 5, helper::succeed);
+    }
+
+    /** The ways a caster moves while an arrow comes, as the arena knows them: standing, backing off, walking up, aside. */
+    private static final String[] ARROW_MOTIONS = {"still", "away", "toward", "side"};
+    /** How far the skeleton shoots from, how many arrows at each, how fast a caster walks (a sorcerer backing off). */
+    private static final double[] ARROW_DISTANCES = {5.0D, 10.0D, 15.0D};
+    private static final int ARROWS_EACH = 24;
+    private static final double WALK = 0.345D;
+    /** How long after an arrow is loosed it is looked whether it struck. */
+    private static final int ARROW_LANDS = 25;
+
+    /**
+     * How often a skeleton's arrow strikes a caster standing, backing off, walking up or walking aside, five, ten and
+     * fifteen blocks off (docs/feiticeiro-design.md, 3.15): four lanes at once, a skeleton that cannot walk at the head
+     * of each, a sorcerer with no mind of its own moved by hand at a sorcerer's pace from the moment the bow is drawn to
+     * when the arrow lands, placed so it stands at the distance when the arrow is loosed. Struck is hurt; it is healed
+     * between arrows. Written to {@code arena-calibration/arrows-skeleton.json}, for the arena (src/arena/calibration).
+     * It takes minutes: it runs only when the environment asks for it ({@code ELDERLEXICON_CALIBRATE}).
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 7000, batch = "arrows")
+    public static void howOftenAnArrowStrikes(GameTestHelper helper) {
+        if (!calibrating("arrows")) {
+            helper.succeed();
+            return;
+        }
+        int lanes = ARROW_MOTIONS.length;
+        int width = 16;
+        int length = 32;
+        for (int x = 0; x < lanes * width; x++) {
+            for (int z = 0; z < length; z++) {
+                helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)),
+                        Blocks.STONE.defaultBlockState());
+                for (int y = 1; y < 5; y++) {
+                    helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)),
+                            Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
+        Runnable tearDown = () -> helper.getLevel().getEntitiesOfClass(net.minecraft.world.entity.Entity.class,
+                new AABB(helper.absolutePos(BlockPos.ZERO)).expandTowards(lanes * width, 6, length).inflate(2.0D),
+                entity -> entity instanceof net.minecraft.world.entity.projectile.AbstractArrow
+                        || entity instanceof net.minecraft.world.entity.monster.Skeleton
+                        || entity instanceof Sorcerer).forEach(net.minecraft.world.entity.Entity::discard);
+        com.google.gson.JsonArray shotsTaken = new com.google.gson.JsonArray();
+        class Lane {
+            final String motion;
+            final double x;
+            final net.minecraft.world.entity.monster.Skeleton skeleton;
+            final Sorcerer target;
+            int stage;
+            int shots;
+            final int[][] tally = new int[ARROW_DISTANCES.length][2];
+            boolean drawing;
+            int moving;
+            int landsIn = -1;
+            float before;
+            double vx;
+            double vz;
+            int sideSign = 1;
+            double loosedAt;
+
+            Lane(int index) {
+                motion = ARROW_MOTIONS[index];
+                x = index * width + width / 2.0D;
+                skeleton = helper.spawn(EntityType.SKELETON, new Vec3(x, 1.0D, 1.5D));
+                skeleton.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+                skeleton.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+                // The sun wears its helmet through in a few minutes, and then burns it: it does not burn.
+                skeleton.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                        net.minecraft.world.effect.MobEffects.FIRE_RESISTANCE, 1000000, 0, false, false));
+                skeleton.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED)
+                        .setBaseValue(0.0D);
+                skeleton.targetSelector.removeAllGoals(goal -> true);
+                target = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(x, 1.0D, 1.5D + ARROW_DISTANCES[0]));
+                target.setNoAi(true);
+                skeleton.setTarget(target);
+            }
+
+            /** Whether it measured all it had to, or cannot go on (its skeleton or its target is gone). */
+            boolean done() {
+                return stage >= ARROW_DISTANCES.length || !skeleton.isAlive() || !target.isAlive();
+            }
+
+            /** Where it rests between arrows, and where it starts when the bow is drawn, so it is at the distance then. */
+            void rest() {
+                place(x, 1.5D + ARROW_DISTANCES[stage]);
+            }
+
+            void place(double px, double pz) {
+                Vec3 at = helper.absoluteVec(new Vec3(px, 1.0D, pz));
+                target.moveTo(at.x, at.y, at.z, 180.0F, 0.0F);
+                target.setDeltaMovement(Vec3.ZERO);
+            }
+
+            void tick() {
+                if (done() || !skeleton.isAlive() || !target.isAlive()) {
+                    return;
+                }
+                boolean now = skeleton.isUsingItem();
+                double distance = ARROW_DISTANCES[stage];
+                double lead = WALK * 20.0D;
+                if (now && !drawing) {
+                    // The bow is drawn: it starts where walking brings it to the distance as the arrow is loosed.
+                    before = target.getHealth();
+                    vx = 0.0D;
+                    vz = 0.0D;
+                    double startX = x;
+                    double startZ = 1.5D + distance;
+                    switch (motion) {
+                        case "away" -> {
+                            // Never behind the skeleton: near, it is loosed a little farther than asked.
+                            startZ = Math.max(3.5D, startZ - lead);
+                            vz = WALK;
+                        }
+                        case "toward" -> {
+                            startZ += lead;
+                            vz = -WALK;
+                        }
+                        case "side" -> {
+                            sideSign = -sideSign;
+                            startX -= sideSign * lead;
+                            vx = sideSign * WALK;
+                        }
+                        default -> {
+                        }
+                    }
+                    place(startX, startZ);
+                    moving = 20 + ARROW_LANDS;
+                }
+                if (!now && drawing) {
+                    landsIn = ARROW_LANDS;
+                    loosedAt = target.distanceTo(skeleton);
+                }
+                drawing = now;
+                if (moving > 0) {
+                    moving--;
+                    Vec3 here = helper.relativeVec(target.position());
+                    place(here.x + vx, here.z + vz);
+                }
+                if (landsIn > 0 && --landsIn == 0) {
+                    boolean struck = target.getHealth() < before;
+                    tally[stage][0]++;
+                    tally[stage][1] += struck ? 1 : 0;
+                    com.google.gson.JsonObject shot = new com.google.gson.JsonObject();
+                    shot.addProperty("motion", motion);
+                    shot.addProperty("distance", Math.round(loosedAt * 100.0D) / 100.0D);
+                    shot.addProperty("struck", struck);
+                    shotsTaken.add(shot);
+                    target.setHealth(target.getMaxHealth());
+                    target.clearFire();
+                    if (++shots >= ARROWS_EACH) {
+                        shots = 0;
+                        stage++;
+                    }
+                    if (!done()) {
+                        rest();
+                    }
+                }
+            }
+        }
+        List<Lane> all = new java.util.ArrayList<>();
+        for (int i = 0; i < lanes; i++) {
+            all.add(new Lane(i));
+        }
+        boolean[] over = new boolean[1];
+        int[] ticks = new int[1];
+        helper.onEachTick(() -> {
+            if (over[0]) {
+                return;
+            }
+            all.forEach(Lane::tick);
+            ticks[0]++;
+            if (ticks[0] % 500 == 0) {
+                for (Lane lane : all) {
+                    com.mojang.logging.LogUtils.getLogger().info("ARROWS progress t{} {}: stage {} shot {}, skeleton {}, "
+                                    + "target {}, drawing {}, sees {}", ticks[0], lane.motion, lane.stage, lane.shots,
+                            lane.skeleton.isAlive() ? "alive" : "dead", lane.target.isAlive() ? "alive" : "dead",
+                            lane.skeleton.isUsingItem(), lane.skeleton.hasLineOfSight(lane.target));
+                }
+            }
+            // Near the end of its time it writes what it has, and takes it all away, done or not: skeletons left
+            // shooting would spoil the tests after.
+            boolean outOfTime = ticks[0] >= 6900;
+            if (!outOfTime && !all.stream().allMatch(Lane::done)) {
+                return;
+            }
+            over[0] = true;
+            com.google.gson.JsonObject root = new com.google.gson.JsonObject();
+            root.addProperty("foe", "skeleton");
+            root.addProperty("walk", WALK);
+            root.add("distances", new com.google.gson.Gson().toJsonTree(ARROW_DISTANCES));
+            com.google.gson.JsonObject motions = new com.google.gson.JsonObject();
+            for (Lane lane : all) {
+                com.google.gson.JsonArray shares = new com.google.gson.JsonArray();
+                StringBuilder line = new StringBuilder();
+                for (int stage = 0; stage < ARROW_DISTANCES.length; stage++) {
+                    int[] counted = lane.tally[stage];
+                    shares.add(counted[0] == 0 ? 0.0D : counted[1] / (double) counted[0]);
+                    line.append(String.format(java.util.Locale.ROOT, " %.0f blocks: %d of %d;", ARROW_DISTANCES[stage],
+                            counted[1], counted[0]));
+                }
+                motions.add(lane.motion, shares);
+                if (lane.stage < ARROW_DISTANCES.length) {
+                    line.append(" cut short: its ").append(lane.skeleton.isAlive() ? "target" : "skeleton")
+                            .append(" died");
+                }
+                com.mojang.logging.LogUtils.getLogger().info("ARROWS {}:{}", lane.motion, line);
+            }
+            root.add("hit", motions);
+            root.add("shots", shotsTaken);
+            root.addProperty("complete", !outOfTime);
+            tearDown.run();
+            try {
+                java.nio.file.Path file = java.nio.file.Path.of("arena-calibration", "arrows-skeleton.json");
+                java.nio.file.Files.createDirectories(file.getParent());
+                java.nio.file.Files.writeString(file, new com.google.gson.GsonBuilder().setPrettyPrinting().create()
+                        .toJson(root));
+                if (outOfTime) {
+                    helper.fail("out of time: what was measured is written, but not all of it");
+                } else {
+                    helper.succeed();
+                }
+            } catch (java.io.IOException exception) {
+                helper.fail("could not write what was measured: " + exception);
+            }
+        });
+    }
+
+    /** How long one reading is watched: its throw runs two seconds, and then what it set burning burns a while. */
+    private static final int DAMAGE_TICKS = 100;
+    /** How long after a reading what it did at once is taken: its lines are out (the longest page, a second). */
+    private static final int EARLY_TICKS = 30;
+    /** How many times each sentence is read: what is kept is the middle one. */
+    private static final int DAMAGE_TIMES = 3;
+
+    /**
+     * Reads, one after another, the sentences the arena's elder reads (the best to strike and to draw, near and far,
+     * whole, wounded and desperate, full of Vis and short of it) and the plain throws of each energy, each by a fresh
+     * sorcerer at a fresh {@code kind} standing still six blocks off (how far made no difference); logs what each did
+     * ("DAMAGE ..."), what the arena foresaw (a person's body) and what the mind foresees in the world (this body's
+     * Vita), and writes it all to {@code arena-calibration/damage-<foe>.json}, for the arena (src/arena/calibration).
+     * Each is read {@link #DAMAGE_TIMES} times: what is kept is the middle one. It takes minutes: it runs only when the
+     * environment asks for it ({@code ELDERLEXICON_CALIBRATE}), and passes at once otherwise.
+     */
+    private static <T extends net.minecraft.world.entity.Mob> void measureDamage(GameTestHelper helper,
+            EntityType<T> kind, String foe) {
+        if (!calibrating(foe)) {
+            helper.succeed();
+            return;
+        }
+        longFloor(helper, 24);
+        com.elderlexicon.mod.mind.PhraseCatalog catalog = com.elderlexicon.mod.mind.PhraseCatalog.get();
+        Set<String> known = com.elderlexicon.mod.mind.Degree.learnable(com.elderlexicon.mod.magic.lexicon.Lexicons.get());
+        List<com.elderlexicon.mod.mind.Option> all = com.elderlexicon.mod.mind.Mind.worthWeighing(
+                catalog.readableBy(known).stream().map(com.elderlexicon.mod.mind.Option::of).toList());
+        java.util.Map<String, com.elderlexicon.mod.mind.Option> read = new java.util.LinkedHashMap<>();
+        for (double distance : new double[]{3.0D, 6.0D, 10.0D, 15.0D}) {
+            for (double health : new double[]{1.0D, 0.6D, 0.4D}) {
+              for (double vis : new double[]{100.0D, 60.0D, 30.0D}) {
+                for (com.elderlexicon.mod.mind.Intent intent : new com.elderlexicon.mod.mind.Intent[]{
+                        com.elderlexicon.mod.mind.Intent.STRIKE, com.elderlexicon.mod.mind.Intent.DRAW}) {
+                    com.elderlexicon.mod.mind.Mind.Choice best = null;
+                    for (com.elderlexicon.mod.mind.Option option : all) {
+                        java.util.Optional<com.elderlexicon.mod.mind.Mind.Choice> choice =
+                                com.elderlexicon.mod.mind.Mind.evaluate(arenaScene(distance, health, vis),
+                                        com.elderlexicon.mod.mind.Personality.AGGRESSIVE, option,
+                                        com.elderlexicon.mod.mind.Mind.person(1.0D - health));
+                        if (choice.isPresent() && choice.get().intent() == intent
+                                && (best == null || choice.get().score() > best.score())) {
+                            best = choice.get();
+                        }
+                    }
+                    if (best != null) {
+                        read.putIfAbsent(best.option().name(), best.option());
+                    }
+                }
+              }
+            }
+        }
+        // The plainest, and what the duels in the world showed read (3.22).
+        for (String plain : List.of("firmo iactare", "igni iactare", "aqua iactare", "aura iactare",
+                "igni quantum 20 iactare", "igni impediunt quantum 20 iactare", "firmo tenet quantum 20 iactare",
+                "igni tenet chronos 0 impediunt quantum 20 iactare", "firmo chronos 0 impediunt quantum 20 iactare")) {
+            com.elderlexicon.mod.mind.PhraseCatalog.imagine(List.of(plain.split(" ")))
+                    .map(com.elderlexicon.mod.mind.Option::of).ifPresent(option -> read.putIfAbsent(plain, option));
+        }
+        // The pages of the grimoire, which casters read first.
+        for (com.elderlexicon.mod.illager.SorcererGrimoire.Page page
+                : com.elderlexicon.mod.illager.SorcererGrimoire.get().pages()) {
+            com.elderlexicon.mod.spell.block.SpellBlock block = page.block();
+            List<com.elderlexicon.mod.mind.Option.Line> lines = block.lines().stream()
+                    .map(line -> new com.elderlexicon.mod.mind.Option.Line(line.runeIds(), block.delaySteps(line)))
+                    .toList();
+            com.elderlexicon.mod.mind.Option.page(page.name(), lines)
+                    .ifPresent(option -> read.putIfAbsent(page.name(), option));
+        }
+        List<Object[]> trials = new java.util.ArrayList<>();
+        for (int time = 0; time < DAMAGE_TIMES; time++) {
+            for (com.elderlexicon.mod.mind.Option option : read.values()) {
+                trials.add(new Object[]{option, 6.0D});
+            }
+        }
+        com.google.gson.JsonArray found = new com.google.gson.JsonArray();
+        float[] whole = new float[1];
+        for (int i = 0; i < trials.size(); i++) {
+            com.elderlexicon.mod.mind.Option option = (com.elderlexicon.mod.mind.Option) trials.get(i)[0];
+            double distance = (double) trials.get(i)[1];
+            int at = 1 + i * (DAMAGE_TICKS + 10);
+            Object[] pair = new Object[2];
+            float[] before = new float[1];
+            float[] early = new float[1];
+            helper.runAfterDelay(at, () -> {
+                // A clean lane: what the last reading left (fire, earth) is cleared.
+                for (int x = 0; x < 5; x++) {
+                    for (int z = 0; z < 24; z++) {
+                        for (int y = 1; y < 5; y++) {
+                            helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, y, z)),
+                                    Blocks.AIR.defaultBlockState());
+                        }
+                        helper.getLevel().setBlockAndUpdate(helper.absolutePos(new BlockPos(x, 0, z)),
+                                Blocks.STONE.defaultBlockState());
+                    }
+                }
+                Sorcerer caster = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 1.5D));
+                caster.setNoAi(true);
+                T target = helper.spawn(kind, new Vec3(2.5D, 1.0D, 1.5D + distance));
+                target.setNoAi(true);
+                if (kind == EntityType.SKELETON) {
+                    target.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD,
+                            new ItemStack(Items.LEATHER_HELMET));
+                }
+                pair[0] = caster;
+                pair[1] = target;
+                before[0] = target.getHealth();
+                whole[0] = target.getMaxHealth();
+                aimFrom(caster, target);
+                double live = com.elderlexicon.mod.mind.Mind.evaluate(new com.elderlexicon.mod.mind.Mind.Scene(
+                                caster, target, distance, 1.0F, 100.0D), com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                        option).map(com.elderlexicon.mod.mind.Mind.Choice::harm).orElse(0.0D);
+                // What the arena foresees of it (desperate, so whatever it costs is weighed).
+                java.util.Optional<com.elderlexicon.mod.mind.Mind.Choice> foreseen =
+                        com.elderlexicon.mod.mind.Mind.evaluate(arenaScene(distance, 0.3D, 100.0D),
+                                com.elderlexicon.mod.mind.Personality.AGGRESSIVE, option,
+                                com.elderlexicon.mod.mind.Mind.person(0.0D));
+                pair[0] = new Object[]{caster, live, foreseen.map(com.elderlexicon.mod.mind.Mind.Choice::harm)
+                        .orElse(0.0D), foreseen.map(choice -> choice.intent().name()).orElse(""),
+                        Casters.vis(caster), caster.getHealth()};
+                new SpellCastingService().castBlock(caster, option.lines().stream()
+                        .map(line -> new SpellCastingService.TimedSpell(line.words(), line.delaySteps())).toList(),
+                        later -> {
+                        });
+            });
+            for (int tick = 1; tick < 60; tick++) {
+                helper.runAfterDelay(at + tick, () -> {
+                    if (pair[0] instanceof Object[] held && held[0] instanceof Sorcerer caster
+                            && pair[1] instanceof net.minecraft.world.entity.LivingEntity target && target.isAlive()) {
+                        aimFrom(caster, target);
+                    }
+                });
+            }
+            helper.runAfterDelay(at + EARLY_TICKS, () -> {
+                // What it did at once, before what it set burning burns on (3.22).
+                if (pair[1] instanceof net.minecraft.world.entity.LivingEntity target) {
+                    early[0] = before[0] - (target.isAlive() ? target.getHealth() : 0.0F);
+                }
+            });
+            helper.runAfterDelay(at + DAMAGE_TICKS, () -> {
+                Object[] held = (Object[]) pair[0];
+                Sorcerer caster = (Sorcerer) held[0];
+                T target = kind.tryCast((net.minecraft.world.entity.Entity) pair[1]);
+                boolean killed = !target.isAlive();
+                double done = before[0] - (killed ? 0.0F : target.getHealth());
+                com.mojang.logging.LogUtils.getLogger().info(
+                        "DAMAGE foe={} distance={} measured={} killed={} arena={} world={} health={} visSpent={} "
+                                + "lifeLost={} sentence={}", foe, distance, done, killed, held[2], held[1], before[0],
+                        (double) held[4] - Casters.vis(caster), (float) held[5] - caster.getHealth(), option.name());
+                com.google.gson.JsonObject entry = new com.google.gson.JsonObject();
+                entry.addProperty("sentence", option.name());
+                entry.addProperty("intent", (String) held[3]);
+                entry.addProperty("element", option.acts().isEmpty() ? "" : option.acts().get(0).element().name());
+                entry.addProperty("arena", (double) held[2]);
+                entry.addProperty("world", (double) held[1]);
+                entry.addProperty("measured", done);
+                entry.addProperty("killed", killed);
+                entry.addProperty("early", (double) early[0]);
+                entry.addProperty("burning", !killed && target.isOnFire());
+                // What it cost the one who read it: the Vis spent, and the life it lost (3.19).
+                entry.addProperty("visSpent", (double) held[4] - Casters.vis(caster));
+                entry.addProperty("lifeLost", (float) held[5] - caster.getHealth());
+                found.add(entry);
+                leave(caster, target);
+            });
+        }
+        helper.runAfterDelay(2 + trials.size() * (DAMAGE_TICKS + 10), () -> {
+            com.google.gson.JsonObject root = new com.google.gson.JsonObject();
+            root.addProperty("foe", foe);
+            root.addProperty("health", (double) whole[0]);
+            root.addProperty("times", DAMAGE_TIMES);
+            // The middle of what each sentence did, and whether it ever killed.
+            java.util.Map<String, List<com.google.gson.JsonObject>> bySentence = new java.util.LinkedHashMap<>();
+            for (com.google.gson.JsonElement element : found) {
+                com.google.gson.JsonObject entry = element.getAsJsonObject();
+                bySentence.computeIfAbsent(entry.get("sentence").getAsString(), k -> new java.util.ArrayList<>())
+                        .add(entry);
+            }
+            com.google.gson.JsonArray kept = new com.google.gson.JsonArray();
+            bySentence.values().forEach(entries -> {
+                List<Double> done = entries.stream().map(entry -> entry.get("measured").getAsDouble()).sorted()
+                        .toList();
+                com.google.gson.JsonObject middle = entries.get(0).deepCopy();
+                middle.addProperty("measured", done.get(done.size() / 2));
+                middle.add("each", new com.google.gson.Gson().toJsonTree(done));
+                middle.addProperty("killed", entries.stream().anyMatch(entry -> entry.get("killed").getAsBoolean()));
+                List<Double> early = entries.stream().map(entry -> entry.get("early").getAsDouble()).sorted()
+                        .toList();
+                middle.addProperty("early", early.get(early.size() / 2));
+                middle.addProperty("burning", entries.stream().filter(entry -> entry.get("burning").getAsBoolean())
+                        .count() * 2 > entries.size());
+                kept.add(middle);
+            });
+            root.add("readings", kept);
+            try {
+                java.nio.file.Path file = java.nio.file.Path.of("arena-calibration", "damage-" + foe + ".json");
+                java.nio.file.Files.createDirectories(file.getParent());
+                java.nio.file.Files.writeString(file, new com.google.gson.GsonBuilder().setPrettyPrinting().create()
+                        .toJson(root));
+            } catch (java.io.IOException exception) {
+                helper.fail("could not write what was measured: " + exception);
+            }
+            helper.succeed();
+        });
+    }
+
+    /** What the arena's elder sees, {@code distance} off, its life at {@code health}, its Vis, on open ground. */
+    private static com.elderlexicon.mod.mind.Mind.Scene arenaScene(double distance, double health, double vis) {
+        return new com.elderlexicon.mod.mind.Mind.Scene(null, null, distance, (float) health, vis, mark -> 0.0D,
+                false, element -> element == com.elderlexicon.mod.vita.VitaElement.AURA
+                || element == com.elderlexicon.mod.vita.VitaElement.FIRMO);
+    }
+
+    /** {@code caster} looks at the middle of {@code target}, as a mind aims. */
+    private static void aimFrom(net.minecraft.world.entity.Mob caster, net.minecraft.world.entity.LivingEntity target) {
+        Vec3 middle = target.position().add(0.0D, target.getBbHeight() * 0.5D, 0.0D);
+        caster.lookAt(EntityAnchorArgument.Anchor.EYES, middle);
+        caster.setYHeadRot(caster.getYRot());
+        caster.setYBodyRot(caster.getYRot());
+    }
+
+    /**
+     * Two casters (docs/feiticeiro-design.md, 3.17): an aggressive elder sorcerer, following its temper's doctrine,
+     * against an aggressive master wizard who knows the same runes and follows none. The elder lives, the wizard does
+     * not. Not required: a duel goes on luck too (3.22: with the doctrines learned against the arena's wizard, the elder
+     * won fourteen of sixteen measured, and lost one).
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 1200, batch = "doctrine_duel", required = false)
+    public static void anElderBeatsAnotherCaster(GameTestHelper helper) {
+        duel(helper, com.elderlexicon.mod.mind.Personality.AGGRESSIVE);
+    }
+
+    /** As {@link #anElderBeatsAnotherCaster}, the elder a trickster, following its own temper's doctrine. */
+    @GameTest(template = EMPTY, timeoutTicks = 1200, batch = "doctrine_duel_trickster", required = false)
+    public static void aTricksterElderBeatsAnotherCaster(GameTestHelper helper) {
+        duel(helper, com.elderlexicon.mod.mind.Personality.TRICKSTER);
+    }
+
+    /** An elder of {@code temper} against an aggressive master wizard who knows the same runes, on an isle. */
+    private static void duel(GameTestHelper helper, com.elderlexicon.mod.mind.Personality temper) {
+        Isle isle = new Isle(helper, 5, 40).floor();
+        com.elderlexicon.mod.wizard.Wizard wizard = isle.spawn(ElderLexicon.WIZARD.get(), new Vec3(2.5D, 1.0D, 4.5D));
+        wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.MASTER,
+                com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        anElderFights(isle, wizard, new Vec3(2.5D, 1.0D, 16.5D), 1200, temper, 0.0F, true);
+    }
+
+    /**
+     * How a duel goes in the world (docs/feiticeiro-design.md, 3.22), to set the arena's other caster by: an elder of no
+     * doctrine against a master wizard, as {@link #duel}; every sentence either reads is logged ("DUEL ... READ"), how
+     * each stands every second ("DUEL ... SEES"), and how it ended ("DUEL ... END"). It takes minutes: it runs only when
+     * the environment asks for it ({@code ELDERLEXICON_CALIBRATE}: duels).
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels1")
+    public static void howAnAggressiveElderDuels1(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.AGGRESSIVE, 1);
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels2")
+    public static void howAnAggressiveElderDuels2(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.AGGRESSIVE, 2);
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels3")
+    public static void howAnAggressiveElderDuels3(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.AGGRESSIVE, 3);
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels4")
+    public static void howAnAggressiveElderDuels4(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.AGGRESSIVE, 4);
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels5")
+    public static void howATricksterElderDuels1(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.TRICKSTER, 5);
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels6")
+    public static void howATricksterElderDuels2(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.TRICKSTER, 6);
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels7")
+    public static void howATricksterElderDuels3(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.TRICKSTER, 7);
+    }
+
+    @GameTest(template = EMPTY, timeoutTicks = 1300, batch = "duels8")
+    public static void howATricksterElderDuels4(GameTestHelper helper) {
+        measureDuel(helper, com.elderlexicon.mod.mind.Personality.TRICKSTER, 8);
+    }
+
+    private static void measureDuel(GameTestHelper helper, com.elderlexicon.mod.mind.Personality temper, int number) {
+        if (!calibrating("duels")) {
+            helper.succeed();
+            return;
+        }
+        com.elderlexicon.mod.mind.PhraseCatalog.get();
+        Isle isle = new Isle(helper, 5, 40).floor();
+        com.elderlexicon.mod.wizard.Wizard wizard = isle.spawn(ElderLexicon.WIZARD.get(), new Vec3(2.5D, 1.0D, 4.5D));
+        wizard.casterMind().setMind(com.elderlexicon.mod.mind.Degree.MASTER,
+                com.elderlexicon.mod.mind.Personality.AGGRESSIVE,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        Sorcerer elder = isle.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 16.5D));
+        elder.targetSelector.removeAllGoals(goal -> true);
+        elder.setMind(com.elderlexicon.mod.mind.Degree.ELDER, temper,
+                com.elderlexicon.mod.mind.Degree.ELDER.draw(com.elderlexicon.mod.magic.lexicon.Lexicons.get(),
+                        helper.getLevel().getRandom()));
+        wizard.targetSelector.removeAllGoals(goal -> true);
+        wizard.setTarget(elder);
+        elder.setTarget(wizard);
+        String name = "DUEL " + number + " " + temper.id();
+        org.slf4j.Logger log = com.mojang.logging.LogUtils.getLogger();
+        Object[] last = new Object[2];
+        int[] ticks = new int[1];
+        boolean[] over = new boolean[1];
+        helper.onEachTick(() -> {
+            if (over[0]) {
+                return;
+            }
+            ticks[0]++;
+            com.elderlexicon.mod.caster.RuneCaster[] both = {elder, wizard};
+            String[] who = {"elder", "wizard"};
+            for (int i = 0; i < 2; i++) {
+                com.elderlexicon.mod.mind.Mind.Choice choice = both[i].casterMind().lastChoice().orElse(null);
+                if (choice != null && choice != last[i]) {
+                    last[i] = choice;
+                    net.minecraft.world.entity.LivingEntity self = (net.minecraft.world.entity.LivingEntity) both[i];
+                    log.info("{} READ {} t{} \"{}\" for {} at {} blocks, life {} / other {}, Vis {}, harm {}", name,
+                            who[i], ticks[0], choice.option().name(), choice.intent(),
+                            String.format(java.util.Locale.ROOT, "%.1f", elder.distanceTo(wizard)), self.getHealth(),
+                            i == 0 ? wizard.getHealth() : elder.getHealth(), Casters.vis(self),
+                            String.format(java.util.Locale.ROOT, "%.1f", choice.harm()));
+                }
+            }
+            if (ticks[0] % 20 == 0 && elder.isAlive() && wizard.isAlive()) {
+                log.info("{} SEES t{} elder {}{}: {}", name, ticks[0], elder.getHealth(),
+                        elder.isOnFire() ? " burning" : "", elder.casterMind().describeFight());
+                log.info("{} SEES t{} wizard {}{}{}: {}", name, ticks[0], wizard.getHealth(),
+                        wizard.isOnFire() ? " burning" : "", wizard.isInvisible() ? " unseen" : "",
+                        wizard.casterMind().describeFight());
+            }
+            if (elder.isAlive() && wizard.isAlive() && ticks[0] < 1200) {
+                return;
+            }
+            over[0] = true;
+            log.info("{} END t{}: {}, elder {}, wizard {}", name, ticks[0],
+                    !elder.isAlive() ? "the wizard won" : !wizard.isAlive() ? "the elder won" : "neither",
+                    elder.isAlive() ? elder.getHealth() : 0.0F, wizard.isAlive() ? wizard.getHealth() : 0.0F);
+            isle.close();
+            helper.succeed();
+        });
+    }
+
+    /**
+     * What the arena is set by, for a spider and a skeleton: how fast each comes for its prey (the skeleton, until it
+     * stands within its bow's reach), in blocks a tick, and how long the skeleton draws and waits between two arrows.
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 400, batch = "calibration_more")
+    public static void theArenaIsSetByTheWorldForSpidersAndSkeletons(GameTestHelper helper) {
+        longFloor(helper, 40);
+        Villager prey = helper.spawn(EntityType.VILLAGER, new Vec3(2.5D, 1.0D, 38.5D));
+        prey.setNoAi(true);
+        prey.setInvulnerable(true);
+        net.minecraft.world.entity.monster.Spider spider = helper.spawn(EntityType.SPIDER, new Vec3(1.0D, 1.0D, 1.5D));
+        spider.targetSelector.removeAllGoals(goal -> true);
+        spider.goalSelector.removeAllGoals(goal -> goal instanceof net.minecraft.world.entity.ai.goal.LeapAtTargetGoal);
+        spider.setTarget(prey);
+        net.minecraft.world.entity.monster.Skeleton skeleton = helper.spawn(EntityType.SKELETON,
+                new Vec3(3.5D, 1.0D, 1.5D));
+        skeleton.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        skeleton.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+        skeleton.targetSelector.removeAllGoals(goal -> true);
+        skeleton.setTarget(prey);
+        double[] from = new double[2];
+        int[] shots = new int[1];
+        int[] drawn = new int[2];
+        boolean[] was = new boolean[1];
+        helper.onEachTick(() -> {
+            boolean drawing = skeleton.isUsingItem();
+            if (drawing) {
+                drawn[0]++;
+            }
+            if (was[0] && !drawing) {
+                shots[0]++;
+            }
+            was[0] = drawing;
+        });
+        helper.runAfterDelay(20, () -> {
+            from[0] = spider.getZ();
+            from[1] = skeleton.getZ();
+        });
+        double[] speeds = new double[2];
+        helper.runAfterDelay(60, () -> {
+            speeds[0] = (spider.getZ() - from[0]) / 40.0D;
+            speeds[1] = (skeleton.getZ() - from[1]) / 40.0D;
+        });
+        helper.runAfterDelay(380, () -> {
+            com.mojang.logging.LogUtils.getLogger().info(
+                    "CALIBRATION spider={} skeleton={} (blocks a tick); skeleton shot {} arrows, drew {} ticks, "
+                            + "{} from the prey", speeds[0], speeds[1], shots[0], drawn[0], skeleton.distanceTo(prey));
+            leave(prey, spider, skeleton);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * What the arena (src/arena) is set by: how fast a husk comes for its prey, and how fast a sorcerer and a wizard back
+     * away, in blocks a tick, measured here and written to the log (docs/feiticeiro-design.md, 3.10).
+     */
+    @GameTest(template = EMPTY, timeoutTicks = 200, batch = "calibration")
+    public static void theArenaIsSetByTheWorld(GameTestHelper helper) {
+        longFloor(helper, 40);
+        Villager prey = helper.spawn(EntityType.VILLAGER, new Vec3(0.5D, 1.0D, 38.5D));
+        prey.setNoAi(true);
+        net.minecraft.world.entity.monster.Husk husk = helper.spawn(EntityType.HUSK, new Vec3(0.5D, 1.0D, 1.5D));
+        husk.targetSelector.removeAllGoals(goal -> true);
+        husk.setTarget(prey);
+        Sorcerer sorcerer = helper.spawn(ElderLexicon.SORCERER.get(), new Vec3(2.5D, 1.0D, 1.5D));
+        sorcerer.goalSelector.removeAllGoals(goal -> true);
+        sorcerer.targetSelector.removeAllGoals(goal -> true);
+        com.elderlexicon.mod.wizard.Wizard wizard = helper.spawn(ElderLexicon.WIZARD.get(), new Vec3(4.5D, 1.0D, 1.5D));
+        wizard.goalSelector.removeAllGoals(goal -> true);
+        wizard.targetSelector.removeAllGoals(goal -> true);
+        double[] from = new double[3];
+        helper.runAfterDelay(40, () -> {
+            from[0] = husk.getZ();
+            from[1] = sorcerer.getZ();
+            from[2] = wizard.getZ();
+        });
+        helper.runAfterDelay(41, () -> {
+            // Not too far: a way is found only within its follow range.
+            sorcerer.getNavigation().moveTo(2.5D + helper.absolutePos(BlockPos.ZERO).getX(), sorcerer.getY(),
+                    helper.absolutePos(new BlockPos(0, 0, 14)).getZ() + 0.5D, 0.8D);
+            wizard.getNavigation().moveTo(4.5D + helper.absolutePos(BlockPos.ZERO).getX(), wizard.getY(),
+                    helper.absolutePos(new BlockPos(0, 0, 14)).getZ() + 0.5D, 0.7D);
+        });
+        double[] walked = new double[2];
+        helper.runAfterDelay(51, () -> {
+            // The first ticks of a walk are slower: measured from the tenth on, for twenty ticks.
+            from[1] = sorcerer.getZ();
+            from[2] = wizard.getZ();
+        });
+        helper.runAfterDelay(71, () -> {
+            walked[0] = (sorcerer.getZ() - from[1]) / 20.0D;
+            walked[1] = (wizard.getZ() - from[2]) / 20.0D;
+        });
+        helper.runAfterDelay(140, () -> {
+            double huskSpeed = (husk.getZ() - from[0]) / 100.0D;
+            double sorcererSpeed = walked[0];
+            double wizardSpeed = walked[1];
+            com.mojang.logging.LogUtils.getLogger().info("CALIBRATION husk={} sorcerer={} wizard={} (blocks a tick)", huskSpeed, sorcererSpeed,
+                    wizardSpeed);
+            leave(prey, husk, sorcerer, wizard);
+            helper.succeed();
         });
     }
 
@@ -1116,18 +2338,25 @@ public final class SpellGameTests {
                 >= com.elderlexicon.mod.university.Enrollments.feeFor(3, 6)) {
             helper.fail("the fee does not fall as the examination goes better");
         }
-        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.FONTES, 3, now);
-        if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.AUDITOR) {
-            helper.fail("three of five made a Scriba");
+        // Under the courses (docs/universidade-cursos-design.md): the first year, then a course, then its chairs and
+        // the Expedition.
+        com.elderlexicon.mod.university.Course course = com.elderlexicon.mod.university.Course.GUARDA;
+        if (book.chooseCourse(who, course)) {
+            helper.fail("a course chosen before the first year");
         }
-        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.FONTES, 4, now);
-        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.FILTROS, 4, now);
-        if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.SCRIBA || student.mayRead()) {
-            helper.fail("after two passed: " + student.rank() + ", may read " + student.mayRead());
+        com.elderlexicon.mod.university.Curriculum.get().firstYear().forEach(chair -> book.chairPassed(who, chair, 4));
+        if (!book.chooseCourse(who, course)
+                || student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.SCRIBA || student.mayRead()) {
+            helper.fail("after the first year and a course: " + student.rank() + ", may read " + student.mayRead());
         }
-        book.examinedBy(who, com.elderlexicon.mod.university.Discipline.NAHVA, 5, now);
+        com.elderlexicon.mod.university.Curriculum.get().course(course).orElseThrow().chairs()
+                .forEach(chair -> book.chairPassed(who, chair, 4));
+        if (student.mayRead()) {
+            helper.fail("a Lector without the Expedition");
+        }
+        book.expeditionDone(who);
         if (!book.makeLector(who) || student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.LECTOR) {
-            helper.fail("three passed, one perfect, and not a Lector");
+            helper.fail("the course and the Expedition done, and not a Lector");
         }
         book.forget(who);
         helper.succeed();
@@ -1175,7 +2404,7 @@ public final class SpellGameTests {
             magister.mobInteract(mage, net.minecraft.world.InteractionHand.MAIN_HAND);
             com.elderlexicon.mod.dialogue.Dialogue.choose(mage, 0); // The examination of the Fonts.
             answerRight(helper, mage);
-            if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.SCRIBA
+            if (student.rank().orElse(null) != com.elderlexicon.mod.university.Rank.AUDITOR
                     || student.passed().getOrDefault(com.elderlexicon.mod.university.Discipline.FONTES, 0) != 5) {
                 helper.fail("passed the Fonts without a mistake: " + student.rank() + ", " + student.passed());
             }
@@ -1369,6 +2598,7 @@ public final class SpellGameTests {
     /**
      * The mind weighs what the scene asks (docs/feiticeiro-design.md, 3.3): drawing the water out of a cow is worth more
      * to a wounded evoker, which heals by it, than to a whole one; and it foresees what the draw takes from the cow.
+     * Whole, it may be worth nothing at all: the water would come into a full body and push the rest out (3.19).
      */
     @GameTest(template = EMPTY)
     public static void aWoundedMindWantsToDrawMore(GameTestHelper helper) {
@@ -1385,8 +2615,8 @@ public final class SpellGameTests {
         float share = evoker.getHealth() / evoker.getMaxHealth();
         double wounded = com.elderlexicon.mod.mind.Mind.evaluate(new com.elderlexicon.mod.mind.Mind.Scene(evoker, cow,
                 3.0D, share, 100.0D), trickster, bite).map(com.elderlexicon.mod.mind.Mind.Choice::score).orElse(0.0D);
-        if (!(whole > 0.0D)) {
-            helper.fail("drawing out of the cow is worth nothing: " + whole);
+        if (!(wounded > 0.0D)) {
+            helper.fail("drawing out of the cow is worth nothing, wounded (" + share + "): " + wounded);
         }
         if (!(wounded > whole)) {
             helper.fail("wounded (" + share + ") it is worth " + wounded + ", whole " + whole);

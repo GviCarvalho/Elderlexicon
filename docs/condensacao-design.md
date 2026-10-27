@@ -5,6 +5,33 @@
 > quantidade negativa (`igni quantum -10 vocant`); puxar uma coisa marcada é `m1 quantum -10 iactare`; trocar de lugar
 > não existe mais. A tabela completa está na seção 4 do plano.
 
+> **Nota (17/10/2026): o `vocant` não precisa mais do `chronos 0`.** Um `vocant` sempre invoca num bloco só, e tudo o
+> que ele traz fica apertado nesse bloco. O quanto há ali decide o que aparece:
+> - **até o que um bloco comum guarda** (16 UMU; no fogo, uma chama): o elemento comum, como antes;
+> - **terra:** um bloco com densidade = UMU ÷ 32. 200 UMU dão densidade 6,25 (ardósia); 1600 UMU, obsidiana; acima,
+>   o poço de gravidade; a partir de 32 000 UMU, o buraco negro;
+> - **água:** pressão = UMU ÷ 16 × 3, então um bloco de água tem 3 (a fonte parada). Acima disso ela estoura e se
+>   espalha; a partir de 160 UMU vira o gelo de pressão;
+> - **ar:** pressão = UMU ÷ 16 × 0,5. Acima de um bloco, ele vira lufada, rajada e ventania; a partir de 960 UMU, a
+>   bomba de pressão;
+> - **fogo:** calor = UMU ÷ uma chama. Acima de uma chama, é um ponto quente que derrete; a partir de 30 chamas, plasma.
+>
+> **Vale para a energia do corpo e para a do mundo:** `firmo quantum 200 vocant` e `firmo quantum 200 tenet vertere
+> firmo vocant` dão, os dois, um bloco de densidade 6,25. O que vem do mundo ainda é juntado num ponto antes de
+> aparecer (a carga).
+>
+> **A área:** com um `quantum` antes da fonte e outro antes do `vocant` (`quantum 200 firmo quantum 4 vocant`), o
+> primeiro é quanto, e o segundo é em quantos blocos. Hoje, só a terra se reparte assim, em blocos com a densidade da
+> sua parte; os outros elementos se espalham como antes.
+>
+> **O `iactare` também.** Sem `chronos`, tudo o que ele lança vai num golpe só, medido do mesmo jeito. Até um lançamento
+> comum (10 UMU), é o feixe de sempre. Acima disso: a terra é o meteoro, a água é o jato e, a partir de 160 UMU, a pedra
+> de gelo de pressão; o ar é a rajada e, a partir de 960 UMU, a bomba; o fogo é o golpe quente e, a partir de 30
+> chamas, o plasma.
+>
+> **O `chronos` com número** mantém o elemento comum pelo tempo escrito, como antes. Onde o resto deste documento diz
+> que a condensação precisa de `chronos 0`, leia esta nota: o `chronos 0` ainda funciona, mas não é mais necessário.
+
 **Status:** **os quatro elementos estão implementados** (26/09/2026). As interações entre eles ainda são só desenho. A seção "O que já existe"
 lista as peças do mod que este desenho aproveita.
 
@@ -140,6 +167,15 @@ As fronteiras entre os materiais ficam na média geométrica das densidades vizi
 | 1000 ou mais | **buraco negro** (ver abaixo) |
 | acima de 50 | **poço de gravidade**: obsidiana chorona que puxa criaturas e itens em volta; alcance 2 + √(densidade − 50), no máximo 12; a força cresce com a massa e cai com o quadrado da distância; relaxa para obsidiana comum com uma constante de 10 s, e para de puxar se for quebrado |
 
+- **A unidade mudou com as partículas (17/10/2026).** A tabela acima está em dureza (UMU por bloco na unidade antiga,
+  em que um bloco de terra rendia 0,5). Hoje um bloco de terra tem 4096 partículas, 16 UMU, e um bloco de qualquer coisa
+  tem 4096 vezes o seu empacotamento (docs/particulas-design.md, "Densidade"): **densidade = UMU num bloco ÷ 32**
+  (`Density.UMU_PER_DENSITY`). A terra tirada do mundo é medida assim; a que vem do corpo continua na unidade do corpo.
+- **Espalhada, a terra tirada do mundo guarda a densidade de onde veio.** `firmo quantum 200 tenet vertere firmo vocant`
+  tira os 200 UMU antes de o `vocant` agir (o `quantum` escrito no `vertere` é o que o verbo seguinte gasta, e o mundo o
+  paga) e entrega blocos da rocha da densidade média do que drenou, cada um valendo o que um bloco dela vale: de terra,
+  12 blocos de terra; de pedra, 4 blocos de pedra (48 UMU cada). O que não fecha um bloco volta ao corpo. Com `chronos`,
+  o mundo continua pagando tudo no fim, e o que aparece é terra comum.
 - **Carvão vira diamante.** Se ~90% do que foi capturado era carvão (minério = 1 carvão, bloco = 9) e a densidade passou
   de 3, o resultado são **diamantes**: um a cada 9 carvões, e o que sobra continua carvão.
 - **Lançada (iactare), a terra condensada cai como um meteoro.** Abre uma cratera com força 1 + ln(densidade),

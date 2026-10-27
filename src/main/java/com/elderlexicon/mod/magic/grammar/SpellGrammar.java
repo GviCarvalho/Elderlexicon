@@ -64,12 +64,29 @@ public final class SpellGrammar {
 
     private final Lexicon lexicon;
 
+    /**
+     * A subject already named before the sentence begins, as if written before it: what the invocation bench made is
+     * the subject of the line engraved in it (docs/invocacao-design.md, 5.1), without a word of the line changed.
+     */
+    private static final ThreadLocal<String> GIVEN_SUBJECT = new ThreadLocal<>();
+
     public SpellGrammar(Lexicon lexicon) {
         this.lexicon = Objects.requireNonNull(lexicon, "lexicon");
     }
 
     public Lexicon lexicon() {
         return lexicon;
+    }
+
+    /** Reads what {@code reading} reads with {@code mark} as the subject already named. */
+    public static <T> T withSubject(String mark, java.util.function.Supplier<T> reading) {
+        String before = GIVEN_SUBJECT.get();
+        GIVEN_SUBJECT.set(mark);
+        try {
+            return reading.get();
+        } finally {
+            GIVEN_SUBJECT.set(before);
+        }
     }
 
     public SpellActionResult read(List<String> rawLexemes) {
@@ -260,7 +277,7 @@ public final class SpellGrammar {
         // A bare quantity followed by another filter (quantum chronos 0): all there is.
         boolean bareAll = false;
         // The mark the sentence acts on, until another subject is written.
-        String subject = null;
+        String subject = GIVEN_SUBJECT.get();
         // An origin filter waiting for its verb: the source comes from the world (around this place, or in reach).
         String origin = null;
         SpellPlace originPlace = null;
@@ -340,6 +357,16 @@ public final class SpellGrammar {
                         break;
                     }
                     SpellPlace written;
+                    if (filter.parameter() == Parameter.PLACE && run.size() == 2
+                            && run.get(0).kind() == SpellWords.Kind.MARK && run.get(1).kind() == SpellWords.Kind.MARK) {
+                        // p1 alvo ubis iactare: two marks before a place are what the verb acts on, then where.
+                        subject = run.remove(0).lexeme();
+                    } else if (filter.parameter() == Parameter.PLACE && run.size() == 4
+                            && run.get(0).kind() == SpellWords.Kind.MARK && run.get(1).kind() == SpellWords.Kind.MARK
+                            && run.get(2).kind() == SpellWords.Kind.NUMBER && run.get(3).kind() == SpellWords.Kind.NUMBER) {
+                        // m1 alvo 0 10 ubis vocant: what the verb acts on, then the place from the other mark.
+                        subject = run.remove(0).lexeme();
+                    }
                     if (!run.isEmpty()) {
                         // Everything written right before a place filter is the place (book: "igni 10 ubis vocant").
                         written = placeOf(rune.id(), run, issues);
@@ -425,15 +452,24 @@ public final class SpellGrammar {
                         actions.add(sourceAction);
                     }
                     form.setElement(element, rune.id());
-                    // A source written is the new subject: the verbs after it move energy, not the mark before it.
-                    subject = null;
+                    // A source written is the new subject: the verbs after it move energy, not the mark before it. One
+                    // the line only implies keeps the subject already named (what the invocation bench made).
+                    subject = token.implicit() ? GIVEN_SUBJECT.get() : null;
                 }
                 case VERB -> {
                     VerbSpec verb = token.verb();
-                    if (verb.view() && index + 1 < tokens.size() && tokens.get(index + 1).isClass(WordClass.VERB)) {
+                    boolean placeThenVerb = verb.view() && placeThenVerb(tokens, index + 1);
+                    if (verb.view() && index + 1 < tokens.size()
+                            && (tokens.get(index + 1).isClass(WordClass.VERB) || placeThenVerb)) {
                         // igni surgit vocant: the view leaves only the image of the subject; the mark, place and filters
-                        // written so far are left for the verb that follows (docs/surgit-visao-design.md, 4).
+                        // written so far are left for the verb that follows (docs/surgit-visao-design.md, 4). The place of
+                        // that verb may be written between them, next to it, as the book writes it (igni 10 ubis vocant):
+                        // igni quantum ego surgit p1 ubis vocant (docs/bussola-arcana-design.md).
                         imageOnly = true;
+                        if (placeThenVerb && run.size() == 1 && run.get(0).kind() == SpellWords.Kind.MARK) {
+                            // The mark before the view is its subject; the one after it, the place.
+                            subject = run.remove(0).lexeme();
+                        }
                         break;
                     }
                     // A bare quantity is all of the source there is (book 4.3.2): taken from the world, all of it in
@@ -591,6 +627,22 @@ public final class SpellGrammar {
         return "?";
     }
 
+    /**
+     * Whether the words from {@code from} are a place and then a verb: marks or numbers, the place filter, and a verb
+     * right after it (p1 ubis vocant, 10 ubis vocant).
+     */
+    private static boolean placeThenVerb(List<Token> tokens, int from) {
+        int index = from;
+        while (index < tokens.size() && (tokens.get(index).kind() == SpellWords.Kind.MARK
+                || tokens.get(index).kind() == SpellWords.Kind.NUMBER)) {
+            index++;
+        }
+        return index > from && index + 1 < tokens.size()
+                && tokens.get(index).rune() != null
+                && tokens.get(index).rune().filter().map(filter -> filter.parameter() == Parameter.PLACE).orElse(false)
+                && tokens.get(index + 1).isClass(WordClass.VERB);
+    }
+
     private static SpellPlace replacePlace(SpellPlace place, SpellPlace written, List<String> issues) {
         if (place != null) {
             issues.add("Lugar " + place.describe() + " substituído por " + written.describe() + ".");
@@ -621,8 +673,9 @@ public final class SpellGrammar {
 
     /**
      * The place written before a place filter: one number is a distance, two are a distance and a height (above the
-     * mage), three are coordinates where any of them may be a mark (that coordinate of where the mark is), and a lone
-     * mark is where the mark is.
+     * mage), a mark and one or two numbers are a distance (and a height) from what bears the mark, three are otherwise
+     * coordinates where any of them may be a mark (that coordinate of where the mark is), and a lone mark is where the
+     * mark is.
      */
     private static SpellPlace placeOf(String filter, List<Token> written, List<String> issues) {
         if (written.size() == 1) {
@@ -632,6 +685,12 @@ public final class SpellGrammar {
                     : SpellPlace.distance(SpellWords.number(only.lexeme()).orElse(0.0D));
         }
         if (written.size() == 2) {
+            if (written.get(0).kind() == SpellWords.Kind.MARK && written.get(1).kind() == SpellWords.Kind.NUMBER) {
+                // ego 20 ubis: a mark and a distance are that far ahead of what bears the mark, as one number alone is
+                // ahead of the mage.
+                return SpellPlace.fromMark(written.get(0).lexeme(),
+                        SpellWords.number(written.get(1).lexeme()).orElse(0.0D), 0.0D);
+            }
             if (written.get(0).kind() == SpellWords.Kind.NUMBER && written.get(1).kind() == SpellWords.Kind.NUMBER) {
                 return SpellPlace.distanceAndHeight(SpellWords.number(written.get(0).lexeme()).orElse(0.0D),
                         SpellWords.number(written.get(1).lexeme()).orElse(0.0D));
@@ -640,6 +699,14 @@ public final class SpellGrammar {
             return null;
         }
         if (written.size() == 3) {
+            if (written.get(0).kind() == SpellWords.Kind.MARK && written.get(1).kind() == SpellWords.Kind.NUMBER
+                    && written.get(2).kind() == SpellWords.Kind.NUMBER) {
+                // ego 5 10 ubis: a mark and then a distance and a height are from what bears the mark (the author,
+                // 17/10/2026), as two numbers alone are from the mage.
+                return SpellPlace.fromMark(written.get(0).lexeme(),
+                        SpellWords.number(written.get(1).lexeme()).orElse(0.0D),
+                        SpellWords.number(written.get(2).lexeme()).orElse(0.0D));
+            }
             return SpellPlace.coordinates(axisOf(written.get(0)), axisOf(written.get(1)), axisOf(written.get(2)));
         }
         issues.add("'" + filter + "' aceita um, dois ou três valores antes dele.");

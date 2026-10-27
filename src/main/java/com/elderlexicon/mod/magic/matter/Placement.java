@@ -68,12 +68,13 @@ public record Placement(Matter matter, Substance substance, Form form, int units
 
     /**
      * Formless matter: as many blocks as it fills (at least one), each holding its share of the particles exactly, as a
-     * block of the world holds its 4096.
+     * block of the world holds its 4096 packed as tightly as it is (as the substance nearest it, or as loose as earth).
      */
     private static Placement formless(Matter matter, Substance substance) {
         long particles = matter.particles().present().total();
+        double packing = substance != null ? substance.packing() : 1.0D;
         int units = (int) Math.max(1L, Math.min(Integer.MAX_VALUE,
-                Math.round((double) particles / Particles.BLOCK)));
+                Math.round(particles / (Particles.BLOCK * packing))));
         return new Placement(matter, substance, null, units, matter.umu(), 0.0D, true);
     }
 }

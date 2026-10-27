@@ -63,6 +63,11 @@ public final class StateChange {
         }
         Optional<State> target = State.of(to);
         double changed = 0.0D;
+        if (from == VitaElement.IGNI || from == VitaElement.AURA) {
+            // Fire and air are mostly not blocks: the heat in the air (a flame, a hot field) is fire let loose, and air
+            // is the air of every empty block. Their particles are what is changed (docs/particulas-design.md).
+            changed = inTheAir(context, player, level, BlockPos.containing(around), from, to, amount);
+        }
         for (BlockPos pos : Transfer.nearest(level, player, BlockPos.containing(around), source.get())) {
             if (changed >= amount - EPSILON) {
                 break;
@@ -76,6 +81,75 @@ public final class StateChange {
             MarkSpells.tell(player, "Nao ha " + from.runeId() + " ao alcance para converter.");
         }
         return changed;
+    }
+
+    /** How far around the mage, or the origin written, fire and air are changed where they are. */
+    private static final int AIR_REACH = 8;
+    private static final int AIR_HEIGHT = 4;
+
+    /**
+     * {@code igni tenet vertere aura}: the heat let loose in the blocks around (a flame, a burning field) taken out of them
+     * and made the target where it was, nearest first, up to {@code amount} UMU; {@code aura tenet vertere igni}: the
+     * air of the blocks around made the target where it was. Made air or water goes into the air of the block (air
+     * pressing out as wind, vapour), earth as dust, fire as heat; made vis goes into the mage. The conversion's work
+     * (5% a rung, the whole ladder back into vis) is lost from what is made. Returns the UMU changed.
+     */
+    private static double inTheAir(SpellContext context, LivingEntity player, ServerLevel level, BlockPos center,
+                                   VitaElement from, VitaElement to, double amount) {
+        long wanted = com.elderlexicon.mod.magic.matter.Particles.ofUmu(amount);
+        if (wanted <= 0L || from == to) {
+            return 0.0D;
+        }
+        double work = MatterLaws.workShare(MatterLaws.steps(State.of(from).orElse(null), State.of(to).orElse(null)));
+        net.minecraft.world.phys.AABB body = player.getBoundingBox();
+        java.util.List<BlockPos> around = new java.util.ArrayList<>();
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-AIR_REACH, -AIR_HEIGHT, -AIR_REACH),
+                center.offset(AIR_REACH, AIR_HEIGHT, AIR_REACH))) {
+            if (level.isLoaded(pos) && !body.intersects(new net.minecraft.world.phys.AABB(pos))) {
+                around.add(pos.immutable());
+            }
+        }
+        around.sort(java.util.Comparator.comparingDouble(pos -> pos.distSqr(center)));
+        long done = 0L;
+        double vis = 0.0D;
+        for (BlockPos pos : around) {
+            if (done >= wanted) {
+                break;
+            }
+            long got;
+            if (from == VitaElement.IGNI) {
+                long heat = com.elderlexicon.mod.spell.nature.NatureWorld.freeHeat(level, pos);
+                got = Math.min(heat, wanted - done);
+                if (got <= 0L) {
+                    continue;
+                }
+                com.elderlexicon.mod.spell.nature.NatureWorld.heat(level, pos, -got);
+            } else {
+                if (!level.getBlockState(pos).isAir()
+                        && !com.elderlexicon.mod.spell.nature.NatureWorld.flameAt(level, pos)) {
+                    continue;
+                }
+                got = com.elderlexicon.mod.spell.nature.NatureWorld.draw(level, pos, VitaElement.AURA, wanted - done);
+                if (got <= 0L) {
+                    continue;
+                }
+            }
+            done += got;
+            long made = Math.round(got * (1.0D - work));
+            if (made <= 0L) {
+                continue;
+            }
+            switch (to) {
+                case IGNI -> com.elderlexicon.mod.spell.nature.NatureWorld.heat(level, pos, made);
+                case BALANCED -> vis += (double) made / com.elderlexicon.mod.magic.matter.Particles.PER_UMU;
+                default -> com.elderlexicon.mod.spell.nature.NatureWorld.blow(level, pos,
+                        com.elderlexicon.mod.magic.matter.Particles.of(to, made));
+            }
+        }
+        if (vis > EPSILON) {
+            Casters.giveVis(player, vis);
+        }
+        return (double) done / com.elderlexicon.mod.magic.matter.Particles.PER_UMU;
     }
 
     /**

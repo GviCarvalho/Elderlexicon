@@ -74,6 +74,158 @@ região faz), `Dreams` (dormir, sonhar, acordar), `client/NahvaFog` (a névoa); 
 **Testar:** `/runas entender igni` (como se tivesse vivido tudo) e `/runas sonhar igni` (o sonho na hora). Num mundo
 antigo, `/runas bloquear igni` antes, se o mago já o tinha nos slots.
 
+## 4b. O sonho febril, no kern (decidido com o autor em 18/10/2026)
+
+Substitui a região do `igni` em Nahvá. O livro já dizia (cap. 1.3): **quem dorme e sonha está no próprio kern**, e
+quando o corpo entende uma coisa por inteiro, **o kern se transforma** em algo que a representa. O sonho de aprender
+uma runa passa a acontecer lá, e é um sonho de verdade: **REM, febril**, louco.
+
+- **O palco é o kern do jogador**, a ilha para onde ele vai quando morre. O sonho **veste** o kern por cima: cada bloco
+  que o sonho muda tem o original guardado (com o mundo, não com o jogador, para sobreviver a uma queda do servidor), e
+  ao acordar tudo volta como estava. O que o jogador construiu no kern não se perde.
+- **Memórias reais.** Quando o jogador vive uma experiência de uma runa pela primeira vez (pega fogo, congela, sente
+  frio extremo), o mod guarda um pedaço do mundo em volta dele naquele instante (uns 11×8×11 blocos). No sonho, essas
+  memórias voltam, **distorcidas**: soltas no ar em volta da ilha, de cabeça para baixo, viradas, com o quente e o frio
+  trocados (a neve onde ele congelou vira fogo, a lava onde queimou vira gelo).
+- **Um espaço liminar** (o autor, 19/10/2026): em cada fase o kern vira **um castelo de salas que não fazem sentido**,
+  construído por cima da ilha, mas do mundo do jogo, medieval: pedra, madeira, luz fraca. Uma grade de 5×5 salas
+  (9×9 por fora, 6 de pé-direito) ligadas por portas estreitas, como um labirinto (todas se alcançam). O que há nelas:
+  salas que se repetem (um mesmo tipo volta aqui e ali), **uma cadeira só virada para a parede**, **uma mesa posta para
+  ninguém**, estantes até o teto, **uma escada que termina no teto**, **uma cama sozinha** no meio, **um poço sem
+  fundo**, **um batente de porta numa parede**, salas de pilares, salas vazias. E **portas que levam a outro lugar**:
+  duas portas nas paredes de fora, que deviam dar para fora, levam a outra porta, do outro lado do castelo.
+- **Em fases, sem aviso.** O castelo é construído de novo a cada fase (uns 25 a 45 s), com a fenda em outra sala longe
+  do meio; o sonhador fica no meio da sala em que estava. Para o `igni`:
+  1. **O calor:** salas de tijolo do Nether, chão de brasa e pedra negra, lanternas penduradas; **o ar queima**, com
+     chamas no ar, e só segurar algo frio protege; coisas frias jogadas pelas salas.
+  2. **As memórias:** salas de pedra velha e madeira, à luz de velas; **as memórias do corpo dentro de algumas salas**,
+     viradas, com o quente e o frio trocados. A fenda está numa delas.
+  3. **O frio:** salas de gelo e neve; o ar congela, e só algo quente na mão protege (tocha, vara de blaze, magma);
+     coisas quentes jogadas pelas salas.
+  As fases giram até ele escapar ou morrer.
+- **As outras fontes** (19/10/2026), no mesmo molde: seis experiências (os quatro extremos do elemento no Vita e duas
+  vividas no mundo, guardadas como memória) e o castelo em três fases (um extremo, as memórias, o outro extremo). Em
+  cada extremo o ar faz algo, e segurar a coisa certa protege; ela aparece jogada pelas salas.
+  | Runa | Entender (além dos 4 extremos do Vita) | 1º extremo | Memórias | 2º extremo |
+  |---|---|---|---|---|
+  | `aqua` (fluxo, dissolução) | afogar-se; ser levado pela correnteza | **A cheia:** prismarinho, salas afundadas em **poços fundos** (6 blocos; a fenda fica no fundo de um); o fôlego acaba; **esponja** o mantém | a água vira areia, a areia vira vidro azul (água parada) | **A seca:** arenito, terracota, arbustos secos; o ar resseca e fere; **garrafa d'água** |
+  | `aura` (pressão, fôlego, som) | cair 20+ blocos; o sopro de uma explosão | **A ventania:** pedra clara, ventos que empurram de sala em sala, a pressão fere os ouvidos, portas que batem e ecoam; **pena** | o cheio vira vidro | **O vácuo:** ardósia, teias, **nenhum som**; o fôlego acaba como debaixo d'água; **garrafa vazia** (o ar guardado nela) |
+  | `firmo` (massa, solidez) | sufocar dentro de um bloco; descer abaixo do nível 0 | **O peso:** salas baixas (3 de altura); o corpo não voa e anda devagar; **pena ou papel** | a pedra vira minério | **O soterramento:** terra e pedra; as paredes de todas as salas avançam uma fileira a cada 6 s (até 3); a **picareta** abre caminho |
+  No sonho, o que o sonhador quebra some sem soltar nada, e o que ele põe é tirado ao acordar (o kern volta como
+  estava). A água da cheia é de verdade, mas a superfície dos poços fica no nível do chão e as portas acima dela: não
+  escapa. (A primeira versão enchia as salas até o teto; a água escorria pelas portas e derrubava camas e o que mais
+  encontrasse.) O sonho põe os seus blocos **sem avisar os vizinhos**: senão o jogo quebra o que ficou sem apoio por
+  um instante (meia cama na troca de fase, um arbusto seco sobre pedra) e o item cai no chão do sonho.
+- **`vis`** (19/10/2026): só se entende depois de aprender as quatro fontes. Entender: **ficar sem mana nenhuma**, ter
+  a **mana transbordando** (nível 30 de experiência) e ter **as quatro fontes em equilíbrio** no corpo. O sonho: cada
+  extremo é **um dos oito extremos das quatro fontes, sorteado de novo a cada vez**; nas memórias, **tudo vira cristal**
+  (ametista e calcita).
+- **A febre na tela:** cada fase tem um efeito de tela do próprio jogo (ondulação, cores que se separam, rastro), a
+  visão que pulsa e a névoa que muda de cor (brasa no calor, azul no frio).
+- **Escapar ou morrer**, como antes: atravessar a fenda ensina a runa; morrer só acorda. Acordar continua ruim.
+- **Lucidez só depois de dominar a runa** (o autor): num sonho de aprendizado o jogador não manda em nada. Depois,
+  dormindo no próprio kern com a runa já dominada, terá momentos de "a vontade é lei" (a desenhar).
+- **Sem memória ainda** (uma experiência vivida antes desta mudança): a fase das memórias usa pedaços do próprio kern.
+- **Nada de fogo, lava ou água de verdade no kern:** escorreriam ou se espalhariam para o que o jogador construiu, e não
+  voltariam ao acordar. Por isso as chamas são só partículas, e nas memórias a água vira gelo compactado e a areia e o
+  cascalho viram pedra (não caem).
+- **Por dentro:** `nahva/BodyMemories` (as memórias, guardadas com o mundo), `nahva/KernDressing` (o que o sonho pôs
+  no kern e o que havia antes; tirado ao acordar, e também no login se o servidor caiu no meio do sonho),
+  `nahva/FeverDream` (as fases), `nahva/FeverHalls` (o castelo) e `nahva/client/FeverClient` (a febre na tela). A região antiga (`IgniRealm`) saiu; o
+  lugar dela no mapa de Nahvá fica vazio.
+- **Testar:** `/runas entender igni` e `/runas sonhar igni`, como antes. As memórias: cada experiência guarda o lugar
+  na primeira vez em que é vivida; uma vivida antes desta mudança guarda o lugar na próxima vez em que for vivida de novo
+  (pegar fogo, congelar na neve fofa...), mesmo com a runa já entendida.
+
+## 4c. As funções: o sonho de um verbo (19/10/2026)
+
+Uma função é um verbo, algo que se **faz**. No sonho dela, **a física do kern é aquele verbo**, e depois o verbo **ao
+contrário** (como um `quantum` negativo vira qualquer verbo): o verbo, as memórias (paradas, como nas fontes), o verbo
+ao contrário. São labirintos de regra estranha, não de dano: **não se voa**, as fases são mais longas (60 a 90 s),
+cada uma é dita numa dica curta ao começar, e o sonho tem **tempo limite (5 minutos)**: se desfaz e o sonhador acorda
+sem a runa (avisa com 1 minuto e 10 s de antecedência).
+
+| Verbo | Entender | O verbo | Ao contrário |
+|---|---|---|---|
+| `iactare` | soltar uma flecha; arremessar algo; puxar com a vara de pesca; ser arremessado por um golpe | **Não se anda** (lentidão forte); o pulo vira um arremesso na direção do olhar (uns 6 blocos; olhando reto voa baixo, por baixo do lintel da porta; olhando para cima, mais alto e mais longe); portas **largas** (3); salas sem chão com uma **pedra 3×3 no meio**; quem cai no escuro é **devolvido** onde pisou por último; **sem dano de queda** | **Tudo o que se olha puxa**: o sonhador é arrastado para o que olha; os mesmos abismos |
+| `vocant` | largar algo; pegar algo do chão; a pérola do Ender; atrair um bicho com comida | **Sem portas, só janelas** na altura dos olhos: fitar um ponto por um instante leva até ele | **O que se olha vem**: a sala da fenda é lacrada; fitar um bloco o arranca dali e o põe atrás do sonhador |
+| `impediunt` | bloquear com o escudo; ficar cercado (4+ criaturas); empurrar correndo | **A fenda foge do olhar**: vista de perto, some para outra sala; chega-se a ela de costas | **A fenda segue quem se afasta**: andando para longe, ela vem (1,5×); indo até ela, ela recua |
+| `vertere` | tirar algo da fornalha; preparar uma poção; comer | **Nada fica o que é**: a cada 3 s o castelo inteiro troca de material; a fenda só existe **no cobre** | **Nada muda**: uma estátua em cada sala, todas paradas; **uma gira**; tocá-la abre a fenda |
+| `ligabis` | prender um bicho no laço; domesticar; montar | **Salas irmãs** (o mesmo tapete): quebrar um bloco numa quebra o mesmo bloco na irmã; a sala da fenda é lacrada; picaretas | **Tudo solto**: salas separadas por um vão; segurando um **laço**, uma ponte se forma até a sala para onde se olha |
+| `reframe` | renomear na bigorna; dar nome com etiqueta; escrever e assinar um livro | **As coisas são o que o nome diz**: etiquetas chamadas "Porta" abrem uma porta na parede onde são usadas; placas que mentem ("Saída"); a sala da fenda é lacrada | **Nada tem nome**: todas as salas iguais, uma pedra só, seis pares de portas que levam a outro lugar |
+| `surgit` | ler um livro (ou um atril); olhar pela luneta; escovar areia suspeita | **O escuro**: sem luz e cego, a menos que se segure um **livro**: então se vê | **Tudo à vista**: o castelo de vidro; vê-se a fenda de todo lugar, o caminho não |
+
+A primeira versão do `iactare` era impossível (o autor morreu em todas as tentativas): portas de 1 bloco para acertar
+num arremesso, abismos de 7 blocos de onde o arremesso (que subia pouco mais de 1) não tirava ninguém, e dano a cada
+queda. Ficou como na tabela.
+A segunda também travava: o arremesso alto batia a cabeça na parede acima da porta, e o slime não tirava ninguém de um abismo de 7 (quicando, nunca se está no chão para pular). Agora o arremesso segue o olhar, o abismo tem uma pedra no meio e o escuro devolve quem cai.
+
+**Por dentro:** `nahva/FeverVerbs` (as salas e as regras de cada verbo: o que se faz a cada instante, ao quebrar, ao
+usar algo); `FeverHalls` ganhou janelas, salas soltas, salas iguais, lacrar uma sala, abismos e trocar o material. As
+experiências estão em `Understanding` (quase todas marcadas no instante em que acontecem). Os efeitos de tela de cada
+verbo são novos e não foram vistos ainda: algum pode deixar a tela preta (como o `blur`); trocar em `FeverClient`.
+
+## 4d. Os filtros: o sonho de uma medida (19/10/2026)
+
+Uma fonte muda a **matéria** do kern; uma função, a **física**. Um filtro faz uma pergunta precisa (quanto, quando,
+onde, de onde: livro 4.3), e no sonho dele quem muda são **as medidas de quem sonha**. Não há castelo: as cenas são
+feitas do **lugar onde o mago deitou para dormir** (guardado ao cair no sonho), aumentado, diminuído, destruído,
+repetido ou transformado numa massa; ou de um tempo em laço, um campo de números, um vazio. Como nas funções: a medida,
+as memórias, a medida ao contrário; não se voa; **tempo limite de 5 minutos**; cada fase tem a sua dica.
+
+| Filtro | Entender | A medida | Ao contrário |
+|---|---|---|---|
+| `quantum` | juntar uma pilha cheia; pegar experiência; fazer dois bichos terem um filhote | **Você é pequeno**: o lugar onde dormiu, **4× maior** (cada bloco um cubo de 4); pulo forte (salto V); a fenda no ponto mais alto que dá pra escalar | **Você é grande**: uma **maquete** da terra em volta da cama (1 coluna a cada 4 blocos, numa janela que nem sempre põe a cama no meio); camas falsas; a fenda é **a sua cama** |
+| `chronos` | usar farinha de osso; dormir a noite toda; fazer um relógio | **O laço**: a cada 20 s, de volta ao começo; os **ecos** das voltas anteriores (com o seu rosto) refazem o que você fez; no **sino** (aos 15 s), três placas precisam estar pisadas ao mesmo tempo, e a jaula da fenda abre | **O tempo volta**: o lugar 3× maior, destruído e queimado; ele **se refaz só enquanto você anda de costas** (e quebra de novo se andar pra frente); inteiro, a fenda é **em cima da cama** |
+| `ubis` | encher um mapa; comer uma fruta do coro; atravessar um portal | **O lugar é um número**: campo branco, **paredes invisíveis** (um labirinto) e só os números de onde você está e de onde precisa estar; chegar no número é achar a fenda | **Todo lugar é o mesmo**: o lugar repetido 5×5; sair por um lado é voltar pelo outro; a fenda aparece em todas as cópias menos na sua; o único "onde" que não se repete é **pra baixo** (uma picareta; o que se quebra numa cópia se quebra em todas) |
+| `tenet` | encher um balde; minerar um minério; tirar leite | **Do mundo**: uma massa feita dos blocos do lugar; tudo o que você toca você **bebe** (fome e vida), e o que estava em volta fica **cinza** (o cinza não alimenta); a fome não para; a fenda no meio da massa | **De você**: um vazio e um chão de osso; de mão vazia, cada bloco custa **meia vida**, ou, agachado, **um nível** (de verdade: o nível gasto não volta); a fenda a 18 blocos e 6 acima |
+
+Quem cai de uma cena volta ao começo dela (ou ao último chão, no vazio do `tenet`), sem dano de queda.
+
+**Por dentro:** `nahva/FeverMeasures` (as cenas e as regras de cada filtro); a regra (`FeverVerbs.Rule`) ganhou
+`place` (uma cena que não é o castelo), `start`, `length` e `hit` (golpear um bloco). O lugar onde se deitou é
+guardado ao entrar no sonho (`FeverMeasures.prepare`, chamado em `Dreams`). As experiências estão em `Understanding`.
+Os efeitos de tela de cada filtro (`FeverClient`) não foram vistos ainda. Os ecos do `chronos` vivem na memória do
+servidor: se ele cair no meio do sonho, o laço recomeça sem eles.
+
+## 4e. Os fatos: o sonho do espelho (19/10/2026)
+
+Os Fatos dizem **o que precisa ser verdade** e **quem** está no acontecimento (livro 4.3). Até aqui o sonho mudava o
+mundo e o sonhador era sempre ele mesmo; no dos Fatos, **há mais alguém**: o `ille`, o outro do acontecimento. Uma cena
+só, sempre a mesma: o lugar onde o mago deitou, **das pedras dele** (o chão e a parede mais comuns da memória), duas
+vezes, com uma parede de vidro no meio. Do outro lado anda uma figura **com o rosto do sonhador**, vestida de escuro,
+que faz o que ele faz, **espelhada**. E **o espelho mente**: onde o sonhador tem chão, o outro tem um buraco, fogo,
+água, um bicho.
+
+- **O fato:** precisa acontecer **com o outro, duas vezes, e não com você no mesmo instante** (se acontecer com os
+  dois, não conta). Então a fenda se abre, no fim do seu lado. Do seu lado há paredes baixas que atrapalham o caminho
+  até os pontos certos.
+- **Ao contrário (`non`):** a fenda está aberta no fim, mas o lado de lá está cheio da mentira, com um caminho só; se o
+  fato acontecer com o outro, os dois voltam ao começo.
+- **Aprender um fato ensina também `aut`, `non`, `ego` e `ille`**: as palavras da família vêm com o primeiro.
+- **Entender** um fato é vivê-lo acordado, uma vez (os acontecimentos do fluxo, `Happenings`).
+
+| Fato | O lado de lá | Como acontece com o outro |
+|---|---|---|
+| `cadit` | buracos de 4 | ele cai no buraco e chega ao fundo |
+| `mergitur` | piscinas de 2 | ele afunda, os olhos na água |
+| `ardet` | fogo das almas | ele pisa no fogo e arde |
+| `salit` | slime | ele quica |
+| `latet` | teto baixo (meia laje) | ele se agacha pra passar |
+| `currit` | gelo azul | ele desliza com você andando (agachado, não) |
+| `languet` | arbusto de frutas | ele perde vida devagar; fraco (30%) conta; se morrer, volta inteiro e não conta |
+| `patitur` | magma | ele se fere ao pisar |
+| `frangit` | vidraças | ele atravessa e quebra o vidro |
+| `ferit` | ovelhas paradas | você golpeia o ar, ele golpeia o que está à frente dele; do seu lado há ovelhas onde do lado de lá não há nada, e golpeá-las conta contra você. Ao contrário: paredes de lã pra quebrar (cada golpe seu é um golpe dele) com ovelhas atrás do vidro |
+| `necat` | galinhas | duas pancadas dele matam uma. Ao contrário, como o `ferit` |
+| `utitur` | alavancas na parede | clicar a sua parede onde, do outro lado, há uma alavanca. Ao contrário: três portões; antes de cada um, três botões; atrás do vidro, dois deles são alavancas, e só um botão abre o portão sem que o outro puxe nada |
+
+Do vidro e das paredes nada se quebra; só a lã do `ferit` e do `necat` ao contrário.
+
+**Por dentro:** `nahva/FeverMirror` (a cena, o outro e cada fato); a regra ganhou `keeps` (o que não se quebra). O
+outro é um suporte de armadura sem corpo com a cabeça do jogador; a altura dele é a do chão do lado dele (cai nos
+buracos, afunda nas piscinas). As palavras vêm em `Dreams.wake`.
+
 ## 5. Perguntas abertas
 
 1. **O desafio do `igni`:** a primeira versão é um rascunho. Como deve ser?

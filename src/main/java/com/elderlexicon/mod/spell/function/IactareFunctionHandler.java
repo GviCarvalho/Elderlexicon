@@ -43,6 +43,16 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
         if (subject.isPresent()) {
             // m1 iactare: the marked thing is thrown from where it is toward the aim (or the ubis place); with a negative
             // quantity the force is turned around and it is pulled toward the mage (m1 quantum -20 iactare).
+            // A nugget set in an arcane compass, pushed, points where it is pushed (docs/bussola-arcana-design.md).
+            if (!action.get().reversed() && Dials.push(context, subject.get(), action.flatMap(SpellAction::place),
+                    action.get().quantity().orElse(MarkCost.DEFAULT_THROW_ENERGY), Chronos.window(action.get()))) {
+                return;
+            }
+            // A weapon, or a thing the invocation bench made, is thrown as a blow (docs/invocacao-design.md, 5.1).
+            if (!action.get().reversed() && Strikes.launch(context, subject.get(), action.flatMap(SpellAction::place),
+                    action.get().quantity().orElse(MarkCost.DEFAULT_THROW_ENERGY))) {
+                return;
+            }
             MarkSpells.Push push = action.get().reversed() ? MarkSpells.Push.TOWARD_CASTER : MarkSpells.Push.TOWARD_AIM;
             MarkSpells.push(context, subject.get(), action.flatMap(SpellAction::place), push,
                     action.get().quantity().orElse(MarkCost.DEFAULT_THROW_ENERGY),
@@ -64,9 +74,16 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
         context.addTotalCost(energy - EmissionRecorder.DEFAULT_QUANTITY_UMU);
         // A condensation is gathered first: the release waits for its charge (the aim is read when it is released).
         int charge = action.map(SpellAction::charge).orElse(0);
-        if (action.isPresent() && action.get().atOnce() && action.get().metadata().get(SpellAction.INTENSITY) != null) {
-            releaseCondensed(level, player, element, action.get(), charge);
-            return;
+        // Thrown with no chronos, all of it goes as one (user, 17/10/2026): more than a common throw is pressed into one
+        // blow, as intense as all of it in one block (the same measure as vocant's).
+        if (action.isPresent() && action.get().concentrates()
+                && (perWindow > EmissionRecorder.DEFAULT_QUANTITY_UMU + 1.0E-6D
+                || action.get().metadata().get(SpellAction.INTENSITY) != null)) {
+            double intensity = VocantFunctionHandler.intensityOf(element, perWindow, action.get());
+            if (intensity > 0.0D) {
+                releaseCondensed(level, player, element, action.get(), intensity, charge);
+                return;
+            }
         }
         double power = energy / EmissionRecorder.DEFAULT_QUANTITY_UMU;
         int pulses = duration / CAST_STEP_TICKS + 1;
@@ -150,8 +167,7 @@ public final class IactareFunctionHandler implements SpellFunctionHandler {
      * pressed ice, earth as a block with weight, and their orb is spent.
      */
     private static void releaseCondensed(ServerLevel level, LivingEntity player, VitaElement element, SpellAction action,
-                                         int charge) {
-        double intensity = action.intensity();
+                                         double intensity, int charge) {
         released(level, player, charge, () -> {
             ElementOrb orb = orbOf(level, action);
             // From where the orb was gathered (the hand) toward the aim.

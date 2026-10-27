@@ -196,6 +196,17 @@ public class ElderLexicon {
             () -> new net.minecraftforge.common.ForgeSpawnEggItem(ElderLexicon.SORCERER, 0x959B9B, 0x6B3FA0,
                     new Item.Properties()));
 
+    /** The arcane compass (docs/bussola-arcana-design.md), of iron and of gold. */
+    public static final RegistryObject<Item> IRON_ARCANE_COMPASS = ITEMS.register("iron_arcane_compass",
+            () -> new com.elderlexicon.mod.item.ArcaneCompassItem(com.elderlexicon.mod.item.ArcaneCompassItem.Metal.IRON,
+                    new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> GOLD_ARCANE_COMPASS = ITEMS.register("gold_arcane_compass",
+            () -> new com.elderlexicon.mod.item.ArcaneCompassItem(com.elderlexicon.mod.item.ArcaneCompassItem.Metal.GOLD,
+                    new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<RecipeSerializer<com.elderlexicon.mod.item.ArcaneCompassRecipe>> ARCANE_COMPASS_SERIALIZER =
+            RECIPE_SERIALIZERS.register("arcane_compass",
+                    () -> new SimpleCraftingRecipeSerializer<>(com.elderlexicon.mod.item.ArcaneCompassRecipe::new));
+
     public static final RegistryObject<RecipeSerializer<WandUpgradeRecipe>> WAND_UPGRADE_SERIALIZER =
             RECIPE_SERIALIZERS.register("wand_upgrade", () -> new SimpleCraftingRecipeSerializer<>(WandUpgradeRecipe::new));
 
@@ -206,6 +217,8 @@ public class ElderLexicon {
                     .icon(() -> GRIMOIRE.get().getDefaultInstance())
                     .displayItems((parameters, output) -> {
                         output.accept(LIFE_COMPASS.get());
+                        output.accept(IRON_ARCANE_COMPASS.get());
+                        output.accept(GOLD_ARCANE_COMPASS.get());
                         output.accept(ELDER_BRUSH.get());
                         output.accept(GRIMOIRE.get());
                         output.accept(DETACHED_PAGE.get());
@@ -237,6 +250,7 @@ public class ElderLexicon {
         ENTITY_TYPES.register(modEventBus);
         MatterBlocks.register(modEventBus);
         com.elderlexicon.mod.galdraria.Galdraria.register(modEventBus);
+        com.elderlexicon.mod.invocation.Invocations.register(modEventBus);
         com.elderlexicon.mod.tower.Towers.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
         RECIPE_SERIALIZERS.register(modEventBus);
@@ -253,9 +267,22 @@ public class ElderLexicon {
             MarkNetwork.register();
             LigabisNetwork.register();
             com.elderlexicon.mod.dialogue.DialogueNetwork.register();
+            com.elderlexicon.mod.vita.network.VitaNetwork.register();
+            // A block's hardness is its density: the table is packed by it (docs/particulas-design.md, "Densidade").
+            com.elderlexicon.mod.magic.matter.Materials.useHardness(ElderLexicon::hardnessOf);
             DamageMappingConfig.initialize();
             VitaRecoveryConfig.initialize();
         });
+    }
+
+    /** How hard the block of {@code id} is (its destroy time), or NaN when the game has no such block. */
+    private static double hardnessOf(String id) {
+        net.minecraft.resources.ResourceLocation key = net.minecraft.resources.ResourceLocation.tryParse(id);
+        if (key == null || !ForgeRegistries.BLOCKS.containsKey(key)) {
+            return Double.NaN;
+        }
+        return ForgeRegistries.BLOCKS.getValue(key).defaultBlockState()
+                .getDestroySpeed(net.minecraft.world.level.EmptyBlockGetter.INSTANCE, net.minecraft.core.BlockPos.ZERO);
     }
 
     @SubscribeEvent

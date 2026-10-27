@@ -109,6 +109,13 @@ final class MarkTargets {
         if (manager == null || server == null) {
             return found;
         }
+        // A marked square of an invocation bench is a place on the bench (docs/invocacao-design.md).
+        com.elderlexicon.mod.invocation.BenchSlots.find(server, mark).ifPresent(slot -> {
+            ServerLevel benchLevel = server.getLevel(slot.dimension());
+            if (benchLevel != null && !benchLevel.getBlockState(slot.pos()).isAir()) {
+                found.add(Marked.block(mark, benchLevel, slot.pos(), benchLevel.getBlockState(slot.pos())));
+            }
+        });
         for (MemberId id : manager.membersOf(mark)) {
             if (MemberKeys.isEntity(id)) {
                 Entity entity = findEntity(server, MemberKeys.entityId(id));

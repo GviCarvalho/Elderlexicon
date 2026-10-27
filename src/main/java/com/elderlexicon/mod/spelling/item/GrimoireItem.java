@@ -58,6 +58,84 @@ public final class GrimoireItem extends WritableBookItem {
         mc.setScreen(new com.elderlexicon.mod.spelling.client.GrimoireEditScreen(player, stack, hand, startPage));
     }
 
+    // ------------------------------------------------------------------ its leaves
+
+    /** How many leaves it has to write on: a new grimoire has {@link #DEFAULT_LEAVES}; paper or loose pages add more. */
+    public static final String LEAVES_TAG = "Leaves";
+    public static final int DEFAULT_LEAVES = 30;
+    public static final int MAX_LEAVES = 100;
+
+    /** Its leaves: never fewer than the pages written in it (an older grimoire kept as many as it had). */
+    public static int leaves(ItemStack stack) {
+        CompoundTag tag = stack.getTag();
+        int written = tag == null ? 0 : tag.getList("pages", Tag.TAG_STRING).size();
+        int kept = tag != null && tag.contains(LEAVES_TAG, Tag.TAG_INT) ? tag.getInt(LEAVES_TAG) : DEFAULT_LEAVES;
+        return Math.max(1, Math.min(MAX_LEAVES, Math.max(kept, written)));
+    }
+
+    public static void setLeaves(ItemStack stack, int leaves) {
+        stack.getOrCreateTag().putInt(LEAVES_TAG, Math.max(1, Math.min(MAX_LEAVES, leaves)));
+    }
+
+    /**
+     * Paper or a loose page put into it in an inventory (right-click it with them, as one fills a bundle): a sheet of
+     * paper is a blank leaf more; a loose page goes back in with what is written on it, after the last page written.
+     */
+    @Override
+    public boolean overrideOtherStackedOnMe(ItemStack grimoire, ItemStack other,
+                                            net.minecraft.world.inventory.Slot slot,
+                                            net.minecraft.world.inventory.ClickAction action, Player player,
+                                            net.minecraft.world.entity.SlotAccess access) {
+        if (action != net.minecraft.world.inventory.ClickAction.SECONDARY || other.isEmpty()) {
+            return false;
+        }
+        boolean paper = other.is(net.minecraft.world.item.Items.PAPER);
+        boolean page = other.getItem() instanceof SpellScrollItem;
+        if (!paper && !page) {
+            return false;
+        }
+        int leaves = leaves(grimoire);
+        if (leaves >= MAX_LEAVES) {
+            return true; // it holds no more: the paper stays in hand
+        }
+        if (page) {
+            putBack(grimoire, other);
+        }
+        setLeaves(grimoire, leaves + 1);
+        other.shrink(1);
+        player.playSound(net.minecraft.sounds.SoundEvents.BOOK_PAGE_TURN, 0.8F, 0.9F + player.getRandom().nextFloat() * 0.2F);
+        return true;
+    }
+
+    /** A loose page written into the grimoire again, after its last written page, with its name if it had one. */
+    private static void putBack(ItemStack grimoire, ItemStack page) {
+        CompoundTag pageTag = page.getTag();
+        com.elderlexicon.mod.spell.block.WrittenTexts.upgrade(pageTag);
+        String text = pageTag == null ? "" : pageTag.getString("DetachedPageText");
+        CompoundTag tag = grimoire.getOrCreateTag();
+        com.elderlexicon.mod.spell.block.WrittenTexts.upgrade(tag);
+        ListTag pages = tag.getList("pages", Tag.TAG_STRING);
+        ListTag names = tag.getList(PAGE_NAMES_TAG, Tag.TAG_STRING);
+        // The blank pages at the end are no pages written: it goes before them.
+        while (!pages.isEmpty() && pages.getString(pages.size() - 1).isBlank()) {
+            pages.remove(pages.size() - 1);
+        }
+        while (names.size() < pages.size()) {
+            names.add(StringTag.valueOf(""));
+        }
+        while (names.size() > pages.size()) {
+            names.remove(names.size() - 1);
+        }
+        pages.add(StringTag.valueOf(text));
+        // A name given to the page (not the "Detached page N" it was called when it was torn out).
+        boolean named = page.hasCustomHoverName()
+                && !(page.getHoverName().getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents);
+        names.add(StringTag.valueOf(named ? page.getHoverName().getString() : ""));
+        tag.put("pages", pages);
+        tag.put(PAGE_NAMES_TAG, names);
+        com.elderlexicon.mod.spell.block.WrittenTexts.mark(tag);
+    }
+
     public static int getStoredPage(ItemStack stack) {
         CompoundTag tag = stack.getTag();
         if (tag == null || !tag.contains(LAST_PAGE_TAG)) {
@@ -193,6 +271,13 @@ public final class GrimoireItem extends WritableBookItem {
                                 TooltipFlag flag) {
         tooltip.add(Component.translatable("tooltip.elderlexicon.grimoire.summary")
                 .withStyle(ChatFormatting.DARK_AQUA));
+        CompoundTag tag = stack.getTag();
+        long written = tag == null ? 0 : tag.getList("pages", Tag.TAG_STRING).stream()
+                .filter(page -> !page.getAsString().isBlank()).count();
+        tooltip.add(Component.translatable("tooltip.elderlexicon.grimoire.leaves", written, leaves(stack))
+                .withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable("tooltip.elderlexicon.grimoire.add_leaves")
+                .withStyle(ChatFormatting.DARK_GRAY));
 
         List<List<String>> spells = readSpells(stack);
         if (spells.isEmpty()) {

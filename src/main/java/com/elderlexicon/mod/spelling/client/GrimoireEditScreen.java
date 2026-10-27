@@ -55,8 +55,10 @@ import java.util.UUID;
  * its words go, one word per cell, each column a step of time; on the right the grimoire's own description of it (a
  * name, what it does, what it cost, notes on what its elements may do where they meet), written only once the spirit
  * has cast it. The name can be changed by clicking it. The margin is inked with a gold seal where the spirit reads the
- * line and a blot where it does not; Tab reads the page ahead in its real time. The page is kept as the same text the
- * spirit reads.
+ * line and a blot where it does not. Tab opens an empty cell after the cursor, the words after it moving on a column, so
+ * a rune can be put in the middle of a spell. The page is kept as the same text the spirit reads. It has as many
+ * leaves as {@link GrimoireItem#leaves}: tearing a page out spends one. The whole book is drawn smaller when the screen
+ * is too small for it.
  */
 @OnlyIn(Dist.CLIENT)
 public class GrimoireEditScreen extends Screen {
@@ -170,8 +172,10 @@ public class GrimoireEditScreen extends Screen {
     private Button detachButton;
     private long turnStart = -1L;
     private boolean turnForward;
-    private long previewStart = -1L;
-    private int previewColumn = -1;
+    /** How many leaves it has: no more pages than that. */
+    private int leaves;
+    /** How much smaller than its size the book is drawn, to fit the screen (1 when it fits). */
+    private float scale = 1.0F;
 
     public GrimoireEditScreen(Player owner, ItemStack book, InteractionHand hand, int startPage) {
         super(GameNarrator.NO_TITLE);
@@ -230,6 +234,7 @@ public class GrimoireEditScreen extends Screen {
                 readings.put(list.getCompound(i).getString("Text"), list.getCompound(i).getDouble("Cost"));
             }
         }
+        leaves = GrimoireItem.leaves(book);
         reading = READING.withNamed(named);
         describer = new SpellDescription(DICTIONARY, named);
         currentPage = Mth.clamp(startPage, 0, pages.size() - 1);
@@ -242,14 +247,25 @@ public class GrimoireEditScreen extends Screen {
 
     @Override
     protected void init() {
-        left = (width - BOOK_W) / 2;
-        top = Math.max(2, (height - (BOOK_H + 26)) / 2);
+        // The book, its ribbons at the right edge (kept clear on the left too, so it stays centred) and its buttons.
+        scale = Math.min(1.0F, Math.min(width / (float) (BOOK_W + 2 * (RIBBON_W + 6)), height / (float) (BOOK_H + 30)));
+        left = (bookWidth() - BOOK_W) / 2;
+        top = Math.max(2, (bookHeight() - (BOOK_H + 26)) / 2);
         int buttonsY = top + BOOK_H + 4;
         detachButton = addRenderableWidget(Button.builder(DETACH_LABEL, button -> detachCurrentPage())
-                .bounds(width / 2 - 100, buttonsY, 98, 20).build());
+                .bounds(bookWidth() / 2 - 100, buttonsY, 98, 20).build());
         addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> onClose())
-                .bounds(width / 2 + 2, buttonsY, 98, 20).build());
+                .bounds(bookWidth() / 2 + 2, buttonsY, 98, 20).build());
         updateButtons();
+    }
+
+    /** The screen's width and height as the book is laid out on it: larger when the book is drawn smaller. */
+    private int bookWidth() {
+        return (int) (width / scale);
+    }
+
+    private int bookHeight() {
+        return (int) (height / scale);
     }
 
     private void updateButtons() {
@@ -300,7 +316,6 @@ public class GrimoireEditScreen extends Screen {
         cursorRow = Mth.clamp(cursorRow, 0, GrimoirePage.ROWS - 1);
         cursorCol = Math.min(cursorCol, rows.get(cursorRow).size());
         scroll = 0;
-        previewStart = -1L;
         refresh();
     }
 
@@ -347,7 +362,9 @@ public class GrimoireEditScreen extends Screen {
                     glossaryPage = glossaryPages() - 1;
                 } else {
                     if (next >= pages.size()) {
-                        if (pages.size() >= MAX_PAGES) {
+                        if (pages.size() >= Math.min(MAX_PAGES, leaves)) {
+                            // No leaf left to turn to: paper or loose pages bind more in.
+                            play(SoundEvents.BOOK_PUT, 1.2F, 0.6F);
                             return;
                         }
                         pages.add("");
@@ -397,6 +414,7 @@ public class GrimoireEditScreen extends Screen {
         String detached = pages.get(currentPage);
         int index = currentPage;
         pages.remove(index);
+        leaves = Math.max(1, leaves - 1);
         if (index < names.size()) {
             names.remove(index);
         }
@@ -543,14 +561,6 @@ public class GrimoireEditScreen extends Screen {
             }
         }
         return spoken;
-    }
-
-    private int lastRelease() {
-        int last = -1;
-        for (RowInfo info : infos) {
-            last = Math.max(last, info.release());
-        }
-        return last;
     }
 
     // ------------------------------------------------------------------ editing
@@ -726,13 +736,22 @@ public class GrimoireEditScreen extends Screen {
         });
     }
 
-    /** Tab: the page read ahead, a light running through the columns at the pace the spirit reads them. */
-    private void readAhead() {
+    /**
+     * Tab: an empty cell opened after the cursor's, the words after it moving on a column, and the cursor goes to it: a
+     * rune can be put in the middle of a spell without rubbing out what comes after it.
+     */
+    private void openSpaceAhead() {
         commitCell();
-        refresh();
-        previewStart = Util.getMillis();
-        previewColumn = -1;
-        scroll = 0;
+        edit(() -> {
+            List<String> row = row();
+            if (cursorCol >= row.size()) {
+                row.add("");
+                cursorCol = row.size();
+            } else {
+                row.add(cursorCol + 1, "");
+                cursorCol++;
+            }
+        });
     }
 
     @Override
@@ -793,7 +812,7 @@ public class GrimoireEditScreen extends Screen {
         }
         boolean shift = Screen.hasShiftDown();
         switch (key) {
-            case InputConstants.KEY_TAB -> readAhead();
+            case InputConstants.KEY_TAB -> openSpaceAhead();
             case InputConstants.KEY_SPACE -> {
                 if (shift) {
                     insertPause();
@@ -821,7 +840,20 @@ public class GrimoireEditScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        return super.mouseDragged(mouseX / scale, mouseY / scale, button, dragX / scale, dragY / scale);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        return super.mouseReleased(mouseX / scale, mouseY / scale, button);
+    }
+
+    @Override
+    public boolean mouseClicked(double screenX, double screenY, int button) {
+        // Where the pointer is on the book as it is laid out (it is drawn smaller on a small screen).
+        double mouseX = screenX / scale;
+        double mouseY = screenY / scale;
         if (button != 0) {
             return super.mouseClicked(mouseX, mouseY, button);
         }
@@ -993,14 +1025,27 @@ public class GrimoireEditScreen extends Screen {
     }
 
     private int coverLeft() {
-        return (width - COVER_W) / 2;
+        return (bookWidth() - COVER_W) / 2;
     }
 
     // ------------------------------------------------------------------ drawing
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    public void render(GuiGraphics graphics, int screenX, int screenY, float partialTick) {
         renderBackground(graphics);
+        int mouseX = (int) (screenX / scale);
+        int mouseY = (int) (screenY / scale);
+        graphics.pose().pushPose();
+        graphics.pose().scale(scale, scale, 1.0F);
+        drawBook(graphics, mouseX, mouseY, partialTick);
+        graphics.pose().popPose();
+        if (view != View.COVER) {
+            drawTooltip(graphics, mouseX, mouseY, screenX, screenY);
+        }
+    }
+
+    /** The book at its own size, the pointer where it is on the book. */
+    private void drawBook(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         if (view == View.COVER) {
             drawCover(graphics);
             drawTurning(graphics);
@@ -1014,7 +1059,6 @@ public class GrimoireEditScreen extends Screen {
         } else {
             drawRules(graphics);
             drawInstant(graphics, mouseX, mouseY);
-            drawReadingAhead(graphics);
             drawCells(graphics);
             drawMargin(graphics);
             drawDescription(graphics, mouseX, mouseY);
@@ -1022,7 +1066,6 @@ public class GrimoireEditScreen extends Screen {
         }
         drawTurning(graphics);
         super.render(graphics, mouseX, mouseY, partialTick);
-        drawTooltip(graphics, mouseX, mouseY);
     }
 
     /** The cover, after EVL's grimoire: the sigil, and its maker's name in the old glyphs. */
@@ -1087,7 +1130,7 @@ public class GrimoireEditScreen extends Screen {
         }
         int onRight = entries.size() - glossaryPage * 2 * ENTRIES_PER_PAGE - ENTRIES_PER_PAGE;
         if (glossaryPage == glossaryPages() - 1 && onRight <= ENTRIES_PER_PAGE - 2) {
-            String[] hints = {"Espaço · próxima célula   Shift+Espaço · pausa", "Enter · nova linha   Tab · ler adiante",
+            String[] hints = {"Espaço · próxima célula   Shift+Espaço · pausa", "Enter · nova linha   Tab · abrir espaço adiante",
                     "PgUp / PgDn · virar a página"};
             for (int i = 0; i < hints.length; i++) {
                 drawScaled(graphics, Component.literal(hints[i]), left + RIGHT_PAGE_X + PAGE_W / 2.0F,
@@ -1139,38 +1182,6 @@ public class GrimoireEditScreen extends Screen {
         int x = left + GRID_X + (cell[1] - scroll) * CELL;
         graphics.fill(x + 1, top + GRID_Y, x + CELL, top + GRID_Y + GrimoirePage.ROWS * CELL,
                 spokenAt(cell[1]) >= 2 ? CROSSING : 0x142E1C10);
-    }
-
-    /** Reading ahead: the light runs through the columns in their real time; each spell chimes as it is released. */
-    private void drawReadingAhead(GuiGraphics graphics) {
-        if (previewStart < 0L) {
-            return;
-        }
-        double column = (Util.getMillis() - previewStart) / (SECONDS_PER_COLUMN * 1000.0D);
-        int reached = (int) Math.floor(column);
-        if (reached > lastRelease() + 1) {
-            previewStart = -1L;
-            return;
-        }
-        if (reached != previewColumn) {
-            previewColumn = reached;
-            if (reached >= scroll + COLUMNS) {
-                scroll = reached - COLUMNS + 1;
-            }
-            for (RowInfo info : infos) {
-                if (info.release() == reached) {
-                    play(info.reads() ? SoundEvents.AMETHYST_BLOCK_CHIME : SoundEvents.NOTE_BLOCK_BASS.value(),
-                            1.0F + 0.05F * reached, 0.8F);
-                }
-            }
-        }
-        float x = (float) (left + GRID_X + (column - scroll) * CELL);
-        if (x < left + GRID_X || x > left + GRID_X + COLUMNS * CELL) {
-            return;
-        }
-        int x0 = (int) x;
-        graphics.fill(x0, top + GRID_Y, x0 + CELL, top + GRID_Y + GrimoirePage.ROWS * CELL, 0x40F0C060);
-        graphics.fill(x0 + CELL - 1, top + GRID_Y, x0 + CELL, top + GRID_Y + GrimoirePage.ROWS * CELL, 0x90F0C060);
     }
 
     private void drawCells(GuiGraphics graphics) {
@@ -1225,7 +1236,6 @@ public class GrimoireEditScreen extends Screen {
 
     /** The margin, inked: a small gold seal beside a line the spirit reads, a blot beside one it does not. */
     private void drawMargin(GuiGraphics graphics) {
-        boolean reading = previewStart >= 0L;
         for (int r = 0; r < GrimoirePage.ROWS; r++) {
             RowInfo info = infos.get(r);
             if (info.empty()) {
@@ -1234,8 +1244,7 @@ public class GrimoireEditScreen extends Screen {
             int cx = left + SEAL_X;
             int cy = top + GRID_Y + r * CELL + 7;
             if (info.reads()) {
-                boolean released = reading && previewColumn >= info.release();
-                int body = released ? GOLD_LIGHT : GOLD;
+                int body = GOLD;
                 graphics.fill(cx - 2, cy - 3, cx + 3, cy + 4, body);
                 graphics.fill(cx - 3, cy - 2, cx + 4, cy + 3, body);
                 graphics.fill(cx - 1, cy - 1, cx + 2, cy + 2, GOLD_DARK);
@@ -1316,6 +1325,8 @@ public class GrimoireEditScreen extends Screen {
     private void drawPageNumber(GuiGraphics graphics) {
         Component number = Component.literal(NumberGlyphs.toGlyphs(String.valueOf(currentPage + 1))).withStyle(SGA_STYLE);
         drawScaled(graphics, number, left + LEFT_PAGE_X + PAGE_W / 2.0F, top + BOOK_H - 22, 1.0F, FAINT_INK);
+        drawScaled(graphics, Component.literal("folha " + (currentPage + 1) + " de " + leaves),
+                left + LEFT_PAGE_X + PAGE_W / 2.0F, top + BOOK_H - 12, 0.5F, FAINT_INK);
     }
 
     /** The ribbons of the named runes, sticking out of the book's right edge; the one of this page sticks out more. */
@@ -1368,7 +1379,8 @@ public class GrimoireEditScreen extends Screen {
         graphics.fill(shadow, y0, shadow + 3, y1, 0x30000000);
     }
 
-    private void drawTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
+    /** The tooltip of what is under the pointer ({@code mouseX}, on the book), drawn at the pointer on the screen. */
+    private void drawTooltip(GuiGraphics graphics, int mouseX, int mouseY, int screenX, int screenY) {
         List<FormattedCharSequence> lines = new ArrayList<>();
         int[] cell = cellAt(mouseX, mouseY);
         int ribbon = bookmarkAt(mouseX, mouseY);
@@ -1437,7 +1449,7 @@ public class GrimoireEditScreen extends Screen {
             }
         }
         if (!lines.isEmpty()) {
-            graphics.renderTooltip(font, lines, mouseX, mouseY);
+            graphics.renderTooltip(font, lines, screenX, screenY);
         }
     }
 

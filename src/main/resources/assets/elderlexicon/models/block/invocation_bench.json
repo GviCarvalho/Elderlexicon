@@ -1,0 +1,70 @@
+{
+  "parent": "minecraft:block/block",
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "particle": "minecraft:block/crafting_table_front",
+    "top": "minecraft:block/crafting_table_top",
+    "front": "minecraft:block/crafting_table_front",
+    "side": "minecraft:block/crafting_table_side",
+    "bottom": "minecraft:block/oak_planks",
+    "marks": "elderlexicon:block/invocation_bench_marks"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "faces": {
+        "down": {
+          "texture": "#bottom",
+          "cullface": "down"
+        },
+        "up": {
+          "texture": "#top",
+          "cullface": "up"
+        },
+        "north": {
+          "texture": "#front",
+          "cullface": "north"
+        },
+        "south": {
+          "texture": "#side",
+          "cullface": "south"
+        },
+        "east": {
+          "texture": "#side",
+          "cullface": "east"
+        },
+        "west": {
+          "texture": "#front",
+          "cullface": "west"
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        16.01,
+        0
+      ],
+      "to": [
+        16,
+        16.01,
+        16
+      ],
+      "faces": {
+        "up": {
+          "texture": "#marks",
+          "cullface": "up"
+        }
+      }
+    }
+  ]
+}

@@ -15,6 +15,8 @@ O livro não fala disso; é mecânica nova do mod.
 - No HUD, no alto da tela: `Fluxo · 12 s · 0.74 UMU/s` (tempo sustentado e o custo do segundo atual).
 - Enquanto dura, faíscas de encantamento rodeiam o mago, visíveis a quem está perto.
 - O fluxo se desfaz quando o mago sai, quando a mana acaba, quando morre ou sai do mundo.
+- Uma **bússola arcana** na mão é lida de novo a cada segundo, sem condição: o que ela mostra não apaga enquanto é
+  segurada (docs/bussola-arcana-design.md, 16/10/2026).
 
 ## 2. O custo: uma torneira que vai abrindo
 

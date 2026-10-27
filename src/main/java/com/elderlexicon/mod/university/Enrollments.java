@@ -14,13 +14,23 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Who studies at the universities (docs/mago-design.md, 4.1 and 4.2), kept with the world: each student's rank, the
- * fee the last examination set, until when the period is paid, and the disciplines passed. The universities of a world
- * are one house: a student of one is a student of all.
+ * Who studies at the universities (docs/mago-design.md, 4.1 and 4.2; docs/universidade-cursos-design.md), kept with the
+ * world: each student's rank, the fee the last examination set, until when the period is paid; their course, the
+ * lessons they did and the chairs they passed. The universities of a world are one house: a student of one is a student
+ * of all.
+ * <ul>
+ *   <li><b>Auditor:</b> admitted; takes the first year.</li>
+ *   <li><b>Scriba:</b> passed every chair of the first year, and chose a course (one at a time).</li>
+ *   <li><b>Lector:</b> passed every chair of the course, and the Expedition.</li>
+ * </ul>
+ * The house's book before the courses (the old disciplines, each a master's examination) is read as Auditors: what they
+ * passed is kept, and counts for nothing toward a rank.
  */
 public final class Enrollments extends SavedData {
 
     private static final String NAME = "elderlexicon_university";
+    /** The book of the courses; before it, the old disciplines. */
+    private static final int VERSION = 2;
     /** A period: seven days of the game. */
     public static final long PERIOD = 7L * 24000L;
     /** How long one who failed waits before being examined again. */
@@ -46,6 +56,56 @@ public final class Enrollments extends SavedData {
         /** The disciplines passed, with the score of each; when each master last examined them. */
         final Map<Discipline, Integer> passed = new EnumMap<>(Discipline.class);
         final Map<Discipline, Long> triedAt = new EnumMap<>(Discipline.class);
+        /** The course they take, if they chose one. */
+        @Nullable
+        Course course;
+        /** The lessons done, as "chair/lesson"; the chairs passed, with the score of each. */
+        final java.util.Set<String> lessons = new java.util.LinkedHashSet<>();
+        final Map<String, Integer> chairs = new java.util.LinkedHashMap<>();
+        /** Whether they came back from the Expedition. */
+        boolean expedition;
+
+        public Optional<Course> course() {
+            return Optional.ofNullable(course);
+        }
+
+        public java.util.Set<String> lessons() {
+            return java.util.Collections.unmodifiableSet(lessons);
+        }
+
+        public Map<String, Integer> chairs() {
+            return java.util.Collections.unmodifiableMap(chairs);
+        }
+
+        public boolean expedition() {
+            return expedition;
+        }
+
+        /** Whether they did the lesson {@code lesson} of {@code chair}. */
+        public boolean did(String chair, String lesson) {
+            return lessons.contains(chair + "/" + lesson);
+        }
+
+        /** Whether they passed every chair of the first year. */
+        public boolean firstYearDone() {
+            return chairs.keySet().containsAll(Curriculum.get().firstYear());
+        }
+
+        /** The chairs of the first year still to pass. */
+        public java.util.List<String> firstYearLeft() {
+            return Curriculum.get().firstYear().stream().filter(chair -> !chairs.containsKey(chair)).toList();
+        }
+
+        /** The chairs of their course still to pass (all of them, with no course). */
+        public java.util.List<String> courseLeft() {
+            return course().flatMap(Curriculum.get()::course).map(info -> info.chairs().stream()
+                    .filter(chair -> !chairs.containsKey(chair)).toList()).orElse(java.util.List.of());
+        }
+
+        /** Whether they may choose a course now: an Auditor with the first year done, or a Scriba changing it. */
+        public boolean mayChooseCourse() {
+            return rank == Rank.AUDITOR && firstYearDone() || rank == Rank.SCRIBA;
+        }
 
         public Optional<Rank> rank() {
             return Optional.ofNullable(rank);
@@ -89,15 +149,14 @@ public final class Enrollments extends SavedData {
         }
 
         /**
-         * Whether they may be a Lector (docs/mago-design.md, 4.2): a Scriba who passed three disciplines or more, one of
-         * them without a mistake (that master accepts them).
+         * Whether they may be a Lector (docs/universidade-cursos-design.md, 6): a Scriba who passed every chair of their
+         * course, and came back from the Expedition.
          */
         public boolean mayRead() {
-            return rank == Rank.SCRIBA && passed.size() >= 3
-                    && passed.values().stream().anyMatch(score -> score >= MASTER_QUESTIONS);
+            return rank == Rank.SCRIBA && course != null && courseLeft().isEmpty() && expedition;
         }
 
-        /** The discipline whose master accepts them, the first passed without a mistake. */
+        /** The discipline whose master accepts them, the first passed without a mistake (the old book's). */
         public Optional<Discipline> master() {
             return passed.entrySet().stream().filter(entry -> entry.getValue() >= MASTER_QUESTIONS)
                     .map(Map.Entry::getKey).findFirst();
@@ -118,12 +177,31 @@ public final class Enrollments extends SavedData {
             CompoundTag triedTag = new CompoundTag();
             triedAt.forEach((discipline, time) -> triedTag.putLong(discipline.id(), time));
             tag.put("Tried", triedTag);
+            if (course != null) {
+                tag.putString("Course", course.id());
+            }
+            ListTag lessonsTag = new ListTag();
+            lessons.forEach(lesson -> lessonsTag.add(net.minecraft.nbt.StringTag.valueOf(lesson)));
+            tag.put("Lessons", lessonsTag);
+            CompoundTag chairsTag = new CompoundTag();
+            chairs.forEach(chairsTag::putInt);
+            tag.put("Chairs", chairsTag);
+            tag.putBoolean("Expedition", expedition);
             return tag;
         }
 
-        private static Student load(CompoundTag tag) {
+        private static Student load(CompoundTag tag, int version) {
             Student student = new Student();
             student.rank = Rank.byId(tag.getString("Rank")).orElse(null);
+            if (version < VERSION && (student.rank == Rank.SCRIBA || student.rank == Rank.LECTOR)) {
+                // The old book's ranks came of the old disciplines: under the courses, they begin the first year.
+                student.rank = Rank.AUDITOR;
+            }
+            student.course = Course.byId(tag.getString("Course")).orElse(null);
+            tag.getList("Lessons", Tag.TAG_STRING).forEach(lesson -> student.lessons.add(lesson.getAsString()));
+            CompoundTag chairsTag = tag.getCompound("Chairs");
+            chairsTag.getAllKeys().forEach(key -> student.chairs.put(key, chairsTag.getInt(key)));
+            student.expedition = tag.getBoolean("Expedition");
             student.fee = tag.getInt("Fee");
             student.feeSetAt = tag.getLong("FeeSetAt");
             student.paidUntil = tag.getLong("PaidUntil");
@@ -193,8 +271,8 @@ public final class Enrollments extends SavedData {
     }
 
     /**
-     * The master of {@code discipline} examined {@code who}: passed or not; a passed Auditor becomes a Scriba. Returns
-     * whether they passed.
+     * The master of {@code discipline} examined {@code who}: passed or not. Returns whether they passed. Under the
+     * courses, a discipline passed makes no one a Scriba: the first year does (and the course).
      */
     public boolean examinedBy(UUID who, Discipline discipline, int right, long now) {
         Student student = student(who);
@@ -202,12 +280,45 @@ public final class Enrollments extends SavedData {
         boolean passed = right >= PASSED;
         if (passed) {
             student.passed.merge(discipline, right, Math::max);
-            if (student.rank == Rank.AUDITOR) {
-                student.rank = Rank.SCRIBA;
-            }
         }
         setDirty();
         return passed;
+    }
+
+    /** {@code who} did the lesson {@code lesson} of {@code chair}. */
+    public void lessonDone(UUID who, String chair, String lesson) {
+        if (student(who).lessons.add(chair + "/" + lesson)) {
+            setDirty();
+        }
+    }
+
+    /** {@code who} passed {@code chair}, with {@code score} (the best score is kept). */
+    public void chairPassed(UUID who, String chair, int score) {
+        student(who).chairs.merge(chair, score, Math::max);
+        setDirty();
+    }
+
+    /**
+     * {@code who} takes {@code course}: an Auditor with the first year done becomes a Scriba; a Scriba changes course,
+     * and begins it again (the chairs passed stay passed; a chair the new course shares counts there too). Returns
+     * whether they may.
+     */
+    public boolean chooseCourse(UUID who, Course course) {
+        Student student = student(who);
+        if (!student.mayChooseCourse()) {
+            return false;
+        }
+        student.course = course;
+        student.expedition = false;
+        student.rank = Rank.SCRIBA;
+        setDirty();
+        return true;
+    }
+
+    /** {@code who} came back from the Expedition. */
+    public void expeditionDone(UUID who) {
+        student(who).expedition = true;
+        setDirty();
     }
 
     /** {@code who} becomes a Lector, if they may. */
@@ -249,14 +360,19 @@ public final class Enrollments extends SavedData {
             list.add(entry);
         });
         tag.put("Students", list);
+        tag.putInt("Version", VERSION);
         return tag;
     }
 
     private static Enrollments load(CompoundTag tag) {
         Enrollments enrollments = new Enrollments();
+        int version = tag.getInt("Version");
         for (Tag entry : tag.getList("Students", Tag.TAG_COMPOUND)) {
             CompoundTag student = (CompoundTag) entry;
-            enrollments.students.put(student.getUUID("Who"), Student.load(student));
+            enrollments.students.put(student.getUUID("Who"), Student.load(student, version));
+        }
+        if (version < VERSION) {
+            enrollments.setDirty();
         }
         return enrollments;
     }

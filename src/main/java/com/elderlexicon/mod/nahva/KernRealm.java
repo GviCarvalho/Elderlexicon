@@ -24,8 +24,8 @@ import java.util.Optional;
  */
 final class KernRealm {
 
-    private static final int Y = 100;
-    private static final int RADIUS = 22;
+    static final int Y = 100;
+    static final int RADIUS = 22;
     /** The gate onto the road, at the island's edge: its middle, along z. */
     private static final int GATE_Z = RADIUS - 2;
 

@@ -28,6 +28,12 @@ import static com.elderlexicon.mod.magic.physics.Drives.IGNI;
  *   <li><b>bound</b> fire: what boiling took, held by the vapour and given back when it condenses;</li>
  *   <li><b>heat</b>: free igni, the agitation above the world at rest; owed below it, down to absolute zero.</li>
  * </ul>
+ * <p>
+ * A block holds as many particles as its matter is dense: earth fills its room with 4096, stone, packed three times as
+ * tight, with 12288 (docs/particulas-design.md, "Densidade"). Each block keeps how tightly its held matter is packed,
+ * and the room that matter fills is its count over that: a log has its pores and its fire room to flicker as if it
+ * were as loose as earth, and still holds four times the particles to burn and to warm.
+ * <p>
  * Every step moves whole particles, so nothing is made or lost (L1). What would move part of a particle moves a whole
  * one with the chance of that part, so small flows still happen, on average as much as they should. A face with no
  * block behind it is a wall: nothing passes it.
@@ -61,6 +67,8 @@ public final class Field {
     private long[] aloft;
     private long[] bound;
     private long[] heat;
+    /** How tightly each block's held matter is packed: particles to each of its 4096 places. */
+    private double[] packing;
     private final SplittableRandom random;
 
     /** A field with no blocks yet, whose chances fall as {@code seed} says: the same seed, the same world. */
@@ -87,6 +95,9 @@ public final class Field {
         aloft = aloft == null ? new long[room] : Arrays.copyOf(aloft, room);
         bound = bound == null ? new long[room] : Arrays.copyOf(bound, room);
         heat = heat == null ? new long[room] : Arrays.copyOf(heat, room);
+        int oldPacking = packing == null ? 0 : packing.length;
+        packing = packing == null ? new double[room] : Arrays.copyOf(packing, room);
+        Arrays.fill(packing, oldPacking, room, 1.0D);
     }
 
     // ------------------------------------------------------------------ the blocks and their faces
@@ -161,6 +172,7 @@ public final class Field {
         aloft[i] = 0L;
         bound[i] = 0L;
         heat[i] = 0L;
+        packing[i] = 1.0D;
     }
 
     // ------------------------------------------------------------------ setting up and reading
@@ -208,10 +220,63 @@ public final class Field {
         }
     }
 
+    /**
+     * Takes up to {@code most} particles of {@code aspect} (earth as dust, water as vapour, air) out of the gas of a block,
+     * with the share of its agitation they carry; returns how many it took. Fire is no gas: its agitation is taken with
+     * {@link #heat}.
+     */
+    public long draw(int i, com.elderlexicon.mod.vita.VitaElement aspect, long most) {
+        check(i);
+        int element = switch (aspect) {
+            case FIRMO -> FIRMO;
+            case AQUA -> AQUA;
+            case AURA -> AURA;
+            default -> -1;
+        };
+        if (element < 0 || most <= 0L) {
+            return 0L;
+        }
+        long taken = Math.min(airborne[element][i], most);
+        if (taken <= 0L) {
+            return 0L;
+        }
+        double before = matter(i);
+        airborne[element][i] -= taken;
+        if (element == AQUA) {
+            long unheld = bound[i] - ceilDiv(airborne[AQUA][i], Drives.VAPOUR);
+            if (unheld > 0L) {
+                bound[i] -= unheld;
+                heat[i] += unheld;
+            }
+        }
+        // What leaves takes its share of the block's agitation with it, as gas moving between blocks does.
+        double after = matter(i);
+        if (before > 0.0D && heat[i] > 0L) {
+            heat[i] = Math.round(heat[i] * after / before);
+        }
+        return taken;
+    }
+
     /** Agitation brought into a block from outside (a spell); negative, taken out of it, down to absolute zero. */
     public void heat(int i, long igni) {
         check(i);
         heat[i] = Math.max(heat[i] + igni, floor(i));
+    }
+
+    /** How tightly the matter block {@code i} holds is packed: particles to each place of its room. */
+    public double packing(int i) {
+        return packing[i];
+    }
+
+    /** Packs the matter block {@code i} holds as tightly as {@code by} (what it is: stone 3, earth 1). */
+    public void pack(int i, double by) {
+        check(i);
+        packing[i] = by > 0.0D && Double.isFinite(by) ? by : 1.0D;
+    }
+
+    /** The room the matter block {@code i} holds fills, of the 4096 of a block. */
+    public double filled(int i) {
+        return heldCount(i) / packing[i];
     }
 
     /** The matter a block holds, the fire held in it among it. */
@@ -384,6 +449,7 @@ public final class Field {
         Field alone = new Field(0L);
         int i = alone.add();
         alone.put(i, present);
+        alone.pack(i, com.elderlexicon.mod.magic.matter.Materials.get().packing(present));
         alone.heat(i, agitation(present, Particles.NONE, natural(present, state)));
         alone.step();
         return !alone.held(i).equals(present);
@@ -647,12 +713,12 @@ public final class Field {
      * piece in a block of air lets go easily; a block that is all mass never does.
      */
     private double ignition(int i) {
-        long mass = held[FIRMO][i];
-        long room = Particles.BLOCK - mass;
-        if (room <= 0L) {
+        double mass = held[FIRMO][i] / packing[i];
+        double room = Particles.BLOCK - mass;
+        if (room <= 0.0D) {
             return Double.MAX_VALUE;
         }
-        double crowded = (double) mass / room;
+        double crowded = mass / room;
         return Drives.IGNITION + Drives.CROWDING * crowded * crowded * crowded;
     }
 
@@ -706,6 +772,9 @@ public final class Field {
             condense(i);
             settle(i);
             charred[i] = Math.min(charred[i], Math.min(held[IGNI][i], (long) (held[FIRMO][i] / Drives.CHAR)));
+            if (heldCount(i) == 0L) {
+                packing[i] = 1.0D; // nothing held: what settles there later is as loose as dust is
+            }
         }
     }
 
@@ -859,6 +928,9 @@ public final class Field {
         long dust = airborne[FIRMO][i];
         if (dust <= 0L) {
             return;
+        }
+        if (heldCount(i) == 0L) {
+            packing[i] = 1.0D; // settling where nothing is held, dust is as loose as earth
         }
         double holding = Drives.HOLD[FIRMO] * dust + Drives.HOLD[AQUA] * airborne[AQUA][i];
         double agitated = Math.max(Drives.AT_REST, temperature(i));
@@ -1019,9 +1091,9 @@ public final class Field {
         return airborne[FIRMO][i] + airborne[AQUA][i] + airborne[AURA][i] + smoke[i] + bound[i] + aloft[i];
     }
 
-    /** The room the held matter leaves for gas. */
+    /** The room the held matter leaves for gas: what it fills is its count over how tightly it is packed. */
     private long room(int i) {
-        return Math.max(0L, Particles.BLOCK - heldCount(i));
+        return Math.max(0L, Particles.BLOCK - (long) Math.ceil(filled(i)));
     }
 
     /**

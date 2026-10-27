@@ -23,6 +23,11 @@ public final class Density {
     public static final double DIAMOND_PRESSURE = DEEPSLATE;
     /** Coal it takes to make one diamond, as it takes nine to make a block. */
     public static final int COAL_PER_DIAMOND = 9;
+    /**
+     * UMU of earth in a block for each point of density: a block of loose soil (0.5) holds 16 UMU, 4096 particles, and a
+     * block of anything holds 4096 packed as tightly as it is hard (docs/particulas-design.md, "Densidade").
+     */
+    public static final double UMU_PER_DENSITY = 32.0D;
 
     private Density() {
     }
@@ -60,6 +65,21 @@ public final class Density {
             return Rock.STONE;
         }
         return Rock.SOIL;
+    }
+
+    /** The density of a rock, as hard as the game makes it. */
+    public static double of(Rock rock) {
+        return switch (rock) {
+            case SOIL -> SOIL;
+            case STONE -> STONE;
+            case DEEPSLATE -> DEEPSLATE;
+            default -> OBSIDIAN;
+        };
+    }
+
+    /** The UMU of earth one block of {@code rock} holds: a block of stone 48, of obsidian 1600. */
+    public static double umuOf(Rock rock) {
+        return of(rock) * UMU_PER_DENSITY;
     }
 
     /** How dense earth is released: like heat, all of it at once in one block, or spread keeping its average. */

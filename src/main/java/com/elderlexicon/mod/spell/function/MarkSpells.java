@@ -126,6 +126,20 @@ final class MarkSpells {
                 }
                 yield Optional.of(ground(level, new Vec3(xyz[0], xyz[1], xyz[2])));
             }
+            case FROM_MARK -> {
+                // Ahead of what bears the mark, the way it faces (a block faces the way the mage does), and that high
+                // above its feet: ego 5 10 ubis is above the one who casts, wherever the spell is read from.
+                Optional<Average> where = averageOf(player, written.mark(), quiet);
+                if (where.isEmpty()) {
+                    yield Optional.empty();
+                }
+                Entity facing = where.get().only() != null ? where.get().only() : player;
+                Vec3 look = facing.getLookAngle();
+                Vec3 flat = new Vec3(look.x, 0.0D, look.z);
+                flat = flat.lengthSqr() < 1.0E-6D ? Vec3.directionFromRotation(0.0F, facing.getYRot()) : flat.normalize();
+                Vec3 point = where.get().point().add(flat.scale(written.distance())).add(0.0D, written.height(), 0.0D);
+                yield Optional.of(ground(where.get().level(), point));
+            }
             case MARK -> {
                 Optional<Average> where = averageOf(player, written.mark(), quiet);
                 if (where.isEmpty()) {

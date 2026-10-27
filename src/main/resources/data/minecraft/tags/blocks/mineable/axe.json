@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "elderlexicon:galdraria_table"
+    "elderlexicon:galdraria_table",
+    "elderlexicon:invocation_bench"
   ]
 }

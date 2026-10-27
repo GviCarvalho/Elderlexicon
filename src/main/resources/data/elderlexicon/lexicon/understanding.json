@@ -1,10 +1,198 @@
 {
   "_license": "© GviCarvalho – This data is part of Elderlexicon. See LICENSE.txt.",
-  "_about": "How a rune is learned (docs/aprendizado-runas-design.md): the mage lives, in the body, every one of its 'experiences' (ids the mod knows how to tell); then a vivid dream may take them to its 'realm' in Nahvá, and escaping it teaches the rune.",
+  "_about": "How a rune is learned (docs/aprendizado-runas-design.md): the mage lives, in the body, every one of its 'experiences' (ids the mod knows how to tell), and the place each was lived in is kept as a memory; then a fever dream on their own kern, turned into the rune's idea and full of those memories (section 4b), and escaping it teaches the rune. 'requires': runes that must be learned before this one can be understood at all.",
   "runes": {
     "igni": {
-      "experiences": ["igni_cold", "igni_hypothermia", "igni_warm", "igni_boiling", "burning", "freezing"],
-      "realm": "igni"
+      "experiences": [
+        "igni_cold",
+        "igni_hypothermia",
+        "igni_warm",
+        "igni_boiling",
+        "burning",
+        "freezing"
+      ]
+    },
+    "aqua": {
+      "experiences": [
+        "aqua_thirst",
+        "aqua_parched",
+        "aqua_full",
+        "aqua_overflowing",
+        "drowning",
+        "swept"
+      ]
+    },
+    "aura": {
+      "experiences": [
+        "aura_low",
+        "aura_critical",
+        "aura_high",
+        "aura_overloaded",
+        "long_fall",
+        "blast"
+      ]
+    },
+    "firmo": {
+      "experiences": [
+        "firmo_low",
+        "firmo_deficient",
+        "firmo_high",
+        "firmo_rigid",
+        "buried",
+        "depths"
+      ]
+    },
+    "vis": {
+      "requires": [
+        "igni",
+        "aqua",
+        "aura",
+        "firmo"
+      ],
+      "experiences": [
+        "vis_empty",
+        "vis_full",
+        "vis_balance"
+      ]
+    },
+    "iactare": {
+      "experiences": [
+        "shoot",
+        "throw",
+        "reel",
+        "knocked"
+      ]
+    },
+    "vocant": {
+      "experiences": [
+        "drop",
+        "pick_up",
+        "pearl",
+        "lure"
+      ]
+    },
+    "impediunt": {
+      "experiences": [
+        "shield",
+        "surrounded",
+        "shove"
+      ]
+    },
+    "vertere": {
+      "experiences": [
+        "smelt",
+        "brew",
+        "eat"
+      ]
+    },
+    "ligabis": {
+      "experiences": [
+        "leash",
+        "tame",
+        "ride"
+      ]
+    },
+    "reframe": {
+      "experiences": [
+        "rename",
+        "name_tag",
+        "sign_book"
+      ]
+    },
+    "surgit": {
+      "experiences": [
+        "read",
+        "spyglass",
+        "brush"
+      ]
+    },
+    "quantum": {
+      "experiences": [
+        "full_stack",
+        "xp_orb",
+        "breed"
+      ]
+    },
+    "chronos": {
+      "experiences": [
+        "bone_meal",
+        "slept",
+        "clock"
+      ]
+    },
+    "ubis": {
+      "experiences": [
+        "map",
+        "chorus",
+        "portal"
+      ]
+    },
+    "tenet": {
+      "experiences": [
+        "bucket",
+        "ore",
+        "milk"
+      ]
+    },
+    "ferit": {
+      "experiences": [
+        "fact_ferit"
+      ]
+    },
+    "patitur": {
+      "experiences": [
+        "fact_patitur"
+      ]
+    },
+    "necat": {
+      "experiences": [
+        "fact_necat"
+      ]
+    },
+    "salit": {
+      "experiences": [
+        "fact_salit"
+      ]
+    },
+    "cadit": {
+      "experiences": [
+        "fact_cadit"
+      ]
+    },
+    "frangit": {
+      "experiences": [
+        "fact_frangit"
+      ]
+    },
+    "utitur": {
+      "experiences": [
+        "fact_utitur"
+      ]
+    },
+    "latet": {
+      "experiences": [
+        "fact_latet"
+      ]
+    },
+    "currit": {
+      "experiences": [
+        "fact_currit"
+      ]
+    },
+    "languet": {
+      "experiences": [
+        "fact_languet"
+      ]
+    },
+    "ardet": {
+      "experiences": [
+        "fact_ardet"
+      ]
+    },
+    "mergitur": {
+      "experiences": [
+        "fact_mergitur"
+      ]
     }
   }
 }

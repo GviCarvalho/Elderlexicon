@@ -1,0 +1,90 @@
+{
+  "foe": "skeleton",
+  "walk": 0.345,
+  "distances": [
+    5.0,
+    10.0,
+    15.0
+  ],
+  "hit": {
+    "still": [
+      0.9333,
+      0.5,
+      0.2667
+    ],
+    "away": [
+      0.4167,
+      0.3667,
+      0.1333
+    ],
+    "toward": [
+      0.9,
+      0.4167,
+      0.2833
+    ],
+    "side": [
+      0.0833,
+      0.0278,
+      0.0
+    ]
+  },
+  "counts": {
+    "still": [
+      [
+        56,
+        60
+      ],
+      [
+        30,
+        60
+      ],
+      [
+        16,
+        60
+      ]
+    ],
+    "away": [
+      [
+        25,
+        60
+      ],
+      [
+        22,
+        60
+      ],
+      [
+        8,
+        60
+      ]
+    ],
+    "toward": [
+      [
+        54,
+        60
+      ],
+      [
+        25,
+        60
+      ],
+      [
+        17,
+        60
+      ]
+    ],
+    "side": [
+      [
+        4,
+        48
+      ],
+      [
+        1,
+        36
+      ],
+      [
+        0,
+        12
+      ]
+    ]
+  },
+  "note": "Three runs of howOftenAnArrowStrikes (12, 24 and 24 arrows a cell), pooled: [struck, loosed] per distance. The skeleton of the side lane died early in two runs (not of the sun), so that lane has fewer arrows."
+}

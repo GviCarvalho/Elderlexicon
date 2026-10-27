@@ -48,8 +48,9 @@ import java.util.Map;
  * becomes a band between two lines of light, round (or oval, for a long circle), drawn in pixels on the grid of the
  * game's textures (a sixteenth of a block), with the runes of each of its pieces written along it, near where the piece
  * lies, their tops outward; the heart's runes are written in the middle. While a circle shows, the runes on its pieces
- * themselves are hidden (the scrolls show blank), so only the circle's are read. Shown while the player holds a scroll,
- * a quill or the grimoire, or stands near a piece.
+ * themselves are hidden (the scrolls show blank), so only the circle's are read. The colours are the page's turned
+ * round: the lines of the circle in the ink the runes are written in, the runes in the circle's light. Shown while the
+ * player holds a scroll, a quill or the grimoire, or stands near a piece.
  */
 @OnlyIn(Dist.CLIENT)
 @Mod.EventBusSubscriber(modid = ElderLexicon.MODID, value = Dist.CLIENT)
@@ -64,8 +65,10 @@ public final class ClientCircles {
     private static final float GLYPH = 1.0F / 40.0F;
     /** The size of a pixel of the circle: a texel of the game's blocks. */
     private static final double PIXEL = 1.0D / 16.0D;
-    private static final int LIGHT_COLOR = 0xD8BCFF;
-    private static final int INK = 0xFF1A1420;
+    /** The runes along the circle, alight. */
+    private static final int LIGHT_COLOR = 0xFFD8BCFF;
+    /** The circle's lines, in ink. */
+    private static final int INK = 0x1A1420;
 
     private record Piece(BlockPos support, Direction face, Vec3 at, String text) {
     }
@@ -260,13 +263,13 @@ public final class ClientCircles {
         pose.pushPose();
         pose.translate(-eye.x, -eye.y, -eye.z);
         float glow = 0.75F + 0.2F * Mth.sin((minecraft.level.getGameTime() + event.getPartialTick()) * 0.12F);
-        VertexConsumer light = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer ink = buffers.getBuffer(RenderType.debugQuads());
         for (Ring ring : RINGS) {
             if (!ring.alone()) {
-                pixels(light, pose.last().pose(), ring, glow);
+                pixels(ink, pose.last().pose(), ring, glow);
             }
         }
-        buffers.endBatch(RenderType.lightning());
+        buffers.endBatch(RenderType.debugQuads());
         for (Ring ring : RINGS) {
             if (ring.alone()) {
                 writeHeart(minecraft.font, buffers, pose, ring);
@@ -315,11 +318,11 @@ public final class ClientCircles {
         return pixels;
     }
 
-    /** The ring's pixels of light, each a square texel on the plane, seen from either side. */
+    /** The ring's pixels of ink, each a square texel on the plane, seen from either side. */
     private static void pixels(VertexConsumer buffer, Matrix4f matrix, Ring ring, float alpha) {
-        float r = ((LIGHT_COLOR >> 16) & 0xFF) / 255.0F;
-        float g = ((LIGHT_COLOR >> 8) & 0xFF) / 255.0F;
-        float b = (LIGHT_COLOR & 0xFF) / 255.0F;
+        float r = ((INK >> 16) & 0xFF) / 255.0F;
+        float g = ((INK >> 8) & 0xFF) / 255.0F;
+        float b = (INK & 0xFF) / 255.0F;
         Vec3[] across = across(ring.face());
         Vec3 du = across[0].scale(PIXEL);
         Vec3 dv = across[1].scale(PIXEL);
@@ -411,7 +414,7 @@ public final class ClientCircles {
                 (float) normal.x * scale, (float) normal.y * scale, (float) normal.z * scale, 0.0F,
                 (float) corner.x, (float) corner.y, (float) corner.z, 1.0F);
         Matrix4f matrix = new Matrix4f(pose.last().pose()).mul(basis);
-        font.drawInBatch(text, 0.0F, 0.0F, INK, false, matrix, buffers, Font.DisplayMode.POLYGON_OFFSET, 0,
+        font.drawInBatch(text, 0.0F, 0.0F, LIGHT_COLOR, false, matrix, buffers, Font.DisplayMode.POLYGON_OFFSET, 0,
                 LightTexture.FULL_BRIGHT);
     }
 }

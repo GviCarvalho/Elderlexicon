@@ -1,0 +1,50 @@
+{
+  "name": "minecraft-builder-skill",
+  "version": "0.1.0",
+  "description": "Agent skill for generating Minecraft structure NBT builds with Lodestone previews.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "files": [
+    "SKILL.md",
+    "agents/",
+    "scripts/",
+    "assets/",
+    "references/",
+    "README.md",
+    "LICENSE",
+    "package.json",
+    "npm-shrinkwrap.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mattzh72/minecraft-builder-skill.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mattzh72/minecraft-builder-skill/issues"
+  },
+  "homepage": "https://github.com/mattzh72/minecraft-builder-skill#readme",
+  "keywords": [
+    "agent-skill",
+    "skills-cli",
+    "minecraft",
+    "nbt",
+    "lodestone",
+    "schematic"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "build:example": "node scripts/run-build.mjs assets/examples/celestial-forge.mjs --out-dir minecraft-builds/celestial-forge",
+    "preview:example": "node scripts/preview.mjs --nbt minecraft-builds/celestial-forge/celestial-forge.nbt",
+    "docs:sync": "node scripts/sync-lodestone-docs.mjs --from ../lodestone",
+    "docs:check": "node scripts/sync-lodestone-docs.mjs --from ../lodestone --check",
+    "pack:dry-run": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "@mattzh72/lodestone": "0.6.0",
+    "gl-matrix": "3.4.4",
+    "three": "0.164.1",
+    "vite": "8.0.16"
+  }
+}

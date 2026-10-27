@@ -17,21 +17,53 @@ import java.util.Set;
  * with a draw of them, as a mage learns some and not others; it reads only what it can read whole.
  */
 public enum Degree {
-    /** Two or three runes: one source, the verbs to throw and to bring it. */
-    APPRENTICE(0, 0.5F),
-    /** About eight: some more sources, verbs and filters. */
-    MASTER(5, 0.35F),
-    /** Nearly the whole language. */
-    ELDER(Integer.MAX_VALUE, 0.15F);
+    /**
+     * Two or three runes: one source, the verbs to throw and to bring it. It reads what comes to it among the best few,
+     * opens its trance wherever it stands until it was struck in it, and reads again what it just read.
+     */
+    APPRENTICE(0, 0.5F, 3, 0.3D, 0.0D, 0.0D),
+    /** About eight: some more sources, verbs and filters. It sees a foe coming, and tires of what does not end a fight. */
+    MASTER(5, 0.35F, 2, 0.15D, 1.0D, 0.15D),
+    /** Nearly the whole language, and the habit of it: it reads the best, never with a foe at hand, and varies. */
+    ELDER(Integer.MAX_VALUE, 0.15F, 1, 0.05D, 1.25D, 0.25D);
 
     /** How many runes it knows beyond the first ones. */
     private final int more;
     /** How often a creature is born of it. */
     private final float chance;
+    /** The best few it reads among, and how much luck weighs (docs/feiticeiro-design.md, 3.9). */
+    private final int among;
+    private final double luck;
+    /** How many times over it wants its trance to end before a foe it sees coming gets to it (0: it does not see). */
+    private final double foresight;
+    /** How much less it wants what it read last, each time in a row it read it against the same foe. */
+    private final double habit;
 
-    Degree(int more, float chance) {
+    Degree(int more, float chance, int among, double luck, double foresight, double habit) {
         this.more = more;
         this.chance = chance;
+        this.among = among;
+        this.luck = luck;
+        this.foresight = foresight;
+        this.habit = habit;
+    }
+
+    public int among() {
+        return among;
+    }
+
+    public double luck() {
+        return luck;
+    }
+
+    /** How many times over it wants its trance to end before a foe gets to it; 0 when it does not see one coming. */
+    public double foresight() {
+        return foresight;
+    }
+
+    /** What reading the same thing {@code inARow} times in a row against the same foe leaves of its worth. */
+    public double habit(int inARow) {
+        return Math.max(0.3D, 1.0D - habit * inARow);
     }
 
     public String id() {

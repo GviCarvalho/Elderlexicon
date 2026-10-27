@@ -20,6 +20,12 @@ public final class MaterialTable {
 
     /** How far a mixture may be from a recipe and still be that substance: five points of each share. */
     public static final double TOLERANCE = 0.05D;
+    /** How near a thing only hands make matter must be to be it: its very code, less than a particle in a block off. */
+    private static final double EXACT = 1.0E-4D;
+    /** A step in packing, as far as five points of a share in code: a quarter more or less tightly packed. */
+    private static final double PACKING_STEP = 1.25D;
+    /** What nothing breaks (bedrock) is packed this tight: matter never settles as it. */
+    private static final double UNBREAKABLE_PACKING = Materials.UNBREAKABLE_HARDNESS / Materials.EARTH_HARDNESS;
     /** Distances closer than this are equal: a body as near two beings is the first, whatever rounding says. */
     private static final double TIE = 1.0E-12D;
 
@@ -93,19 +99,94 @@ public final class MaterialTable {
 
     /**
      * The substance a composition is: the recipe nearest to it, if within {@link #TOLERANCE} of every share; empty when
-     * none is (a mixture with no name).
+     * none is (a mixture with no name). Only what nature makes is found near: a thing only hands make (planks, a furnace)
+     * is found only by its very code (user, 17/10/2026).
      */
     public Optional<Substance> identify(Composition composition) {
+        return identify(composition, false);
+    }
+
+    /**
+     * As {@link #identify(Composition)}; {@code byHand}, worked by hands (the invocation bench), the things only hands
+     * make are found near as well, as anything is.
+     */
+    public Optional<Substance> identify(Composition composition, boolean byHand) {
         Substance nearest = null;
         double best = Double.MAX_VALUE;
         for (Substance substance : substances.values()) {
             double distance = substance.recipe().distance(composition);
-            if (distance <= TOLERANCE + 1.0E-9D && distance < best) {
+            double within = !substance.natural() && !byHand ? EXACT : TOLERANCE + 1.0E-9D;
+            if (distance <= within && distance < best) {
                 nearest = substance;
                 best = distance;
             }
         }
         return Optional.ofNullable(nearest);
+    }
+
+    /**
+     * What matter is when it is held in a room of its own, packed {@code packing} times as tight as earth (a block a
+     * vocant fills, a square of the invocation bench): what a thing is, is its code and how tightly it is packed
+     * together (user, 17/10/2026). Of the things near its code, the one nearest in both; empty when none is near its
+     * code. {@code byHand}, as {@link #identify(Composition, boolean)}.
+     */
+    public Optional<Substance> identify(Composition composition, double packing, boolean byHand) {
+        Substance nearest = null;
+        double best = Double.MAX_VALUE;
+        for (Substance substance : substances.values()) {
+            double distance = substance.recipe().distance(composition);
+            double within = !substance.natural() && !byHand ? EXACT : TOLERANCE + 1.0E-9D;
+            if (distance > within) {
+                continue;
+            }
+            double apart = apart(substance, composition, packing);
+            if (apart < best) {
+                nearest = substance;
+                best = apart;
+            }
+        }
+        return Optional.ofNullable(nearest);
+    }
+
+    /**
+     * What matter pressed into one block settles as in the world: the natural thing nearest it in code and packing that
+     * shows as a block in {@code state}, however far that is (earth pressed three times as tight as soil is stone, six
+     * times deepslate, a hundred obsidian). Never a vein (earth pressed is rock, not ore) nor what nothing breaks.
+     */
+    public Optional<Substance> settle(Composition composition, double packing, State state) {
+        Substance nearest = null;
+        double best = Double.MAX_VALUE;
+        for (Substance substance : substances.values()) {
+            if (!substance.natural() || substance.packing() >= UNBREAKABLE_PACKING
+                    || substance.declared(state).stream().noneMatch(form -> form.kind() == Form.Kind.BLOCK)) {
+                continue;
+            }
+            double apart = apart(substance, composition, packing);
+            if (apart < best) {
+                nearest = substance;
+                best = apart;
+            }
+        }
+        return Optional.ofNullable(nearest);
+    }
+
+    /**
+     * How far matter is from a substance in code and packing together: its distance in code, in tolerances (five points
+     * of a share), and in packing, a step for every quarter more or less tightly it is packed. Pure earth three times as
+     * tight as soil is nearer stone (twenty points off, the same packing) than soil.
+     */
+    private static double apart(Substance substance, Composition composition, double packing) {
+        double code = substance.recipe().distance(composition) / TOLERANCE;
+        double ratio = Math.max(1.0E-9D, packing) / substance.packing();
+        return code + Math.abs(Math.log(ratio)) / Math.log(PACKING_STEP);
+    }
+
+    /**
+     * How tightly held particles are packed: as tightly as the substance they are, or as loosely as earth when they are
+     * near none. The room they fill in a block is their count over this.
+     */
+    public double packing(Particles particles) {
+        return identify(particles.present()).map(Substance::packing).orElse(1.0D);
     }
 
     /** The substance some particles are, by what they hold; empty when they are near no recipe or hold nothing. */

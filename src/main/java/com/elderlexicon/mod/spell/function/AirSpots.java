@@ -243,7 +243,7 @@ public final class AirSpots {
     }
 
     /** Everything within {@code reach} of {@code at} is thrown straight away from it, harder the closer. */
-    private static void throwAway(ServerLevel level, LivingEntity caster, Vec3 at, double reach, double push,
+    static void throwAway(ServerLevel level, LivingEntity caster, Vec3 at, double reach, double push,
                                   boolean blowsFireOut) {
         for (Entity entity : level.getEntitiesOfClass(Entity.class, new AABB(at, at).inflate(reach),
                 candidate -> (candidate instanceof LivingEntity || candidate instanceof ItemEntity) && candidate.isAlive()

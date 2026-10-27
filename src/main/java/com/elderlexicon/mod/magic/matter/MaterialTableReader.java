@@ -99,7 +99,10 @@ public final class MaterialTableReader {
             }
         }
         String name = json.has("name") ? json.get("name").getAsString() : id;
-        return new Substance(MaterialTableBuilder.normalize(id), name, recipe, nature, forms);
+        Substance.Origin origin = json.has("origin")
+                ? Substance.Origin.valueOf(json.get("origin").getAsString().trim().toUpperCase(Locale.ROOT))
+                : Substance.Origin.NATURE;
+        return new Substance(MaterialTableBuilder.normalize(id), name, recipe, nature, forms, 1.0D, origin);
     }
 
     private static Form form(String id, JsonObject json) {

@@ -70,6 +70,8 @@ public final class ServerSpellingController {
     private static final long MAX_LATENCY_MS = 2_500L;
     private static final long SUCCESS_COOLDOWN_MS = 600L;
     private static final long FAILURE_COOLDOWN_MS = 350L;
+    /** Longer than any rest the spelling takes. */
+    private static final long MAX_COOLDOWN_MS = 60_000L;
     /** How long after the mage's voice the echo shard of a held wand repeats it: half a second. */
     private static final int ECHO_DELAY_TICKS = 10;
     private static final String UNMET = "A condição não se cumpre agora.";
@@ -78,6 +80,8 @@ public final class ServerSpellingController {
 
     private final SpellCastingService castingService = new SpellCastingService();
     private final Map<UUID, Long> cooldowns = new HashMap<>();
+    /** While a ritual step reads circles by their mark: no rest is left. */
+    private boolean ritualReading;
     /**
      * The happening the spirit woke for, in flow, while it reads (docs/fluxo-design.md): only the lines whose conditions
      * speak of it are cast, and the reading leaves no cooldown. Null in any other reading.
@@ -151,6 +155,10 @@ public final class ServerSpellingController {
             SpellCastResponse engravedResponse = processEngravedItem(player, now);
             if (engravedResponse != null) {
                 return engravedResponse;
+            }
+            SpellCastResponse markedResponse = processMarkedInHand(player, now);
+            if (markedResponse != null) {
+                return markedResponse;
             }
             SpellCastResponse scrollResponse = processDetachedPageSpell(player, now);
             if (scrollResponse != null) {
@@ -278,18 +286,24 @@ public final class ServerSpellingController {
     }
 
     private long remainingCooldown(ServerPlayer player, long now) {
-        return Math.max(0L, cooldowns.getOrDefault(player.getUUID(), 0L) - now);
+        long remaining = Math.max(0L, cooldowns.getOrDefault(player.getUUID(), 0L) - now);
+        if (remaining > MAX_COOLDOWN_MS) {
+            // No rest is this long: one kept on another clock is forgotten, not waited for.
+            cooldowns.remove(player.getUUID());
+            return 0L;
+        }
+        return remaining;
     }
 
     private long applyCooldown(ServerPlayer player, long now, long durationMs) {
-        if (wakingTrigger != null) {
+        if (wakingTrigger != null || ritualReading) {
             return 0L;
         }
         long applied = Math.max(durationMs, 0L);
         if (applied <= 0L) {
             return 0L;
         }
-        long cooldownEnd = Math.max(cooldowns.getOrDefault(player.getUUID(), 0L), now + applied);
+        long cooldownEnd = Math.max(now + remainingCooldown(player, now), now + applied);
         cooldowns.put(player.getUUID(), cooldownEnd);
         return Math.max(0L, cooldownEnd - now);
     }
@@ -639,6 +653,38 @@ public final class ServerSpellingController {
         return null;
     }
 
+    /**
+     * Surgit with a marked thing in hand (docs/rituais-design.md): the spirit reads what bears the same mark, as
+     * {@code m surgit} would, the main hand first. A page or a grimoire in hand is read itself, not by its mark. Returns
+     * null when no mark in hand calls anything.
+     */
+    private SpellCastResponse processMarkedInHand(ServerPlayer player, long now) {
+        for (ItemStack held : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+            if (isDetachedPage(held) || held.getItem() instanceof GrimoireItem) {
+                continue;
+            }
+            Optional<String> mark = MarkHelper.markForItem(held);
+            if (mark.isPresent() && readMarkedScrolls(player, mark.get()) > 0) {
+                long appliedCooldown = applyCooldown(player, now, SUCCESS_COOLDOWN_MS);
+                return new SpellCastResponse(true, Component.literal("Marca lida: " + mark.get() + "."), List.of(),
+                        appliedCooldown, reading());
+            }
+        }
+        return null;
+    }
+
+    /**
+     * A second of flow with an arcane compass in hand (docs/bussola-arcana-design.md): the spirit reads again what
+     * bears the dial's mark, so what the dial shows is kept alive while it is held.
+     */
+    public void readHeldDial(ServerPlayer player) {
+        for (ItemStack held : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+            if (held.getItem() instanceof com.elderlexicon.mod.item.ArcaneCompassItem) {
+                MarkHelper.markForItem(held).ifPresent(mark -> readMarkedScrolls(player, mark));
+            }
+        }
+    }
+
     private ItemStack findGrimoire(ServerPlayer player) {
         ItemStack main = player.getMainHandItem();
         if (main.getItem() instanceof GrimoireItem) {
@@ -767,8 +813,17 @@ public final class ServerSpellingController {
     private int readMarkedEngravings(ServerPlayer caster, String mark, boolean bound, double reach) {
         List<String> texts = new ArrayList<>();
         Inventory inventory = caster.getInventory();
+        int carriedPages = 0;
         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
-            engravingMarked(inventory.getItem(slot), mark).ifPresent(texts::add);
+            ItemStack carried = inventory.getItem(slot);
+            engravingMarked(carried, mark).ifPresent(texts::add);
+            // A marked page carried is read by its mark as a hung one is, and is not spent (docs/rituais-design.md).
+            if (isDetachedPage(carried) && MarkHelper.markForItem(carried).filter(mark::equals).isPresent()) {
+                CompoundTag tag = carried.getTag();
+                WrittenTexts.upgrade(tag);
+                castRitualText(caster, tag.getString("DetachedPageText"), "Ritual: ");
+                carriedPages++;
+            }
         }
         Iterable<Entity> around = bound
                 ? caster.serverLevel().getAllEntities()
@@ -785,7 +840,7 @@ public final class ServerSpellingController {
             }
         }
         texts.forEach(text -> castRitualText(caster, text, "Gravado: "));
-        return texts.size();
+        return texts.size() + carriedPages;
     }
 
     private static Optional<String> engravingMarked(ItemStack stack, String mark) {
@@ -926,13 +981,21 @@ public final class ServerSpellingController {
                 }
             });
         }
-        long now = System.currentTimeMillis();
-        for (CirclePieces.Circle circle : found) {
-            circle.pieces().forEach(piece -> pieces.add(piece.key()));
-            double distance = caster.position().distanceTo(circle.center());
-            SpellCastResponse response = castCircle(caster, circle, now,
-                    com.elderlexicon.mod.spell.circle.CircleTiming.distanceFactor(distance), "Circulo: ");
-            caster.displayClientMessage(response.message(), true);
+        // The spelling's clock, as every cooldown is kept in: the wall clock gave a rest of decades.
+        long now = Util.getMillis();
+        // A circle read by its mark is a ritual step: it leaves no rest (docs/rituais-design.md, 4).
+        boolean before = ritualReading;
+        ritualReading = true;
+        try {
+            for (CirclePieces.Circle circle : found) {
+                circle.pieces().forEach(piece -> pieces.add(piece.key()));
+                double distance = caster.position().distanceTo(circle.center());
+                SpellCastResponse response = castCircle(caster, circle, now,
+                        com.elderlexicon.mod.spell.circle.CircleTiming.distanceFactor(distance), "Circulo: ");
+                caster.displayClientMessage(response.message(), true);
+            }
+        } finally {
+            ritualReading = before;
         }
         return found.size();
     }
@@ -965,6 +1028,26 @@ public final class ServerSpellingController {
     }
 
     /** Casts a written text called by its mark, each line a spell, paid as usual with no cooldown. */
+    /**
+     * The line engraved in an invocation bench, read by whoever invoked into it, as a ritual's is: paid as usual, no
+     * cooldown, with what the bench made ({@code subject}, the mark it bears) as the subject already named
+     * (docs/invocacao-design.md, section 5.1). A line is read at once, so its words are read while that holds.
+     */
+    public void castBenchEngraving(ServerPlayer caster, String text, String subject) {
+        com.elderlexicon.mod.magic.grammar.SpellGrammar.withSubject(subject, () -> {
+            castRitualText(caster, text, "Mesa: ");
+            return null;
+        });
+    }
+
+    /**
+     * Whether a bench's line may be read now: its conditions hold for {@code caster} ({@code ferit}: they just struck
+     * something). A line with none always may.
+     */
+    public boolean benchEngravingHolds(ServerPlayer caster, String text) {
+        return extractRunesFromText(text).block().lines().stream().anyMatch(line -> passes(caster, line));
+    }
+
     private void castRitualText(ServerPlayer caster, String text, String prefix) {
         castText(caster, extractRunesFromText(text).block().only(line -> passes(caster, line)), prefix);
     }

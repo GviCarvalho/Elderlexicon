@@ -221,11 +221,17 @@ public final class SpellActionExecutor {
             }
             if (source.isBalanced()) {
                 VitaSystem.restoreElementEnergy(player, target, amount);
+                Casters.status(player, Component.literal("Converteste " + SpellCostCalculator.formatCost(amount)
+                        + " UMU de vis em " + target.runeId() + "."));
                 return amount;
             }
             double taken = BodyEnergy.draw(player, source, amount);
             if (taken > 0.0D) {
-                Casters.giveVis(player, taken);
+                // Back into vis, the whole ladder is climbed: the work takes its share (book 9).
+                double vis = taken - com.elderlexicon.mod.spell.Conversion.work(taken, source, target);
+                Casters.giveVis(player, vis);
+                Casters.status(player, Component.literal("Converteste " + SpellCostCalculator.formatCost(taken)
+                        + " UMU de " + source.runeId() + " em " + SpellCostCalculator.formatCost(vis) + " de vis."));
             }
             return taken;
         }

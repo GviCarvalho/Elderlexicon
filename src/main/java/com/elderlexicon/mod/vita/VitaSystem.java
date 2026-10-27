@@ -177,6 +177,7 @@ public final class VitaSystem {
         if (creature && data.whole()) {
             VitaData.forget(player);
             DRAWERS.remove(player.getUUID());
+            Symptoms.clear(player);
             return;
         }
 
@@ -185,10 +186,8 @@ public final class VitaSystem {
         }
 
         VitaScoreboardManager.update(player, data.toProfile());
-        AquaImbalanceEffects.apply(player, data);
-        AuraImbalanceEffects.apply(player, data);
-        FirmoImbalanceEffects.apply(player, data);
-        IgniImbalanceEffects.apply(player, data);
+        // What the imbalance feels like, as a body feels it (docs/vita-sintomas-design.md).
+        Symptoms.tick(player, data);
     }
 
     public static VitaImbalanceTier getAquaTier(LivingEntity player) {
@@ -313,6 +312,36 @@ public final class VitaSystem {
         return Math.max(0.0D, (Math.min(1.0D, after) - Math.min(1.0D, before)) * max);
     }
 
+    /**
+     * What putting {@code given} into the body of {@code living} does to its life (points of health), as the body takes
+     * it: an element filled past its full pushes the others out, and the life follows the one most lacking, so it may
+     * be less than nothing (docs/feiticeiro-design.md, 3.19). {@link #lifeGivenBy} stops at full.
+     */
+    public static double lifeChangedBy(LivingEntity living, java.util.Map<VitaElement, Double> given) {
+        if (living == null || given.isEmpty()) {
+            return 0.0D;
+        }
+        VitaData data = VitaData.peek(living);
+        double before = data.maxHealth() * Math.min(1.0D, data.wholeness());
+        given.forEach((element, amount) -> {
+            if (element != null && !element.isBalanced() && amount > EPSILON) {
+                data.addElementEnergy(element, amount);
+            }
+        });
+        return data.maxHealth() * Math.min(1.0D, data.wholeness()) - before;
+    }
+
+    /** How far past its full {@code element} would stand with {@code amount} more of it, as a share of its full. */
+    public static double overfullBy(LivingEntity living, VitaElement element, double amount) {
+        if (living == null || element == null || element.isBalanced()) {
+            return 0.0D;
+        }
+        VitaData data = VitaData.peek(living);
+        data.addElementEnergy(element, Math.max(0.0D, amount));
+        double full = data.full(element);
+        return full <= EPSILON ? 0.0D : Math.max(0.0D, (data.get(element) - full) / full);
+    }
+
     public static double lackOf(LivingEntity living, VitaElement element) {
         if (living == null || element == null || element.isBalanced()) {
             return 0.0D;
@@ -379,11 +408,41 @@ public final class VitaSystem {
         return java.util.Optional.of(drawer.by());
     }
 
-    /** The hurt a lack makes: the drawer's, when someone drew it out, or else the body's own. */
+    /**
+     * The hurt a lack makes, named for the element most lacking (docs/vita-sintomas-design.md): the cold, the blood, the
+     * breath, the bones. The drawer's, when someone drew it out, or else the body's own.
+     */
     private static DamageSource lackOf(LivingEntity living) {
-        return drawerOf(living)
-                .map(by -> living.damageSources().indirectMagic(by, by))
-                .orElseGet(() -> living.damageSources().magic());
+        VitaData data = VitaData.peek(living);
+        VitaElement most = null;
+        double least = Double.MAX_VALUE;
+        for (VitaElement element : new VitaElement[] {VitaElement.AQUA, VitaElement.AURA, VitaElement.IGNI,
+                VitaElement.FIRMO}) {
+            double full = data.full(element);
+            if (full > EPSILON && data.get(element) / full < least) {
+                least = data.get(element) / full;
+                most = element;
+            }
+        }
+        String name = most == null ? null : switch (most) {
+            case IGNI -> "hypothermia";
+            case AQUA -> "exsanguination";
+            case AURA -> "asphyxia";
+            case FIRMO -> "shattering";
+            case BALANCED -> null;
+        };
+        java.util.Optional<Entity> drawer = drawerOf(living);
+        if (name == null) {
+            return drawer.map(by -> living.damageSources().indirectMagic(by, by))
+                    .orElseGet(() -> living.damageSources().magic());
+        }
+        net.minecraft.core.Holder<net.minecraft.world.damagesource.DamageType> type = living.level().registryAccess()
+                .registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE)
+                .getHolderOrThrow(net.minecraft.resources.ResourceKey.create(
+                        net.minecraft.core.registries.Registries.DAMAGE_TYPE,
+                        net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
+                                com.elderlexicon.mod.ElderLexicon.MODID, name)));
+        return drawer.map(by -> new DamageSource(type, by, by)).orElseGet(() -> new DamageSource(type));
     }
 
     /** The natures of the hurts each player took since the last tick, in order. */
@@ -536,6 +595,17 @@ public final class VitaSystem {
             core.put(element, data.share(element));
         }
         return core;
+    }
+
+    /**
+     * How much of {@code element} the body of {@code living} holds now, in UMU, read without writing anything down (a
+     * whole creature's reads as full). Vis is no part of the body: nothing.
+     */
+    public static double holds(LivingEntity living, VitaElement element) {
+        if (living == null || element == null || element.isBalanced()) {
+            return 0.0D;
+        }
+        return Math.max(0.0D, VitaData.peek(living).get(element));
     }
 
     /** What the player's body holds of each element now, in UMU. */

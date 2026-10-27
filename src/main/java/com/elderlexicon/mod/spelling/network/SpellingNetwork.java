@@ -20,7 +20,7 @@ import java.util.List;
 public final class SpellingNetwork {
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final String PROTOCOL = "11";
+    private static final String PROTOCOL = "12";
         private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ElderLexicon.MODID, "spelling"),
             () -> PROTOCOL,
@@ -169,6 +169,13 @@ public final class SpellingNetwork {
         );
         CHANNEL.registerMessage(
                 nextPacketId++,
+                com.elderlexicon.mod.invocation.BenchMarkPacket.class,
+                com.elderlexicon.mod.invocation.BenchMarkPacket::encode,
+                com.elderlexicon.mod.invocation.BenchMarkPacket::decode,
+                com.elderlexicon.mod.invocation.BenchMarkPacket::handle
+        );
+        CHANNEL.registerMessage(
+                nextPacketId++,
                 IncorporationPacket.class,
                 IncorporationPacket::encode,
                 IncorporationPacket::decode,
@@ -188,6 +195,13 @@ public final class SpellingNetwork {
                 FormPacket::decode,
                 FormPacket::handle
         );
+        CHANNEL.registerMessage(
+                nextPacketId++,
+                FeverPacket.class,
+                FeverPacket::encode,
+                FeverPacket::decode,
+                FeverPacket::handle
+        );
         LOGGER.info("Spelling network channel ready (protocol {}).", PROTOCOL);
     }
 
@@ -206,6 +220,11 @@ public final class SpellingNetwork {
     /** The flow key was pressed: the server enters or leaves the state of flow. */
     public static void sendFlowToggle() {
         CHANNEL.sendToServer(new FlowTogglePacket());
+    }
+
+    /** The rune and scene of {@code player}'s fever dream, for the fever on their screen; -1 when they wake. */
+    public static void sendFever(ServerPlayer player, String rune, int scene) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new FeverPacket(rune, scene));
     }
 
     public static void sendFlowState(ServerPlayer player, boolean flowing) {
@@ -310,6 +329,11 @@ public final class SpellingNetwork {
 
     /** The local player wrote on a block face with a quill. */
     public static void sendInscribe(com.elderlexicon.mod.spelling.inscription.InscribePacket packet) {
+        CHANNEL.sendToServer(packet);
+    }
+
+    /** The local player carves the marks of a crafting table's squares, and its line (docs/invocacao-design.md). */
+    public static void sendBenchMarks(com.elderlexicon.mod.invocation.BenchMarkPacket packet) {
         CHANNEL.sendToServer(packet);
     }
 

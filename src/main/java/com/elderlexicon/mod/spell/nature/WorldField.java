@@ -3,8 +3,10 @@ package com.elderlexicon.mod.spell.nature;
 import com.elderlexicon.mod.magic.matter.Composition;
 import com.elderlexicon.mod.magic.matter.MaterialTable;
 import com.elderlexicon.mod.magic.matter.Matter;
+import com.elderlexicon.mod.magic.matter.Materials;
 import com.elderlexicon.mod.magic.matter.Particles;
 import com.elderlexicon.mod.magic.matter.State;
+import com.elderlexicon.mod.magic.matter.Substance;
 import com.elderlexicon.mod.magic.physics.Field;
 import com.elderlexicon.mod.spell.matter.MatterBlocks;
 import com.elderlexicon.mod.spell.matter.WorldMatter;
@@ -63,9 +65,9 @@ final class WorldField {
     /** Gas beyond its nature the open air takes when a block sleeps. */
     static final long LOOSE = Particles.BLOCK / 20L;
     /**
-     * Held matter shows as a block once it is at least half of one; less, it is scattered in the air of its block. A
-     * block of the table that has gained or lost less than this, and is still what it was, is its code again when it
-     * sleeps: near the code, it is the code.
+     * Held matter shows as a block once it fills at least half the room of one (its particles over how tightly it is
+     * packed); less, it is scattered in the air of its block. A block of the table that has gained or lost less than
+     * this, and is still what it was, is its code again when it sleeps: near the code, it is the code.
      */
     static final long SHOWN = Particles.BLOCK / 2L;
     /** Steps between two looks at the world under a block, which someone may have changed. */
@@ -80,8 +82,15 @@ final class WorldField {
             Direction.SOUTH, Direction.NORTH};
     private static final Particles AIR = new Particles(0L, 0L, Particles.BLOCK, 0L);
 
-    /** What a block is by its nature: the block it was, what it holds and how agitated it is. */
-    record Nature(BlockState block, Field.Cell cell, double temperature) {
+    /**
+     * What a block is by its nature: the block it was, what it holds, how agitated it is and how tightly what it holds
+     * is packed (a block of stone holds three times the particles of a block of earth, in the same room).
+     */
+    record Nature(BlockState block, Field.Cell cell, double temperature, double packing) {
+
+        Nature(BlockState block, Field.Cell cell, double temperature) {
+            this(block, cell, temperature, 1.0D);
+        }
     }
 
     /**
@@ -170,6 +179,18 @@ final class WorldField {
         return true;
     }
 
+    /** Takes up to {@code most} particles of {@code aspect} out of the gas of the block at {@code pos}; how many it took. */
+    long draw(BlockPos pos, com.elderlexicon.mod.vita.VitaElement aspect, long most) {
+        int i = stir(pos);
+        return i < 0 ? 0L : field.draw(i, aspect, most);
+    }
+
+    /** The free agitation of the block at {@code pos} above the world at rest: none when it sleeps. */
+    long freeHeat(BlockPos pos) {
+        int i = awake.get(pos.asLong());
+        return i < 0 ? 0L : Math.max(0L, field.heat(i));
+    }
+
     /** Agitation into the block at {@code pos}; negative, taken out of it. Says whether it went in. */
     boolean heat(BlockPos pos, long igni) {
         int i = stir(pos);
@@ -228,7 +249,7 @@ final class WorldField {
     /** Whether the block at {@code pos} is awake and its air glows: a flame the drives keep. */
     boolean flameAt(BlockPos pos) {
         int i = awake.get(pos.asLong());
-        return i >= 0 && field.held(i).total() < SHOWN && field.temperature(i) >= Field.glow();
+        return i >= 0 && field.filled(i) < SHOWN && field.temperature(i) >= Field.glow();
     }
 
     /** How agitated the block at {@code pos} is: its nature when it is asleep. */
@@ -371,6 +392,7 @@ final class WorldField {
         age[i] = 0;
         struck[i] = Long.MIN_VALUE / 2L;
         field.set(i, found.cell());
+        field.pack(i, found.packing());
         shown[i] = display(i);
         for (int face = 0; face < FACES.length; face++) {
             int j = awake.get(pos.relative(FACES[face]).asLong());
@@ -424,7 +446,7 @@ final class WorldField {
             return false;
         }
         Field.Cell was = found.cell();
-        if (showing.formless() == null && distance(now.held(), was.held()) > SHOWN) {
+        if (showing.formless() == null && distance(now.held(), was.held()) / field.packing(i) > SHOWN) {
             return false;
         }
         long air = Math.abs(now.airborne().aura() + now.smoke() - was.airborne().aura() - was.smoke());
@@ -456,6 +478,7 @@ final class WorldField {
         nature[i] = found;
         expected[i] = now;
         field.set(i, found.cell());
+        field.pack(i, found.packing());
         shown[i] = display(i);
         quiet[i] = 0;
         return true;
@@ -499,7 +522,10 @@ final class WorldField {
         }
         double temperature = Field.natural(particles, matter.get().state());
         long heat = Field.agitation(particles, Particles.NONE, temperature);
-        return new Nature(state, new Field.Cell(particles, 0L, Particles.NONE, 0L, 0L, 0L, heat), temperature);
+        double packing = matter.get().substance(Materials.get()).map(Substance::packing)
+                .orElseGet(() -> Materials.get().packing(particles));
+        return new Nature(state, new Field.Cell(particles, 0L, Particles.NONE, 0L, 0L, 0L, heat), temperature,
+                packing);
     }
 
     private static Nature gas(BlockState state, double temperature) {
@@ -516,7 +542,7 @@ final class WorldField {
     private Shown display(int i) {
         Particles held = field.held(i);
         State state = field.state(i);
-        if (held.total() >= SHOWN && state != State.GAS && state != State.PLASMA) {
+        if (field.filled(i) >= SHOWN && state != State.GAS && state != State.PLASMA) {
             Optional<Composition> composition = held.composition();
             if (composition.isPresent()) {
                 Optional<BlockState> block = WorldMatter.blockOf(new Matter(composition.get(), state, held.umu()));
@@ -545,6 +571,7 @@ final class WorldField {
                 if (left != null) {
                     nature[i] = left;
                     field.set(i, left.cell());
+                    field.pack(i, left.packing());
                     expected[i] = level.getBlockState(pos);
                     shown[i] = display(i);
                     return;
@@ -555,7 +582,7 @@ final class WorldField {
         expected[i] = level.getBlockState(pos);
         Nature now = read(pos);
         if (now != null) {
-            nature[i] = new Nature(expected[i], now.cell(), now.temperature());
+            nature[i] = new Nature(expected[i], now.cell(), now.temperature(), now.packing());
         }
     }
 

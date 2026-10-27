@@ -25,11 +25,13 @@ public enum WizardLook {
     /** The master: black and velvet, bars on its sleeves, a stole and a tassel of its chair's colour, a square cap. */
     MAGISTER("magister", Hat.SQUARE),
     /** The one who presides: scarlet and ermine, a chain of gold, a tall velvet cap. */
-    RECTOR("rector", Hat.VELVET);
+    RECTOR("rector", Hat.VELVET),
+    /** A university's Emissary on the roads: a traveller's cloak with the house's seal, a satchel, a wide hat. */
+    EMISSARY("emissary", Hat.BRIM);
 
     /** What it wears on its head, beyond what its robe's texture draws. */
     public enum Hat {
-        NONE, POINTED, SQUARE, VELVET, BERET
+        NONE, POINTED, SQUARE, VELVET, BERET, BRIM
     }
 
     private final ResourceLocation texture;
@@ -60,6 +62,7 @@ public enum WizardLook {
             case VILLAGE -> VILLAGE;
             case TOWER -> TOWER;
             case UNIVERSITY -> AUDITOR;
+            case EMISSARY -> EMISSARY;
         });
     }
 

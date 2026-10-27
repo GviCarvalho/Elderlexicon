@@ -41,7 +41,8 @@ public final class Nahva {
     /** Where {@code mage}'s own instance of {@code realm} is laid out. */
     public static BlockPos origin(MinecraftServer server, UUID mage, String realm) {
         int slot = Instances.get(server).slotOf(mage);
-        int index = Math.max(0, REALMS.indexOf(realm));
+        // A fever dream is dreamed on the kern itself.
+        int index = Math.max(0, REALMS.indexOf(FeverDream.REALM.equals(realm) ? Realms.KERN : realm));
         return new BlockPos(slot * SPACING, 0, index * SPACING);
     }
 

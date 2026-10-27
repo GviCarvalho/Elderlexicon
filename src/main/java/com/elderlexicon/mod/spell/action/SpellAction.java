@@ -174,11 +174,22 @@ public final class SpellAction {
     }
 
     /**
-     * Whether what it spends is gathered first: everything in reach (a bare quantity) or so much condensed into one point
-     * ({@code quantum 20 chronos 0}).
+     * Whether what it spends is concentrated into one point: released in one instant ({@code chronos 0}), or invoked with
+     * thrown with no chronos at all, since a vocant always invokes into one block and an iactare throws all it has as
+     * one (user, 17/10/2026: no chronos is needed for water to become ice, earth to become dense, air to be pressed or
+     * heat to become plasma).
+     */
+    public boolean concentrates() {
+        return atOnce() || seconds().isEmpty() && !reversed()
+                && ("vocant".equalsIgnoreCase(runeId()) || "iactare".equalsIgnoreCase(runeId()));
+    }
+
+    /**
+     * Whether what it spends is gathered first: everything in reach (a bare quantity) or so much concentrated into one
+     * point ({@code quantum 20 vocant}, {@code quantum 20 chronos 0 iactare}).
      */
     public boolean gathers() {
-        return quantityAll() || atOnce() && potency().isPresent();
+        return quantityAll() || concentrates() && potency().isPresent();
     }
 
     /** Whether this is a bond of sight to its subject ({@code surgit m1 ligabis}). */

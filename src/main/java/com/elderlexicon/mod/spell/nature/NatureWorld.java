@@ -61,6 +61,16 @@ public final class NatureWorld {
         return fieldOf(level).heat(pos, igni);
     }
 
+    /** Takes up to {@code most} particles of {@code aspect} out of the gas of the block at {@code pos}; how many it took. */
+    public static long draw(ServerLevel level, BlockPos pos, com.elderlexicon.mod.vita.VitaElement aspect, long most) {
+        return fieldOf(level).draw(pos, aspect, most);
+    }
+
+    /** The free agitation (fire let loose: heat) of the block at {@code pos} above the world at rest. */
+    public static long freeHeat(ServerLevel level, BlockPos pos) {
+        return fieldOf(level).freeHeat(pos);
+    }
+
     /**
      * Gas let into the air of the block at {@code pos}: its earth as dust, its water as vapour, its air, its fire as
      * agitation. Says whether it went in (not into a wall).

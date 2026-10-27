@@ -3,6 +3,10 @@
   "values": [
     "elderlexicon:ligabis_reflection",
     "elderlexicon:ligabis_death",
-    "elderlexicon:vertere_vita"
+    "elderlexicon:vertere_vita",
+    "elderlexicon:hypothermia",
+    "elderlexicon:exsanguination",
+    "elderlexicon:asphyxia",
+    "elderlexicon:shattering"
   ]
 }

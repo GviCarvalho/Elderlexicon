@@ -1,0 +1,91 @@
+package com.elderlexicon.mod.mind;
+
+/**
+ * How soon a foe gets to a caster (docs/feiticeiro-design.md, 3.9): a mage does not open its trance with the foe a step
+ * away, for the two seconds of it are enough for a blow, and a blow closes the crack. It weighs how far the foe stands,
+ * how far its blow reaches and how fast it comes, and keeps where the foe cannot get to it before the reading is out.
+ */
+public final class Threat {
+
+    /** How far the blow of a creature reaches, and of a person (a little more: a person's arm is longer). */
+    public static final double BLOW = 2.0D;
+    public static final double PERSON_BLOW = 3.0D;
+    /** How fast, in blocks a tick, a creature comes for each point of its speed (a first guess: a zombie, 0.23, ~2.3 b/s). */
+    public static final double PER_SPEED = 0.5D;
+    /** How fast a person comes at a run (5.6 blocks a second). */
+    public static final double PERSON_SPEED = 0.28D;
+    /**
+     * A bow, as a skeleton draws it (normal difficulty): it shoots within fifteen blocks, waits forty ticks after an
+     * arrow (twenty in hard), draws for twenty, and the arrow flies a block and six tenths a tick.
+     */
+    public static final double BOW_REACH = 15.0D;
+    public static final int BOW_INTERVAL = 40;
+    public static final int BOW_DRAW = 20;
+    public static final double ARROW_SPEED = 1.6D;
+    /** How much of what it saw a foe come a tick weighs against what it saw before (a running mean). */
+    private static final double FRESH = 0.3D;
+
+    private double seen;
+
+    /** It saw the foe come {@code closed} blocks nearer in one tick (less than zero: it went farther). */
+    public void saw(double closed) {
+        seen = seen * (1.0D - FRESH) + Math.max(0.0D, closed) * FRESH;
+    }
+
+    /** It lost sight of the foe, or took another: what it saw of the last one is forgotten. */
+    public void forget() {
+        seen = 0.0D;
+    }
+
+    /** How fast the foe comes, as far as it can tell: what it saw, or what it guesses of one like it, the faster. */
+    public double speed(double guessed) {
+        return Math.max(seen, guessed);
+    }
+
+    /** In how many ticks a foe {@code distance} away, whose blow reaches {@code blow}, coming at {@code speed}, strikes. */
+    public static double ticksToBlow(double distance, double blow, double speed) {
+        if (speed <= 1.0E-6D) {
+            return Double.POSITIVE_INFINITY;
+        }
+        return Math.max(0.0D, distance - blow) / speed;
+    }
+
+    /**
+     * In how many ticks an arrow from a foe with a bow lands, {@code distance} away: it draws, or waits since its last
+     * arrow ({@code drawn} the ticks it has drawn, -1 when it does not draw; {@code sinceShot} the ticks since its last
+     * arrow, -1 when it never saw one: then it may draw at once), or first comes within its bow's reach at {@code speed}.
+     */
+    public static double ticksToArrow(double distance, double speed, int drawn, int sinceShot, int interval) {
+        double flight = distance / ARROW_SPEED;
+        if (drawn >= 0) {
+            return Math.max(0, BOW_DRAW - drawn) + flight;
+        }
+        double coming = distance <= BOW_REACH ? 0.0D
+                : speed > 1.0E-6D ? (distance - BOW_REACH) / speed : Double.POSITIVE_INFINITY;
+        double waiting = sinceShot < 0 ? 0.0D : Math.max(0, interval - sinceShot);
+        return Math.max(coming, waiting) + BOW_DRAW + flight;
+    }
+
+    /**
+     * In how many ticks what a caster reads reaches one it reads against (docs/feiticeiro-design.md, 3.17): what is left
+     * of its trance when it is in one ({@code tranceTicks} into it); at once while its lines are released; else its rest
+     * and then a whole trance.
+     */
+    public static double ticksToReading(boolean inTrance, int tranceTicks, boolean releasing, int rest, int trance) {
+        if (inTrance) {
+            return Math.max(0, trance - tranceTicks);
+        }
+        if (releasing) {
+            return 0.0D;
+        }
+        return Math.max(0, rest) + trance;
+    }
+
+    /**
+     * How far a foe whose blow reaches {@code blow}, coming at {@code speed}, must stand for a trance of {@code ticks}
+     * to end, {@code margin} times over, before it strikes.
+     */
+    public static double safeDistance(double blow, double speed, int ticks, double margin) {
+        return blow + speed * ticks * margin;
+    }
+}

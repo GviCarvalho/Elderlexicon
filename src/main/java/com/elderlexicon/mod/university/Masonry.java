@@ -25,9 +25,10 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import java.util.function.Supplier;
 
 /**
- * The mason of a university (docs/mago-design.md, 5g): places blocks by their offset from the middle of the grounds,
- * only inside the chunk being made, and knows the university's stone. What it draws by chance is drawn by the
- * position, so the chunks agree.
+ * The mason of a university (docs/mago-design.md, 5g; docs/universidade-arquitetura-design.md): places blocks by their
+ * offset from the middle of the grounds, only inside the chunk being made, and knows the university's stone. What it
+ * draws by chance is drawn by the position, so the chunks agree. The campus is turned as a whole ({@code rotation},
+ * every block's facing with it), and a building may be drawn shifted from where its drawing puts it.
  */
 final class Masonry {
 
@@ -36,23 +37,82 @@ final class Masonry {
     private final int cx;
     private final int y0;
     private final int cz;
+    private final net.minecraft.world.level.block.Rotation rotation;
+    private final int ox;
+    private final int oz;
 
     Masonry(WorldGenLevel level, BoundingBox chunk, int cx, int y0, int cz) {
+        this(level, chunk, cx, y0, cz, net.minecraft.world.level.block.Rotation.NONE, 0, 0,
+                new java.util.ArrayList<>());
+    }
+
+    Masonry(WorldGenLevel level, BoundingBox chunk, int cx, int y0, int cz,
+            net.minecraft.world.level.block.Rotation rotation) {
+        this(level, chunk, cx, y0, cz, rotation, 0, 0, new java.util.ArrayList<>());
+    }
+
+    private Masonry(WorldGenLevel level, BoundingBox chunk, int cx, int y0, int cz,
+                    net.minecraft.world.level.block.Rotation rotation, int ox, int oz,
+                    java.util.List<BlockPos> joining) {
         this.level = level;
         this.chunk = chunk;
         this.cx = cx;
         this.y0 = y0;
         this.cz = cz;
+        this.rotation = rotation;
+        this.ox = ox;
+        this.oz = oz;
+        this.joining = joining;
+    }
+
+    /** The same mason, drawing what is drawn at {@code (x, z)} at {@code (x + dx, z + dz)}. */
+    Masonry shifted(int dx, int dz) {
+        return new Masonry(level, chunk, cx, y0, cz, rotation, ox + dx, oz + dz, joining);
+    }
+
+    /** The offset {@code (x, z)} of the campus, turned as the campus is. */
+    static int[] turn(net.minecraft.world.level.block.Rotation rotation, int x, int z) {
+        return switch (rotation) {
+            case NONE -> new int[]{x, z};
+            case CLOCKWISE_90 -> new int[]{-z, x};
+            case CLOCKWISE_180 -> new int[]{-x, -z};
+            case COUNTERCLOCKWISE_90 -> new int[]{z, -x};
+        };
+    }
+
+    /** {@code facing} as it lies in the world, the campus turned. */
+    Direction turn(Direction facing) {
+        return rotation.rotate(facing);
+    }
+
+    /**
+     * Three letters and figures that are this house's alone, from where its middle is: written after the marks it
+     * lays (a1_k3f), so two universities in one world never answer to one mark. The same in every chunk.
+     */
+    String houseCode() {
+        int code = Math.floorMod(cx * 73856093 ^ cz * 19349663, 36 * 36 * 36);
+        StringBuilder text = new StringBuilder(Integer.toString(code, 36));
+        while (text.length() < 3) {
+            text.insert(0, '0');
+        }
+        // Never a code of figures alone, which a spell would read as a number.
+        if (Character.isDigit(text.charAt(0))) {
+            text.setCharAt(0, (char) ('a' + (text.charAt(0) - '0')));
+        }
+        return text.toString();
     }
 
     BlockPos at(int x, int y, int z) {
-        return new BlockPos(cx + x, y0 + y, cz + z);
+        int[] turned = turn(rotation, x + ox, z + oz);
+        return new BlockPos(cx + turned[0], y0 + y, cz + turned[1]);
     }
 
     /** Whether the chunk being made reaches into the box between the two offsets. */
     boolean touches(int x0, int y0, int z0, int x1, int y1, int z1) {
-        return chunk.intersects(cx + Math.min(x0, x1), cz + Math.min(z0, z1), cx + Math.max(x0, x1),
-                cz + Math.max(z0, z1)) && this.y0 + Math.max(y0, y1) >= chunk.minY()
+        BlockPos a = at(x0, 0, z0);
+        BlockPos b = at(x1, 0, z1);
+        return chunk.intersects(Math.min(a.getX(), b.getX()), Math.min(a.getZ(), b.getZ()), Math.max(a.getX(),
+                b.getX()), Math.max(a.getZ(), b.getZ())) && this.y0 + Math.max(y0, y1) >= chunk.minY()
                 && this.y0 + Math.min(y0, y1) <= chunk.maxY();
     }
 
@@ -61,6 +121,7 @@ final class Masonry {
         if (!chunk.isInside(pos)) {
             return false;
         }
+        state = state.rotate(rotation);
         level.setBlock(pos, state, Block.UPDATE_CLIENTS);
         if (joins(state)) {
             joining.add(pos.immutable());
@@ -69,7 +130,7 @@ final class Masonry {
     }
 
     /** The blocks that join their neighbours (fences, panes, bars, walls), placed in this chunk. */
-    private final java.util.List<BlockPos> joining = new java.util.ArrayList<>();
+    private final java.util.List<BlockPos> joining;
 
     private static boolean joins(BlockState state) {
         return state.getBlock() instanceof net.minecraft.world.level.block.CrossCollisionBlock
@@ -92,10 +153,13 @@ final class Masonry {
 
     /** Fills a box, only where it is inside the chunk. */
     void fill(int x0, int y0, int z0, int x1, int y1, int z1, BlockState state) {
-        int ax = Math.max(cx + Math.min(x0, x1), chunk.minX());
-        int bx = Math.min(cx + Math.max(x0, x1), chunk.maxX());
-        int az = Math.max(cz + Math.min(z0, z1), chunk.minZ());
-        int bz = Math.min(cz + Math.max(z0, z1), chunk.maxZ());
+        BlockPos a = at(x0, 0, z0);
+        BlockPos b = at(x1, 0, z1);
+        state = state.rotate(rotation);
+        int ax = Math.max(Math.min(a.getX(), b.getX()), chunk.minX());
+        int bx = Math.min(Math.max(a.getX(), b.getX()), chunk.maxX());
+        int az = Math.max(Math.min(a.getZ(), b.getZ()), chunk.minZ());
+        int bz = Math.min(Math.max(a.getZ(), b.getZ()), chunk.maxZ());
         int ay = Math.max(this.y0 + Math.min(y0, y1), chunk.minY());
         int by = Math.min(this.y0 + Math.max(y0, y1), chunk.maxY());
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -120,7 +184,7 @@ final class Masonry {
 
     /** A number from 0 to 99, the same for a place in every chunk. */
     int chance(int x, int y, int z) {
-        return Math.floorMod(Mth.getSeed(cx + x, y0 + y, cz + z), 100);
+        return Math.floorMod(Mth.getSeed(at(x, y, z)), 100);
     }
 
     /** The walls' stone: now and then mossy or cracked. */
@@ -170,7 +234,8 @@ final class Masonry {
             return;
         }
         ItemStack stack = book.get();
-        level.setBlock(pos, lectern.setValue(LecternBlock.HAS_BOOK, !stack.isEmpty()), Block.UPDATE_CLIENTS);
+        level.setBlock(pos, lectern.setValue(LecternBlock.HAS_BOOK, !stack.isEmpty()).rotate(rotation),
+                Block.UPDATE_CLIENTS);
         if (!stack.isEmpty() && level.getBlockEntity(pos) instanceof LecternBlockEntity entity) {
             entity.setBook(stack);
         }

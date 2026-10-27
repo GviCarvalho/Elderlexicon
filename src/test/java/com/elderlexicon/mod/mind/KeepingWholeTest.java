@@ -46,11 +46,10 @@ class KeepingWholeTest {
         Mind.Scene wounded = scene(Double.POSITIVE_INFINITY, 0.5F, false);
         assertTrue(Mind.evaluate(wounded, Personality.CAUTIOUS, water, hurt).isEmpty(),
                 "water alone gives nothing back when every energy lacks");
-        Optional<Mind.Choice> healing = Mind.evaluate(wounded, Personality.CAUTIOUS, cure.get(), hurt);
-        assertTrue(healing.isPresent());
-        assertEquals(Intent.HEAL, healing.get().intent());
-        assertEquals(Aim.SKY, healing.get().aim());
-        assertTrue(healing.get().healed() > 0.0D);
+        // Ten of fire and ten of earth into a body that holds about two and five: past full, they push the rest out,
+        // and fire far past its full burns it (3.19). Written so, the cure does more harm than good.
+        assertTrue(Mind.evaluate(wounded, Personality.CAUTIOUS, cure.get(), hurt).isEmpty(),
+                "a cure that pours in tenfold the fire a body holds is not read");
     }
 
     @Test

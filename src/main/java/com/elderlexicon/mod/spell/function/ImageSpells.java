@@ -49,6 +49,10 @@ public final class ImageSpells {
 
     /** The image of what vocant would bring: an element's matter or light, or what bears a mark. */
     public static void vocant(SpellContext context, VitaElement element, SpellAction action) {
+        // igni quantum ego surgit p1 ubis vocant: the image of how much fire ego holds (docs/bussola-arcana-design.md).
+        if (Dials.measure(context, element, action)) {
+            return;
+        }
         LivingEntity player = context.player();
         int ticks = Illusion.ticks(chronos(action));
         Optional<MarkSpells.Destination> destination = MarkSpells.destination(context, action.place(), MarkSpells.SUMMON_RANGE);

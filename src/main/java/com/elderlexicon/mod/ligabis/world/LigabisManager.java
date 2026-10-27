@@ -91,11 +91,12 @@ public final class LigabisManager {
     private final Map<UUID, GolemRecord> golems = new HashMap<>();
     private final Map<UUID, Boolean> golemSwingState = new HashMap<>();
     private final Map<UUID, float[]> playerInputs = new HashMap<>();
+    private final WorldOwners owners = new WorldOwners();
 
     private LigabisManager(MinecraftServer server) {
         this.server = server;
         this.data = LigabisData.get(server);
-        this.engine = new LinkEngine(graph, new WorldMembers(), new WorldOwners(), CostPolicy.DEFAULT);
+        this.engine = new LinkEngine(graph, new WorldMembers(), owners, CostPolicy.DEFAULT);
     }
 
     /** The running manager, or null while no world is loaded. */
@@ -242,6 +243,37 @@ public final class LigabisManager {
         playerInputs.put(playerId, new float[] {xxa, zza});
     }
 
+    /**
+     * The aura bonds (movement) whose child is {@code mark}: what pulls a nugget of an arcane compass
+     * (docs/bussola-arcana-design.md).
+     */
+    public List<Link> auraParentsOf(String mark) {
+        String wanted = MarkHelper.sanitizeMark(mark);
+        List<Link> found = new ArrayList<>();
+        for (Link link : graph.links()) {
+            if (link.aspect() == Aspect.AURA && !link.isMirror() && wanted.equals(link.second())) {
+                found.add(link);
+            }
+        }
+        return found;
+    }
+
+    /** Whether the owner of a bond is in the world: an absent owner's bonds are suspended (docs/ligabis-design.md, 4). */
+    public boolean ownerOnline(UUID owner) {
+        return owners.isOnline(owner);
+    }
+
+    /** Charges the owner of a bond {@code umu}, as the bond's own reflections are charged; false when they cannot pay. */
+    public boolean payForBond(UUID owner, double umu) {
+        return umu <= 0.0D || owners.pay(owner, umu);
+    }
+
+    /** A bond its owner could not pay for: it breaks. */
+    public void breakBond(Link link) {
+        graph.removeLink(link);
+        data.removeLink(link);
+    }
+
     /** Whether {@code owner} holds an aura bond (movement) with what carries {@code mark}. */
     public boolean auraBound(UUID owner, String mark) {
         String wanted = MarkHelper.sanitizeMark(mark);
@@ -353,7 +385,9 @@ public final class LigabisManager {
         List<String> marks = result.parsed().marks();
         ServerLevel level = player.serverLevel();
 
-        if (scene.sceneMarks().contains(marks.get(marks.size() - 1))) {
+        if (scene.sceneMarks().contains(marks.get(marks.size() - 1))
+                || com.elderlexicon.mod.spell.function.Dials.bears(server, marks.get(marks.size() - 1))) {
+            // (Or a nugget of an arcane compass bears it, set in the dial: docs/bussola-arcana-design.md.)
             // The last mark is of something of the scene, which bears it already: nothing aimed at is marked.
             List<Link> added = link(player, aspect, marks);
             if (added != null) {

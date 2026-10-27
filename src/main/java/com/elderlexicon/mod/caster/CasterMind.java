@@ -6,6 +6,7 @@ import com.elderlexicon.mod.magic.lexicon.Lexicons;
 import com.elderlexicon.mod.magic.lexicon.WordClass;
 import com.elderlexicon.mod.mind.Aim;
 import com.elderlexicon.mod.mind.Degree;
+import com.elderlexicon.mod.mind.Doctrine;
 import com.elderlexicon.mod.mind.Intent;
 import com.elderlexicon.mod.mind.Memory;
 import com.elderlexicon.mod.mind.Mind;
@@ -15,6 +16,8 @@ import com.elderlexicon.mod.mind.Phrase;
 import com.elderlexicon.mod.mind.PhraseCatalog;
 import com.elderlexicon.mod.mind.Preparation;
 import com.elderlexicon.mod.mind.Reach;
+import com.elderlexicon.mod.mind.Room;
+import com.elderlexicon.mod.mind.Threat;
 import com.elderlexicon.mod.mind.Variations;
 import com.elderlexicon.mod.parser.ParserDictionary;
 import com.elderlexicon.mod.spell.Casters;
@@ -214,6 +217,12 @@ public final class CasterMind {
 
     @Nullable
     private Mind.Choice reading;
+    /**
+     * Where a reading its body asked for is aimed (an errand's: a leap toward where it goes), while that reading lasts:
+     * the trance is then held by the mind itself, not by its trance goal.
+     */
+    @Nullable
+    private Vec3 askedAim;
     private int tranceTicks;
     private int restTicks = REST_TICKS;
     /** What its reading is still being released against, and for how long: it keeps aiming at it until the last line. */
@@ -226,6 +235,28 @@ public final class CasterMind {
     private Mind.Choice lastChoice;
     /** What it remembers of the ones it fights, for this life (docs/feiticeiro-design.md, 3.5). */
     private final Memory memory = new Memory();
+    /** How fast it saw its foe come, and which foe, and where that one stood a tick ago (docs/feiticeiro-design.md, 3.9). */
+    private final Threat threat = new Threat();
+    @Nullable
+    private UUID threatOf;
+    @Nullable
+    private Vec3 threatWas;
+    /** Its foe's bow, as it watches it: how long it has drawn (-1: it does not), since its last arrow (-1: none seen). */
+    private int foeDrawn = -1;
+    private int foeSinceShot = -1;
+    /** What it read last, against whom, and how many times in a row: what an old hand tires of. */
+    @Nullable
+    private String lastRead;
+    @Nullable
+    private UUID lastReadAgainst;
+    private int inARow;
+    /** How long it is still cornered: it could not get away, so it reads where it stands. */
+    private int cornered;
+    /** What its doctrine said to do, and the sentence for it when it said to read: null where it has none. */
+    @Nullable
+    private Doctrine.Stance stance;
+    @Nullable
+    private Mind.Choice stanceChoice;
     /** What it learned to read in this life: variations of what worked, and sentences it saw others cast. */
     private final List<Option> learned = new ArrayList<>();
     /** The options it already varied: one is varied once. */
@@ -288,6 +319,10 @@ public final class CasterMind {
     public CasterMind(Mob owner, Body body) {
         this.owner = owner;
         this.body = body;
+        // A caster never walks a way through fire, and keeps well off it (docs/feiticeiro-design.md, 3.18): the game's
+        // walker only shuns it, and goes through when there is no other way.
+        owner.setPathfindingMalus(net.minecraft.world.level.pathfinder.BlockPathTypes.DAMAGE_FIRE, -1.0F);
+        owner.setPathfindingMalus(net.minecraft.world.level.pathfinder.BlockPathTypes.DANGER_FIRE, 16.0F);
     }
 
     // ------------------------------------------------------------------ who it is
@@ -545,32 +580,324 @@ public final class CasterMind {
      * again, nor from as far as it fell short (docs/feiticeiro-design.md, 3.8).
      */
     private Optional<Mind.Choice> choose(@Nullable LivingEntity target) {
+        Degree degree = degree();
+        return Mind.choose(scene(target), personality(), readable(target), owner.getRandom(), learnedAgainst(target),
+                degree.among(), degree.luck());
+    }
+
+    /** What it sees, choosing against {@code target} (null: for itself). */
+    private Mind.Scene scene(@Nullable LivingEntity target) {
         float share = owner.getHealth() / Math.max(1.0F, owner.getMaxHealth());
         double distance = target == null ? Double.POSITIVE_INFINITY : owner.distanceTo(target);
-        Mind.Scene scene = new Mind.Scene(owner, target, distance, share, Casters.vis(owner),
+        return new Mind.Scene(owner, target, distance, share, Casters.vis(owner),
                 mark -> target == null ? 0.0D : body.allies(mark, target), owner.isOnFire(), inWorld());
+    }
+
+    /** Everything it can read now against {@code target}: its pages, what it learned, what else it can, written farther. */
+    private List<Option> readable(@Nullable LivingEntity target) {
         List<Option> all = new ArrayList<>(options());
         all.addAll(learned);
         all.addAll(body.moreOptions());
         if (target != null) {
-            all.addAll(farther(all, distance));
+            all.addAll(farther(all, owner.distanceTo(target)));
         }
+        return all;
+    }
+
+    /** What it learned of each option against {@code target}, and how tired it is of what it read last. */
+    private java.util.function.ToDoubleFunction<Option> learnedAgainst(@Nullable LivingEntity target) {
         // With no foe it reads for itself: what it learned of that is kept under its own name.
         UUID opponent = target == null ? owner.getUUID() : target.getUUID();
-        return Mind.choose(scene, personality(), all, owner.getRandom(), option -> target == null
-                ? memory.factor(opponent, option) : memory.factor(opponent, option, distance));
+        double distance = target == null ? Double.POSITIVE_INFINITY : owner.distanceTo(target);
+        Degree degree = degree();
+        return option -> (target == null ? memory.factor(opponent, option) : memory.factor(opponent, option, distance))
+                * (option.name().equals(lastRead) && opponent.equals(lastReadAgainst) ? degree.habit(inARow) : 1.0D);
+    }
+
+    // ------------------------------------------------------------------ a doctrine (docs/feiticeiro-design.md, 3.10)
+
+    /** How often, free in a fight, it asks its doctrine what to do. */
+    private static final int DOCTRINE_TICKS = 10;
+
+    /** The kind of foe a doctrine is learned against, as the arena names it; null for one it has none for. */
+    @Nullable
+    static String kindOf(LivingEntity target) {
+        if (target instanceof RuneCaster) {
+            return "caster";
+        }
+        if (target instanceof net.minecraft.world.entity.monster.Zombie) {
+            return "zombie";
+        }
+        if (target instanceof net.minecraft.world.entity.monster.Spider) {
+            return "spider";
+        }
+        if (target instanceof net.minecraft.world.entity.monster.AbstractSkeleton
+                && target.isHolding(stack -> stack.getItem() instanceof net.minecraft.world.item.BowItem)) {
+            return "skeleton";
+        }
+        return null;
+    }
+
+    /** The doctrine it fights {@code target} by: an elder's, against a kind of foe the arena taught. */
+    private Optional<Doctrine> doctrineAgainst(LivingEntity target) {
+        String kind = kindOf(target);
+        if (degree() != Degree.ELDER || kind == null) {
+            return Optional.empty();
+        }
+        // Against another caster, the doctrine of its own temper: one who pays in flesh fights otherwise (3.17).
+        Optional<Doctrine> own = Doctrine.of(kind + "-" + personality().id());
+        return own.isPresent() ? own : Doctrine.of(kind);
+    }
+
+    /** What it sees of a fight with {@code target}, as the arena saw it. */
+    private Doctrine.Situation situation(LivingEntity target) {
+        double distance = owner.distanceTo(target);
+        return new Doctrine.Situation(distance, ticksToHarm(target) / TRANCE_TICKS,
+                owner.getHealth() / Math.max(1.0F, owner.getMaxHealth()), Casters.vis(owner) / Casters.ANCHOR_UMU,
+                target.getHealth() / Math.max(1.0F, target.getMaxHealth()), restTicks == 0, roomAgainst(target).room());
+    }
+
+    /**
+     * Free in a fight, an elder asks its doctrine what to do now: read for something (the mind chooses the sentence),
+     * back away, walk up or wait. Where the doctrine never was, it fights as it would with none ({@link #stance} null).
+     */
+    private void followDoctrine() {
+        LivingEntity target = owner.getTarget();
+        if (reading != null || releaseTicks > 0) {
+            return; // busy: what it chose stands until it is free again
+        }
+        stance = null;
+        stanceChoice = null;
+        // Burning, it puts the fire out first: no doctrine has a stance for that, and the mind weighs it above all
+        // (docs/feiticeiro-design.md, 3.17).
+        if (target == null || !target.isAlive() || conversation != null || owner.isOnFire()) {
+            return;
+        }
+        Optional<Doctrine> doctrine = doctrineAgainst(target);
+        if (doctrine.isEmpty()) {
+            return;
+        }
+        Set<Doctrine.Stance> possible = java.util.EnumSet.of(Doctrine.Stance.BACK_OFF, Doctrine.Stance.CLOSE_IN,
+                Doctrine.Stance.WAIT, Doctrine.Stance.CIRCLE);
+        Map<Intent, Mind.Choice> best = restTicks == 0 && owner.hasLineOfSight(target)
+                ? Mind.bestByIntent(scene(target), personality(), readable(target), learnedAgainst(target)) : Map.of();
+        for (Doctrine.Stance each : Doctrine.Stance.values()) {
+            if (each.intent() != null && best.containsKey(each.intent())) {
+                possible.add(each);
+            }
+        }
+        doctrine.get().decide(situation(target), possible).ifPresent(chosen -> {
+            stance = chosen;
+            stanceChoice = chosen.intent() == null ? null : best.get(chosen.intent());
+        });
+    }
+
+    /** How a fight looks to it now, for the one who watches it (a GameTest, a command). */
+    public String describeFight() {
+        LivingEntity target = owner.getTarget();
+        if (target == null) {
+            return "no foe";
+        }
+        Doctrine.Situation seen = situation(target);
+        String key = doctrineAgainst(target).map(doctrine -> doctrine.steps().key(seen)).orElse("-");
+        return String.format(Locale.ROOT,
+                "%.1f blocks, %.2f trances to harm, room %.0f, %s%s%s, rest %d, Vis %.0f, last \"%s\", key %s",
+                seen.distance(), seen.trancesToBlow(), seen.room(), stance == null ? "no stance" : stance.name(),
+                reading != null ? ", reading " + reading.intent() : releaseTicks > 0 ? ", releasing" : "",
+                cornered > 0 ? ", cornered" : "", restTicks, Casters.vis(owner),
+                lastChoice == null ? "-" : lastChoice.option().name(), key);
+    }
+
+    /** What its doctrine says to do now, if it follows one and it knows the situation. */
+    public Optional<Doctrine.Stance> stance() {
+        return Optional.ofNullable(stance);
+    }
+
+    // ------------------------------------------------------------------ where it stands (docs/feiticeiro-design.md, 3.9)
+
+    /**
+     * Whether {@code target} comes to strike it with a blow: a person may; a creature does when it hunts it and has a
+     * blow to strike with. One who shoots, or reads, keeps where it stands; prey runs.
+     */
+    private boolean closesIn(LivingEntity target) {
+        if (target instanceof net.minecraft.world.entity.player.Player) {
+            return true;
+        }
+        return target instanceof Mob mob && mob.getTarget() == owner
+                && !(target instanceof net.minecraft.world.entity.monster.RangedAttackMob)
+                && !(target instanceof RuneCaster)
+                && mob.getAttributes().hasAttribute(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE);
+    }
+
+    /** How fast {@code target} comes, as far as it can tell: what it saw of it, or what it guesses of one like it. */
+    private double speedOf(LivingEntity target) {
+        double guessed = target instanceof net.minecraft.world.entity.player.Player ? Threat.PERSON_SPEED
+                : target.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED)
+                * Threat.PER_SPEED;
+        return target.getUUID().equals(threatOf) ? threat.speed(guessed) : guessed;
+    }
+
+    /** How far {@code target}'s blow reaches: a creature's, as wide as it is (a spider's farther), as vanilla works it out. */
+    private double blowOf(LivingEntity target) {
+        if (target instanceof net.minecraft.world.entity.player.Player) {
+            return Threat.PERSON_BLOW;
+        }
+        double wide = target.getBbWidth() * 2.0D;
+        return Math.max(Threat.BLOW, Math.sqrt(wide * wide + owner.getBbWidth()));
+    }
+
+    /** Whether {@code target} shoots it with a bow (a skeleton): its arrows come as its bow is drawn. */
+    private boolean shootsAt(LivingEntity target) {
+        return target instanceof Mob mob && mob.getTarget() == owner
+                && target instanceof net.minecraft.world.entity.monster.RangedAttackMob
+                && target.isHolding(stack -> stack.getItem() instanceof net.minecraft.world.item.BowItem);
+    }
+
+    /**
+     * In how many ticks {@code target} could hurt it: its blow, when it comes to strike; its arrow, when it shoots
+     * (docs/feiticeiro-design.md, 3.11); never, else.
+     */
+    private double ticksToHarm(LivingEntity target) {
+        double distance = owner.distanceTo(target);
+        if (target instanceof RuneCaster other && other.casterMind().owner.getTarget() == owner) {
+            // Another caster: its trance shows above its head; what it reads comes when the trance ends (3.17).
+            CasterMind mind = other.casterMind();
+            return Threat.ticksToReading(mind.reading != null, mind.tranceTicks, mind.releaseTicks > 0,
+                    mind.restTicks, TRANCE_TICKS);
+        }
+        if (shootsAt(target)) {
+            int interval = owner.level().getDifficulty() == net.minecraft.world.Difficulty.HARD
+                    ? Threat.BOW_INTERVAL / 2 : Threat.BOW_INTERVAL;
+            return Threat.ticksToArrow(distance, speedOf(target), foeDrawn, foeSinceShot, interval);
+        }
+        return closesIn(target) ? Threat.ticksToBlow(distance, blowOf(target), speedOf(target))
+                : Double.POSITIVE_INFINITY;
+    }
+
+    /**
+     * Whether it may open its trance with {@code target} where it stands: past where that one broke it before, and, when
+     * it sees a foe coming (a master, an elder), far enough that the trance ends before the blow.
+     */
+    private boolean safeToOpen(LivingEntity target) {
+        double distance = owner.distanceTo(target);
+        if (distance < memory.safeDistance(target.getUUID())) {
+            return false;
+        }
+        // Only a blow is waited out: waiting out arrows, it is shot while it waits (a doctrine knows when to read).
+        double foresight = degree().foresight();
+        return foresight <= 0.0D || !closesIn(target)
+                || Threat.ticksToBlow(distance, blowOf(target), speedOf(target)) >= TRANCE_TICKS * foresight;
+    }
+
+    /**
+     * How far it wants {@code target} to stand: no nearer than {@code floor}, than where it was struck in its trance
+     * before, nor, when it sees a foe coming, than where the blow comes before the trance ends; and never so far that
+     * what it reads would no longer get there.
+     */
+    private double wantedDistance(LivingEntity target, double floor) {
+        double wanted = Math.max(floor, memory.safeDistance(target.getUUID()));
+        double foresight = degree().foresight();
+        if (foresight > 0.0D && closesIn(target)) {
+            wanted = Math.max(wanted, Threat.safeDistance(blowOf(target), speedOf(target), TRANCE_TICKS, foresight));
+        }
+        double reach = reach();
+        return reach > 0.0D ? Math.min(wanted, reach - Math.min(6.0D, reach * 0.25D) - 1.0D) : wanted;
+    }
+
+    /** The way it would back off from {@code target}, and how much room it has that way (docs/feiticeiro-design.md, 3.12). */
+    private Room.Way roomAgainst(LivingEntity target) {
+        return Room.away(ground(), owner.getX(), owner.getZ(), target.getX(), target.getZ());
+    }
+
+    /**
+     * Where it can stand, at the height it stands: nothing in its feet nor its head, no fluid nor fire, and ground under
+     * it (or a block down); a block up it can step onto.
+     */
+    private Room.Ground ground() {
+        net.minecraft.world.level.Level level = owner.level();
+        int y = owner.getBlockY();
+        return (x, z) -> {
+            net.minecraft.core.BlockPos feet = net.minecraft.core.BlockPos.containing(x, y, z);
+            if (passable(level, feet) && passable(level, feet.above())) {
+                return solid(level, feet.below()) || passable(level, feet.below()) && solid(level, feet.below(2));
+            }
+            return solid(level, feet) && passable(level, feet.above()) && passable(level, feet.above(2));
+        };
+    }
+
+    private static boolean passable(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos) {
+        net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos);
+        return state.getCollisionShape(level, pos).isEmpty() && state.getFluidState().isEmpty()
+                && !state.is(net.minecraft.tags.BlockTags.FIRE);
+    }
+
+    private static boolean solid(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos) {
+        net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos);
+        return !state.getCollisionShape(level, pos).isEmpty()
+                && !state.is(net.minecraft.world.level.block.Blocks.MAGMA_BLOCK);
+    }
+
+    /** It watches its foe come: how far it came toward it this tick. */
+    private void watchFoe() {
+        LivingEntity target = owner.getTarget();
+        if (target == null || !target.isAlive()) {
+            if (threatOf != null) {
+                threat.forget();
+                threatOf = null;
+                threatWas = null;
+            }
+            return;
+        }
+        Vec3 now = target.position();
+        boolean drawing = target.isUsingItem() && shootsAt(target);
+        if (!target.getUUID().equals(threatOf) || threatWas == null) {
+            threat.forget();
+            threatOf = target.getUUID();
+            foeSinceShot = -1;
+        } else {
+            // It stopped drawing: it let fly.
+            if (foeDrawn >= 0 && !drawing) {
+                foeSinceShot = 0;
+            } else if (foeSinceShot >= 0) {
+                foeSinceShot++;
+            }
+            Vec3 toward = owner.position().subtract(now).multiply(1.0D, 0.0D, 1.0D);
+            if (toward.lengthSqr() > 1.0E-6D) {
+                threat.saw(now.subtract(threatWas).multiply(1.0D, 0.0D, 1.0D).dot(toward.normalize()));
+            }
+        }
+        threatWas = now;
+        foeDrawn = drawing ? target.getTicksUsingItem() : -1;
     }
 
     /** How far around its hand it looks for an energy to draw in. */
     private static final int WORLD_REACH = 6;
+    /** How long a glance at the world around it holds, in ticks, while it stays within a block of where it looked. */
+    private static final int WORLD_GLANCE_TICKS = 20;
+
+    /** What its last glance found, where and when (game time); null before the first. */
+    @Nullable
+    private Set<VitaElement> worldGlance;
+    @Nullable
+    private net.minecraft.core.BlockPos worldGlancedAt;
+    private long worldGlancedTime;
 
     /**
      * Which energies the world around its hand holds, as a caster sees at a glance: air anywhere, earth where there is
-     * ground, water and fire where there is some near.
+     * ground, water and fire where there is some near. A glance holds for a second where it stands: the mind asks it
+     * at every choice, and the blocks around do not change that fast.
      */
     private java.util.function.Predicate<VitaElement> inWorld() {
-        Set<VitaElement> found = java.util.EnumSet.of(VitaElement.AURA);
         net.minecraft.core.BlockPos center = owner.blockPosition();
+        long now = owner.level().getGameTime();
+        if (worldGlance != null && worldGlancedAt != null && now - worldGlancedTime >= 0
+                && now - worldGlancedTime < WORLD_GLANCE_TICKS && center.distManhattan(worldGlancedAt) <= 1) {
+            return worldGlance::contains;
+        }
+        Set<VitaElement> found = java.util.EnumSet.of(VitaElement.AURA);
+        worldGlance = found;
+        worldGlancedAt = center;
+        worldGlancedTime = now;
         for (net.minecraft.core.BlockPos pos : net.minecraft.core.BlockPos.betweenClosed(
                 center.offset(-WORLD_REACH, -2, -WORLD_REACH), center.offset(WORLD_REACH, 3, WORLD_REACH))) {
             net.minecraft.world.level.block.state.BlockState state = owner.level().getBlockState(pos);
@@ -666,6 +993,16 @@ public final class CasterMind {
     /** One tick of the mind, on the server: the lines still released, the rest, a dream in calm, what came of a reading. */
     public void tick() {
         tickCount++;
+        if (askedAim != null && reading != null) {
+            holdTrance(null); // a reading its body asked for: no trance goal holds it
+        }
+        watchFoe();
+        if (cornered > 0) {
+            cornered--;
+        }
+        if (tickCount % DOCTRINE_TICKS == 0) {
+            followDoctrine();
+        }
         if (releaseTicks > 0) {
             // The lines come out one step after another, each where it looks then: it keeps the aim.
             releaseTicks--;
@@ -676,6 +1013,7 @@ public final class CasterMind {
             }
             if (releaseTicks == 0) {
                 releasingAt = null;
+                askedAim = null;
                 body.releasing(false);
             }
         } else if (reading == null && restTicks > 0) {
@@ -896,6 +1234,20 @@ public final class CasterMind {
         return words.size() <= SHOWN_WORDS ? words : words.subList(0, SHOWN_WORDS);
     }
 
+    /**
+     * A reading its body asks for, not one it chose (docs/mago-design.md, 5j): {@code option} read in a trance as any
+     * other, aimed at {@code point}. False when it is reading or releasing something already.
+     */
+    public boolean readToward(Option option, Vec3 point) {
+        if (reading != null || releaseTicks > 0) {
+            return false;
+        }
+        askedAim = point;
+        lookAt(point);
+        beginTrance(new Mind.Choice(option, Intent.FLEE, 1.0D, Aim.ANY, 0.0D, 0.0D));
+        return true;
+    }
+
     private void beginTrance(Mind.Choice choice) {
         reading = choice;
         tranceTicks = 0;
@@ -906,6 +1258,13 @@ public final class CasterMind {
 
     /** One tick of the trance: the words come one by one; at the end, the spirit reads them. */
     private void holdTrance(@Nullable LivingEntity target) {
+        // Fire does not break a trance; one who sees what comes (a master, an elder) breaks it itself, and gets out
+        // (docs/feiticeiro-design.md, 3.18). An apprentice reads on, burning.
+        if (standingInFire() && degree().foresight() > 0.0D) {
+            endTrance(false);
+            restTicks = BROKEN_REST_TICKS / 3;
+            return;
+        }
         Option option = reading.option();
         tranceTicks++;
         body.tranceHeld(Math.max(1, TRANCE_TICKS - tranceTicks));
@@ -948,6 +1307,10 @@ public final class CasterMind {
             }
         }
         lastChoice = choice;
+        UUID against = target == null ? owner.getUUID() : target.getUUID();
+        inARow = option.name().equals(lastRead) && against.equals(lastReadAgainst) ? inARow + 1 : 1;
+        lastRead = option.name();
+        lastReadAgainst = against;
         // It keeps looking while the lines are out and the taps it opened run (a throw runs two seconds): the flow
         // lands where it looks at each moment, so looking away is missing.
         // (A line is released at the step after the reading: it keeps looking that long at least.)
@@ -985,6 +1348,10 @@ public final class CasterMind {
 
     /** Looks as {@code aim} says: at the target, at the sky, away from the target, at its own feet. */
     private void look(Aim aim, @Nullable LivingEntity target) {
+        if (askedAim != null) {
+            lookAt(askedAim); // where its body asked
+            return;
+        }
         Vec3 eyes = owner.getEyePosition();
         Vec3 ahead = owner.getViewVector(1.0F).multiply(1.0D, 0.0D, 1.0D);
         if (ahead.lengthSqr() < 1.0E-6D) {
@@ -1024,6 +1391,9 @@ public final class CasterMind {
     }
 
     private void endTrance(boolean spoken) {
+        if (!spoken) {
+            askedAim = null;
+        }
         Mind.Choice choice = reading;
         reading = null;
         tranceTicks = 0;
@@ -1082,11 +1452,13 @@ public final class CasterMind {
             return;
         }
         owner.level().getEntitiesOfClass(Mob.class, owner.getBoundingBox().inflate(Conversation.REACH),
-                        mob -> mob != owner && mob instanceof RuneCaster && mob.isAlive() && owner.hasLineOfSight(mob))
+                        mob -> mob != owner && mob instanceof RuneCaster && mob.isAlive())
                 .stream()
                 .map(mob -> ((RuneCaster) mob).casterMind())
                 .filter(other -> other.conversation == null && other.calm() && other.atLeisure()
                         && !other.writing() && other.working == null && other.talkRest <= TALK_LOOK_TICKS)
+                // Sight last: it is a ray through the world, worth casting only at one who would talk.
+                .filter(other -> owner.hasLineOfSight(other.owner))
                 .min(java.util.Comparator.comparingDouble(other -> other.owner.distanceToSqr(owner)))
                 .ifPresent(this::talkWith);
     }
@@ -1429,6 +1801,143 @@ public final class CasterMind {
         return new ApproachGoal(speed);
     }
 
+    /**
+     * Keeps its foe off (docs/feiticeiro-design.md, 3.9): between readings, it backs away from a foe nearer than it wants
+     * it ({@link #wantedDistance}), no nearer than {@code floor} in any case. When it cannot get farther, it is cornered,
+     * and reads where it stands.
+     */
+    public Goal escapeFireGoal(double speed) {
+        return new EscapeFireGoal(speed);
+    }
+
+    /** Whether it stands in fire: flames where its feet or its head are, or lava. */
+    public boolean standingInFire() {
+        if (owner.isInLava()) {
+            return true;
+        }
+        net.minecraft.core.BlockPos feet = owner.blockPosition();
+        return owner.level().getBlockState(feet).is(net.minecraft.tags.BlockTags.FIRE)
+                || owner.level().getBlockState(feet.above()).is(net.minecraft.tags.BlockTags.FIRE);
+    }
+
+    /**
+     * Where the nearest ground out of the fire is, within {@code reach}: room to stand (as {@link #ground()} sees it,
+     * which keeps out of flames) and no flame beside it; of those, the one with the fewest flames on the way there (back
+     * the way it came, not across a wall of fire), and then the nearest.
+     */
+    @Nullable
+    private Vec3 outOfTheFire(int reach) {
+        Room.Ground ground = ground();
+        Vec3 best = null;
+        int fewest = Integer.MAX_VALUE;
+        for (int distance = 1; distance <= reach; distance++) {
+            for (int step = 0; step < 16; step++) {
+                double angle = Math.PI * 2.0D * step / 16.0D;
+                double x = owner.getX() + Math.cos(angle) * distance;
+                double z = owner.getZ() + Math.sin(angle) * distance;
+                if (!ground.open(x, z) || flamesBeside(x, z)) {
+                    continue;
+                }
+                int flames = flamesOnTheWay(x, z);
+                if (flames < fewest) {
+                    fewest = flames;
+                    best = new Vec3(x, owner.getY(), z);
+                }
+            }
+            if (fewest == 0) {
+                break; // none nearer will do better
+            }
+        }
+        return best;
+    }
+
+    /** How many blocks of flame stand on the straight way to ({@code x}, {@code z}), past the one it stands in. */
+    private int flamesOnTheWay(double x, double z) {
+        double dx = x - owner.getX();
+        double dz = z - owner.getZ();
+        double length = Math.hypot(dx, dz);
+        Set<net.minecraft.core.BlockPos> burning = new HashSet<>();
+        net.minecraft.core.BlockPos here = owner.blockPosition();
+        for (double along = 0.5D; along < length; along += 0.5D) {
+            net.minecraft.core.BlockPos at = net.minecraft.core.BlockPos.containing(owner.getX() + dx / length * along,
+                    owner.getY(), owner.getZ() + dz / length * along);
+            if (!at.equals(here) && (owner.level().getBlockState(at).is(net.minecraft.tags.BlockTags.FIRE)
+                    || owner.level().getBlockState(at.above()).is(net.minecraft.tags.BlockTags.FIRE))) {
+                burning.add(at.immutable());
+            }
+        }
+        return burning.size();
+    }
+
+    private boolean flamesBeside(double x, double z) {
+        net.minecraft.core.BlockPos at = net.minecraft.core.BlockPos.containing(x, owner.getY(), z);
+        for (net.minecraft.core.BlockPos near : net.minecraft.core.BlockPos.betweenClosed(at.offset(-1, 0, -1),
+                at.offset(1, 1, 1))) {
+            if (owner.level().getBlockState(near).is(net.minecraft.tags.BlockTags.FIRE)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Gets out of the fire it stands in, before anything else (docs/feiticeiro-design.md, 3.18): to the nearest ground
+     * with no flame beside it.
+     */
+    private final class EscapeFireGoal extends Goal {
+
+        private static final int REACH = 6;
+        private final double speed;
+        private int repath;
+        private int ticks;
+        @Nullable
+        private Vec3 out;
+
+        EscapeFireGoal(double speed) {
+            this.speed = speed;
+            setFlags(EnumSet.of(Flag.MOVE));
+        }
+
+        @Override
+        public boolean canUse() {
+            return reading == null && standingInFire();
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return ticks < 60 && (standingInFire() || out != null && owner.distanceToSqr(out) > 0.25D);
+        }
+
+        @Override
+        public void start() {
+            repath = 0;
+            ticks = 0;
+        }
+
+        @Override
+        public void tick() {
+            ticks++;
+            if (--repath <= 0) {
+                repath = 10;
+                out = outOfTheFire(REACH);
+            }
+            // Straight there: a way is never found through fire, and it stands in it.
+            if (out != null) {
+                owner.getNavigation().stop();
+                owner.getMoveControl().setWantedPosition(out.x, out.y, out.z, speed);
+            }
+        }
+    }
+
+    public Goal keepDistanceGoal(double speed, double floor) {
+        return new KeepDistanceGoal(speed, floor);
+    }
+
+    /** Whether it is cornered now: it could not get away from its foe, and reads where it stands. */
+    public boolean cornered() {
+        return cornered > 0;
+    }
+
     /** Stands with the one it talks with, looking at it (docs/mago-design.md, 5b). */
     public Goal talkGoal() {
         return new TalkGoal();
@@ -1463,6 +1972,9 @@ public final class CasterMind {
             if (target == null || !target.isAlive() || reading != null || releaseTicks > 0) {
                 return false;
             }
+            if (stance != null) {
+                return stance == Doctrine.Stance.CLOSE_IN || !owner.hasLineOfSight(target);
+            }
             double reach = reach();
             return reach > 0.0D && (owner.distanceTo(target) > reach - within || !owner.hasLineOfSight(target));
         }
@@ -1494,6 +2006,115 @@ public final class CasterMind {
                     Vec3 leg = owner.position().add(way.normalize().scale(LEG));
                     owner.getNavigation().moveTo(leg.x, leg.y, leg.z, speed);
                 }
+            }
+        }
+    }
+
+    private final class KeepDistanceGoal extends Goal {
+
+        /** How long it backs away without getting farther before it knows it is cornered, and how long it then stays. */
+        private static final int STUCK_TICKS = 30;
+        private static final int CORNERED_TICKS = 60;
+        /** How far past what it wants it goes before it stops: so it does not stop and start at the edge. */
+        private static final double PAST = 1.5D;
+
+        private final double speed;
+        private final double floor;
+        private int repath;
+        private int stuck;
+        private double farthest;
+        /** Which way it walks around the foe, when it does: 1 or -1. */
+        private int side = 1;
+
+        KeepDistanceGoal(double speed, double floor) {
+            this.speed = speed;
+            this.floor = floor;
+            setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            return tooNear(0.0D);
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return tooNear(PAST);
+        }
+
+        private boolean tooNear(double past) {
+            LivingEntity target = owner.getTarget();
+            if (target == null || !target.isAlive() || reading != null || releaseTicks > 0
+                    || !(owner instanceof net.minecraft.world.entity.PathfinderMob)) {
+                return false;
+            }
+            if (stance != null) {
+                return stance == Doctrine.Stance.BACK_OFF || stance == Doctrine.Stance.CIRCLE;
+            }
+            return cornered == 0 && owner.distanceTo(target) < wantedDistance(target, floor) + past;
+        }
+
+        /** Its doctrine says to walk around the foe: aside of it, a few steps at a time, keeping to one side. */
+        private void circle(LivingEntity target) {
+            if (--repath > 0) {
+                return;
+            }
+            repath = 5;
+            Room.Way way = Room.aside(ground(), owner.getX(), owner.getZ(), target.getX(), target.getZ(), side);
+            if (way.room() < Room.CORNERED) {
+                return;
+            }
+            // The side it went is the side it keeps, until there is no room there.
+            Vec3 toward = owner.position().subtract(target.position());
+            side = way.dz() * toward.x - way.dx() * toward.z >= 0.0D ? 1 : -1;
+            double far = Math.min(way.room(), 3.0D);
+            owner.getNavigation().moveTo(owner.getX() + way.dx() * far, owner.getY(), owner.getZ() + way.dz() * far,
+                    speed);
+        }
+
+        @Override
+        public void start() {
+            repath = 0;
+            stuck = 0;
+            LivingEntity target = owner.getTarget();
+            farthest = target == null ? 0.0D : owner.distanceTo(target);
+        }
+
+        @Override
+        public void stop() {
+            owner.getNavigation().stop();
+        }
+
+        @Override
+        public void tick() {
+            LivingEntity target = owner.getTarget();
+            if (target == null) {
+                return;
+            }
+            owner.getLookControl().setLookAt(target, 30.0F, 30.0F);
+            if (stance == Doctrine.Stance.CIRCLE) {
+                circle(target);
+                return;
+            }
+            double distance = owner.distanceTo(target);
+            if (distance > farthest + 0.5D) {
+                farthest = distance;
+                stuck = 0;
+            } else if (++stuck >= STUCK_TICKS) {
+                cornered = CORNERED_TICKS;
+                return;
+            }
+            if (--repath <= 0) {
+                repath = 10;
+                // The way with the most room, not the corner straight behind it; none: it is cornered.
+                Room.Way way = roomAgainst(target);
+                if (way.room() < Room.CORNERED) {
+                    cornered = CORNERED_TICKS;
+                    return;
+                }
+                double far = Math.min(way.room(), 8.0D);
+                owner.getNavigation().moveTo(owner.getX() + way.dx() * far, owner.getY(), owner.getZ() + way.dz() * far,
+                        speed);
             }
         }
     }
@@ -1910,6 +2531,9 @@ public final class CasterMind {
             if (reading != null || releaseTicks > 0 || restTicks > 0) {
                 return false;
             }
+            if (standingInFire()) {
+                return false; // out of the fire first (3.18)
+            }
             if (target == null || !target.isAlive()) {
                 // With no foe: hurt, or burning, it reads for itself (docs/feiticeiro-design.md, 3.8).
                 float share = owner.getHealth() / Math.max(1.0F, owner.getMaxHealth());
@@ -1925,9 +2549,19 @@ public final class CasterMind {
             if (!owner.hasLineOfSight(target)) {
                 return false;
             }
-            // One who broke its trance before is not let near it again: it opens its trance only from afar.
+            if (stance != null) {
+                // Its doctrine says when to read, and what for.
+                if (stanceChoice == null) {
+                    return false;
+                }
+                chosen = stanceChoice;
+                stanceChoice = null;
+                return true;
+            }
+            // One who broke its trance before is not let near it again, and one who sees a foe coming does not open its
+            // trance with it at hand: it opens it only from afar, unless it could not get away, or is desperate.
             float share = owner.getHealth() / Math.max(1.0F, owner.getMaxHealth());
-            if (owner.distanceTo(target) < memory.safeDistance(target.getUUID()) && !personality().desperate(share)) {
+            if (!safeToOpen(target) && cornered == 0 && !personality().desperate(share)) {
                 restTicks = 10;
                 return false;
             }

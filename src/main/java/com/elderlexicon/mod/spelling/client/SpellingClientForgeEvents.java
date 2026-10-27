@@ -3,13 +3,11 @@ package com.elderlexicon.mod.spelling.client;
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spelling.item.SpellScrollItem;
 import com.elderlexicon.mod.spelling.network.SpellingNetwork;
-import com.elderlexicon.mod.spelling.render.SpellMapHelper;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.math.Axis;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.client.event.RenderItemInFrameEvent;
@@ -144,19 +142,17 @@ public final class SpellingClientForgeEvents {
         if (!(stack.getItem() instanceof SpellScrollItem)) {
             return;
         }
-        MapItemSavedData data = SpellMapHelper.getSavedData(stack, event.getItemFrameEntity().level());
-        Integer mapId = SpellMapHelper.getMapId(stack);
-        if (data == null || mapId == null) {
-            return;
-        }
-
+        // In a frame, the page itself fills it, as a map does.
+        net.minecraft.nbt.CompoundTag tag = stack.getTag();
+        com.elderlexicon.mod.spell.block.WrittenTexts.upgrade(tag);
+        String text = tag == null ? "" : tag.getString(SpellScrollItem.TEXT_TAG);
         var poseStack = event.getPoseStack();
         poseStack.pushPose();
         poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F));
-        poseStack.scale(0.0078125F, 0.0078125F, 0.0078125F);
-        poseStack.translate(-64.0F, -64.0F, -1.0F);
-        Minecraft.getInstance().gameRenderer.getMapRenderer()
-                .render(poseStack, event.getMultiBufferSource(), mapId, data, true, event.getPackedLight());
+        float size = 0.95F / ScrollPage.H;
+        poseStack.scale(size, size, size);
+        poseStack.translate(-ScrollPage.W / 2.0F, -ScrollPage.H / 2.0F, -1.0F);
+        ScrollPage.draw(poseStack, event.getMultiBufferSource(), event.getPackedLight(), text, false);
         poseStack.popPose();
         event.setCanceled(true);
     }

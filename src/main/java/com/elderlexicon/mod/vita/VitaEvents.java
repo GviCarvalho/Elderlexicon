@@ -31,6 +31,8 @@ public final class VitaEvents {
         }
         // In Nahvá by dream or by death the mage is a body of vis alone: the vita waits, as it was, for their return.
         if (Dreams.isDreaming(player)) {
+            // ...and the body of vis feels nothing of it.
+            Symptoms.clear(player);
             return;
         }
         VitaSystem.tick(player);

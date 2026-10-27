@@ -2,17 +2,17 @@ package com.elderlexicon.mod.spelling.item;
 
 import com.elderlexicon.mod.ElderLexicon;
 import com.elderlexicon.mod.spelling.entity.PlacedScrollEntity;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.MapItem;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
- /**
- * A detached grimoire page backed by vanilla map saved data.
+/**
+ * A page torn out of a grimoire (a loose page): it keeps its text (DetachedPageText), and is drawn as the grimoire's
+ * page it is, with its runes, on a block, in a frame and in the hand (ScrollPage).
  */
 public class SpellScrollItem extends Item {
 
@@ -20,13 +20,27 @@ public class SpellScrollItem extends Item {
         super(properties);
     }
 
-    public static ItemStack create(Level level, int levelX, int levelZ, byte scale) {
+    /** A loose page with {@code text} written on it. */
+    public static ItemStack of(String text) {
         ItemStack stack = new ItemStack(ElderLexicon.DETACHED_PAGE.get());
-        MapItemSavedData data = MapItemSavedData.createFresh(levelX, levelZ, scale, false, false, level.dimension());
-        int mapId = level.getFreeMapId();
-        level.setMapData(MapItem.makeKey(mapId), data);
-        stack.getOrCreateTag().putInt("map", mapId);
+        CompoundTag tag = stack.getOrCreateTag();
+        tag.putString(TEXT_TAG, text == null ? "" : text);
+        com.elderlexicon.mod.spell.block.WrittenTexts.mark(tag);
         return stack;
+    }
+
+    /** What is written on a loose page. */
+    public static final String TEXT_TAG = "DetachedPageText";
+
+    /** In the hand it is drawn as the page it is, its runes on it (LoosePageItemRenderer). */
+    @Override
+    public void initializeClient(java.util.function.Consumer<net.minecraftforge.client.extensions.common.IClientItemExtensions> consumer) {
+        consumer.accept(new net.minecraftforge.client.extensions.common.IClientItemExtensions() {
+            @Override
+            public net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer getCustomRenderer() {
+                return com.elderlexicon.mod.spelling.client.LoosePageItemRenderer.get();
+            }
+        });
     }
 
     @Override

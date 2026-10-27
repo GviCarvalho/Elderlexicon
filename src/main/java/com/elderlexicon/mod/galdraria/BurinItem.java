@@ -13,7 +13,8 @@ import java.util.List;
 
 /**
  * The burin of galdraria (docs/galdraria-design.md): the tool that carves runes into things at the galdraria table.
- * Each rune carved wears it by one; mended at the anvil with iron.
+ * Each rune carved wears it by one; mended at the anvil with iron. At hand, it opens a crafting table as an invocation
+ * bench, whose squares it marks (docs/invocacao-design.md).
  */
 public final class BurinItem extends Item {
 
