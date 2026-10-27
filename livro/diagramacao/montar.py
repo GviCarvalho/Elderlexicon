@@ -16,7 +16,7 @@ def capitulos(escolha):
     caps = sorted(glob.glob(os.path.join(LIVRO, "capitulo-*.md")))
     if escolha:
         caps = [c for c in caps if int(re.search(r"capitulo-(\d+)", c).group(1)) in escolha]
-    apendices = [] if escolha else sorted(glob.glob(os.path.join(LIVRO, "apendice-[b-f]-*.md")))
+    apendices = [] if escolha else sorted(glob.glob(os.path.join(LIVRO, "apendice-[a-f]-*.md")))
     return caps + apendices
 
 
@@ -46,14 +46,26 @@ def main():
         nome = os.path.splitext(os.path.basename(md))[0] + ".typ"
         converter(open(md, encoding="utf-8").read(), os.path.join(OBRA, nome))
         partes.append("obra/" + nome)
-    principal = ['#import "modelo.typ": *', "#show: livro", "#rosto()"]
+    if not escolha:
+        # o fim do livro: o retrato do autor, de frente para a página sobre ele
+        sobre = open(os.path.join(LIVRO, "sobre-o-autor.md"), encoding="utf-8").read()
+        converter("```{=typst}\n#retrato-do-autor()\n```\n\n" + sobre, os.path.join(OBRA, "zz-sobre-o-autor.typ"))
+        partes.append("obra/zz-sobre-o-autor.typ")
+    principal = ['#import "modelo.typ": *', '#import "capa.typ": frente, costas', "#show: livro",
+                 # a capa, o verso dela em branco, e então a folha de rosto
+                 "#page(margin: 0pt, header: none, footer: none, frente())",
+                 "#page(header: none, footer: none)[]",
+                 "#rosto()"]
     principal += [f'#include "{p}"' for p in partes]
+    # a contracapa fecha o livro, numa página par
+    principal += ['#pagebreak(to: "even", weak: true)', "#page(margin: 0pt, header: none, footer: none, costas())"]
     open(os.path.join(AQUI, "livro.typ"), "w", encoding="utf-8").write("\n".join(principal) + "\n")
-    # cada capítulo importa o modelo, para enxergar as peças
+    # cada capítulo importa o modelo e as pranchas, para enxergar as peças
     for p in partes:
         caminho = os.path.join(AQUI, p)
         corpo = open(caminho, encoding="utf-8").read()
-        open(caminho, "w", encoding="utf-8").write('#import "../modelo.typ": *\n' + corpo)
+        open(caminho, "w", encoding="utf-8").write(
+            '#import "../modelo.typ": *\n#import "../pranchas.typ": prancha-arrumacao, prancha-ritual\n' + corpo)
     saida = os.path.join(AQUI, "livro.pdf")
     try:
         typst.compile(os.path.join(AQUI, "livro.typ"), output=saida, font_paths=FONTES, root=AQUI)

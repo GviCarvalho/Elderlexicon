@@ -63,6 +63,10 @@ cinco ao seis. As duas são soltas juntas, no passo seis.
 > que ficou cercado: uma poça murada, onde tudo o que estava espalhado acaba boiando, em três tempos, com um único
 > `surgit`. Os alunos chamam de "a arrumação".
 
+```{=typst}
+#prancha-arrumacao()
+```
+
 ## 20.4 Ativar um círculo
 
 - **Olhando uma peça.** `surgit`, olhando para qualquer peça de um círculo de duas ou mais peças, lê o círculo inteiro.
@@ -117,6 +121,10 @@ E, como qualquer feitiço, um ritual pode ganhar um nome: `r1 surgit reframe rit
   lugar do mundo**.
 - **Um objeto marcado na mão** faz o `surgit` ler o que tem a mesma marca (capítulo 12), e as páginas marcadas que você
   carrega são lidas sem se gastar. Um ritual pode, assim, morar no seu bolso.
+
+```{=typst}
+#prancha-ritual()
+```
 
 ## 20.6 O preço, e como parar
 

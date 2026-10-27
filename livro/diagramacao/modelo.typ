@@ -65,14 +65,14 @@
     margin: (inside: 2.2cm, outside: 3.4cm, top: 2.6cm, bottom: 2.6cm),
     header: context {
       let p = here().page()
-      if query(<inicio>).any(m => m.location().page() == p) or em-branco(p) or p <= 2 { return }
+      if query(<inicio>).any(m => m.location().page() == p) or em-branco(p) or counter(page).get().first() <= 2 { return }
       let cap = capitulo-atual.get()
       set text(font: bastarda, size: 10pt, fill: sepia)
       if calc.even(p) [#titulo-livro #h(1fr)] else [#h(1fr) #cap]
     },
     footer: context {
       let p = here().page()
-      if p <= 2 or em-branco(p) { return }
+      if counter(page).get().first() <= 2 or em-branco(p) { return }
       set text(font: bastarda, size: 11pt, fill: rubro)
       if calc.even(p) [#counter(page).display() #h(1fr)] else [#h(1fr) #counter(page).display()]
     },
@@ -123,6 +123,7 @@
 // ---------------------------------------------------------------- as peças grandes
 
 #let rosto() = {
+  counter(page).update(1)
   set page(header: none, footer: none)
   align(center + horizon)[
     #text(font: bastarda, size: 40pt, fill: rubro)[Fundamentos \ de Siglística]
@@ -212,3 +213,123 @@
   dropcap(height: 3, gap: 4pt, hanging-indent: 0pt, transform: l => text(font: bastarda, fill: rubro, l), corpo)
 }
 
+
+// ---------------------------------------------------------------- os glifos (Apêndice A)
+
+// As palavras que a fonte das runas (Siglística Manuscrita) desenha como glifo, por ligadura
+#let runas = ("igni", "aqua", "aura", "firmo", "vis", "tenet", "ligabis", "vertere", "iactare", "vocant", "reframe",
+  "surgit", "impediunt", "quantum", "chronos", "ubis", "ferit", "patitur", "necat", "salit", "cadit", "frangit",
+  "utitur", "latet", "currit", "ardet", "languet", "mergitur", "aut", "non", "ego", "ille")
+
+#let e-numero(p) = p.match(regex("^-?\d+$")) != none
+
+// Uma palavra em glifo: as runas e os números na fonte das runas; as marcas, na grafia comum
+#let glifo(p, tam: 26pt, cor: tinta) = {
+  if p in runas { text(font: runica, size: tam, fill: cor, p) }
+  else if e-numero(p) {
+    let sinal = p.starts-with("-")
+    let digitos = p.trim("-")
+    box({
+      if sinal { text(font: corrente, size: tam * 0.9, fill: cor, baseline: -0.12em)[-] }
+      text(font: runica, size: tam, fill: cor, digitos)
+    })
+  }
+  else { text(font: corrente, size: tam * 0.6, fill: rubro, p) }
+}
+
+// O quadro de uma família: cada glifo grande, a transliteração e o que a runa é
+#let quadro-glifos(intro: none, ..itens) = {
+  set par(first-line-indent: 0pt)
+  let cartas = itens.pos().map(((p, sentido)) => block(width: 100%, breakable: false, inset: (y: 0.55em), stroke: (bottom: 0.4pt + sepia.transparentize(40%)),
+    align(center, {
+      box(height: 1.6cm, align(horizon, glifo(p, tam: 36pt)))
+      v(0.15em, weak: true)
+      text(fill: rubro, size: 12.5pt, p)
+      linebreak()
+      text(fill: sepia, size: 9.5pt, sentido)
+    })))
+  // a frase que apresenta o grupo vai junto com a primeira fileira de glifos
+  if intro != none { block(sticky: true, above: 0.9em, below: 0.3em, intro) }
+  block(above: 0.8em, below: 1.2em, grid(columns: (1fr,) * 4, column-gutter: 0.6em, row-gutter: 0.4em, ..cartas))
+}
+
+#let quadro-algarismos() = {
+  set par(first-line-indent: 0pt)
+  let cartas = range(10).map(n => block(width: 100%, breakable: false, inset: (y: 0.5em), stroke: (bottom: 0.4pt + sepia.transparentize(40%)),
+    align(center, {
+      box(height: 1.5cm, align(horizon, glifo(str(n), tam: 34pt)))
+      v(0.15em, weak: true)
+      text(font: bastarda, fill: rubro, size: 13pt, str(n))
+    })))
+  block(above: 0.8em, below: 1em, grid(columns: (1fr,) * 5, column-gutter: 0.6em, row-gutter: 0.4em, ..cartas))
+}
+
+#let exemplos-numeros(..pares) = align(center, block(above: 0.4em, below: 1.2em,
+  grid(columns: pares.pos().len(), column-gutter: 2.2em, ..pares.pos().map(((n, nome)) => align(center, {
+    glifo(n, tam: 24pt)
+    linebreak()
+    text(fill: rubro, size: 11pt, n)
+    text(fill: sepia, size: 10pt)[, #nome]
+  })))))
+
+// Uma linha em glifos, com a transliteração embaixo de cada palavra
+#let linha-em-glifos(fonte) = align(center, block(above: 0.8em, below: 1.2em,
+  grid(columns: fonte.split(" ").len(), column-gutter: 1.4em,
+    ..fonte.split(" ").map(p => align(center, {
+      box(height: 1.4cm, align(horizon, glifo(p, tam: 32pt)))
+      v(0.1em, weak: true)
+      text(fill: rubro, size: 11pt, p)
+    })))))
+
+// Uma página em glifos: a grade com o número de cada coluna, e em cada casa o glifo sobre a transliteração
+#let pagina-em-glifos(fonte) = {
+  set par(first-line-indent: 0pt)
+  let grade = fonte.split(regex("\r?\n")).filter(l => l.trim() != "").map(l => l.split(regex("\s+")).filter(p => p != ""))
+  let colunas = calc.max(..grade.map(l => l.len()))
+  let fio = 0.4pt + sepia.transparentize(40%)
+  let casa(p) = align(center, {
+    box(height: 0.95cm, align(horizon, glifo(p, tam: 19pt)))
+    v(0.05em, weak: true)
+    text(font: corrente, fill: rubro, size: 7pt, p)
+  })
+  align(center, block(above: 1em, below: 1.2em, breakable: false, table(
+    columns: colunas, inset: (x: 5pt, y: 4pt), align: center,
+    stroke: (x, y) => (left: if x > 0 { fio }, bottom: if y > 0 { fio }),
+    ..range(colunas).map(c => text(font: bastarda, size: 8pt, fill: sepia, str(c))),
+    ..grade.map(l => range(colunas).map(c => if c < l.len() { casa(l.at(c)) } else [])).flatten(),
+  )))
+}
+
+// A pauta de cópia: o glifo cheio, depois claro para cobrir, depois casas vazias
+#let pauta-de-copia(palavras) = {
+  set par(first-line-indent: 0pt)
+  let casa(corpo) = box(width: 100%, height: 1.25cm, stroke: (bottom: 0.4pt + sepia.transparentize(30%),
+    left: 0.25pt + sepia.transparentize(60%)), align(center + horizon, corpo))
+  block(above: 0.8em, below: 1em, {
+    for p in palavras {
+      grid(columns: (1.3cm,) + (1fr,) * 9, column-gutter: 0pt,
+        casa(text(fill: rubro, size: 10pt, p)),
+        casa(glifo(p, tam: 24pt)),
+        ..range(4).map(_ => casa(glifo(p, tam: 24pt, cor: sepia.transparentize(65%)))),
+        ..range(4).map(_ => casa([])))
+    }
+  })
+}
+
+// ---------------------------------------------------------------- o retrato do autor
+
+// O retrato numa página par, de frente para a página "Sobre o autor"
+#let retrato-do-autor() = {
+  [#metadata("fim") <fim>]
+  pagebreak(to: "even", weak: true)
+  marca-inicio()
+  set par(first-line-indent: 0pt)
+  align(center + horizon, {
+    block(stroke: 0.9pt + rubro, inset: 3pt, block(stroke: 0.4pt + rubro, inset: 6pt,
+      image("imagens/imhexis-tinta.jpg", width: 9.4cm)))
+    v(0.6em)
+    text(font: bastarda, size: 14pt, fill: rubro)[Ummia Imhexis]
+    linebreak()
+    text(size: 11pt, fill: sepia)[na sua sala de estudo, na Edubba de Rostrand]
+  })
+}
