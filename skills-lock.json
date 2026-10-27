@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "minecraft-builder-skill": {
+      "source": "mattzh72/minecraft-builder-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "ce363d5f0791684845807a0945a6718430ae9a1802d4eb555c68e525293b635c"
+    }
+  }
+}

@@ -297,9 +297,23 @@ public final class Lessons {
         return Optional.of(step.get().rune());
     }
 
-    /** Whether {@code player} is within a university. */
+    /**
+     * Whether {@code player} is in the house's dormitory: the Dormitories of a campus (not the village at its gate), or
+     * anywhere in a university of the old kind, one piece.
+     */
     public static boolean atTheHouse(ServerPlayer player) {
-        return player.serverLevel().structureManager().getStructureWithPieceAt(player.blockPosition(), UNIVERSITIES)
-                .isValid();
+        net.minecraft.core.BlockPos at = player.blockPosition();
+        net.minecraft.world.level.levelgen.structure.StructureStart start = player.serverLevel().structureManager()
+                .getStructureWithPieceAt(at, UNIVERSITIES);
+        if (!start.isValid()) {
+            return false;
+        }
+        for (net.minecraft.world.level.levelgen.structure.StructurePiece piece : start.getPieces()) {
+            if (piece.getBoundingBox().isInside(at) && (piece instanceof UniversityPiece
+                    || piece instanceof CampusPiece campus && campus.kind() == CampusPiece.Kind.DORMITORIOS)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

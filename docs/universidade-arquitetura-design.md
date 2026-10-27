@@ -111,6 +111,66 @@ lugar, basta perguntar ao jogo que peça da universidade está naquele ponto. Na
 5. **A vila** ao lado, e o que a universidade traz a ela.
 6. **O acabamento:** pontes e escadarias entre níveis, mais variação.
 
+## 6.1 Passo 1, o esqueleto (20/10/2026)
+
+- **A estrutura** (`UniversityStructure`) planeja o campus quando começa: das quatro maneiras de deitar o campus (a
+  vila a leste, oeste, norte ou sul), a que põe o núcleo mais alto. O campus fica 56 blocos atrás do ponto onde a
+  estrutura começa; a vila, 72 à frente.
+- **Cada prédio é uma peça** (`CampusPiece`), na altura do chão dele (a terra amostrada numa grade de 5 por 5, um pouco
+  abaixo do meio): o núcleo, o pátio da fonte, o Prédio das Aulas, os Dormitórios, o Refeitório, a Oficina, a
+  Enfermaria e o arco. O terreno se molda a cada um (`beard_thin`).
+- **As avenidas** (`CampusRoadPiece`) são trechos de até 12 blocos, cada um de uma altura à outra, nunca mais que um
+  bloco a cada dois: do portão do núcleo ao pátio, do pátio ao Prédio das Aulas, a avenida até o arco, a do
+  Refeitório, o anel em volta do Prédio das Aulas e um ramal até cada porta. Postes de luz nas largas.
+- **O núcleo** é o Salão Central, a Biblioteca e o Observatório de antes, deslocados para dentro de uma muralha curta
+  com torres e o portão para o pátio.
+- **O Prédio das Aulas** em cruz: o bloco central do primeiro ano (o hall, o corredor, a escadaria, quatro salas em
+  cada andar) e as três alas (corredor no meio, salas dos dois lados, uma escada no fim). Salas de aula com o atril
+  do mestre, bancos e estantes; salas de mestre com mesa e estantes. **Os Magisters de hoje**, até os nove (passo 5
+  dos cursos), ficam nas salas das cadeiras que dão: o das Fontes em Fundamentos I, o das Funções em Fundamentos II,
+  o da Vita em O Corpo e o Cálice, o de Nahvá em Transe I, o dos Fatos em Segurança e Ética, o dos Filtros numa sala
+  de mestre da Ala da Força, o da Galdraria na sala da Artificiaria.
+- **Os Dormitórios**: quatro andares de quartos (duas camas e um baú cada), a sala comum com lareira no térreo, a
+  escada em vaivém, e o último andar, o do sonho: vidro roxo, tapete roxo, uma cama por quarto. Dormir nos
+  Dormitórios é o "dormir na casa" das aulas (a vila não conta).
+- **A vila** é a do próprio jogo, do bioma do lugar do poço (planície, deserto, savana, neve, taiga), montada com as
+  peças das vilas a até 56 blocos do poço. A zona de exclusão das vilas saiu (o arquivo do jogo voltou a ser o
+  original).
+- **O Emissário** traz o jogador ao pátio da fonte.
+- **Ainda não:** o Auditório, a Arena, o Campo de Prática, o Laboratório e os Estábulos (os lotes ficam de grama), o
+  quarto do jogador, os ofícios na vila.
+- As universidades já geradas continuam como eram: a nova só nasce em terra nova.
+
+## 6.2 A arquitetura refeita sobre as plantas (20/10/2026)
+
+- **A casa do campus** (`CampusHouse`, no lugar do `Hall` que as universidades antigas guardam): embasamento de pedra
+  bruta com musgo, faixa de pedra polida em cada andar, peitoril e verga em cada janela, contrafortes nas paredes
+  longas, mísulas sob o beiral, empenas com duas lancetas e um óculo nas largas, lucarnas acesas no telhado.
+- **Os prédios de uso são de enxaimel em cima da pedra**, cada um com a sua madeira: o Refeitório e os Dormitórios
+  de carvalho-escuro e calcita, a Oficina de abeto e barro, a Enfermaria de bétula. Chaminés onde há fogo.
+- **O Prédio das Aulas** ganhou a torre sobre o hall de entrada: o hall de pé-direito duplo com a galeria atrás
+  (o "vazio sobre o hall" das plantas), o portal em arco ogival, óculos nas faces, o campanário com o sino, a agulha.
+  As alas ganharam a sala de estudo (térreo) e a biblioteca da ala (em cima), como na prancha 02.
+- **O Refeitório** segue a prancha 05: o salão das mesas ao norte, a cozinha ao sul com duas lareiras sob as
+  chaminés, a despensa ao lado. **A Oficina** também: as mesas de galdraria e a forja ao norte, a mesa de invocação,
+  o balcão do Artífice e o depósito ao sul, um alpendre de trabalho do lado de fora.
+- **Os Dormitórios viraram uma torre redonda** de oito níveis (21/10/2026, escolhida pelo autor entre uma quadrada e
+  uma redonda): no térreo a sala comum com a lareira e o hall de entrada; em cada andar acima, uma parede no diâmetro
+  faz meio andar de quarto para dois alunos (cama, baú, escrivaninha) e meio de hall com a escada em vaivém; no alto,
+  o andar do sonho, de vidro e camas roxas. São 14 camas. Por fora: o pé alargado, uma faixa a cada andar, janelas em
+  volta, a chaminé da lareira pela face oeste, mísulas e ameias, um cone íngreme com janelas roxas acesas.
+- **Os andares da torre são flats, e se sobe lendo** (21/10/2026, ideia do autor): é uma casa de magos, ninguém
+  precisa de escada. No hall do térreo, na parede do meio, um pergaminho por andar, marcado `pN_<código>`, com o
+  texto `ego aN_<código> ubis vocant`; uma placa sobre cada um diz o que ler (`pN_<código> surgit`). No chão de cada
+  flat está o pergaminho de chegada, marcado `aN_<código>`, cujo texto (`ego a0_<código> ubis vocant`) leva de volta ao
+  pergaminho `a0` do hall. O `<código>` são três letras da própria casa, tiradas de onde ela está, para duas
+  universidades no mesmo mundo nunca responderem à mesma marca. Quem não tem energia para ler pede ao **Auditor que
+  guarda a torre**, no hall: ele marca o aluno por um instante e lê `aN_<código> ubis <marca> vocant` por ele, a casa
+  pagando com a gema do seu bastão, como o Emissário. Para emergências, uma escada de mão sobe pela parede sul, com
+  alçapão em cada piso. Cada flat é inteiro de dois alunos: camas, baús, escrivaninhas, mesa, estantes, guarda-roupa.
+- **O arco** virou uma portaria: duas torres quadradas com seteiras e ameias, o arco ogival sobre a avenida, o
+  passadiço em cima, os estandartes da casa.
+
 ## 7. Decidido com o autor (20/10/2026)
 
 1. **A vila é colada ao campus**, gerada junto com ele (seção 4).

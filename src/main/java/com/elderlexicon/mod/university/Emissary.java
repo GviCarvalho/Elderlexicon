@@ -19,6 +19,7 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -239,6 +240,14 @@ public final class Emissary {
     /** Where it brings them: the courtyard of the house, drawn up now if no one has been there yet. */
     private BlockPos arrival(ServerLevel level) {
         ServerLevel world = level.getServer().overworld();
+        // A campus: the courtyard before the core's gate.
+        Optional<BlockPos> courtyard = UniversityStructure.courtyard(world, university);
+        if (courtyard.isPresent()) {
+            BlockPos at = courtyard.get();
+            world.getChunk(at.getX() >> 4, at.getZ() >> 4);
+            return new BlockPos(at.getX(), world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, at.getX(),
+                    at.getZ()), at.getZ());
+        }
         ChunkPos heart = new ChunkPos(university);
         int x = heart.getMiddleBlockX();
         int z = heart.getMiddleBlockZ() + COURTYARD_SOUTH;

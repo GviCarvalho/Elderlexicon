@@ -305,6 +305,9 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
         if (errand != null) {
             saved.put("Errand", errand.save());
         }
+        if (porterOf != null) {
+            saved.putString("PorterOf", porterOf);
+        }
         rank().ifPresent(rank -> saved.putString("Rank", rank.id()));
         chair().ifPresent(chair -> saved.putString("Chair", chair.id()));
         tag.put(MIND_TAG, saved);
@@ -326,6 +329,7 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
                     : rank.isPresent() ? Dwelling.UNIVERSITY : Dwelling.WILDS);
             errand = saved.contains("Errand")
                     ? com.elderlexicon.mod.university.Emissary.load(this, saved.getCompound("Errand")) : null;
+            porterOf = saved.contains("PorterOf") ? saved.getString("PorterOf") : null;
             engravedWares.clear();
             net.minecraft.nbt.ListTag wares = saved.getList("EngravedWares", net.minecraft.nbt.Tag.TAG_COMPOUND);
             for (int i = 0; i < wares.size(); i++) {
@@ -351,6 +355,12 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
                 errand.talk(server);
             }
             return InteractionResult.sidedSuccess(level().isClientSide());
+        }
+        // The keeper of a dormitory tower sends whoever asks to their floor (docs/universidade-arquitetura-design.md).
+        if (porterOf != null && player instanceof net.minecraft.server.level.ServerPlayer server) {
+            setTradingPlayer(player);
+            com.elderlexicon.mod.university.Porter.talk(server, this, porterOf);
+            return InteractionResult.SUCCESS;
         }
         // A master of a university talks first: the examinations, the fee, the ranks (docs/mago-design.md, 4.1).
         if (chair().isPresent() && player instanceof net.minecraft.server.level.ServerPlayer server) {
@@ -484,6 +494,15 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
         setCustomName(Component.translatable(chair == null ? "university.elderlexicon.rank." + rank.id()
                 : "university.elderlexicon.chair." + chair.id()));
         setPersistenceRequired();
+    }
+
+    /** The house code of the dormitory tower it keeps, if it keeps one; null otherwise. */
+    @Nullable
+    private String porterOf;
+
+    /** It keeps the door of the dormitory tower of the house whose marks end in {@code houseCode}. */
+    public void keepDoor(String houseCode) {
+        this.porterOf = houseCode;
     }
 
     /** A member of a university keeps the peace wherever it is (docs/mago-design.md, 5h). */

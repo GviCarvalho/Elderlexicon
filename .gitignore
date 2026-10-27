@@ -29,3 +29,7 @@ forge*changelog.txt
 # Glyph tool output (tools/glyphs/build.py)
 tools/glyphs/preview.png
 __pycache__/
+
+# Installed skills: their npm dependencies and build output
+.claude/skills/*/node_modules/
+minecraft-builds/

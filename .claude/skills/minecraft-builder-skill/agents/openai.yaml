@@ -1,0 +1,4 @@
+interface:
+  display_name: "Minecraft Builder"
+  short_description: "Generate Minecraft NBT builds"
+  default_prompt: "Use minecraft-builder-skill to create a Minecraft build, export the .nbt file, and open a preview."

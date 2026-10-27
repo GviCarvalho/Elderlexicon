@@ -183,7 +183,7 @@ public class UniversityPiece extends StructurePiece {
     }
 
     /** A garden bed: grass hedged by low leaves, flowers, a tree in the middle. */
-    private static void garden(Masonry m, int x0, int x1, int z0, int z1) {
+    static void garden(Masonry m, int x0, int x1, int z0, int z1) {
         if (!m.touches(x0, 0, z0, x1, 8, z1)) {
             return;
         }
@@ -209,7 +209,7 @@ public class UniversityPiece extends StructurePiece {
     }
 
     /** A small tree, as a gardener keeps one: a trunk and a round crown of leaves that never fall. */
-    private static void tree(Masonry m, int x, int z) {
+    static void tree(Masonry m, int x, int z) {
         if (!m.touches(x - 3, 0, z - 3, x + 3, 8, z + 3)) {
             return;
         }
@@ -332,7 +332,7 @@ public class UniversityPiece extends StructurePiece {
     }
 
     /** A round tower of the wall: solid stone to its walk, a ring of battlements, a slate cone. */
-    private static void roundTower(Masonry m, int x, int z, int radius, int height) {
+    static void roundTower(Masonry m, int x, int z, int radius, int height) {
         if (!m.touches(x - radius - 1, 0, z - radius - 1, x + radius + 1, height + radius * 2 + 4, z + radius + 1)) {
             return;
         }
@@ -352,7 +352,7 @@ public class UniversityPiece extends StructurePiece {
 
     // ------------------------------------------------------------------ the Great Hall
 
-    private void greatHall(Masonry m) {
+    static void greatHall(Masonry m) {
         Hall hall = new Hall(-20, -56, 20, -20, 20, true, Blocks.POLISHED_ANDESITE);
         hall.draw(m);
         if (!m.touches(-27, 0, -57, 27, TOP, -15)) {
@@ -420,7 +420,7 @@ public class UniversityPiece extends StructurePiece {
     }
 
     /** A square tower before the Great Hall's front, with a slate spire, lit on every floor. */
-    private static void frontTower(Masonry m, int x0, int z0) {
+    static void frontTower(Masonry m, int x0, int z0) {
         int height = 30;
         for (int x = x0; x <= x0 + 6; x++) {
             for (int z = z0; z <= z0 + 6; z++) {
@@ -445,7 +445,7 @@ public class UniversityPiece extends StructurePiece {
 
     // ------------------------------------------------------------------ the Library
 
-    private void library(Masonry m) {
+    static void library(Masonry m) {
         Hall library = new Hall(-56, -48, -32, 0, 16, true, Blocks.DARK_OAK_PLANKS);
         library.draw(m);
         if (!m.touches(-57, 0, -49, -31, 17, 1)) {
@@ -614,7 +614,7 @@ public class UniversityPiece extends StructurePiece {
 
     // ------------------------------------------------------------------ the Observatory
 
-    private void observatory(Masonry m) {
+    static void observatory(Masonry m) {
         int x = 46;
         int z = 52;
         int radius = 6;
@@ -777,7 +777,7 @@ public class UniversityPiece extends StructurePiece {
         villager(m, 46, 40, VillagerProfession.CLERIC);
     }
 
-    private void wizard(Masonry m, int x, int y, int z, Rank rank, Discipline chair, int radius) {
+    static void wizard(Masonry m, int x, int y, int z, Rank rank, Discipline chair, int radius) {
         BlockPos at = m.at(x, y, z);
         if (!m.chunk.isInside(at)) {
             return;
@@ -792,7 +792,7 @@ public class UniversityPiece extends StructurePiece {
         m.level.addFreshEntityWithPassengers(wizard);
     }
 
-    private void villager(Masonry m, int x, int z, VillagerProfession profession) {
+    static void villager(Masonry m, int x, int z, VillagerProfession profession) {
         BlockPos at = m.at(x, 1, z);
         if (!m.chunk.isInside(at)) {
             return;
@@ -811,7 +811,7 @@ public class UniversityPiece extends StructurePiece {
     }
 
     /** A rune's guide, the {@code index}th of all the runes guides are kept of. */
-    private static ItemStack runeGuide(int index) {
+    static ItemStack runeGuide(int index) {
         List<String> runes = new ArrayList<>();
         for (RuneGuides.Family family : RuneGuides.Family.values()) {
             runes.addAll(RuneGuides.runesOf(family));

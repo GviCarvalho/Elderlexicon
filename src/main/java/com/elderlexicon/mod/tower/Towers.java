@@ -28,6 +28,11 @@ public final class Towers {
             TYPES.register("university", () -> () -> com.elderlexicon.mod.university.UniversityStructure.CODEC);
     public static final RegistryObject<StructurePieceType> UNIVERSITY_PIECE = PIECES.register("university",
             () -> (context, tag) -> new com.elderlexicon.mod.university.UniversityPiece(tag));
+    /** The campus (docs/universidade-arquitetura-design.md): a building, and a stretch of avenue. */
+    public static final RegistryObject<StructurePieceType> CAMPUS_PIECE = PIECES.register("campus_building",
+            () -> (context, tag) -> new com.elderlexicon.mod.university.CampusPiece(tag));
+    public static final RegistryObject<StructurePieceType> CAMPUS_ROAD_PIECE = PIECES.register("campus_road",
+            () -> (context, tag) -> new com.elderlexicon.mod.university.CampusRoadPiece(tag));
     public static final RegistryObject<StructurePieceType> UNIVERSITY_ROAD_PIECE = PIECES.register("university_road",
             () -> (context, tag) -> new com.elderlexicon.mod.university.UniversityRoadPiece(tag));
 
