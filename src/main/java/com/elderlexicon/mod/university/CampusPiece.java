@@ -28,6 +28,9 @@ public class CampusPiece extends StructurePiece {
      */
     public enum Kind {
         NUCLEO(-66, -76, 60, -10, 72),
+        REITORIA(-15, -65, 15, -29, 58),
+        BIBLIOTECA(-57, -65, -31, -23, 42),
+        PESQUISA(30, -65, 51, -40, 60),
         PATIO(-17, -9, 17, 11, 8),
         AULAS(-37, 12, 37, 63, 58),
         DORMITORIOS(-64, 27, -42, 52, 68),
@@ -36,10 +39,12 @@ public class CampusPiece extends StructurePiece {
         ENFERMARIA(41, 40, 62, 59, 36),
         ARCO(59, -9, 69, 10, 30),
         CAMPO(-38, 67, 38, 122, 40),
-        ARENA(-67, 70, -39, 106, 36),
+        ARENA(-67, 57, -40, 119, 40),
         LABORATORIO(40, 67, 66, 90, 34),
         ESTABULOS(40, 92, 69, 124, 22),
-        AUDITORIO(18, -113, 57, -77, 46);
+        AUDITORIO(18, -113, 57, -77, 46),
+        ACROPOLE(-70, -44, -12, 48, 40),
+        PRACA(-70, -116, 72, 43, 8);
 
         final int x0;
         final int z0;
@@ -69,19 +74,41 @@ public class CampusPiece extends StructurePiece {
         }
     }
 
+    /**
+     * Where a building goes in a layout of the campus: the middle of its drawing {@code (fromX, fromZ)} (the offsets its
+     * code draws it at), the middle it stands at {@code (toX, toZ)}, and how it is turned about it.
+     */
+    public record Placement(int fromX, int fromZ, int toX, int toZ, Rotation turn) {
+
+        /** Where its drawing puts it. */
+        public static final Placement HOME = new Placement(0, 0, 0, 0, Rotation.NONE);
+
+        /** Where {@code (x, z)} of its drawing stands in the campus. */
+        int[] at(int x, int z) {
+            int[] own = Masonry.turn(turn, x - fromX, z - fromZ);
+            return new int[]{toX + own[0], toZ + own[1]};
+        }
+    }
+
     private final Kind kind;
     private final int cx;
     private final int y0;
     private final int cz;
     private final Rotation rotation;
+    private final Placement placement;
 
     public CampusPiece(Kind kind, int cx, int y0, int cz, Rotation rotation) {
-        super(Towers.CAMPUS_PIECE.get(), 0, box(kind, cx, y0, cz, rotation));
+        this(kind, cx, y0, cz, rotation, Placement.HOME);
+    }
+
+    public CampusPiece(Kind kind, int cx, int y0, int cz, Rotation rotation, Placement placement) {
+        super(Towers.CAMPUS_PIECE.get(), 0, box(kind, cx, y0, cz, rotation, placement));
         this.kind = kind;
         this.cx = cx;
         this.y0 = y0;
         this.cz = cz;
         this.rotation = rotation;
+        this.placement = placement;
     }
 
     public CampusPiece(CompoundTag tag) {
@@ -91,11 +118,19 @@ public class CampusPiece extends StructurePiece {
         this.y0 = tag.getInt("Y");
         this.cz = tag.getInt("Z");
         this.rotation = Rotation.values()[tag.getInt("Rot")];
+        // A piece saved before buildings could be moved stands where its drawing puts it.
+        this.placement = tag.contains("Place") ? placement(tag.getIntArray("Place")) : Placement.HOME;
     }
 
-    private static BoundingBox box(Kind kind, int cx, int y0, int cz, Rotation rotation) {
-        int[] a = Masonry.turn(rotation, kind.x0, kind.z0);
-        int[] b = Masonry.turn(rotation, kind.x1, kind.z1);
+    private static Placement placement(int[] p) {
+        return p.length < 5 ? Placement.HOME : new Placement(p[0], p[1], p[2], p[3], Rotation.values()[p[4]]);
+    }
+
+    private static BoundingBox box(Kind kind, int cx, int y0, int cz, Rotation rotation, Placement placement) {
+        int[] a = placement.at(kind.x0, kind.z0);
+        int[] b = placement.at(kind.x1, kind.z1);
+        a = Masonry.turn(rotation, a[0], a[1]);
+        b = Masonry.turn(rotation, b[0], b[1]);
         return new BoundingBox(cx + Math.min(a[0], b[0]), y0, cz + Math.min(a[1], b[1]), cx + Math.max(a[0], b[0]),
                 y0 + kind.top, cz + Math.max(a[1], b[1]));
     }
@@ -109,9 +144,10 @@ public class CampusPiece extends StructurePiece {
         return new BlockPos(cx, y0, cz);
     }
 
-    /** Where {@code (x, y, z)} of the campus is, at this building's ground. */
+    /** Where {@code (x, y, z)} of this building's drawing is, at its ground. */
     public BlockPos at(int x, int y, int z) {
-        int[] turned = Masonry.turn(rotation, x, z);
+        int[] placed = placement.at(x, z);
+        int[] turned = Masonry.turn(rotation, placed[0], placed[1]);
         return new BlockPos(cx + turned[0], y0 + y, cz + turned[1]);
     }
 
@@ -122,14 +158,20 @@ public class CampusPiece extends StructurePiece {
         tag.putInt("Y", y0);
         tag.putInt("Z", cz);
         tag.putInt("Rot", rotation.ordinal());
+        tag.putIntArray("Place", new int[]{placement.fromX(), placement.fromZ(), placement.toX(), placement.toZ(),
+                placement.turn().ordinal()});
     }
 
     @Override
     public void postProcess(WorldGenLevel level, StructureManager structures, ChunkGenerator generator,
                             RandomSource random, BoundingBox chunk, ChunkPos chunkPos, BlockPos pivot) {
-        Masonry m = new Masonry(level, chunk, cx, y0, cz, rotation);
+        Masonry m = new Masonry(level, chunk, cx, y0, cz, rotation).placed(placement.fromX(), placement.fromZ(),
+                placement.toX(), placement.toZ(), placement.turn());
         switch (kind) {
             case NUCLEO -> CampusBuildings.nucleo(m);
+            case REITORIA -> CampusBuildings.reitoria(m);
+            case BIBLIOTECA -> CampusBuildings.biblioteca(m);
+            case PESQUISA -> CampusBuildings.pesquisa(m);
             case PATIO -> CampusBuildings.patio(m);
             case AULAS -> CampusBuildings.aulas(m);
             case DORMITORIOS -> CampusBuildings.dormitorios(m);
@@ -142,6 +184,8 @@ public class CampusPiece extends StructurePiece {
             case LABORATORIO -> CampusBuildings.laboratorio(m);
             case ESTABULOS -> CampusBuildings.estabulos(m);
             case AUDITORIO -> CampusBuildings.auditorio(m);
+            case ACROPOLE -> CampusBuildings.acropole(m);
+            case PRACA -> CampusBuildings.praca(m);
         }
         m.join();
         CampusBuildings.people(m, kind);

@@ -37,6 +37,12 @@ public class TerracePiece extends StructurePiece {
     private static final int MEND = 64;
     private static final int CLEAR = 40;
     /**
+     * How far out from the escarp the land is trimmed: whatever of it stands over a slope rising from the escarp's foot,
+     * two blocks up for each out, is cut away (a ledge of the old hill left hanging on the wall, a bluff over it), so
+     * the plateau stands out of the land as if it had always been there.
+     */
+    private static final int GLACIS = 10;
+    /**
      * The escarp: how high the plateau's sloped edge is, from its foot out on the land to the terrace's ground, and how
      * many blocks deep it is from the edge in (a step of four a block, as steep as a bastion's).
      */
@@ -66,13 +72,32 @@ public class TerracePiece extends StructurePiece {
     private final int ring;
     /** A tower of the rampart (then {@code x0, z0} is its middle, {@code x1} its radius, {@code z1} its height). */
     private final boolean tower;
+    /**
+     * A platform of a layout: every terrace's rectangle with its height ({x0, z0, x1, z1, y} each), so a retaining wall
+     * stands on whichever edge falls to a lower terrace; then {@link #gaps} are rectangles (four numbers each) where the
+     * parapet opens for a stair. Empty for a platform of the first plan (its wall on the z1 edge, by {@link #drop}).
+     */
+    private final int[] levels;
+    /** A stair of a layout: where its top step's middle is and how it is turned (drawn running south, then turned). */
+    private final int ax;
+    private final int az;
+    private final Rotation turn;
 
     private TerracePiece(int cx, int cz, Rotation rotation, int y, int x0, int z0, int x1, int z1, int drop,
                          boolean stair, int[] gaps, int[] plateau, int[] gate, boolean tower, int ring) {
+        this(cx, cz, rotation, y, x0, z0, x1, z1, drop, stair, gaps, plateau, gate, tower, ring, new int[0], 0, 0,
+                Rotation.NONE);
+    }
+
+    private TerracePiece(int cx, int cz, Rotation rotation, int y, int x0, int z0, int x1, int z1, int drop,
+                         boolean stair, int[] gaps, int[] plateau, int[] gate, boolean tower, int ring, int[] levels,
+                         int ax, int az, Rotation turn) {
         super(Towers.CAMPUS_TERRACE_PIECE.get(), 0, tower
                 ? box(cx, cz, rotation, y, x0 - x1 - 2, z0 - x1 - 2, x0 + x1 + 2, z0 + x1 + 2, z1, true,
-                ESCARP + Math.max(0, y - ring))
-                : box(cx, cz, rotation, y, x0, z0, x1, z1, drop, stair, stair ? 0 : ESCARP + Math.max(0, y - ring)));
+                ESCARP + Math.max(0, y - ring), 0, 0, Rotation.NONE)
+                : box(cx, cz, rotation, y, x0 - (stair ? 0 : GLACIS), z0 - (stair ? 0 : GLACIS),
+                x1 + (stair ? 0 : GLACIS), z1 + (stair ? 0 : GLACIS), drop, stair,
+                stair ? 0 : ESCARP + Math.max(0, y - ring), ax, az, turn));
         this.cx = cx;
         this.cz = cz;
         this.rotation = rotation;
@@ -88,6 +113,31 @@ public class TerracePiece extends StructurePiece {
         this.gate = gate;
         this.tower = tower;
         this.ring = ring;
+        this.levels = levels;
+        this.ax = ax;
+        this.az = az;
+        this.turn = turn;
+    }
+
+    /**
+     * The ground of a terrace of a layout from {@code (x0, z0)} to {@code (x1, z1)}, at the world's height {@code y}:
+     * {@code levels} are all the terraces with their heights, {@code openings} where a stair goes down (no parapet).
+     */
+    static TerracePiece platform(int cx, int cz, Rotation rotation, int y, int x0, int z0, int x1, int z1,
+                                 int[] plateau, int[] gate, int ring, int[] levels, int[] openings) {
+        return new TerracePiece(cx, cz, rotation, y, x0, z0, x1, z1, 0, false, openings, plateau, gate, false, ring,
+                levels, 0, 0, Rotation.NONE);
+    }
+
+    /**
+     * A stair of a layout, {@code steps} high, down to the ground {@code y} of the lower terrace: its top step's middle
+     * at {@code (ax, az)}, {@code half} to each side, running away from the higher terrace the way {@code turn} turns
+     * the south (none: south; counterclockwise: east; clockwise: west; half round: north).
+     */
+    static TerracePiece stair(int cx, int cz, Rotation rotation, int y, int ax, int az, Rotation turn, int half,
+                              int steps) {
+        return new TerracePiece(cx, cz, rotation, y, -half, 0, half, steps - 1, steps, true, new int[0], new int[0],
+                new int[0], false, y, new int[0], ax, az, turn);
     }
 
     /** The ground of a terrace from {@code (x0, z0)} to {@code (x1, z1)}, at the world's height {@code y}. */
@@ -128,14 +178,20 @@ public class TerracePiece extends StructurePiece {
         this.gate = tag.getIntArray("Gate");
         this.tower = tag.getBoolean("Tower");
         this.ring = tag.contains("Ring") ? tag.getInt("Ring") : tag.getInt("Y");
+        this.levels = tag.getIntArray("Levels");
+        this.ax = tag.getInt("AX");
+        this.az = tag.getInt("AZ");
+        this.turn = Rotation.values()[tag.getInt("Turn")];
     }
 
     private static BoundingBox box(int cx, int cz, Rotation rotation, int y, int x0, int z0, int x1, int z1, int drop,
-                                   boolean stair, int foot) {
-        int[] a = Masonry.turn(rotation, x0 - (stair ? 1 : 0), z0);
-        int[] b = Masonry.turn(rotation, x1 + (stair ? 1 : 0), z1);
+                                   boolean stair, int foot, int ax, int az, Rotation turn) {
+        int[] a = Masonry.turn(turn, x0 - (stair ? 1 : 0), z0);
+        int[] b = Masonry.turn(turn, x1 + (stair ? 1 : 0), z1 + (stair ? 1 : 0));
+        a = Masonry.turn(rotation, a[0] + ax, a[1] + az);
+        b = Masonry.turn(rotation, b[0] + ax, b[1] + az);
         return new BoundingBox(cx + Math.min(a[0], b[0]), y - foot, cz + Math.min(a[1], b[1]), cx + Math.max(a[0], b[0]),
-                y + (stair ? drop + 3 : 2), cz + Math.max(a[1], b[1]));
+                y + (stair ? drop + 4 : 2), cz + Math.max(a[1], b[1]));
     }
 
     @Override
@@ -155,6 +211,10 @@ public class TerracePiece extends StructurePiece {
         tag.putIntArray("Gate", gate);
         tag.putBoolean("Tower", tower);
         tag.putInt("Ring", ring);
+        tag.putIntArray("Levels", levels);
+        tag.putInt("AX", ax);
+        tag.putInt("AZ", az);
+        tag.putInt("Turn", turn.ordinal());
     }
 
     @Override
@@ -164,7 +224,7 @@ public class TerracePiece extends StructurePiece {
         if (tower) {
             rampartTower(m, chunk);
         } else if (stair) {
-            stairs(m);
+            stairs(m.placed(0, 0, ax, az, turn));
         } else {
             platform(level, m, chunk);
         }
@@ -185,14 +245,20 @@ public class TerracePiece extends StructurePiece {
                     m.set(x, below, z, below >= -3 ? Blocks.DIRT.defaultBlockState() : m.stone(x, below, z));
                 }
                 m.set(x, 0, z, Blocks.GRASS_BLOCK.defaultBlockState());
-                int top = level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, at.getX(), at.getZ()) - y;
+                // Over the highest of the land and what grew on it (trees, great mushrooms): the campus is made after them.
+                int top = Math.max(level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, at.getX(), at.getZ()),
+                        level.getHeight(Heightmap.Types.WORLD_SURFACE, at.getX(), at.getZ())) - y;
                 for (int above = 1; above <= Math.min(CLEAR, top); above++) {
                     m.set(x, above, z, air);
                 }
             }
         }
         rampart(m, chunk);
-        gateArch(m);
+        glacis(m, chunk);
+        if (levels.length > 0) {
+            retainingWalls(m);
+            return;
+        }
         if (drop <= 0) {
             return;
         }
@@ -214,6 +280,68 @@ public class TerracePiece extends StructurePiece {
                 }
             }
         }
+    }
+
+    /**
+     * The retaining walls of a terrace of a layout: wherever its edge looks out onto a lower terrace, the edge is stone
+     * from that terrace's ground up to this one's, a band on top and a parapet, but where a stair goes down.
+     */
+    private void retainingWalls(Masonry m) {
+        int[][] ways = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int x = x0; x <= x1; x++) {
+            for (int z = z0; z <= z1; z++) {
+                if (x != x0 && x != x1 && z != z0 && z != z1 || band(x, z) < ESCARP_DEPTH) {
+                    continue;
+                }
+                int lowest = y;
+                for (int[] w : ways) {
+                    int nx = x + w[0];
+                    int nz = z + w[1];
+                    if (nx >= x0 && nx <= x1 && nz >= z0 && nz <= z1) {
+                        continue;
+                    }
+                    Integer there = levelAt(nx, nz);
+                    if (there != null) {
+                        lowest = Math.min(lowest, there);
+                    }
+                }
+                int fall = y - lowest;
+                if (fall <= 0) {
+                    continue;
+                }
+                m.set(x, -fall - 1, z, Blocks.COBBLESTONE.defaultBlockState());
+                for (int h = -fall; h < 0; h++) {
+                    m.set(x, h, z, h == -fall ? CampusHouse.plinth(m, x, h, z) : m.stone(x, h, z));
+                }
+                m.set(x, 0, z, Blocks.POLISHED_ANDESITE.defaultBlockState());
+                if (!opening(x, z)) {
+                    m.set(x, 1, z, Blocks.STONE_BRICK_WALL.defaultBlockState());
+                    if (Math.floorMod(x + z, 12) == 0) {
+                        m.set(x, 2, z, Blocks.LANTERN.defaultBlockState());
+                    }
+                }
+            }
+        }
+    }
+
+    /** The height of the terrace of the layout {@code (x, z)} is on, or null off them. */
+    private Integer levelAt(int x, int z) {
+        for (int i = 0; i + 4 < levels.length; i += 5) {
+            if (x >= levels[i] && x <= levels[i + 2] && z >= levels[i + 1] && z <= levels[i + 3]) {
+                return levels[i + 4];
+            }
+        }
+        return null;
+    }
+
+    /** Whether the parapet opens at {@code (x, z)}, where a stair goes down. */
+    private boolean opening(int x, int z) {
+        for (int i = 0; i + 3 < gaps.length; i += 4) {
+            if (x >= gaps[i] && x <= gaps[i + 2] && z >= gaps[i + 1] && z <= gaps[i + 3]) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Whether {@code (x, z)} of the campus is on the plateau. */
@@ -336,7 +464,56 @@ public class TerracePiece extends StructurePiece {
                 }
             }
         }
-        CampusBuildings.wallTower(m, x0, z0, r, z1, null);
+        CampusBuildings.wallTower(m, x0, z0, r, z1, doorward(x0, z0, r));
+    }
+
+    /** The way into the campus from a tower of the rampart at {@code (x, z)}: the first side where the plateau is. */
+    private Direction doorward(int x, int z, int r) {
+        for (Direction d : Direction.Plane.HORIZONTAL) {
+            int ox = x + d.getStepX() * (r + 2);
+            int oz = z + d.getStepZ() * (r + 2);
+            if (onPlateau(ox, oz) && band(ox, oz) >= ESCARP_DEPTH) {
+                return d;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The glacis: round the plateau, out to {@link #GLACIS}, the land over a slope rising two a block from the
+     * escarp's foot is cut away, its new top made grass; never where water stands (a lake is left as it is).
+     */
+    private void glacis(Masonry m, BoundingBox chunk) {
+        BlockState air = Blocks.AIR.defaultBlockState();
+        int foot = Math.min(0, ring - y) - ESCARP;
+        for (int x = x0 - GLACIS; x <= x1 + GLACIS; x++) {
+            for (int z = z0 - GLACIS; z <= z1 + GLACIS; z++) {
+                if (onPlateau(x, z) || !chunk.isInside(m.at(x, 0, z))) {
+                    continue;
+                }
+                int out = Math.max(Math.max(x0 - x, x - x1), Math.max(z0 - z, z - z1));
+                int allowed = foot + 2 * out;
+                boolean wet = false;
+                for (int h = allowed; h <= allowed + CLEAR && !wet; h++) {
+                    wet = !m.get(x, h, z).getFluidState().isEmpty();
+                }
+                if (wet) {
+                    continue;
+                }
+                boolean cut = false;
+                for (int h = allowed + 1; h <= allowed + CLEAR; h++) {
+                    if (!m.get(x, h, z).isAir()) {
+                        m.set(x, h, z, air);
+                        cut = true;
+                    }
+                }
+                BlockState top = m.get(x, allowed, z);
+                if (cut && (top.is(Blocks.DIRT) || top.is(Blocks.STONE) || top.is(Blocks.GRASS_BLOCK)
+                        || top.is(Blocks.DEEPSLATE) || top.is(Blocks.GRAVEL) || top.is(Blocks.SAND))) {
+                    m.set(x, allowed, z, top.is(Blocks.SAND) ? top : Blocks.GRASS_BLOCK.defaultBlockState());
+                }
+            }
+        }
     }
 
     private boolean gap(int x) {
@@ -353,7 +530,8 @@ public class TerracePiece extends StructurePiece {
         BlockState air = Blocks.AIR.defaultBlockState();
         for (int k = 0; k < drop; k++) {
             int z = z0 + k;
-            int top = drop - 1 - k;
+            // Each step a block over the one below, the lowest on the ground, the top one level with the terrace.
+            int top = drop - k;
             for (int x = x0 - 1; x <= x1 + 1; x++) {
                 boolean side = x < x0 || x > x1;
                 if (top > 0) {

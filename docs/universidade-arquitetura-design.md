@@ -210,6 +210,64 @@ construída numa encosta, e os degraus entre eles são arquitetura (`UniversityS
 - **As avenidas no platô** seguem a altura do terraço em que estão (antes, os trechos do meio pegavam a altura do
   terreno embaixo, e com o platô alto a estrada afundava numa vala); entre terraços, uma rampa.
 
+### 5.5 A implantação: O Eixo (28/10/2026, decidido com o autor)
+
+Do teste: ao entrar, o campus parecia confuso. A avenida do portão acabava na fonte e, depois dela, no Refeitório; o
+Salão (a Reitoria) ficava de lado, atrás da muralha do núcleo, e quase não se via. A subida do terreno não acompanhava a
+importância dos prédios. O estudo das três maneiras de assentar o campus está em
+https://claude.ai/artifact/NvmN1x4KznwRvNQaiCsuSR.
+
+**Escolhida: A, O Eixo.** Um eixo reto do portão leste até a porta do Salão, sempre subindo:
+
+- **Nível 0, o Pátio da Fonte**, logo depois do portão, com a Oficina e a Enfermaria dos lados; os campos de prática
+  embaixo, ao sul, no mesmo nível.
+- **Uma escadaria até o nível 1 (+6), a Praça do Saber:** o Prédio das Aulas fecha a praça pelo norte, com a torre do
+  sino de frente para o eixo; a Biblioteca, pelo sul. Uma **arcada** corre em volta da praça (um claustro, não um
+  gramado). Ao norte, no mesmo nível, a faixa da vida (Refeitório, Dormitórios) e o Auditório.
+- **Um espelho d'água** no pé da escadaria monumental, onde as torres da acrópole se refletem.
+- **A escadaria monumental até o nível 2 (+12), a acrópole murada:** o Salão no eixo, de frente para quem sobe (a
+  rosácea vista desde o portão); a Torre de Pesquisa atrás, a mais alta de todas.
+
+**Guardadas para depois, como variações** (a universidade poderá nascer de qualquer dos três jeitos):
+
+- **B, As Duas Colinas:** a cidade baixa (vida da casa, campos) ao sul e a colina da academia 18 blocos acima, ao norte;
+  entre elas um vale com um lago, e uma torre de escada na cabeceira de um viaduto de arcos que cruza o vale até o adro
+  do Salão.
+- **C, Os Claustros:** um castelo só, compacto, no alto; os prédios encostados formam pátios fechados, ligados por
+  arcadas e portões em torre (Pátio de Entrada, Grande Claustro, Pátio da Vida); os campos embaixo, como o pátio de
+  armas.
+
+Por isso a A se constrói com cada prédio **deslocável e girável** (cada um desenhado em torno do seu próprio meio) e com os
+terraços como dados, para as outras duas serem só outra tabela.
+
+**Como ficou no código** (28/10/2026):
+
+- **Cada prédio é desenhado onde estava antes**, e o `Masonry.placed` o leva ao lugar novo e o gira, com as portas,
+  escadas, móveis e pessoas juntos. A tabela fica em `UniversityStructure.LAYOUT`:
+  - Pátio da Fonte em (50, 0), girado 90° no sentido horário;
+  - Oficina em (50, −27) e Enfermaria em (50, 27), viradas para o pátio;
+  - Aulas em (11, −58), meia-volta;
+  - Biblioteca em (11, 31), 90° no sentido anti-horário;
+  - Refeitório em (−48, −68), Dormitórios em (−52, −97), Auditório em (44, −94), com folga da muralha leste;
+  - o Salão em (−46, 0) e a Torre de Pesquisa em (−50, −26), 90° no sentido anti-horário; os muros da acrópole em x −18 (leste, com o portão), z −40 (norte) e z 42 (sul), com folga para os dois prédios;
+  - os campos onde estavam.
+- **Os níveis** (`TERRACES`): o chão fica 9 acima de três quartos do terreno; o nível 1, 6 acima dele; o nível 2, 12
+  acima.
+  - Cada terraço tem muro de arrimo em toda borda que dá para um terraço mais baixo.
+  - Entre a acrópole e as Aulas há uma passagem no nível 1, ao pé da muralha da acrópole, que leva ao Refeitório e aos
+    Dormitórios.
+- **As escadarias**: 9 de largura, no eixo, descendo para o leste.
+  - Do nível 0 ao 1, em x 34 a 39.
+  - Do 1 ao 2, em x −11 a −6.
+- **A Praça do Saber** (`CampusBuildings.praca`):
+  - a arcada coberta, de 3 de largura, em volta, de x −4 a 32 e de z −38 a 18;
+  - o espelho d'água de x 2 a 27, no eixo, com a ponte baixa em x 10 a 12;
+  - os caminhos do nível 1 até o Auditório e até o Refeitório e os Dormitórios.
+- **A acrópole** (`CampusBuildings.acropole`):
+  - a muralha em três lados, com seis torres, e o portão no eixo;
+  - o adro do Salão, o caminho até a Torre de Pesquisa, o jardim e duas árvores.
+- O núcleo antigo (`NUCLEO`) não é mais gerado nesse layout.
+
 ## 6. A ordem
 
 1. **O esqueleto:** o planejador, o núcleo (Salão Central e Biblioteca), as avenidas, os lotes, `beard_thin`; os
