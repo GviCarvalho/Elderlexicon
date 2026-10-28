@@ -308,6 +308,9 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
         if (porterOf != null) {
             saved.putString("PorterOf", porterOf);
         }
+        if (post != null) {
+            saved.putString("Post", post);
+        }
         rank().ifPresent(rank -> saved.putString("Rank", rank.id()));
         chair().ifPresent(chair -> saved.putString("Chair", chair.id()));
         tag.put(MIND_TAG, saved);
@@ -330,6 +333,7 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
             errand = saved.contains("Errand")
                     ? com.elderlexicon.mod.university.Emissary.load(this, saved.getCompound("Errand")) : null;
             porterOf = saved.contains("PorterOf") ? saved.getString("PorterOf") : null;
+            post = saved.contains("Post") ? saved.getString("Post") : null;
             engravedWares.clear();
             net.minecraft.nbt.ListTag wares = saved.getList("EngravedWares", net.minecraft.nbt.Tag.TAG_COMPOUND);
             for (int i = 0; i < wares.size(); i++) {
@@ -360,6 +364,17 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
         if (porterOf != null && player instanceof net.minecraft.server.level.ServerPlayer server) {
             setTradingPlayer(player);
             com.elderlexicon.mod.university.Porter.talk(server, this, porterOf);
+            return InteractionResult.SUCCESS;
+        }
+        // A researcher of the research tower serves at its post (docs/torre-pesquisa-design.md): the Atlas makes
+        // maps of what the tower sees, the library sells and copies the house's spells.
+        if (post != null && player instanceof net.minecraft.server.level.ServerPlayer server) {
+            setTradingPlayer(player);
+            switch (post) {
+                case POST_ATLAS -> com.elderlexicon.mod.university.Atlas.talk(server, this);
+                case POST_LIBRARY -> com.elderlexicon.mod.university.SpellLibrary.talk(server, this);
+                default -> setTradingPlayer(null);
+            }
             return InteractionResult.SUCCESS;
         }
         // A master of a university talks first: the examinations, the fee, the ranks (docs/mago-design.md, 4.1).
@@ -503,6 +518,19 @@ public class Wizard extends AbstractVillager implements RuneCaster, CasterMind.B
     /** It keeps the door of the dormitory tower of the house whose marks end in {@code houseCode}. */
     public void keepDoor(String houseCode) {
         this.porterOf = houseCode;
+    }
+
+    /** The post of the research tower it serves at: {@link #POST_ATLAS}, {@link #POST_LIBRARY}; null for none. */
+    @Nullable
+    private String post;
+
+    public static final String POST_ATLAS = "atlas";
+    public static final String POST_LIBRARY = "library";
+
+    /** It serves at {@code post} of a research tower. */
+    public void serveAt(String post) {
+        this.post = post;
+        setPersistenceRequired();
     }
 
     /** A member of a university keeps the peace wherever it is (docs/mago-design.md, 5h). */

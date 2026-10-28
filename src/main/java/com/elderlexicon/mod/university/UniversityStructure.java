@@ -94,11 +94,13 @@ public class UniversityStructure extends Structure {
         // The avenues: to the gate of the core, to the teaching building, east to the arch and on toward the
         // village, west to the refectory, the ring round the teaching building, and a way to every door on it.
         int[][][] avenues = {
-                {{0, -12}, {0, -11}}, {{0, 11}, {0, 13}},
+                {{0, -12}, {0, -11}}, {{0, 11}, {0, 12}},
                 {{17, 0}, {59, 0}}, {{69, 0}, {76, 0}},
-                {{-17, 0}, {-42, 0}},
-                {{-38, 0}, {-38, 60}}, {{-38, 60}, {38, 60}}, {{38, 60}, {38, 0}},
-                {{-38, 38}, {-43, 38}}, {{38, 28}, {40, 28}}, {{38, 49}, {40, 49}}};
+                {{-17, 0}, {-44, 0}},
+                {{-38, 0}, {-38, 64}}, {{-38, 64}, {38, 64}}, {{38, 64}, {38, 0}},
+                {{-38, 38}, {-43, 38}}, {{38, 28}, {41, 28}}, {{38, 49}, {41, 49}},
+                {{0, 64}, {0, 66}}, {{-38, 64}, {-38, 88}}, {{-38, 88}, {-40, 88}},
+                {{38, 64}, {38, 106}}, {{38, 76}, {40, 76}}, {{38, 106}, {44, 106}}};
         for (int[][] avenue : avenues) {
             int half = avenue[0][1] == 0 && avenue[1][1] == 0 && Math.abs(avenue[0][0]) >= 17 ? 2 : 1;
             stretches(context, pieces, grounds, cx, cz, rotation, avenue[0], avenue[1], half, sea);

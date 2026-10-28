@@ -16,8 +16,8 @@ import java.util.List;
 
 /**
  * The keeper of the dormitory tower (docs/universidade-arquitetura-design.md, 6.2). The tower has no stair to its
- * floors: each is a flat, and a student goes up by reading, at the foot, the scroll of their floor ({@code pN_code
- * surgit}, whose text is {@code ego aN_code ubis vocant}). One who has not the energy for it asks the keeper, who reads
+ * floors: each is a flat, and a student goes up by reading, at the foot, the page of their floor in the grimoire on
+ * the lectern ({@code ego aN_code ubis vocant}, surgit aimed at the lectern). One who has not the energy for it asks the keeper, who reads
  * the call for them in a trance, the way an Emissary brings a guest: it marks them for the while, and reads {@code
  * aN_code ubis <their mark> vocant}, the house paying from the gem it sets in its wand.
  */
@@ -37,11 +37,6 @@ public final class Porter {
         return "a" + floor + "_" + code;
     }
 
-    /** The mark of the scroll, at the foot, that sends one to {@code floor}. */
-    public static String scroll(String code, int floor) {
-        return "p" + floor + "_" + code;
-    }
-
     /** {@code player} speaks to the keeper: to which floor? */
     public static void talk(ServerPlayer player, Wizard keeper, String code) {
         List<Choice> choices = new ArrayList<>();
@@ -52,8 +47,8 @@ public final class Porter {
         }
         choices.add(new Choice(Component.literal("Nenhum, obrigado."), p -> null));
         Dialogue.open(player, keeper, new Line(Component.literal("Esta torre não tem escada para os andares: quem "
-                + "mora aqui lê, na parede, o pergaminho do seu andar, e vai. Sem energia para ler, eu leio por você. "
-                + "Para qual andar?"), choices));
+                + "mora aqui abre o grimório do atril na página do seu andar, lê, e vai. Sem energia para ler, eu leio "
+                + "por você. Para qual andar?"), choices));
     }
 
     /** It marks them, sets what the call costs in its gem, and reads the call that sends them up. */

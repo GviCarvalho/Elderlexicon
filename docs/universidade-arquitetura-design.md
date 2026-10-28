@@ -53,10 +53,61 @@ Uma área aberta ao lado do Prédio das Aulas, com uma estação para cada aula 
 | `iactare` | **o campo de tiro** (alvos, distâncias marcadas) e **o lago de pesca**, com o cais | soltar uma flecha, arremessar; pescar |
 | `surgit` | **o sítio de escavação** (areia suspeita de verdade) | escovar um achado |
 
+**Como ficou** (27/10/2026, `CampusBuildings.campo`, a peça `CAMPO` ao sul do anel, com um ramal da estrada): cada
+estação fica onde o próprio jogo sente a experiência da runa (`nahva/Understanding`), então viver ali já conta para a
+aula, sem passo novo.
+
+- **A torre da queda** no meio, o marco do campo: escada em caracol por dentro, uma prancha para fora no alto, 22 blocos
+  sobre um fosso de feno (o jogo conta a queda a partir de 20).
+- **O fosso da explosão**, forrado de ardósia, com escada de mão; na borda, um barril com 16 TNT e um isqueiro, e um
+  parapeito para se abrigar. (Um dispensador ao lado da explosão seria destruído.)
+- **O tanque**, sete de fundo, e **o canal**: uma nascente na cabeça e um degrau a cada oito blocos, para a água correr
+  o canal inteiro.
+- **A câmara fria**, casinha redonda de cone de neve, gelo compactado e neve fofa de dois de fundo; **a fornalha**, um
+  fosso de fogo eterno sobre netherrack, cercado, com portão.
+- **O poço de areia**: quatro celas; uma tocha na parede segura a areia acima da cabeça, e tirá-la a derruba. Um baú ao
+  lado tem areia e tochas para remontar.
+- **A Descida**: uma torrezinha sobre um poço redondo que desce até a altura -4 do mundo, a escada em caracol em volta de
+  um pilar, glowstone nas paredes.
+- **O campo de tiro** (alvos a 10, 20 e 30), **o lago com o cais**, **o sítio de escavação** com areia suspeita de
+  verdade.
+
 As outras aulas têm o lugar delas nos prédios: a cozinha e o Laboratório (`vertere`), os Estábulos (`ligabis`), a
 Oficina (`reframe`), a Arena (`impediunt`), a Biblioteca e o Observatório (`surgit`); `vocant` se vive em qualquer
 lugar. As aulas ganham **um passo "estar em"**: o mestre manda o aluno a uma estação, e o jogo confere que ele está
 lá.
+
+### A Arena (27/10/2026, `CampusBuildings.arena`, a peça `ARENA` a oeste do Campo de Prática)
+
+- **O anel de duelos:** muralha redonda aberta para o céu, com arcos em volta e parapeito; dentro, a arquibancada em
+  cinco degraus virada para o meio; o chão de duelo de arenito, com mureta e uma grade de ferro no centro; quatro
+  torres de cone nas diagonais; o portal a leste, por baixo da arquibancada, com um ramal da estrada do anel.
+- **O fosso das criaturas:** sala redonda e escura sete blocos abaixo do chão, um gerador de **zumbis** no meio
+  (vem de perto, não atira pela grade, não sobe escada de mão). Desce-se por uma escotilha perto do portal e uma escada
+  de mão; os monstros não abrem escotilha. Com quatro em volta, o jogo conta "cercado" (a aula do `impediunt`).
+- **O Duelo Supervisionado** ainda não tem mecânica: a Arena fica pronta para ele.
+
+### O Laboratório e os Estábulos (27/10/2026, peças `LABORATORIO` e `ESTABULOS`, a leste do Campo de Prática)
+
+- **O Laboratório** (a Conversão, a aula do `vertere`): a torre de cone de cobre que verdeja, o recipiente da
+  conversão no meio (caldeirão d'água sobre pedra talhada), quatro caldeirões em volta, três suportes de poção nos
+  balcões, barris, estantes em cima; e a **estufa** redonda de vidro entre nervuras de cobre, com cúpula de vidro,
+  canteiros de fungo do Nether, cenoura, batata e cana. Entra-se pela estufa, a oeste.
+- **Os Estábulos** (a Vinculação, a aula do `ligabis`): a estrebaria redonda de cone baixo de madeira, oito baias com
+  portões e feno, o pátio de feno com o bebedouro, **cavalos nas baias**; **o pombal**, torrezinha de ardósia com a
+  parede cheia de buracos de ninho, o "correio" no térreo (só cenário por enquanto); **o pasto** cercado com
+  bebedouro, **vacas e ovelhas**.
+- A estrada do anel desce pelo lado leste do Campo de Prática, com um ramal até cada porta.
+
+### O Auditório (27/10/2026, peça `AUDITORIO`, ao norte do núcleo)
+
+- Uma rotunda grande com parapeito e cone largo, duas torrezinhas de cone atrás. Dentro, um teatro: fileiras curvas em
+  oito degraus subindo em leque a partir do estrado do mestre (o atril, os estandartes), um corredor no meio e um de
+  cada lado; diante do estrado, um chão de pedra lavrada para as demonstrações; janelas altas em volta; uma galeria
+  pela parede do fundo, por escada de mão nas torrezinhas; as portas na frente, ao lado do estrado.
+- **O caminho:** a muralha do núcleo ganhou um **portão norte**; um caminho de pedra sai do caminho de dentro do núcleo,
+  passa entre a Reitoria e a Torre de Pesquisa, sai pelo portão e chega à porta sul do Auditório.
+- Nenhum Magister nasce ali ainda: as aulas para muitos e as demonstrações não têm mecânica.
 
 ## 4. A vila em volta
 
@@ -159,15 +210,57 @@ lugar, basta perguntar ao jogo que peça da universidade está naquele ponto. Na
   faz meio andar de quarto para dois alunos (cama, baú, escrivaninha) e meio de hall com a escada em vaivém; no alto,
   o andar do sonho, de vidro e camas roxas. São 14 camas. Por fora: o pé alargado, uma faixa a cada andar, janelas em
   volta, a chaminé da lareira pela face oeste, mísulas e ameias, um cone íngreme com janelas roxas acesas.
-- **Os andares da torre são flats, e se sobe lendo** (21/10/2026, ideia do autor): é uma casa de magos, ninguém
-  precisa de escada. No hall do térreo, na parede do meio, um pergaminho por andar, marcado `pN_<código>`, com o
-  texto `ego aN_<código> ubis vocant`; uma placa sobre cada um diz o que ler (`pN_<código> surgit`). No chão de cada
-  flat está o pergaminho de chegada, marcado `aN_<código>`, cujo texto (`ego a0_<código> ubis vocant`) leva de volta ao
-  pergaminho `a0` do hall. O `<código>` são três letras da própria casa, tiradas de onde ela está, para duas
-  universidades no mesmo mundo nunca responderem à mesma marca. Quem não tem energia para ler pede ao **Auditor que
-  guarda a torre**, no hall: ele marca o aluno por um instante e lê `aN_<código> ubis <marca> vocant` por ele, a casa
-  pagando com a gema do seu bastão, como o Emissário. Para emergências, uma escada de mão sobe pela parede sul, com
-  alçapão em cada piso. Cada flat é inteiro de dois alunos: camas, baús, escrivaninhas, mesa, estantes, guarda-roupa.
+- **Os andares da torre são flats, e se sobe lendo** (21/10/2026, ideia do autor; o atril em 27/10/2026): é uma
+  casa de magos, ninguém precisa de escada. No hall do térreo, diante da parede do meio, o **Grimório dos andares**
+  preso a um atril: uma página por andar, `ego aN_<código> ubis vocant`. O aluno abre o atril na página do seu andar
+  e lê com `surgit` mirando o atril (docs/grimorio-design.md, o atril). No chão de cada flat está o pergaminho de
+  chegada, marcado `aN_<código>`, cujo texto (`ego a0_<código> ubis vocant`) leva de volta ao pergaminho `a0` do hall.
+  O `<código>` são três letras da própria casa, tiradas de onde ela está, para duas universidades no mesmo mundo nunca
+  responderem à mesma marca. Quem não tem energia para ler pede ao **Auditor que guarda a torre**, no hall: ele marca o
+  aluno por um instante e lê `aN_<código> ubis <marca> vocant` por ele, a casa pagando com a gema do seu bastão, como o
+  Emissário. Para emergências, **uma torre de escada** colada na face sul (27/10/2026): a escada de mão sobe por dentro
+  dela, com um patamar e uma lanterna em cada andar diante da porta de ferro do flat, que só abre por dentro (um botão
+  no quarto), para quem sobe não entrar no quarto dos outros; no pé, uma porta para fora. Cada flat é inteiro de dois
+  alunos: camas, baús, escrivaninhas, mesa, estantes, guarda-roupa.
+- **A torre é a identidade das construções do mod** (27/10/2026, decidido com o autor): toda casa de magos tem ao menos
+  uma torre redonda com cone de ardósia. Os prédios de uso ganharam a sua (substituído logo depois: ver abaixo), num canto, aberta para dentro como um cômodo
+  a mais: o Refeitório, a **torre da cozinha** (a grande lareira, a chaminé saindo pela encosta do cone); a Oficina, a
+  **torre da forja**, de cone de cobre que verdeja com os anos (a fornalha de magma, os altos-fornos, a bigorna); a
+  Enfermaria, a **torrezinha de ervas** (as bancas de poção embaixo, um sótão de secar ervas por escada de mão).
+- **O resto do campus na mesma identidade** (27/10/2026): o Prédio das Aulas ganhou seis torrezinhas redondas nos
+  cantos de fora das alas (abertas para o canto das salas, nos dois andares, com janelas acima do telhado); a portaria
+  trocou as torres quadradas por **duas torres redondas com cone**, cada uma com porta para o campus e um sótão por
+  escada de mão; o pátio ganhou a taça de cima da fonte, bancos voltados para ela (o caminho norte–sul livre) e
+  canteiros de flores nos cantos. O núcleo antigo fica para depois (é do `UniversityPiece`).
+- **Os prédios de uso feitos de torres** (27/10/2026, pedido do autor: "torrificar", em vez de casas com torres
+  acopladas): cada um é um grupo de três torres redondas de alturas diferentes, abertas umas para as outras onde as
+  paredes se cruzam. A torre larga e baixa leva parapeito com ameias e o cone por dentro; as finas e altas, beiral
+  com mísulas e cone íngreme. Todas com o pé alargado, faixa em cada andar, janelas de vidro inteiro em volta.
+  O **Refeitório**: o salão (raio 8, mesas compridas dos dois lados do caminho da porta à lareira, despensa no andar
+  de cima), a cozinha alta ao sul (lareira, fogões, defumadores) e a torre da escada a nordeste (escada de mão até a
+  despensa e um mirante). A **Oficina**: a oficina larga (mesas de galdraria, mesa de invocação, balcão do Artífice,
+  sótão), a forja, a mais alta, de cone de cobre (a fornalha de magma sob a chaminé, a bigorna, o alto-forno) e o
+  depósito baixo com os baús. A **Enfermaria**: a ala (camas brancas em duas fileiras, cabeceira na parede, as bancas
+  dos curandeiros no fundo), a torre das ervas (poções embaixo, sótão de secar ervas) e uma torrezinha de vigia com a
+  luz na janela alta. As chaminés sobem por dentro e saem pela encosta do cone.
+- **O Prédio das Aulas feito de torres** (27/10/2026, no lugar das alas retangulares): na frente a **torre do
+  sino**, a mais alta, com o portal para o pátio e o sino em arcos abertos sob o cone; atrás dela a **torre central**
+  (o hall de entrada, a escada em caracol em volta de um pilar, salas de estudo nos andares 6 e 12, a biblioteca da
+  casa nos andares 18 e 24); e uma **ala em cada lado** (Força a oeste, Sentidos a leste, Ofício ao sul), cada uma uma
+  torre larga de três andares em que **cada andar é um curso**: a sala de aula do lado da torre central, a sala do
+  Mestre além de uma parede com porta. As alas se abrem para a torre central em todos os andares, e a única escada
+  serve o prédio inteiro. Na ponta de cada ala, uma torrezinha fina com escada de mão até um mirante. O prédio desceu
+  dois blocos para o sul, e o anel de estrada em volta dele passou para z 64.
+- **O núcleo em torres** (27/10/2026; as universidades antigas, do `UniversityPiece`, continuam como eram):
+  - **a Reitoria** (o Salão Central): a rotunda do conselho, larga e com parapeito, a mesa redonda no meio com as
+    cadeiras em volta, o tapete da porta até ela, o estrado do Reitor ao norte (o assento, o atril, os estandartes);
+    duas torres de agulha ladeando o portal de porta dupla, a rosácea entre elas; atrás, a torre do Reitor, a mais alta
+    do núcleo, com os aposentos dele por escada de mão;
+  - **a Biblioteca** (o Arquivo): a torre larga com as galerias em anel em volta de um poço, a escada em caracol no
+    poço com uma ponte para cada galeria, estantes do chão ao teto, estantes em raio no térreo; o Arquivo fechado numa
+    torre atrás da porta de ferro (que continua sem abrir, até se decidir quem abre); a sala de leitura numa torre na
+    frente, onde ficam o Magister do Arquivo e o Lector;
+  - **a Torre de Pesquisa** no lugar do observatório (docs/torre-pesquisa-design.md).
 - **O arco** virou uma portaria: duas torres quadradas com seteiras e ameias, o arco ogival sobre a avenida, o
   passadiço em cima, os estandartes da casa.
 

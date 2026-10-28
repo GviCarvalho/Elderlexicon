@@ -156,3 +156,18 @@ Geradas por script (pixel art), sem arquivos da Mojang. A fonte continua sendo o
 
 - **Páginas de círculo**: anéis concêntricos, onde o anel é o tempo, lido de dentro para fora. Ainda em discussão.
 - **Escrita à mão** (glifos levemente tortos, tinta aparecendo aos poucos): ideia guardada.
+
+## O atril (decidido, 27/10/2026)
+
+Um grimório pode ser posto num **atril**, como um livro. Ali ele fica **aberto na última página em que alguém o
+deixou**: a página fica no atril (o mesmo `Page` do jogo) e no `LastPage` do grimório.
+
+- **Usar o atril** abre o grimório para ser lido e folheado, não escrito: as dobras das páginas, as fitas e as setas
+  viram as páginas; não se edita célula, não se renomeia página, não se arranca folha. Ao fechar, o atril fica aberto
+  na página em que o leitor parou.
+- **Agachado**, o atril dá o grimório, como dá um livro. Um grimório **preso** (`Chained`) não sai do atril: é o caso
+  dos livros da casa, como o Grimório dos andares da torre dos Dormitórios.
+- **`surgit` mirando o atril** lê a página em que ele está aberto, paga como qualquer leitura, e o grimório guarda o
+  que ela custou, como guarda das páginas lidas na mão.
+- No código: `LecternGrimoires` (o clique, a página, o preso), `LecternGrimoirePacket` e `LecternPagePacket`, o modo
+  atril da `GrimoireEditScreen`, `ServerSpellingController.processLectern`, e a tag `minecraft:lectern_books`.

@@ -77,7 +77,11 @@ final class CirclePieces {
         return Optional.empty();
     }
 
-    /** Scrolls and inscriptions near {@code support}, on the same plane and facing the same way. */
+    /**
+     * Scrolls and inscriptions near {@code support}, on the same plane and facing the same way. A scroll in an item
+     * frame is never a piece: framed, a page stands alone, beside others or within a circle, and is read only by its
+     * mark (docs/rituais-design.md). Only placed scrolls and inscriptions make circles.
+     */
     private static List<Piece> piecesNear(ServerLevel level, BlockPos support, Direction face) {
         List<Piece> pieces = new ArrayList<>();
         AABB box = new AABB(support).inflate(SEARCH);

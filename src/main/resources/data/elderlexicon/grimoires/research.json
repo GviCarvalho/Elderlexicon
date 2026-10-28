@@ -1,0 +1,112 @@
+{
+  "_license": "© GviCarvalho – Part of Elderlexicon. The rune structure, nomenclature and texts in this file fall under LICENSE-DOCS.txt (CC BY-NC-ND 4.0).",
+  "_about": "A biblioteca de feitiços da Torre de Pesquisa (docs/torre-pesquisa-design.md, 3): os feitiços prontos que a casa guarda, tirados do livro (Fundamentos de Siglística). Cada página é escrita como no grimório: uma linha por feitiço, cada coluna um passo de tempo, '.' uma pausa. 'section' agrupa as páginas na conversa; 'price' é o preço da página pronta, em esmeraldas; 'about', o que o pesquisador diz dela.",
+  "pages": [
+    {
+      "section": "A luz e o calor",
+      "name": "Acender uma vela",
+      "lines": ["igni vocant"],
+      "about": "Uma chama onde você mira, por um instante. Quase de graça. Mire o pavio, e não o que está atrás dele.",
+      "price": 2
+    },
+    {
+      "section": "A luz e o calor",
+      "name": "Uma luz sobre a cabeça",
+      "lines": ["igni ego 0 3 ubis chronos 10 vocant"],
+      "about": "Uma chama três blocos acima de você, por dez segundos. Debaixo de madeira, é um incêndio com hora marcada.",
+      "price": 3
+    },
+    {
+      "section": "A luz e o calor",
+      "name": "Aquecer as mãos",
+      "lines": ["igni quantum -1 vocant"],
+      "about": "Um UMU de calor trazido do que está na mira para o seu corpo. Um, nunca mais, e nunca com alguém na mira.",
+      "price": 3
+    },
+    {
+      "section": "A água",
+      "name": "Apagar um fogo",
+      "lines": ["aqua vocant"],
+      "about": "Um bloco de água do seu cálice onde você mira. Caro: dezesseis UMU.",
+      "price": 2
+    },
+    {
+      "section": "A água",
+      "name": "Encher o caldeirão do poço",
+      "lines": ["aqua tenet vocant"],
+      "about": "Água do mundo, a mais perto da sua mão, levada até onde você mira. O mesmo que o anterior, pagando quase nada.",
+      "price": 2
+    },
+    {
+      "section": "A água",
+      "name": "Secar uma poça",
+      "lines": ["aqua tenet quantum 1 vertere aura"],
+      "about": "Um UMU de água do mundo fervido em vapor. O vapor sai quente: não seque a poça com o rosto em cima dela.",
+      "price": 2
+    },
+    {
+      "section": "A terra",
+      "name": "Vedar uma porta",
+      "lines": ["firmo tenet vocant"],
+      "about": "Um bloco do chão levado até onde você mira. Fica um buraco onde ele estava.",
+      "price": 2
+    },
+    {
+      "section": "A terra",
+      "name": "Arremessar o chão",
+      "lines": ["firmo tenet vocant iactare"],
+      "about": "Terra do mundo, trazida à sua mão e lançada. Bate forte: não lance para o lado de quem não quer ferir.",
+      "price": 3
+    },
+    {
+      "section": "O ar",
+      "name": "Afastar quem chega perto",
+      "lines": ["impediunt"],
+      "about": "Uma zona em volta de você, por dois segundos, que empurra tudo para fora: o lobo e o amigo.",
+      "price": 3
+    },
+    {
+      "section": "O ar",
+      "name": "Uma rajada",
+      "lines": ["aura iactare"],
+      "about": "Ar empurrado para onde você mira. Quase não fere: afasta fumaça, apaga velas de longe.",
+      "price": 2
+    },
+    {
+      "section": "Para os corajosos",
+      "name": "A lança de fogo",
+      "lines": ["igni vocant iactare"],
+      "about": "Uma chama na sua mão, lançada. Onde bate, acende o que puder: pense no que está atrás do alvo.",
+      "price": 5
+    },
+    {
+      "section": "Para os corajosos",
+      "name": "O anel de fogo",
+      "lines": [
+        "igni ego ubis quantum 40 chronos 30 vocant",
+        "igni ego ubis quantum 40 chronos 30 impediunt"
+      ],
+      "about": "Fogo nos seus pés por trinta segundos, e uma zona que o empurra para a borda. Duas torneiras abertas: só com o cálice cheio.",
+      "price": 8
+    },
+    {
+      "section": "O corpo",
+      "name": "Repor os ossos",
+      "lines": ["vis quantum 3 vertere firmo"],
+      "about": "Três de vis do seu cálice viram terra no seu corpo: o que falta de ossos a quem quebrou uma perna.",
+      "price": 5
+    },
+    {
+      "section": "O corpo",
+      "name": "Ler o próprio corpo",
+      "lines": [
+        "igni quantum ego surgit p1 ubis vocant",
+        "aqua quantum ego surgit p2 ubis vocant",
+        "aura quantum ego surgit p3 ubis vocant",
+        "firmo quantum ego surgit p4 ubis vocant"
+      ],
+      "about": "Quanto de cada elemento você tem, mostrado nas pepitas marcadas p1 a p4 (a bússola arcana). Só luz: não tira nada de ninguém.",
+      "price": 6
+    }
+  ]
+}

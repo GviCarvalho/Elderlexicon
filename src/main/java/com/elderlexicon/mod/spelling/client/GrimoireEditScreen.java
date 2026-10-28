@@ -141,6 +141,9 @@ public class GrimoireEditScreen extends Screen {
 
     private final ItemStack book;
     private final InteractionHand hand;
+    /** The lectern the grimoire lies open on, when it is read there: then it is read, not written in. */
+    @org.jetbrains.annotations.Nullable
+    private net.minecraft.core.BlockPos lectern;
     private final String author;
     private final boolean viewerIsAuthor;
     private final List<String> pages = new ArrayList<>();
@@ -243,6 +246,18 @@ public class GrimoireEditScreen extends Screen {
         loadPage();
     }
 
+    /**
+     * The grimoire lying open on the lectern at {@code lectern}, at {@code page}: its pages can be turned and read, not
+     * written in; closed, the lectern keeps the page it was left at (docs/grimorio-design.md, the lectern).
+     */
+    public GrimoireEditScreen(Player reader, ItemStack book, net.minecraft.core.BlockPos lectern, int page) {
+        this(reader, book, InteractionHand.MAIN_HAND, page);
+        this.lectern = lectern;
+        if (pages.stream().anyMatch(text -> !text.isBlank())) {
+            view = View.SPELL;
+        }
+    }
+
     // ------------------------------------------------------------------ layout and views
 
     @Override
@@ -256,6 +271,8 @@ public class GrimoireEditScreen extends Screen {
                 .bounds(bookWidth() / 2 - 100, buttonsY, 98, 20).build());
         addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> onClose())
                 .bounds(bookWidth() / 2 + 2, buttonsY, 98, 20).build());
+        // On a lectern no page is torn out.
+        detachButton.visible = lectern == null;
         updateButtons();
     }
 
@@ -431,6 +448,11 @@ public class GrimoireEditScreen extends Screen {
 
     @Override
     public void onClose() {
+        if (lectern != null) {
+            SpellingNetwork.sendLecternPage(lectern, currentPage);
+            super.onClose();
+            return;
+        }
         if (view == View.SPELL) {
             commitCell();
             storePage();
@@ -756,6 +778,9 @@ public class GrimoireEditScreen extends Screen {
 
     @Override
     public boolean charTyped(char character, int modifiers) {
+        if (lectern != null) {
+            return false;
+        }
         if (renaming != null) {
             return renaming.charTyped(character, modifiers);
         }
@@ -783,6 +808,18 @@ public class GrimoireEditScreen extends Screen {
         }
         if (key == InputConstants.KEY_ESCAPE) {
             onClose();
+            return true;
+        }
+        if (lectern != null) {
+            // On a lectern the keys only turn the pages.
+            switch (key) {
+                case InputConstants.KEY_PAGEDOWN, InputConstants.KEY_RIGHT, InputConstants.KEY_RETURN,
+                        InputConstants.KEY_SPACE -> turnPage(1);
+                case InputConstants.KEY_PAGEUP, InputConstants.KEY_LEFT -> turnPage(-1);
+                default -> {
+                    return super.keyPressed(key, scanCode, modifiers);
+                }
+            }
             return true;
         }
         if (view != View.SPELL) {
@@ -884,6 +921,9 @@ public class GrimoireEditScreen extends Screen {
                 return true;
             }
             return super.mouseClicked(mouseX, mouseY, button);
+        }
+        if (lectern != null) {
+            return super.mouseClicked(mouseX, mouseY, button); // read, not written: no cell, no name
         }
         if (renaming != null) {
             if (renaming.isMouseOver(mouseX, mouseY)) {

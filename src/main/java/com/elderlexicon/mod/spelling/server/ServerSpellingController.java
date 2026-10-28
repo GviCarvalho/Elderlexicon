@@ -351,6 +351,10 @@ public final class ServerSpellingController {
         if (aimed != null) {
             return castPlacedScroll(player, aimed, now, true);
         }
+        SpellCastResponse onLectern = processLectern(player, now);
+        if (onLectern != null) {
+            return onLectern;
+        }
         SpellCastResponse inscribed = processInscription(player, now);
         if (inscribed != null) {
             return inscribed;
@@ -369,6 +373,34 @@ public final class ServerSpellingController {
             return null;
         }
         return inTouch.size() == 1 ? castPlacedScroll(player, inTouch.get(0), now, true) : castLinkedScrolls(player, inTouch, now);
+    }
+
+    /**
+     * Surgit aimed at a lectern with a grimoire on it: the page it lies open at is read, as a grimoire in hand reads its
+     * page (docs/grimorio-design.md, the lectern). Returns null when the aim is on no such lectern.
+     */
+    private SpellCastResponse processLectern(ServerPlayer player, long now) {
+        double reach = Math.max(1.0D, player.getBlockReach());
+        HitResult hit = player.pick(reach, 0.0F, false);
+        if (!(hit instanceof net.minecraft.world.phys.BlockHitResult blockHit) || hit.getType() != HitResult.Type.BLOCK) {
+            return null;
+        }
+        net.minecraft.world.level.block.entity.LecternBlockEntity lectern =
+                com.elderlexicon.mod.spelling.LecternGrimoires.holding(player.serverLevel(), blockHit.getBlockPos());
+        if (lectern == null) {
+            return null;
+        }
+        String text = com.elderlexicon.mod.spelling.LecternGrimoires.openPage(lectern);
+        GrimoireExtractionResult extraction = extractRunesFromText(text);
+        if (extraction.block().isEmpty()) {
+            return applyFailure(player, Component.literal("A pagina aberta no atril nao tem feitico."), now, true,
+                    reading());
+        }
+        ItemStack book = lectern.getBook();
+        return castPage(player, extraction.block(), now, (spent, more) -> {
+            GrimoireItem.recordReading(book, text, spent, more);
+            lectern.setChanged();
+        });
     }
 
     /**

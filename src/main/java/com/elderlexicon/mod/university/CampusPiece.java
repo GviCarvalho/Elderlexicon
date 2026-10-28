@@ -29,12 +29,17 @@ public class CampusPiece extends StructurePiece {
     public enum Kind {
         NUCLEO(-66, -76, 60, -10, 72),
         PATIO(-17, -11, 17, 11, 8),
-        AULAS(-36, 13, 36, 59, 44),
-        DORMITORIOS(-64, 27, -42, 49, 68),
-        REFEITORIO(-65, -5, -43, 13, 23),
-        OFICINA(41, 19, 63, 39, 21),
-        ENFERMARIA(41, 41, 59, 57, 18),
-        ARCO(59, -9, 69, 9, 13);
+        AULAS(-37, 12, 37, 63, 58),
+        DORMITORIOS(-64, 27, -42, 52, 68),
+        REFEITORIO(-66, -13, -42, 18, 44),
+        OFICINA(41, 15, 64, 39, 42),
+        ENFERMARIA(41, 40, 62, 59, 36),
+        ARCO(59, -10, 69, 10, 30),
+        CAMPO(-38, 66, 38, 122, 40),
+        ARENA(-72, 70, -38, 106, 36),
+        LABORATORIO(40, 66, 66, 90, 34),
+        ESTABULOS(40, 92, 74, 124, 22),
+        AUDITORIO(18, -114, 58, -77, 46);
 
         final int x0;
         final int z0;
@@ -132,6 +137,11 @@ public class CampusPiece extends StructurePiece {
             case OFICINA -> CampusBuildings.oficina(m);
             case ENFERMARIA -> CampusBuildings.enfermaria(m);
             case ARCO -> CampusBuildings.arco(m);
+            case CAMPO -> CampusBuildings.campo(m);
+            case ARENA -> CampusBuildings.arena(m);
+            case LABORATORIO -> CampusBuildings.laboratorio(m);
+            case ESTABULOS -> CampusBuildings.estabulos(m);
+            case AUDITORIO -> CampusBuildings.auditorio(m);
         }
         m.join();
         CampusBuildings.people(m, kind);
