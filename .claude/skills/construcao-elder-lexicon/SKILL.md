@@ -33,7 +33,7 @@ e um lugar no terreno. Uma caixa de um bloco só com telhado chapado é o erro a
    3 ângulos: frente (`pitch=6`), um canto a 45° (`pitch=25–35`) e de cima (`pitch=70`). Se o screenshot der timeout,
    repita com `zoom` na região `[0,0,800,600]`, que costuma passar. Use `&lighting=night` para conferir a iluminação.
    A grama não aparece no visualizador (só a borda do chão) e a pedra sai rosada: é o renderizador. **Um sino
-   (`minecraft:bell`) trava o carregamento** ("Loading build..." para sempre): deixe-o fora do rascunho
+   (`minecraft:bell`), uma fogueira (`campfire`) ou um shroomlight travam o carregamento** ("Loading build..." para sempre): deixe-o fora do rascunho
    (`if (!process.env.NOBELL)`) e ponha só no Java. Mantenha um prédio
    por preview: construções de 100 mil blocos não carregam. Para várias partes, um servidor por porta.
 4. **Criticar com o checklist** (seção 5), corrigir a receita, regerar, ver de novo. Pelo menos uma volta de crítica
@@ -97,6 +97,12 @@ Os rascunhos ficam no scratchpad, não no repositório. Se um prédio virar temp
 - Tudo determinístico pela posição (`chance()`), nunca `Random` solto: os chunks têm de concordar.
 
 ## 3. O estilo da casa
+
+**A torre é a identidade do mod** (decidido com o autor, 27/10/2026): toda construção de mago tem pelo menos uma
+**torre redonda** na silhueta, com cone de ardósia íngreme. Pode ser uma torre de escada colada, uma torre de canto, a
+torre da chaminé, a torre do portão. A redonda vale mais que a quadrada. O modelo é a torre dos Dormitórios: pé
+alargado, faixa a cada andar, janelas em volta (de vidro inteiro), mísulas e ameias, cone com janelas acesas (bloco de
+vidro roxo + laje), para-raios no lugar da laje do topo, chaminé saindo da encosta com capitel de escadas.
 
 O campus tem **cara de castelo-escola de magia** (`docs/universidade-arquitetura-design.md`): torres, agulhas,
 claustros, pontes; muralha só no núcleo. A vila em volta é **uma vila do jogo, do bioma**.

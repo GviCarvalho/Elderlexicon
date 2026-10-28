@@ -51,6 +51,13 @@ Exemplo de ritual em loop:
 
 Tirando a marca de um pergaminho: a próxima leitura não o encontra e a corrente quebra ali.
 
+## 5.1 Pergaminho emoldurado fica sozinho (decidido, 27/10/2026)
+
+Um pergaminho **dentro de uma moldura** nunca entra num círculo de ritual: nem ao lado de outros pergaminhos, nem
+dentro de um círculo. Emoldurado, ele é uma página sozinha, lida só pela marca (`<marca> surgit`). Só pergaminhos
+afixados direto na superfície e inscrições formam círculos. É o que permite pôr vários pergaminhos lado a lado sem que
+virem um ritual.
+
 ## 6. No código
 
 | Peça | Papel |

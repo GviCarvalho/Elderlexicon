@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {"type": "minecraft:item", "name": "minecraft:sand", "functions": [{"function": "minecraft:set_count", "count": 64}]}
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {"type": "minecraft:item", "name": "minecraft:sand", "functions": [{"function": "minecraft:set_count", "count": 64}]}
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {"type": "minecraft:item", "name": "minecraft:torch", "functions": [{"function": "minecraft:set_count", "count": 16}]}
+      ]
+    }
+  ]
+}

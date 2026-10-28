@@ -227,7 +227,41 @@ final class Masonry {
         }
     }
 
-    void lectern(int x, int y, int z, Direction facing, Supplier<ItemStack> book) {
+    /** {@code state}, a container, at {@code (x, y, z)}, filled from the loot table {@code loot} of the mod. */
+    void container(int x, int y, int z, BlockState state, String loot) {
+        if (!set(x, y, z, state)) {
+            return;
+        }
+        if (level.getBlockEntity(at(x, y, z)) instanceof RandomizableContainerBlockEntity container) {
+            container.setLootTable(new ResourceLocation(ElderLexicon.MODID, loot), Mth.getSeed(at(x, y, z)));
+        }
+    }
+
+    /** Suspicious sand at {@code (x, y, z)}, holding what the archaeology table {@code loot} of the game gives. */
+    void suspicious(int x, int y, int z, String loot) {
+        if (!set(x, y, z, Blocks.SUSPICIOUS_SAND.defaultBlockState())) {
+            return;
+        }
+        if (level.getBlockEntity(at(x, y, z))
+                instanceof net.minecraft.world.level.block.entity.BrushableBlockEntity brushable) {
+            brushable.setLootTable(new ResourceLocation(loot), Mth.getSeed(at(x, y, z)));
+        }
+    }
+
+    /** A spring of water at {@code (x, y, z)} that runs once the world is made: its flow is set going. */
+    void spring(int x, int y, int z) {
+        BlockPos pos = at(x, y, z);
+        if (set(x, y, z, Blocks.WATER.defaultBlockState())) {
+            level.scheduleTick(pos, net.minecraft.world.level.material.Fluids.WATER, 1);
+        }
+    }
+
+    /** The offset of the world's height {@code worldY} from the ground this is drawn at. */
+    int toWorld(int worldY) {
+        return worldY - y0;
+    }
+
+        void lectern(int x, int y, int z, Direction facing, Supplier<ItemStack> book) {
         BlockState lectern = Blocks.LECTERN.defaultBlockState().setValue(LecternBlock.FACING, facing);
         BlockPos pos = at(x, y, z);
         if (!chunk.isInside(pos)) {

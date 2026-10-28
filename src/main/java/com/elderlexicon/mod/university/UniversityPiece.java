@@ -346,7 +346,8 @@ public class UniversityPiece extends StructurePiece {
         }
         m.ring(x, height + 1, z, radius, Blocks.STONE_BRICK_WALL.defaultBlockState(), false);
         m.cone(x, height + 2, z, radius, 2, Blocks.DEEPSLATE_TILES.defaultBlockState(), SLATE_EDGE);
-        m.set(x, height + 2 + (radius + 1) * 2, z, Blocks.LIGHTNING_ROD.defaultBlockState());
+        // In place of the cone's top slab, on the full block under it: on the slab it stood off the roof.
+        m.set(x, height + 1 + (radius + 1) * 2, z, Blocks.LIGHTNING_ROD.defaultBlockState());
         m.set(x + radius - 1, height + 1, z, Blocks.LANTERN.defaultBlockState());
     }
 
@@ -387,7 +388,7 @@ public class UniversityPiece extends StructurePiece {
         m.fill(-2, ridge + 2, -38, 2, ridge + 2, -38, Blocks.AIR.defaultBlockState());
         m.set(0, ridge + 1, -38, Blocks.LANTERN.defaultBlockState());
         m.cone(0, ridge + 5, -38, 3, 3, Blocks.DEEPSLATE_TILES.defaultBlockState(), SLATE_EDGE);
-        m.set(0, Math.min(TOP, ridge + 5 + 12), -38, Blocks.LIGHTNING_ROD.defaultBlockState());
+        m.set(0, Math.min(TOP, ridge + 5 + 11), -38, Blocks.LIGHTNING_ROD.defaultBlockState()); // the top slab's place
         // The nave's columns, the dais and the Rector's seat, the council's table, a carpet up the middle.
         for (int z = -52; z <= -24; z += 6) {
             for (int x : new int[]{-9, 9}) {
@@ -440,7 +441,7 @@ public class UniversityPiece extends StructurePiece {
             m.set(x0 + 3, y, z0 + 3, Blocks.LANTERN.defaultBlockState());
         }
         m.cone(x0 + 3, height + 1, z0 + 3, 4, 3, Blocks.DEEPSLATE_TILES.defaultBlockState(), SLATE_EDGE);
-        m.set(x0 + 3, height + 1 + 15, z0 + 3, Blocks.LIGHTNING_ROD.defaultBlockState());
+        m.set(x0 + 3, height + 1 + 14, z0 + 3, Blocks.LIGHTNING_ROD.defaultBlockState()); // the top slab's place
     }
 
     // ------------------------------------------------------------------ the Library

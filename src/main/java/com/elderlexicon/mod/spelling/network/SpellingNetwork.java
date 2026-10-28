@@ -20,7 +20,7 @@ import java.util.List;
 public final class SpellingNetwork {
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final String PROTOCOL = "12";
+    private static final String PROTOCOL = "13";
         private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ElderLexicon.MODID, "spelling"),
             () -> PROTOCOL,
@@ -202,6 +202,20 @@ public final class SpellingNetwork {
                 FeverPacket::decode,
                 FeverPacket::handle
         );
+        CHANNEL.registerMessage(
+                nextPacketId++,
+                LecternGrimoirePacket.class,
+                LecternGrimoirePacket::encode,
+                LecternGrimoirePacket::decode,
+                LecternGrimoirePacket::handle
+        );
+        CHANNEL.registerMessage(
+                nextPacketId++,
+                LecternPagePacket.class,
+                LecternPagePacket::encode,
+                LecternPagePacket::decode,
+                LecternPagePacket::handle
+        );
         LOGGER.info("Spelling network channel ready (protocol {}).", PROTOCOL);
     }
 
@@ -215,6 +229,17 @@ public final class SpellingNetwork {
 
     public static void syncToPlayer(ServerPlayer player, SpellingRepertoire repertoire) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), ServerRepertoireSyncPacket.from(repertoire));
+    }
+
+    /** Opens for {@code player} the grimoire on the lectern at {@code lectern}, at {@code page}. */
+    public static void openLecternGrimoire(ServerPlayer player, net.minecraft.core.BlockPos lectern, int page,
+                                           net.minecraft.world.item.ItemStack book) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new LecternGrimoirePacket(lectern, page, book));
+    }
+
+    /** The grimoire on the lectern at {@code lectern} was closed at {@code page}. */
+    public static void sendLecternPage(net.minecraft.core.BlockPos lectern, int page) {
+        CHANNEL.sendToServer(new LecternPagePacket(lectern, page));
     }
 
     /** The flow key was pressed: the server enters or leaves the state of flow. */
