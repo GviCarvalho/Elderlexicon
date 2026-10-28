@@ -2,6 +2,7 @@ package com.elderlexicon.mod.university;
 
 import com.elderlexicon.mod.tower.Towers;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -100,22 +101,34 @@ public class CampusRoadPiece extends StructurePiece {
         int to = alongX ? Math.max(ax, bx) : Math.max(az, bz);
         int start = alongX ? ax : az;
         int length = Math.max(1, Math.abs((alongX ? bx : bz) - start));
+        Direction up = alongX ? Direction.EAST : Direction.SOUTH;
         for (int along = from; along <= to; along++) {
-            double t = Math.abs(along - start) / (double) length;
-            int y = Mth.floor(Mth.lerp(t, ay, by) + 0.5D);
+            int y = heightAt(along, start, length);
+            // Where the way rises a block from the cell before (or after), the step is a stair, to walk up it.
+            Direction step = along > from && y > heightAt(along - 1, start, length) ? up
+                    : along < to && y > heightAt(along + 1, start, length) ? up.getOpposite() : null;
             for (int across = -half; across <= half; across++) {
                 int x = alongX ? along : ax + across;
                 int z = alongX ? az + across : along;
                 if (!chunk.isInside(m.at(x, y, z))) {
                     continue;
                 }
-                for (int below = y - 1; below >= y - 6 && !m.solid(x, below, z); below--) {
-                    m.set(x, below, z, Blocks.DIRT.defaultBlockState());
+                // Under it, stone down to firm ground: off the plateau, a causeway, walled at its sides.
+                int filled = 0;
+                for (int below = y - 1; below >= y - 40 && !m.solid(x, below, z); below--) {
+                    m.set(x, below, z, m.stone(x, below, z));
+                    filled++;
                 }
                 boolean edge = Math.abs(across) == half && half >= 2;
-                m.set(x, y, z, edge ? Blocks.GRASS_BLOCK.defaultBlockState() : paving(m, x, y, z));
+                boolean causeway = filled >= 2;
+                m.set(x, y, z, step != null && !(edge && causeway) ? Masonry.stairs(Blocks.STONE_BRICK_STAIRS, step)
+                        : edge && !causeway ? Blocks.GRASS_BLOCK.defaultBlockState() : paving(m, x, y, z));
                 for (int above = 1; above <= 4; above++) {
                     m.set(x, y + above, z, Blocks.AIR.defaultBlockState());
+                }
+                if (edge && causeway) {
+                    m.set(x, y, z, Blocks.STONE_BRICKS.defaultBlockState());
+                    m.set(x, y + 1, z, Blocks.STONE_BRICK_WALL.defaultBlockState());
                 }
             }
             // Lamp posts along the wide avenues, at their edges.
@@ -130,6 +143,12 @@ public class CampusRoadPiece extends StructurePiece {
             }
         }
         m.join();
+    }
+
+    /** The height of the way at {@code along}, between its two ends. */
+    private int heightAt(int along, int start, int length) {
+        double t = Math.abs(along - start) / (double) length;
+        return Mth.floor(Mth.lerp(t, ay, by) + 0.5D);
     }
 
     private static BlockState paving(Masonry m, int x, int y, int z) {

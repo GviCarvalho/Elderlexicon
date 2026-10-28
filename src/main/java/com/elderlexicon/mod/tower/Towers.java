@@ -33,6 +33,8 @@ public final class Towers {
             () -> (context, tag) -> new com.elderlexicon.mod.university.CampusPiece(tag));
     public static final RegistryObject<StructurePieceType> CAMPUS_ROAD_PIECE = PIECES.register("campus_road",
             () -> (context, tag) -> new com.elderlexicon.mod.university.CampusRoadPiece(tag));
+    public static final RegistryObject<StructurePieceType> CAMPUS_TERRACE_PIECE = PIECES.register("campus_terrace",
+            () -> (context, tag) -> new com.elderlexicon.mod.university.TerracePiece(tag));
     public static final RegistryObject<StructurePieceType> UNIVERSITY_ROAD_PIECE = PIECES.register("university_road",
             () -> (context, tag) -> new com.elderlexicon.mod.university.UniversityRoadPiece(tag));
 
