@@ -40,19 +40,25 @@ final class Masonry {
     private final net.minecraft.world.level.block.Rotation rotation;
     private final int ox;
     private final int oz;
+    /** A building's own turn, about its middle {@code (ax, az)}, before the campus's. */
+    private final net.minecraft.world.level.block.Rotation turn;
+    private final int ax;
+    private final int az;
 
     Masonry(WorldGenLevel level, BoundingBox chunk, int cx, int y0, int cz) {
         this(level, chunk, cx, y0, cz, net.minecraft.world.level.block.Rotation.NONE, 0, 0,
-                new java.util.ArrayList<>());
+                net.minecraft.world.level.block.Rotation.NONE, 0, 0, new java.util.ArrayList<>());
     }
 
     Masonry(WorldGenLevel level, BoundingBox chunk, int cx, int y0, int cz,
             net.minecraft.world.level.block.Rotation rotation) {
-        this(level, chunk, cx, y0, cz, rotation, 0, 0, new java.util.ArrayList<>());
+        this(level, chunk, cx, y0, cz, rotation, 0, 0, net.minecraft.world.level.block.Rotation.NONE, 0, 0,
+                new java.util.ArrayList<>());
     }
 
     private Masonry(WorldGenLevel level, BoundingBox chunk, int cx, int y0, int cz,
                     net.minecraft.world.level.block.Rotation rotation, int ox, int oz,
+                    net.minecraft.world.level.block.Rotation turn, int ax, int az,
                     java.util.List<BlockPos> joining) {
         this.level = level;
         this.chunk = chunk;
@@ -62,12 +68,29 @@ final class Masonry {
         this.rotation = rotation;
         this.ox = ox;
         this.oz = oz;
+        this.turn = turn;
+        this.ax = ax;
+        this.az = az;
         this.joining = joining;
     }
 
     /** The same mason, drawing what is drawn at {@code (x, z)} at {@code (x + dx, z + dz)}. */
     Masonry shifted(int dx, int dz) {
-        return new Masonry(level, chunk, cx, y0, cz, rotation, ox + dx, oz + dz, joining);
+        return new Masonry(level, chunk, cx, y0, cz, rotation, ox + dx, oz + dz, turn, ax, az, joining);
+    }
+
+    /**
+     * The same mason, drawing a building whose drawing has its middle at {@code (fromX, fromZ)} with its middle at
+     * {@code (toX, toZ)} instead, turned {@code by} about it (every block's facing with it). A layout of the campus is
+     * where each building goes and how it is turned.
+     */
+    Masonry placed(int fromX, int fromZ, int toX, int toZ, net.minecraft.world.level.block.Rotation by) {
+        return new Masonry(level, chunk, cx, y0, cz, rotation, toX - fromX, toZ - fromZ, by, fromX, fromZ, joining);
+    }
+
+    /** The turn a block's facing takes: the building's, then the campus's. */
+    private net.minecraft.world.level.block.Rotation facing() {
+        return rotation.getRotated(turn);
     }
 
     /** The offset {@code (x, z)} of the campus, turned as the campus is. */
@@ -82,7 +105,7 @@ final class Masonry {
 
     /** {@code facing} as it lies in the world, the campus turned. */
     Direction turn(Direction facing) {
-        return rotation.rotate(facing);
+        return facing().rotate(facing);
     }
 
     /**
@@ -103,7 +126,8 @@ final class Masonry {
     }
 
     BlockPos at(int x, int y, int z) {
-        int[] turned = turn(rotation, x + ox, z + oz);
+        int[] own = turn(turn, x - ax, z - az);
+        int[] turned = turn(rotation, own[0] + ax + ox, own[1] + az + oz);
         return new BlockPos(cx + turned[0], y0 + y, cz + turned[1]);
     }
 
@@ -121,7 +145,7 @@ final class Masonry {
         if (!chunk.isInside(pos)) {
             return false;
         }
-        state = state.rotate(rotation);
+        state = state.rotate(facing());
         level.setBlock(pos, state, Block.UPDATE_CLIENTS);
         if (joins(state)) {
             joining.add(pos.immutable());
@@ -147,6 +171,18 @@ final class Masonry {
             if (joins(state)) {
                 level.setBlock(pos, Block.updateFromNeighbourShapes(state, level, pos), Block.UPDATE_CLIENTS);
             }
+            // A fence over the chunk's edge was joined when its own chunk was made, before this one stood beside it:
+            // it is joined again now.
+            for (net.minecraft.core.Direction side : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+                BlockPos next = pos.relative(side);
+                if (chunk.isInside(next) || !level.ensureCanWrite(next)) {
+                    continue;
+                }
+                BlockState there = level.getBlockState(next);
+                if (joins(there)) {
+                    level.setBlock(next, Block.updateFromNeighbourShapes(there, level, next), Block.UPDATE_CLIENTS);
+                }
+            }
         }
         joining.clear();
     }
@@ -155,7 +191,7 @@ final class Masonry {
     void fill(int x0, int y0, int z0, int x1, int y1, int z1, BlockState state) {
         BlockPos a = at(x0, 0, z0);
         BlockPos b = at(x1, 0, z1);
-        state = state.rotate(rotation);
+        state = state.rotate(facing());
         int ax = Math.max(Math.min(a.getX(), b.getX()), chunk.minX());
         int bx = Math.min(Math.max(a.getX(), b.getX()), chunk.maxX());
         int az = Math.max(Math.min(a.getZ(), b.getZ()), chunk.minZ());
@@ -167,6 +203,9 @@ final class Masonry {
             for (int z = az; z <= bz; z++) {
                 for (int y = ay; y <= by; y++) {
                     level.setBlock(pos.set(x, y, z), state, Block.UPDATE_CLIENTS);
+                    if (joins(state)) {
+                        joining.add(pos.immutable());
+                    }
                 }
             }
         }
@@ -268,7 +307,7 @@ final class Masonry {
             return;
         }
         ItemStack stack = book.get();
-        level.setBlock(pos, lectern.setValue(LecternBlock.HAS_BOOK, !stack.isEmpty()).rotate(rotation),
+        level.setBlock(pos, lectern.setValue(LecternBlock.HAS_BOOK, !stack.isEmpty()).rotate(facing()),
                 Block.UPDATE_CLIENTS);
         if (!stack.isEmpty() && level.getBlockEntity(pos) instanceof LecternBlockEntity entity) {
             entity.setBook(stack);

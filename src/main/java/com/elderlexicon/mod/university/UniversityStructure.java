@@ -62,43 +62,81 @@ public class UniversityStructure extends Structure {
     }
 
     /**
-     * The terraces the campus lies on (docs/universidade-arquitetura-design.md, 5.3), each a list of rectangles of the
-     * campus {x0, z0, x1, z1}: the core, north, with the auditorium behind it; the middle, from the core's wall to the
-     * ring road; the fields, south. Every building is on one and at its ground.
+     * The layout of the axis (docs/universidade-arquitetura-design.md, 5.5): the terraces the campus lies on, each a
+     * rectangle of the campus {x0, z0, x1, z1, level}. Level 0 is the plateau's ground: the gate court east, the fields
+     * south; level 1, six over it: the square of learning on the axis, the teaching building, the refectory, the
+     * dormitories and the auditorium north of it, the walk under the acropolis's wall; level 2, twelve over: the
+     * acropolis west, the Great Hall at the axis's end.
      */
-    private static final int[][][] TERRACES = {
-            {{-70, -116, 72, -10}},
-            {{-70, -9, 72, 66}},
-            {{-70, 67, 72, 127}}};
-    private static final int CORE = 0;
-    private static final int MIDDLE = 1;
-    private static final int FIELDS = 2;
-    /** The core over the middle (at least, at most), the fields under it (at most): a stair's height. */
-    private static final int CORE_LEAST = 2;
-    private static final int CORE_RISE = 4;
-    private static final int FIELDS_FALL = 0;
+    private static final int[][] TERRACES = {
+            {34, -40, 72, 48, 0}, {-70, 49, 72, 127, 0}, {-11, 44, 33, 48, 0},
+            {-11, -48, 33, 43, 1}, {-70, -116, 72, -49, 1}, {34, -48, 72, -41, 1}, {-70, -48, -12, -45, 1},
+            {-70, -44, -12, 48, 2}};
+    private static final int LEVELS = 3;
+    /** How high each level stands over the one below it. */
+    private static final int RISE = 6;
     /** How far the plateau stands over most of the land under it. */
     private static final int PLATEAU = 9;
     /**
-     * The towers of the rampart, on its line {x, z}: at its corners and along it. None where a tower of the campus
-     * stands close inside and would fuse with it (the core's corners, the arch, the auditorium, the arena's own).
+     * The stairs between the levels, on the axis {x, z, level below}: their top step's middle, each running east, nine
+     * wide; where the terrace above opens its parapet for it.
+     */
+    private static final int[][] STAIRS = {{34, 0, 0}, {-11, 0, 1}};
+    private static final int[] OPENINGS = {33, -4, 33, 4, -12, -4, -12, 4};
+    /**
+     * The towers of the rampart, on its line {x, z, r}: at its corners and along it, one where the escarp steps from
+     * a level to another. None where a tower of the campus stands close inside and would fuse with it.
      */
     private static final int[][] RAMPART_TOWERS = {
-            {-70, -116, 4}, {-26, -116, 4}, {16, -116, 4}, {72, -116, 4}, {72, -90, 4}, {72, -56, 4}, {72, -28, 4},
-            {72, -8, 3}, {72, 8, 3}, {72, 30, 4}, {72, 52, 4}, {72, 66, 4}, {72, 82, 4}, {72, 127, 4}, {54, 127, 4},
-            {24, 127, 4}, {-20, 127, 4}, {-70, 127, 4}, {-70, 108, 4}, {-70, 66, 4}, {-70, 52, 4}, {-70, 20, 4},
-            {-70, -10, 3}, {-70, -26, 4}, {-70, -56, 4}, {-70, -90, 4}};
+            {-70, -116, 4}, {-26, -116, 4}, {16, -116, 4}, {72, -116, 4}, {72, -90, 4}, {72, -56, 4}, {72, -41, 4},
+            {72, -28, 4}, {72, 30, 4}, {72, 52, 4}, {72, 66, 4}, {72, 82, 4}, {72, 127, 4},
+            {54, 127, 4}, {24, 127, 4}, {-20, 127, 4}, {-70, 127, 4}, {-70, 108, 4}, {-70, 66, 4}, {-70, 48, 4},
+            {-70, 20, 4}, {-70, -10, 3}, {-70, -44, 4}, {-70, -56, 4}, {-70, -90, 4}};
     /** Where the rampart opens: the gate, east, out of the arch onto the way down to the village. */
     private static final int[] GATE = {70, -3, 72, 3};
+
+    /** The buildings of the layout of the axis, each where it stands and how it is turned. */
+    private static final java.util.Map<CampusPiece.Kind, CampusPiece.Placement> LAYOUT = layout();
+
+    private static java.util.Map<CampusPiece.Kind, CampusPiece.Placement> layout() {
+        java.util.Map<CampusPiece.Kind, CampusPiece.Placement> at = new java.util.EnumMap<>(CampusPiece.Kind.class);
+        CampusPiece.Placement home = CampusPiece.Placement.HOME;
+        // The gate court: the fountain turned so its way across runs along the axis; the workshop north of it and the
+        // infirmary south, each turned to open onto it.
+        at.put(CampusPiece.Kind.PATIO, new CampusPiece.Placement(0, 0, 50, 0, Rotation.CLOCKWISE_90));
+        at.put(CampusPiece.Kind.ARCO, home);
+        at.put(CampusPiece.Kind.OFICINA, new CampusPiece.Placement(50, 28, 50, -27, Rotation.COUNTERCLOCKWISE_90));
+        at.put(CampusPiece.Kind.ENFERMARIA, new CampusPiece.Placement(50, 49, 50, 27, Rotation.CLOCKWISE_90));
+        // The square of learning: the teaching building north of it, its bell tower toward it; the library south.
+        at.put(CampusPiece.Kind.PRACA, home);
+        at.put(CampusPiece.Kind.AULAS, new CampusPiece.Placement(0, 30, 11, -58, Rotation.CLOCKWISE_180));
+        at.put(CampusPiece.Kind.BIBLIOTECA,
+                new CampusPiece.Placement(-44, -44, 11, 31, Rotation.COUNTERCLOCKWISE_90));
+        // North, at the square's level: the refectory and the dormitories west, the auditorium east.
+        at.put(CampusPiece.Kind.REFEITORIO, new CampusPiece.Placement(-54, 0, -48, -68, Rotation.NONE));
+        at.put(CampusPiece.Kind.DORMITORIOS, new CampusPiece.Placement(-53, 38, -52, -97, Rotation.NONE));
+        at.put(CampusPiece.Kind.AUDITORIO, new CampusPiece.Placement(40, -96, 44, -94, Rotation.NONE));
+        // The acropolis: the Great Hall facing the axis, the research tower north-west of it.
+        at.put(CampusPiece.Kind.ACROPOLE, home);
+        at.put(CampusPiece.Kind.REITORIA, new CampusPiece.Placement(0, -44, -46, 0, Rotation.COUNTERCLOCKWISE_90));
+        at.put(CampusPiece.Kind.PESQUISA, new CampusPiece.Placement(42, -48, -50, -26, Rotation.COUNTERCLOCKWISE_90));
+        // The fields, where they were.
+        at.put(CampusPiece.Kind.CAMPO, home);
+        at.put(CampusPiece.Kind.ARENA, home);
+        at.put(CampusPiece.Kind.LABORATORIO, home);
+        at.put(CampusPiece.Kind.ESTABULOS, home);
+        return at;
+    }
+
     /** How rough the land may be for a university to be laid on it: past this, it is not laid there. */
     private static final double ROUGHEST = 18.0D;
 
-    /** The terrace a building is on. */
+    /** The level a building stands on. */
     static int terraceOf(CampusPiece.Kind kind) {
         return switch (kind) {
-            case NUCLEO, AUDITORIO -> CORE;
-            case CAMPO, ARENA, LABORATORIO, ESTABULOS -> FIELDS;
-            default -> MIDDLE;
+            case ACROPOLE, REITORIA, PESQUISA -> 2;
+            case PRACA, AULAS, BIBLIOTECA, REFEITORIO, DORMITORIOS, AUDITORIO, NUCLEO -> 1;
+            default -> 0;
         };
     }
 
@@ -127,80 +165,72 @@ public class UniversityStructure extends Structure {
         int cz = best.cz();
         int[] terrace = best.heights();
         List<StructurePiece> pieces = new ArrayList<>();
-        // The terraces first, so every building is drawn on its ground; the core's wall falls to the middle, the
-        // middle's to the fields, a stair down each where the ways cross; round them all, the rampart, and its towers.
-        int coreDrop = terrace[CORE] - terrace[MIDDLE];
-        int fieldsDrop = terrace[MIDDLE] - terrace[FIELDS];
-        List<Integer> union = new ArrayList<>();
-        for (int[][] rects : TERRACES) {
-            for (int[] r : rects) {
-                for (int v : r) {
-                    union.add(v);
-                }
-            }
+        // The terraces first, so every building is drawn on its ground; each with a retaining wall where it looks out
+        // onto a lower one; round them all, the rampart, and its towers.
+        int[] plateau = new int[TERRACES.length * 4];
+        int[] levels = new int[TERRACES.length * 5];
+        for (int i = 0; i < TERRACES.length; i++) {
+            int[] r = TERRACES[i];
+            System.arraycopy(r, 0, plateau, i * 4, 4);
+            System.arraycopy(r, 0, levels, i * 5, 4);
+            levels[i * 5 + 4] = terrace[r[4]];
         }
-        int[] plateau = union.stream().mapToInt(Integer::intValue).toArray();
-        for (int t = 0; t < TERRACES.length; t++) {
-            for (int[] r : TERRACES[t]) {
-                int drop = r[3] == -10 ? coreDrop : r[3] == 66 ? fieldsDrop : 0;
-                pieces.add(TerracePiece.platform(cx, cz, rotation, terrace[t], r[0], r[1], r[2], r[3], drop, plateau,
-                        GATE, terrace[MIDDLE], -2, 2, -1, 1, -40, -36, 36, 40));
-            }
+        for (int[] r : TERRACES) {
+            pieces.add(TerracePiece.platform(cx, cz, rotation, terrace[r[4]], r[0], r[1], r[2], r[3], plateau, GATE,
+                    terrace[0], levels, OPENINGS));
         }
         for (int[] at : RAMPART_TOWERS) {
             Integer y = terraceAt(terrace, at[0], at[1]);
-            pieces.add(TerracePiece.tower(cx, cz, rotation, y == null ? terrace[MIDDLE] : y, at[0], at[1], at[2], 14,
-                    terrace[MIDDLE]));
+            pieces.add(TerracePiece.tower(cx, cz, rotation, y == null ? terrace[0] : y, at[0], at[1], at[2], 14,
+                    terrace[0]));
         }
-        java.util.Map<CampusPiece.Kind, Integer> grounds = new java.util.EnumMap<>(CampusPiece.Kind.class);
-        for (CampusPiece.Kind kind : CampusPiece.Kind.values()) {
-            grounds.put(kind, terrace[terraceOf(kind)]);
-            pieces.add(new CampusPiece(kind, cx, terrace[terraceOf(kind)], cz, rotation));
+        for (java.util.Map.Entry<CampusPiece.Kind, CampusPiece.Placement> building : LAYOUT.entrySet()) {
+            pieces.add(new CampusPiece(building.getKey(), cx, terrace[terraceOf(building.getKey())], cz, rotation,
+                    building.getValue()));
         }
-        if (coreDrop > 0) {
-            pieces.add(TerracePiece.stair(cx, cz, rotation, terrace[MIDDLE], -2, 2, -9, coreDrop));
+        // The stairs up the axis, after the buildings, so nothing of theirs covers them.
+        for (int[] stair : STAIRS) {
+            pieces.add(TerracePiece.stair(cx, cz, rotation, terrace[stair[2]], stair[0], stair[1],
+                    Rotation.COUNTERCLOCKWISE_90, 4, RISE));
         }
-        if (fieldsDrop > 0) {
-            pieces.add(TerracePiece.stair(cx, cz, rotation, terrace[FIELDS], -1, 1, 67, fieldsDrop));
-        }
-        // The avenues: east to the arch and on toward the village, west to the refectory, the ring round the teaching
-        // building and down the fields' sides, and a way to every door on it. Each takes its ends' heights from the
-        // terraces they are on, so it meets the doors; where it goes from one terrace to another it is a ramp.
+        // The avenues: out of the gate to the village; from the gate court south, down the side, to the ring road of
+        // the fields and the ways to their doors. Each takes its ends' heights from the terraces they are on.
         int[][][] avenues = {
-                {{0, 11}, {0, 12}},
-                {{17, 0}, {59, 0}}, {{69, 0}, {100, 0}},
-                {{-17, 0}, {-44, 0}},
-                {{-38, 0}, {-38, 64}}, {{-38, 64}, {38, 64}}, {{38, 64}, {38, 0}},
-                {{-38, 38}, {-43, 38}}, {{38, 28}, {41, 28}}, {{38, 49}, {41, 49}},
+                {{60, 0}, {69, 0}}, {{69, 0}, {100, 0}},
+                {{62, 12}, {62, 64}}, {{38, 64}, {62, 64}},
+                {{-38, 64}, {38, 64}}, {{0, 64}, {0, 66}},
                 {{-38, 64}, {-38, 88}}, {{-38, 88}, {-40, 88}},
                 {{38, 64}, {38, 106}}, {{38, 76}, {40, 76}}, {{38, 106}, {44, 106}}};
         for (int[][] avenue : avenues) {
-            int half = avenue[0][1] == 0 && avenue[1][1] == 0 && Math.abs(avenue[0][0]) >= 17 ? 2 : 1;
+            int half = avenue[0][1] == 0 && avenue[1][1] == 0 ? 2 : 1;
             stretches(context, pieces, terrace, cx, cz, rotation, avenue[0], avenue[1], half, sea);
         }
         int[] well = world(sx, sz, rotation, VILLAGE_AHEAD, 0);
         Optional<GenerationStub> village = village(context, new BlockPos(well[0], 0, well[1]));
-        return Optional.of(new GenerationStub(new BlockPos(sx, terrace[CORE], sz), builder -> {
+        return Optional.of(new GenerationStub(new BlockPos(sx, terrace[LEVELS - 1], sz), builder -> {
             pieces.forEach(builder::addPiece);
             village.ifPresent(stub -> stub.getPiecesBuilder().build().pieces().forEach(builder::addPiece));
         }));
     }
 
     /**
-     * How the campus would lie turned by {@code rotation}: each terrace stands over most of the land under it (its
-     * three quarters, sampled on a grid, never below the sea), a plateau; the core a step or two over the middle, the
-     * fields no higher than it and at most a stair below; how rough the land is for it is how far, on the average, the
-     * land is from its middle under each terrace, and what keeping the terraces a stair apart asks.
+     * How the campus would lie turned by {@code rotation}: its ground (level 0) stands over most of the land under the
+     * whole campus (its three quarters, sampled on a grid in each terrace, never below the sea), a plateau; each level
+     * a stair's rise over the one below. How rough the land is for it: how far, on the average, the land is from its
+     * middle under each level.
      */
     private static Lie lie(GenerationContext context, int sx, int sz, Rotation rotation, int sea) {
         int[] middle = Masonry.turn(rotation, -CAMPUS_BACK, 0);
         int cx = sx + middle[0];
         int cz = sz + middle[1];
-        int[] natural = new int[TERRACES.length];
+        List<Integer> all = new ArrayList<>();
         double roughness = 0.0D;
-        for (int t = 0; t < TERRACES.length; t++) {
+        for (int level = 0; level < LEVELS; level++) {
             List<Integer> heights = new ArrayList<>();
-            for (int[] r : TERRACES[t]) {
+            for (int[] r : TERRACES) {
+                if (r[4] != level) {
+                    continue;
+                }
                 for (int i = 0; i <= 4; i++) {
                     for (int j = 0; j <= 4; j++) {
                         int[] turned = Masonry.turn(rotation, r[0] + (r[2] - r[0]) * i / 4, r[1] + (r[3] - r[1]) * j / 4);
@@ -211,18 +241,19 @@ public class UniversityStructure extends Structure {
             List<Integer> sorted = new ArrayList<>(heights);
             Collections.sort(sorted);
             int median = sorted.get(sorted.size() / 2);
-            natural[t] = sorted.get(sorted.size() * 3 / 4) + PLATEAU;
             double off = 0.0D;
             for (int h : heights) {
                 off += Math.abs(h - median);
             }
             roughness += off / heights.size();
+            all.addAll(heights);
         }
-        int[] terrace = new int[TERRACES.length];
-        terrace[MIDDLE] = natural[MIDDLE];
-        terrace[CORE] = Math.max(terrace[MIDDLE] + CORE_LEAST, Math.min(terrace[MIDDLE] + CORE_RISE, natural[CORE]));
-        terrace[FIELDS] = Math.min(terrace[MIDDLE], Math.max(terrace[MIDDLE] - FIELDS_FALL, natural[FIELDS]));
-        roughness += 0.5D * (Math.abs(terrace[CORE] - natural[CORE]) + Math.abs(terrace[FIELDS] - natural[FIELDS]));
+        Collections.sort(all);
+        int ground = all.get(all.size() * 3 / 4) + PLATEAU;
+        int[] terrace = new int[LEVELS];
+        for (int level = 0; level < LEVELS; level++) {
+            terrace[level] = ground + RISE * level;
+        }
         return new Lie(rotation, cx, cz, terrace, roughness);
     }
 
@@ -298,11 +329,9 @@ public class UniversityStructure extends Structure {
 
     /** The height of the terrace {@code (x, z)} of the campus is on; null off them (the land's, then). */
     private static Integer terraceAt(int[] terraces, int x, int z) {
-        for (int t = 0; t < TERRACES.length; t++) {
-            for (int[] r : TERRACES[t]) {
-                if (x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3]) {
-                    return terraces[t];
-                }
+        for (int[] r : TERRACES) {
+            if (x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3]) {
+                return terraces[r[4]];
             }
         }
         return null;
