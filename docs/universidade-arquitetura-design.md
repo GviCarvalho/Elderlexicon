@@ -151,6 +151,65 @@ Como as vilas: **um planejador** monta o traçado no começo da estrutura, e cad
 Cada peça sabe **o que ela é** (`camara_fria`, `arena`, `dormitorio_do_sonho`...). Para saber se o aluno está num
 lugar, basta perguntar ao jogo que peça da universidade está naquele ponto. Nada a mais para salvar.
 
+### 5.4 Os terraços (27/10/2026, decidido com o autor: as três ideias juntas)
+
+Antes, cada prédio escolhia a sua altura de chão sozinho: lotes vizinhos ficavam com paredões e buracos entre eles, e o
+terreno só se moldava dentro de cada caixa. Agora o campus assenta em **três terraços planos**, como uma universidade
+construída numa encosta, e os degraus entre eles são arquitetura (`UniversityStructure`, `TerracePiece`):
+
+- **O núcleo**, ao norte, com o Auditório atrás dele; **o centro**, da muralha do núcleo até o anel de estrada (pátio,
+  Prédio das Aulas, Dormitórios, Refeitório, Oficina, Enfermaria, arco); **os campos**, ao sul (Campo de Prática,
+  Arena, Laboratório, Estábulos). Todos os prédios de um terraço têm o mesmo chão.
+- **As alturas:** a de cada terraço é a do terreno sob ele (amostrado numa grade, um pouco abaixo do meio, nunca
+  abaixo do mar). O núcleo fica **igual ou até 4 acima** do centro (é o ponto mais alto da casa); os campos, **igual ou
+  até 6 abaixo**.
+- **O lugar e a rotação:** das quatro maneiras de deitar o campus, vence a que **menos pede do terreno**: a distância
+  média do terreno até o terraço sobre ele, somada em cada terraço, mais o que custa manter os terraços a um lance de
+  escada. Se até a melhor passa de um limite (`ROUGHEST`), **a universidade não nasce ali**, e o jogo tenta outro
+  lugar.
+- **O embasamento:** cada terraço é uma plataforma: terra embaixo onde faltava, nada em cima até o céu, grama no topo.
+  O jogo molda o terreno em volta dela (`beard_thin`), e como agora são blocos grandes, o terreno cai em rampa a partir
+  da borda em vez de virar paredão.
+- **Entre os terraços:** a borda do terraço mais alto é um **muro de arrimo** de pedra (base de pedra bruta, faixa de
+  pedra polida no topo, parapeito com lanternas). Uma **escadaria** desce dele onde os caminhos cruzam: do portão do
+  núcleo para o pátio, e do anel de estrada para a entrada do Campo de Prática. As avenidas que vão de um terraço a
+  outro pelos lados dos campos são rampas.
+- **Ajustes:** o pátio, o Refeitório e o arco começam agora uma linha ao sul (z −9), o Campo e o Laboratório uma linha
+  mais ao sul (z 67), para nenhum lote ficar em dois terraços; a torre de escada do Refeitório andou um bloco.
+
+**O platô fortificado** (27/10/2026, pedido do autor: "um platô com as bordas fortificadas"):
+
+- **A universidade fica sempre no alto.** Cada terraço fica 9 blocos acima de três quartos do terreno sob ele; o núcleo,
+  2 a 4 acima do centro (a cidadela). Por baixo, terra nas três primeiras camadas e pedra até o chão firme.
+- **A borda é um baluarte** (corrigido com o autor, com uma foto das muralhas de Valença: o reforço é na encosta, não
+  só em cima): os três últimos blocos de cada terraço viram uma **escarpa de pedra inclinada**, que desce do chão do
+  campus até o pé, 12 abaixo, quatro blocos por degrau, com a face em degraus de escada, de pedra até o chão firme e
+  base de pedra bruta. No topo, o **parapeito** com ameias e lanternas a cada 16. As caixas dos terraços descem até o
+  pé da escarpa, então o terreno em volta é moldado a ele (`beard_thin`): onde a terra é mais alta, vira um fosso raso;
+  onde é mais baixa, um aterro até o pé.
+- **As torres da muralha:** 22, redondas de cone, centradas na linha de fora da escarpa, saindo dela como bastiões, com
+  fundação de pedra desde o pé (as torres da casa, `wallTower`). Nenhuma onde uma torre de dentro ficaria colada (os cantos do núcleo, o arco, o Auditório, a
+  Arena).
+- **Um portão só:** a leste, no arco. A estrada sai por ele e desce até a vila numa rampa de 30 blocos; fora do platô,
+  as estradas assentam numa calçada de pedra até o chão firme.
+- **As bordas alinhadas** (28/10/2026, do teste): os três terraços têm as mesmas bordas oeste e leste (x −70 e 72), o
+  núcleo até z −80 (e o Auditório além), os campos até z 127. Onde um terraço mais baixo sobrava para fora do de cima,
+  ficava uma saliência com parapeito ao pé da escarpa; agora a escarpa é uma linha só, com um degrau onde a altura muda,
+  e nesses degraus fica uma torre-bastião. Para caber: a Arena ficou com o anel de raio 12 (meio em x −53), o pasto dos
+  Estábulos mais estreito (até x 69). Cada terraço fica 9 acima de três quartos do terreno sob ele, e é maciço: terra
+  nas três camadas de cima e pedra até o pé da escarpa, de lá até o chão firme, sem vãos.
+- **Um retângulo só, uma escarpa só** (28/10/2026, do teste): o núcleo ocupa o retângulo inteiro de x −70 a 72 até
+  z −116 (o Auditório dentro dele, com jardins em volta), então o platô não tem mais cantos para dentro, onde ficava um
+  fosso cercado de muralha. Os campos ficam na altura do centro. A escarpa é traçada da altura do centro em volta toda:
+  os degraus de baixo são iguais em todo o contorno, e só o último degrau e o parapeito acompanham o núcleo, mais alto.
+- **O portão:** a passagem na escarpa tem batentes de pedra do pé até acima do parapeito e um arco sobre ela, na face de
+  fora (duas fiadas, a pedra de fecho, ameias, uma lanterna pendurada), entre duas torres-bastião menores. A rampa até a
+  vila é uma calçada de pedra até o chão firme, com parapeito dos dois lados.
+- **Os degraus das estradas** viraram escadas: onde a estrada sobe um bloco, o bloco é um degrau de escada, e não um
+  bloco inteiro para pular.
+- **As avenidas no platô** seguem a altura do terraço em que estão (antes, os trechos do meio pegavam a altura do
+  terreno embaixo, e com o platô alto a estrada afundava numa vala); entre terraços, uma rampa.
+
 ## 6. A ordem
 
 1. **O esqueleto:** o planejador, o núcleo (Salão Central e Biblioteca), as avenidas, os lotes, `beard_thin`; os

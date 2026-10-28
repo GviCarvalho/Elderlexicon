@@ -28,18 +28,18 @@ public class CampusPiece extends StructurePiece {
      */
     public enum Kind {
         NUCLEO(-66, -76, 60, -10, 72),
-        PATIO(-17, -11, 17, 11, 8),
+        PATIO(-17, -9, 17, 11, 8),
         AULAS(-37, 12, 37, 63, 58),
         DORMITORIOS(-64, 27, -42, 52, 68),
-        REFEITORIO(-66, -13, -42, 18, 44),
+        REFEITORIO(-66, -9, -42, 18, 44),
         OFICINA(41, 15, 64, 39, 42),
         ENFERMARIA(41, 40, 62, 59, 36),
-        ARCO(59, -10, 69, 10, 30),
-        CAMPO(-38, 66, 38, 122, 40),
-        ARENA(-72, 70, -38, 106, 36),
-        LABORATORIO(40, 66, 66, 90, 34),
-        ESTABULOS(40, 92, 74, 124, 22),
-        AUDITORIO(18, -114, 58, -77, 46);
+        ARCO(59, -9, 69, 10, 30),
+        CAMPO(-38, 67, 38, 122, 40),
+        ARENA(-67, 70, -39, 106, 36),
+        LABORATORIO(40, 67, 66, 90, 34),
+        ESTABULOS(40, 92, 69, 124, 22),
+        AUDITORIO(18, -113, 57, -77, 46);
 
         final int x0;
         final int z0;

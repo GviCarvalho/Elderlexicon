@@ -3,6 +3,7 @@ package com.elderlexicon.mod.university;
 import com.elderlexicon.mod.galdraria.Galdraria;
 import com.elderlexicon.mod.library.RuneGuides;
 import net.minecraft.core.Direction;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.Block;
@@ -87,9 +88,9 @@ final class CampusBuildings {
      * up; the Descent, a shaft down past the world's zero; the shooting range; the lake with its pier; the dig.
      */
     static void campo(Masonry m) {
-        ground(m, -38, 66, 38, 122, 2);
+        ground(m, -38, 67, 38, 122, 2);
         // The ways: in from the ring road down the middle, and across.
-        pave(m, -1, 66, 1, 120);
+        pave(m, -1, 67, 1, 120);
         pave(m, -36, 93, 36, 95);
         BlockState air = Blocks.AIR.defaultBlockState();
         BlockState stoneBricks = Blocks.STONE_BRICKS.defaultBlockState();
@@ -101,23 +102,14 @@ final class CampusBuildings {
         draw(m, fall);
         if (m.touches(-5, 0, 86, 5, 30, 108)) {
             m.fill(0, 1, 99, 0, 2, 99, air);
-            m.fill(0, 0, 102, 0, 25, 102, Blocks.STRIPPED_DARK_OAK_LOG.defaultBlockState());
-            int[][] ring = {{0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}};
             m.fill(-2, 22, 100, 2, 22, 104, Blocks.SPRUCE_PLANKS.defaultBlockState());
-            for (int[] cell : ring) {
-                m.set(cell[0], 22, 102 + cell[1], air);
-            }
-            for (int y = 1; y <= 22; y++) {
-                int i = (y - 1) % 8;
-                m.set(ring[i][0], y, 102 + ring[i][1], Masonry.stairs(Blocks.DARK_OAK_STAIRS, ringWays[i]));
-            }
-            m.fill(-1, 22, 101, 0, 22, 101, Blocks.SPRUCE_PLANKS.defaultBlockState());
+            slabStair(m, 0, 102, 22, new int[]{22});
             m.fill(0, 23, 99, 0, 24, 99, air);
             m.fill(0, 22, 96, 0, 22, 98, Blocks.SPRUCE_SLAB.defaultBlockState()
                     .setValue(net.minecraft.world.level.block.SlabBlock.TYPE, SlabType.TOP));
             // Hay under all the way the jump can land, two deep.
             m.fill(-2, -1, 89, 2, 0, 98, Blocks.HAY_BLOCK.defaultBlockState());
-            m.chandelier(0, 27, 101, 3);
+            m.chandelier(-2, 27, 102, 2);
         }
 
         if (m.touches(10, -5, 94, 22, 2, 108)) {
@@ -308,7 +300,9 @@ final class CampusBuildings {
 
     // ------------------------------------------------------------------ the arena
 
-    private static final int ARENA_X = -56;
+    private static final int ARENA_X = -53;
+    /** The ring's radius: it fits between the escarp and the avenue down the fields' west side. */
+    private static final int ARENA_R = 12;
     private static final int ARENA_Z = 88;
 
     /**
@@ -319,44 +313,45 @@ final class CampusBuildings {
      * (the creatures open no hatch): with four of them round, the game feels the lesson of impediunt (surrounded).
      */
     static void arena(Masonry m) {
-        ground(m, -72, 70, -38, 106, 2);
+        ground(m, -67, 70, -39, 106, 2);
         int cx = ARENA_X;
         int cz = ARENA_Z;
-        Tower ring = tower(cx, cz, 15, 9, new int[0], new int[0][], 4, true, 2);
+        int r = ARENA_R;
+        Tower ring = tower(cx, cz, r, 9, new int[0], new int[0][], 4, true, 2);
         Tower[] towers = new Tower[4];
         int i = 0;
         for (int sx : new int[]{-1, 1}) {
             for (int sz : new int[]{-1, 1}) {
-                towers[i++] = tower(cx + sx * 11, cz + sz * 11, 3, 18, new int[]{6, 11},
+                towers[i++] = tower(cx + sx * 9, cz + sz * 9, 3, 18, new int[]{6, 11},
                         new int[][]{{8, 9}, {13, 14}}, 4, false, 3);
             }
         }
         for (Tower t : towers) {
             draw(m, t, ring);
         }
-        if (!m.touches(cx - 17, -8, cz - 17, cx + 17, 12, cz + 17)) {
+        if (!m.touches(cx - r - 2, -8, cz - r - 2, cx + r + 2, 12, cz + r + 2)) {
             return;
         }
         BlockState air = Blocks.AIR.defaultBlockState();
         BlockState stoneBricks = Blocks.STONE_BRICKS.defaultBlockState();
         // The ring's wall: on a plinth, a band at its top, corbels and a parapet, a battered foot; arches all round.
-        for (int dx = -17; dx <= 17; dx++) {
-            for (int dz = -17; dz <= 17; dz++) {
+        for (int dx = -r - 2; dx <= r + 2; dx++) {
+            for (int dz = -r - 2; dz <= r + 2; dz++) {
                 int x = cx + dx;
                 int z = cz + dz;
                 boolean inTower = false;
                 for (Tower t : towers) {
                     inTower |= t.holds(x, z);
                 }
-                if (inTower || within(dx, dz, 14.5D)) {
+                if (inTower || within(dx, dz, r - 0.5D)) {
                     continue;
                 }
-                if (within(dx, dz, 15.5D)) {
+                if (within(dx, dz, r + 0.5D)) {
                     for (int y = 0; y <= 9; y++) {
                         m.set(x, y, z, y <= 1 ? CampusHouse.plinth(m, x, y, z) : y == 9
                                 ? Blocks.POLISHED_ANDESITE.defaultBlockState() : m.stone(x, y, z));
                     }
-                } else if (within(dx, dz, 16.5D)) {
+                } else if (within(dx, dz, r + 1.5D)) {
                     Direction in = outward(dx, dz).getOpposite();
                     m.set(x, 0, z, stoneBricks);
                     m.set(x, 1, z, Blocks.COBBLESTONE.defaultBlockState());
@@ -370,26 +365,27 @@ final class CampusBuildings {
                 }
             }
         }
-        for (int k = 0; k < 28; k++) {
-            double angle = (k + 0.5D) * 2.0D * Math.PI / 28;
-            int dx = (int) Math.round(15 * Math.cos(angle));
-            int dz = (int) Math.round(15 * Math.sin(angle));
+        for (int k = 0; k < 24; k++) {
+            double angle = (k + 0.5D) * 2.0D * Math.PI / 24;
+            int dx = (int) Math.round(r * Math.cos(angle));
+            int dz = (int) Math.round(r * Math.sin(angle));
             boolean inTower = false;
             for (Tower t : towers) {
                 inTower |= t.holds(cx + dx, cz + dz) || within(cx + dx - t.cx(), cz + dz - t.cz(), 3.5D);
             }
-            if (!inTower && within(dx, dz, 15.5D) && !within(dx, dz, 14.5D)) {
+            if (!inTower && within(dx, dz, r + 0.5D) && !within(dx, dz, r - 0.5D)) {
                 m.fill(cx + dx, 4, cz + dz, cx + dx, 6, cz + dz, air);
                 m.set(cx + dx, 3, cz + dz, Blocks.POLISHED_ANDESITE.defaultBlockState());
             }
         }
         // The stands, five steps of seats round the wall facing in; the floor of the duels, walled low, the grate.
-        for (int dx = -15; dx <= 15; dx++) {
-            for (int dz = -15; dz <= 15; dz++) {
+        double floor = r - 5.5D;
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
                 double d = Math.sqrt(dx * dx + dz * dz);
                 int x = cx + dx;
                 int z = cz + dz;
-                if (d > 14.5D) {
+                if (d > r - 0.5D) {
                     continue;
                 }
                 boolean inTower = false;
@@ -400,17 +396,17 @@ final class CampusBuildings {
                     continue;
                 }
                 boolean gate = Math.abs(dz) <= 1 && dx > 0;
-                if (d > 9.5D) {
+                if (d > floor) {
                     if (gate) {
                         m.fill(x, 1, z, x, 4, z, air);
                         m.set(x, 0, z, Blocks.POLISHED_ANDESITE.defaultBlockState());
                         continue;
                     }
-                    int row = Math.min(5, (int) Math.floor(d - 9.5D) + 1);
+                    int row = Math.min(5, (int) Math.floor(d - floor) + 1);
                     if (row > 1) {
                         m.fill(x, 1, z, x, row - 1, z, stoneBricks);
                     }
-                    m.set(x, row, z, row == 5 && d > 13.5D ? stoneBricks
+                    m.set(x, row, z, row == 5 && d > r - 1.5D ? stoneBricks
                             : Masonry.stairs(Blocks.SPRUCE_STAIRS, outward(dx, dz)));
                     m.fill(x, row + 1, z, x, 8, z, air);
                 } else {
@@ -418,55 +414,55 @@ final class CampusBuildings {
                             : Math.floorMod((int) Math.floor(d), 3) == 0 ? Blocks.CHISELED_SANDSTONE.defaultBlockState()
                             : Blocks.SMOOTH_SANDSTONE.defaultBlockState());
                     m.fill(x, 1, z, x, 8, z, air);
-                    if (d > 8.5D && !gate) {
+                    if (d > floor - 1.0D && !gate) {
                         m.set(x, 1, z, Blocks.STONE_BRICK_WALL.defaultBlockState());
                     }
                 }
             }
         }
         // The gate, east, under the stands.
-        for (int x = cx + 10; x <= cx + 16; x++) {
+        for (int x = cx + r - 5; x <= cx + r + 1; x++) {
             for (int dz = -1; dz <= 1; dz++) {
                 m.fill(x, 1, cz + dz, x, 3, cz + dz, air);
                 m.set(x, 0, cz + dz, Blocks.POLISHED_ANDESITE.defaultBlockState());
             }
         }
         for (int dz = -1; dz <= 1; dz++) {
-            m.set(cx + 15, 4, cz + dz, Masonry.stairsUpsideDown(Blocks.STONE_BRICK_STAIRS, Direction.WEST));
+            m.set(cx + r, 4, cz + dz, Masonry.stairsUpsideDown(Blocks.STONE_BRICK_STAIRS, Direction.WEST));
         }
         for (int dz : new int[]{-2, 2}) {
-            m.fill(cx + 16, 1, cz + dz, cx + 16, 2, cz + dz, Blocks.STONE_BRICK_WALL.defaultBlockState());
-            m.set(cx + 16, 3, cz + dz, Blocks.LANTERN.defaultBlockState());
+            m.fill(cx + r + 1, 1, cz + dz, cx + r + 1, 2, cz + dz, Blocks.STONE_BRICK_WALL.defaultBlockState());
+            m.set(cx + r + 1, 3, cz + dz, Blocks.LANTERN.defaultBlockState());
         }
         // The pit of creatures: round and dark, seven deep, the spawner in its middle.
-        for (int dx = -7; dx <= 7; dx++) {
-            for (int dz = -7; dz <= 7; dz++) {
-                if (!within(dx, dz, 7.5D)) {
+        for (int dx = -6; dx <= 6; dx++) {
+            for (int dz = -6; dz <= 6; dz++) {
+                if (!within(dx, dz, 5.5D)) {
                     continue;
                 }
                 m.set(cx + dx, -7, cz + dz, stoneBricks);
                 for (int y = -6; y <= -1; y++) {
-                    m.set(cx + dx, y, cz + dz, within(dx, dz, 6.5D) ? air : m.stone(cx + dx, y, cz + dz));
+                    m.set(cx + dx, y, cz + dz, within(dx, dz, 4.5D) ? air : m.stone(cx + dx, y, cz + dz));
                 }
             }
         }
-        if (m.set(0 + cx, -6, cz, Blocks.SPAWNER.defaultBlockState())
+        if (m.set(cx, -6, cz, Blocks.SPAWNER.defaultBlockState())
                 && m.level.getBlockEntity(m.at(cx, -6, cz))
                 instanceof net.minecraft.world.level.block.entity.SpawnerBlockEntity spawner) {
             spawner.setEntityId(net.minecraft.world.entity.EntityType.ZOMBIE, m.level.getRandom());
         }
         // The way down: a hatch in the floor by the gate, a ladder down the pit's wall.
-        m.set(cx + 6, 0, cz, Blocks.SPRUCE_TRAPDOOR.defaultBlockState()
+        m.set(cx + 4, 0, cz, Blocks.SPRUCE_TRAPDOOR.defaultBlockState()
                 .setValue(net.minecraft.world.level.block.TrapDoorBlock.FACING, Direction.WEST)
                 .setValue(net.minecraft.world.level.block.TrapDoorBlock.HALF,
                         net.minecraft.world.level.block.state.properties.Half.TOP));
-        m.fill(cx + 6, -6, cz, cx + 6, -1, cz, Blocks.LADDER.defaultBlockState()
+        m.fill(cx + 4, -6, cz, cx + 4, -1, cz, Blocks.LADDER.defaultBlockState()
                 .setValue(net.minecraft.world.level.block.LadderBlock.FACING, Direction.WEST));
         // Lights on the stands' top, and in the towers.
         for (int k = 0; k < 12; k++) {
             double angle = k * Math.PI / 6.0D;
-            int x = cx + (int) Math.round(14 * Math.cos(angle));
-            int z = cz + (int) Math.round(14 * Math.sin(angle));
+            int x = cx + (int) Math.round((r - 1) * Math.cos(angle));
+            int z = cz + (int) Math.round((r - 1) * Math.sin(angle));
             boolean nearTower = false;
             for (Tower t : towers) {
                 nearTower |= within(x - t.cx(), z - t.cz(), 4.5D);
@@ -490,7 +486,7 @@ final class CampusBuildings {
      * the greenhouse, from the west.
      */
     static void laboratorio(Masonry m) {
-        ground(m, 40, 66, 66, 90, 2);
+        ground(m, 40, 67, 66, 90, 2);
         Tower lab = new Tower(56, 78, 6, 14, new int[]{7}, new int[][]{{3, 5}, {9, 11}}, 8, false, 2,
                 Blocks.EXPOSED_CUT_COPPER.defaultBlockState(), Blocks.EXPOSED_CUT_COPPER_SLAB.defaultBlockState());
         Tower green = new Tower(46, 76, 5, 7, new int[0], new int[0][], 4, false, 2, Blocks.GLASS.defaultBlockState(),
@@ -587,7 +583,7 @@ final class CampusBuildings {
      * east, fenced, with its trough. Horses in the stalls, cows and sheep in the pasture (people).
      */
     static void estabulos(Masonry m) {
-        ground(m, 40, 92, 74, 124, 2);
+        ground(m, 40, 92, 69, 124, 2);
         Tower house = new Tower(54, 106, 8, 5, new int[0], new int[][]{{3, 3}}, 16, false, 1,
                 Blocks.SPRUCE_PLANKS.defaultBlockState(), Blocks.SPRUCE_SLAB.defaultBlockState());
         Tower dove = tower(44, 119, 3, 14, new int[]{5}, new int[0][], 8, false, 3);
@@ -650,22 +646,22 @@ final class CampusBuildings {
             m.chandelier(44, 5, 118, 1);
             m.chandelier(44, 14, 119, 2);
         }
-        if (m.touches(62, 0, 94, 73, 3, 122)) {
+        if (m.touches(62, 0, 94, 70, 3, 122)) {
             // The pasture: fenced, a gate toward the stables, a trough, lights at its corners.
-            for (int x = 63; x <= 72; x++) {
+            for (int x = 63; x <= 69; x++) {
                 for (int z : new int[]{95, 121}) {
                     m.set(x, 1, z, Blocks.SPRUCE_FENCE.defaultBlockState());
                 }
             }
             for (int z = 95; z <= 121; z++) {
-                for (int x : new int[]{63, 72}) {
+                for (int x : new int[]{63, 69}) {
                     m.set(x, 1, z, Blocks.SPRUCE_FENCE.defaultBlockState());
                 }
             }
             m.set(63, 1, 106, Blocks.SPRUCE_FENCE_GATE.defaultBlockState()
                     .setValue(net.minecraft.world.level.block.FenceGateBlock.FACING, Direction.EAST));
-            m.fill(70, 0, 100, 70, 0, 103, Blocks.WATER.defaultBlockState());
-            for (int[] at : new int[][]{{63, 95}, {72, 95}, {63, 121}, {72, 121}}) {
+            m.fill(67, 0, 100, 67, 0, 103, Blocks.WATER.defaultBlockState());
+            for (int[] at : new int[][]{{63, 95}, {69, 95}, {63, 121}, {69, 121}}) {
                 m.set(at[0], 2, at[1], Blocks.LANTERN.defaultBlockState());
             }
         }
@@ -704,7 +700,7 @@ final class CampusBuildings {
      * over the top rows, up the turrets' ladders; the doors at the front, beside the dais.
      */
     static void auditorio(Masonry m) {
-        ground(m, 18, -114, 58, -77, 2);
+        ground(m, 18, -113, 57, -77, 2);
         int cx = AUDITORIUM_X;
         int cz = AUDITORIUM_Z;
         Tower hall = tower(cx, cz, 14, 16, new int[0], new int[][]{{9, 13}}, 14, true, 2);
@@ -1011,11 +1007,11 @@ final class CampusBuildings {
                 }
             }
         }
-        // The spiral up the well, and a bridge from it to each gallery.
-        spiral(m, -44, -44, 12, new int[]{6, 12});
+        // The stair of slabs up the well, and a bridge to each gallery from where it comes up to it.
+        slabStair(m, -44, -44, 12, new int[]{6, 12});
         int[][] ring = {{0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}};
         for (int floor : new int[]{6, 12}) {
-            int[] out = ring[(floor - 1) % 8];
+            int[] out = ring[slabStairCell(floor)];
             for (int k = 2; within(out[0] * k, out[1] * k, 6.5D); k++) {
                 int x = -44 + out[0] * k;
                 int z = -44 + out[1] * k;
@@ -1096,7 +1092,7 @@ final class CampusBuildings {
             }
         }
         towerEntrance(m, 36, -48, Direction.WEST, Blocks.DARK_OAK_DOOR);
-        spiral(m, 42, -48, 28, new int[]{7, 14, 21, 28});
+        slabStair(m, 42, -48, 28, new int[]{7, 14, 21, 28});
         // The foot: the researchers' counter, the barrels of the house's asks behind it.
         m.fill(45, 1, -51, 45, 1, -45, Blocks.STRIPPED_SPRUCE_LOG.defaultBlockState().setValue(
                 net.minecraft.world.level.block.RotatedPillarBlock.AXIS, Direction.Axis.Z));
@@ -1167,7 +1163,7 @@ final class CampusBuildings {
      * corbels under an eave and a slate cone with its rod; a light on every floor (nothing is born in it). With
      * {@code door}, a door at its foot that way, into the core.
      */
-    private static void wallTower(Masonry m, int cx, int cz, int r, int top, Direction door) {
+    static void wallTower(Masonry m, int cx, int cz, int r, int top, Direction door) {
         Tower t = tower(cx, cz, r, top, top > 13 ? new int[]{6, 12} : new int[]{6},
                 top > 13 ? new int[][]{{8, 9}, {14, 15}} : new int[][]{{8, 10}}, r > 4 ? 6 : 4, false, 3);
         draw(m, t);
@@ -1196,8 +1192,8 @@ final class CampusBuildings {
 
     /** The courtyard before the core's gate: paved, the fountain in the middle, lamp posts round it. */
     static void patio(Masonry m) {
-        ground(m, -17, -11, 17, 11, 8);
-        pave(m, -16, -10, 16, 10);
+        ground(m, -17, -9, 17, 11, 8);
+        pave(m, -16, -9, 16, 10);
         m.ring(0, 0, 0, 5, Blocks.STONE_BRICKS.defaultBlockState(), true);
         m.ring(0, 1, 0, 5, Blocks.STONE_BRICKS.defaultBlockState(), true);
         m.ring(0, 1, 0, 4, Blocks.WATER.defaultBlockState(), true);
@@ -1285,28 +1281,32 @@ final class CampusBuildings {
         Tower gate = tower(0, 17, 4, 37, new int[]{6, 12, 18, 24, 30},
                 new int[][]{{8, 10}, {14, 16}, {20, 22}, {26, 28}}, 6, false, 3);
         int[][] rows = {{3, 4}, {8, 10}, {14, 16}};
-        Tower west = tower(-18, 30, 9, WING_TOP, new int[]{6, 12}, rows, 10, true, 2);
-        Tower east = tower(18, 30, 9, WING_TOP, new int[]{6, 12}, rows, 10, true, 2);
-        Tower south = tower(0, 48, 9, WING_TOP, new int[]{6, 12}, rows, 10, true, 2);
+        // Twelve windows round a wing: none falls where the wall between the class and the master's room meets the
+        // ring, nor on the axis toward the keep and the turret.
+        Tower west = tower(-18, 30, 9, WING_TOP, new int[]{6, 12}, rows, 12, true, 2);
+        Tower east = tower(18, 30, 9, WING_TOP, new int[]{6, 12}, rows, 12, true, 2);
+        Tower south = tower(0, 48, 9, WING_TOP, new int[]{6, 12}, rows, 12, true, 2);
         int[][] turretRows = {{8, 9}, {14, 15}, {20, 22}};
         Tower westTurret = tower(-28, 30, 3, 26, new int[]{6, 12, 18}, turretRows, 4, false, 3);
         Tower eastTurret = tower(28, 30, 3, 26, new int[]{6, 12, 18}, turretRows, 4, false, 3);
         Tower southTurret = tower(0, 58, 3, 26, new int[]{6, 12, 18}, turretRows, 4, false, 3);
-        draw(m, gate, keep);
-        draw(m, westTurret, west);
-        draw(m, eastTurret, east);
-        draw(m, southTurret, south);
+        // From the lowest to the tallest: a taller tower's inside is cleared last, so no roof or cone of a lower one
+        // runs through it.
         draw(m, west, keep, westTurret);
         draw(m, east, keep, eastTurret);
         draw(m, south, keep, southTurret);
+        draw(m, westTurret, west);
+        draw(m, eastTurret, east);
+        draw(m, southTurret, south);
         draw(m, keep, gate, west, east, south);
+        draw(m, gate, keep);
         belfry(m);
         if (!m.touches(-37, 0, 12, 37, WING_TOP + 12, 63)) {
             return;
         }
         towerEntrance(m, 0, 13, Direction.NORTH, Blocks.DARK_OAK_DOOR);
         // The keep: the great spiral round its post; the hall below, rooms of study, the house's library at the top.
-        spiral(m, 0, 30, 24, new int[]{6, 12, 18, 24});
+        slabStair(m, 0, 30, 24, new int[]{6, 12, 18, 24});
         for (int floor : new int[]{0, 6, 12, 18, 24}) {
             for (int[] at : new int[][]{{-5, 30}, {5, 30}, {0, 25}, {0, 35}}) {
                 m.chandelier(at[0], floor + 6, at[1], 2);
@@ -1354,14 +1354,49 @@ final class CampusBuildings {
         for (int[] at : new int[][]{{-28, 30}, {28, 30}, {0, 58}}) {
             m.chandelier(at[0], 26, at[1], 3);
         }
-        m.fill(0, 25, 14, 0, 30, 14, Blocks.LADDER.defaultBlockState()
-                .setValue(net.minecraft.world.level.block.LadderBlock.FACING, Direction.SOUTH));
+        // Up to the belfry by the west wall, where no window is.
+        m.fill(-3, 25, 17, -3, 30, 17, Blocks.LADDER.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.LadderBlock.FACING, Direction.EAST));
         for (int floor : new int[]{0, 6, 12, 18, 24}) {
             m.chandelier(0, floor + 6, 18, 2);
         }
+        // Last, nothing stands behind a window: what the rooms put against the wall there is taken away.
+        unblock(m, west, keep, westTurret);
+        unblock(m, east, keep, eastTurret);
+        unblock(m, south, keep, southTurret);
+        unblock(m, westTurret, west);
+        unblock(m, eastTurret, east);
+        unblock(m, southTurret, south);
+        unblock(m, keep, gate, west, east, south);
+        unblock(m, gate, keep);
     }
 
-    /** The gate tower's belfry: pointed arches three wide on its four faces, a railing, the bell on its floor. */
+    /**
+     * Takes away what stands just inside a window of {@code t} (the windows {@link #draw} makes, with the same
+     * {@code open}): a shelf against the wall there is gone, and the window looks into the room.
+     */
+    private static void unblock(Masonry m, Tower t, Tower... open) {
+        for (int[] row : t.rows()) {
+            for (int k = 0; k < t.n(); k++) {
+                double angle = (k + 0.5D) * 2.0D * Math.PI / t.n();
+                int dx = (int) Math.round(t.r() * Math.cos(angle));
+                int dz = (int) Math.round(t.r() * Math.sin(angle));
+                if (within(dx, dz, t.r() - 0.5D) || !within(dx, dz, t.r() + 0.5D)
+                        || openedTo(t, t.cx() + dx, t.cz() + dz, open) >= row[0] || blinded(t, dx, dz, row, open)) {
+                    continue;
+                }
+                int ix = t.cx() + (int) Math.round((t.r() - 1) * Math.cos(angle));
+                int iz = t.cz() + (int) Math.round((t.r() - 1) * Math.sin(angle));
+                for (int y = row[0] - 1; y <= row[1] + 1; y++) {
+                    if (m.get(ix, y, iz).is(Blocks.BOOKSHELF)) {
+                        m.set(ix, y, iz, Blocks.AIR.defaultBlockState());
+                    }
+                }
+            }
+        }
+    }
+
+    /** The gate tower's belfry: pointed arches three wide on its four faces on a sill of stone, the bell on its floor. */
     private static void belfry(Masonry m) {
         if (!m.touches(-5, 30, 12, 5, 36, 22)) {
             return;
@@ -1371,7 +1406,7 @@ final class CampusBuildings {
                 int x = face.getStepX() * 4 + (face.getStepZ() != 0 ? s : 0);
                 int z = 17 + face.getStepZ() * 4 + (face.getStepX() != 0 ? s : 0);
                 m.fill(x, 32, z, x, s == 0 ? 35 : 34, z, Blocks.AIR.defaultBlockState());
-                m.set(x, 31, z, Blocks.STONE_BRICK_WALL.defaultBlockState());
+                m.set(x, 31, z, Blocks.POLISHED_ANDESITE.defaultBlockState());
             }
         }
         m.set(0, 31, 17, Blocks.BELL.defaultBlockState()
@@ -1381,21 +1416,115 @@ final class CampusBuildings {
         m.chandelier(0, 37, 17, 2);
     }
 
-    /** A spiral stair round a post at {@code (cx, cz)}, a step a cell from y = 1 up to {@code to}; holes in the floors. */
-    private static void spiral(Masonry m, int cx, int cz, int to, int[] floors) {
+    /** Which cell round the post (of the ring, from the north, clockwise) the stair of slabs comes up on {@code floor}. */
+    private static int slabStairCell(int floor) {
+        return (2 * floor - 1) % 8;
+    }
+
+    /**
+     * The first stair round a post, of slabs: one wide, round a post of wood, each step half a block above the last
+     * (a slab low in its block, then one high in the next), a step to each cell round the post, four up to a turn, so
+     * the climb never asks for a jump. From the ground up to {@code to}; a floor opens only over the last of the climb
+     * up to it, where a head would meet it, and the stair comes out on it at its height.
+     */
+    private static void slabStair(Masonry m, int cx, int cz, int to, int[] floors) {
         int[][] ring = {{0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}};
-        for (int floor : floors) {
-            for (int[] cell : ring) {
-                m.set(cx + cell[0], floor, cz + cell[1], Blocks.AIR.defaultBlockState());
+        m.fill(cx, 0, cz, cx, to + 4, cz, Blocks.STRIPPED_DARK_OAK_LOG.defaultBlockState());
+        BlockState low = Blocks.DARK_OAK_SLAB.defaultBlockState();
+        BlockState high = low.setValue(net.minecraft.world.level.block.SlabBlock.TYPE, SlabType.TOP);
+        for (int n = 0; ; n++) {
+            double surface = 1.5D + n * 0.5D;
+            if (surface > to + 1) {
+                break;
+            }
+            int[] cell = ring[n % ring.length];
+            for (int floor : floors) {
+                if (surface > floor - 2.5D && surface <= floor + 0.5D) {
+                    m.set(cx + cell[0], floor, cz + cell[1], Blocks.AIR.defaultBlockState());
+                }
             }
         }
-        m.fill(cx, 0, cz, cx, to + 4, cz, Blocks.STRIPPED_DARK_OAK_LOG.defaultBlockState());
-        for (int y = 1; y <= to; y++) {
-            int[] here = ring[(y - 1) % 8];
-            int[] next = ring[y % 8];
-            Direction way = next[0] > here[0] ? Direction.EAST : next[0] < here[0] ? Direction.WEST
-                    : next[1] > here[1] ? Direction.SOUTH : Direction.NORTH;
-            m.set(cx + here[0], y, cz + here[1], Masonry.stairs(Blocks.DARK_OAK_STAIRS, way));
+        for (int n = 0; ; n++) {
+            double surface = 1.5D + n * 0.5D;
+            if (surface > to + 1) {
+                break;
+            }
+            int[] cell = ring[n % ring.length];
+            int y = (int) Math.floor(surface);
+            if (surface == y) {
+                m.set(cx + cell[0], y - 1, cz + cell[1], high);
+            } else {
+                m.set(cx + cell[0], y, cz + cell[1], low);
+            }
+        }
+    }
+
+    /**
+     * The broad stair round a pillar, the endless tower's (nahva/TowerRealm): a pillar of stone {@code 2 * pillar + 1}
+     * wide (one block, or three as the tower's), the steps two wide round it, sixteen to a turn, each half a block above the last (a block, then a slab), so the climb never asks
+     * for a jump; eight up to a turn. From the ground up to {@code to}; a floor opens only over the last of the climb up
+     * to it, where a head would meet it, and the stair comes out on it at its height.
+     */
+    private static void broadStair(Masonry m, int cx, int cz, int to, int[] floors, int pillar) {
+        BlockState air = Blocks.AIR.defaultBlockState();
+        for (int y = 0; y <= to + 4; y++) {
+            for (int dx = -pillar; dx <= pillar; dx++) {
+                for (int dz = -pillar; dz <= pillar; dz++) {
+                    boolean band = y % 6 == 0;
+                    m.set(cx + dx, y, cz + dz, (band ? Blocks.POLISHED_ANDESITE : Blocks.STONE_BRICKS)
+                            .defaultBlockState());
+                }
+            }
+        }
+        int inner = pillar + 1;
+        int outer = pillar + 2;
+        BlockState step = Blocks.DARK_OAK_PLANKS.defaultBlockState();
+        BlockState half = Blocks.DARK_OAK_SLAB.defaultBlockState();
+        for (int dx = -outer; dx <= outer; dx++) {
+            for (int dz = -outer; dz <= outer; dz++) {
+                if (Math.max(Math.abs(dx), Math.abs(dz)) < inner) {
+                    continue;
+                }
+                double angle = Math.atan2(dz, dx);
+                angle = ((angle % (2.0D * Math.PI)) + 2.0D * Math.PI) % (2.0D * Math.PI);
+                int sector = Mth.clamp((int) (angle / (2.0D * Math.PI) * 16.0D), 0, 15);
+                // A floor opens over a step only where the climber's head would meet it (the endless tower's: the
+                // floor above opens over the last of the climb up to it); elsewhere it stays whole.
+                for (int turn = 0; ; turn++) {
+                    double surface = 1 + turn * 8 + sector * 0.5D;
+                    if (surface > to + 1) {
+                        break;
+                    }
+                    for (int floor : floors) {
+                        if (surface > floor - 2.5D && surface <= floor + 0.5D) {
+                            m.set(cx + dx, floor, cz + dz, air);
+                        }
+                    }
+                }
+                for (int turn = 0; ; turn++) {
+                    double surface = 1 + turn * 8 + sector * 0.5D;
+                    if (surface > to + 1) {
+                        break;
+                    }
+                    int y = (int) Math.floor(surface);
+                    if (surface == y) {
+                        m.set(cx + dx, y - 1, cz + dz, step);
+                    } else {
+                        m.set(cx + dx, y, cz + dz, half);
+                    }
+                }
+            }
+        }
+        // Light set in the pillar, a little over every floor and halfway between (its faces, if it is broad).
+        for (int y = 3; y <= to + 3; y += 3) {
+            if (pillar == 0) {
+                m.set(cx, y, cz, Blocks.SHROOMLIGHT.defaultBlockState());
+                continue;
+            }
+            for (Direction face : Direction.Plane.HORIZONTAL) {
+                m.set(cx + face.getStepX() * pillar, y, cz + face.getStepZ() * pillar,
+                        Blocks.SHROOMLIGHT.defaultBlockState());
+            }
         }
     }
 
@@ -1962,7 +2091,7 @@ final class CampusBuildings {
                 if (within(dx, dz, t.r() - 0.5D) || !within(dx, dz, t.r() + 0.5D)) {
                     continue;
                 }
-                if (openedTo(t, t.cx() + dx, t.cz() + dz, open) >= row[0]) {
+                if (openedTo(t, t.cx() + dx, t.cz() + dz, open) >= row[0] || blinded(t, dx, dz, row, open)) {
                     continue;
                 }
                 for (int y = row[0]; y <= row[1]; y++) {
@@ -1973,6 +2102,25 @@ final class CampusBuildings {
         }
         m.cone(t.cx(), t.top() + 1, t.cz(), t.coneRadius(), t.step(), t.cone(), t.edge());
         m.set(t.cx(), t.apex(), t.cz(), Blocks.LIGHTNING_ROD.defaultBlockState()); // in place of the top slab
+    }
+
+    /**
+     * Whether a window of {@code t} at {@code (dx, dz)} from its middle would look straight onto one of {@code open}:
+     * its wall or its cone just outside, at the window's height. A window that shows only stone is left out.
+     */
+    private static boolean blinded(Tower t, int dx, int dz, int[] row, Tower... open) {
+        double d = Math.sqrt(dx * dx + dz * dz);
+        for (int s = 1; s <= 2; s++) {
+            int px = t.cx() + (int) Math.round(dx * (t.r() + s) / d);
+            int pz = t.cz() + (int) Math.round(dz * (t.r() + s) / d);
+            for (Tower o : open) {
+                double reach = Math.max(o.r() + 1.5D, o.coneRadius() + 0.5D);
+                if (within(px - o.cx(), pz - o.cz(), reach) && row[0] <= o.apex()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** How high {@code t}'s wall is left open at {@code (x, z)}, within one of {@code open}: below the lower roof. */
@@ -2041,10 +2189,10 @@ final class CampusBuildings {
      * turret to the north-east, a ladder up to the pantry and on to a lookout.
      */
     static void refeitorio(Masonry m) {
-        ground(m, -65, -12, -43, 17, 2);
+        ground(m, -65, -9, -43, 17, 2);
         Tower kitchen = tower(-54, 11, 4, 24, new int[0], new int[][]{{3, 4}, {9, 11}, {16, 18}}, 6, false, 3);
         Tower hall = tower(-54, 0, 8, 14, new int[]{8}, new int[][]{{3, 6}, {10, 12}}, 10, true, 2);
-        Tower stair = tower(-48, -7, 2, 20, new int[]{8, 14}, new int[][]{{11, 12}, {16, 18}}, 4, false, 3);
+        Tower stair = tower(-48, -6, 2, 20, new int[]{8, 14}, new int[][]{{11, 12}, {16, 18}}, 4, false, 3);
         draw(m, kitchen, hall);
         draw(m, stair, hall);
         draw(m, hall, kitchen, stair);
@@ -2082,14 +2230,14 @@ final class CampusBuildings {
         // The pantry above the hall, up the stair turret's ladder.
         BlockState ladder = Blocks.LADDER.defaultBlockState()
                 .setValue(net.minecraft.world.level.block.LadderBlock.FACING, Direction.SOUTH);
-        m.fill(-48, 1, -8, -48, 14, -8, ladder);
+        m.fill(-48, 1, -7, -48, 14, -7, ladder);
         for (int[] at : new int[][]{{-58, -5}, {-50, -5}, {-58, 5}, {-50, 5}, {-60, -2}, {-60, 2}, {-48, 2}}) {
             m.set(at[0], 9, at[1], Blocks.BARREL.defaultBlockState());
         }
         m.set(-56, 9, 6, Blocks.HAY_BLOCK.defaultBlockState());
         m.set(-52, 9, 6, Blocks.HAY_BLOCK.defaultBlockState());
         m.chandelier(-54, 14, 0, 2);
-        m.chandelier(-48, 20, -7, 3);
+        m.chandelier(-48, 20, -6, 3);
     }
 
     /**
@@ -2205,7 +2353,7 @@ final class CampusBuildings {
      * them, the walk across its top, the house's banners on its outer face.
      */
     static void arco(Masonry m) {
-        ground(m, 59, -10, 69, 10, 14);
+        ground(m, 59, -9, 69, 10, 14);
         if (!m.touches(59, 0, -10, 69, 30, 10)) {
             return;
         }
@@ -2408,7 +2556,7 @@ final class CampusBuildings {
                 }
                 animal(m, net.minecraft.world.entity.EntityType.COW, 66, 100);
                 animal(m, net.minecraft.world.entity.EntityType.COW, 68, 112);
-                animal(m, net.minecraft.world.entity.EntityType.SHEEP, 70, 108);
+                animal(m, net.minecraft.world.entity.EntityType.SHEEP, 66, 108);
                 animal(m, net.minecraft.world.entity.EntityType.SHEEP, 66, 116);
             }
             case ENFERMARIA -> {
